@@ -2,6 +2,9 @@ using Bocchi.Home.WebHost.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Razor Pages
+builder.Services.AddRazorPages();
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -24,6 +27,10 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+// Razor Pages
+app.MapRazorPages();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
