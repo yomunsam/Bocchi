@@ -1,0 +1,45 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Src", "Src", "{FBD46DFD-D84F-4CAD-953B-BCD4CB689235}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Home", "Home", "{8CAE4FE2-2B90-4EAA-A339-D07C3A8D170A}"
+	ProjectSection(SolutionItems) = preProject
+		Src\Home\README.md = Src\Home\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Remote", "Remote", "{85C300B6-7922-411C-BF71-86BCC79F3CE9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FrontEnd", "FrontEnd", "{F2FC94D3-9419-49A1-A4F7-D5BD74D55127}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bocchi.Home.WebHost", "Src\Home\Bocchi.Home.WebHost\Bocchi.Home.WebHost.csproj", "{B92D2FDE-5589-4693-B374-0450E44117CA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sln", "Sln", "{16A8904C-5248-4CF8-A267-50BF32BD0825}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B92D2FDE-5589-4693-B374-0450E44117CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B92D2FDE-5589-4693-B374-0450E44117CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B92D2FDE-5589-4693-B374-0450E44117CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B92D2FDE-5589-4693-B374-0450E44117CA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8CAE4FE2-2B90-4EAA-A339-D07C3A8D170A} = {FBD46DFD-D84F-4CAD-953B-BCD4CB689235}
+		{85C300B6-7922-411C-BF71-86BCC79F3CE9} = {FBD46DFD-D84F-4CAD-953B-BCD4CB689235}
+		{F2FC94D3-9419-49A1-A4F7-D5BD74D55127} = {FBD46DFD-D84F-4CAD-953B-BCD4CB689235}
+		{B92D2FDE-5589-4693-B374-0450E44117CA} = {8CAE4FE2-2B90-4EAA-A339-D07C3A8D170A}
+	EndGlobalSection
+EndGlobal

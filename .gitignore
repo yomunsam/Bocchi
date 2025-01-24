@@ -1,4 +1,4 @@
-# # Dotnet
+# Dotnet
 [Bb]in/
 [Oo]bj/
 *.user
@@ -30,6 +30,7 @@ mono_crash.*
 [Rr]eleases/
 
 
-# Cocoa
+# Bocchi
 [Ll]og/
 [Ll]ogs/
+*.Development.json
