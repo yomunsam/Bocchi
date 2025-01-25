@@ -34,3 +34,6 @@ mono_crash.*
 [Ll]og/
 [Ll]ogs/
 *.Development.json
+*.db
+*.db-shm
+*.db-wal

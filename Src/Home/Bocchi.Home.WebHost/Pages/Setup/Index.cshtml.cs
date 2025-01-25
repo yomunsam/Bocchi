@@ -2,6 +2,7 @@ using Bocchi.Home.Core.Data;
 using Bocchi.Home.WebHost.Helper.Setup;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bocchi.Home.WebHost.Pages.Setup
 {
@@ -14,7 +15,7 @@ namespace Bocchi.Home.WebHost.Pages.Setup
         /// <summary>
         /// 数据库是否已经准备好
         /// </summary>
-        public bool IsDatabaseReady { get; set; } = false;
+        public bool IsDatabaseReady => IsDbCreated && !NeedDbMigrate;
 
         public bool IsDbCreated { get; set; } = false;
         public bool NeedDbMigrate { get; set; } = false;
@@ -31,17 +32,31 @@ namespace Bocchi.Home.WebHost.Pages.Setup
         public async Task<IActionResult> OnGetAsync()
         {   
             // 检查数据库是否已准备好
-            IsDatabaseReady = SetupHelper.CheckDatabaseReady(dbContext, out var isCreated, out var needMigrate);
-            IsDbCreated = isCreated;
-            NeedDbMigrate = needMigrate;
+            var dbReady = await SetupHelper.CheckDatabaseReadyAsync(dbContext);
+            IsDbCreated = dbReady.isCreated;
+            NeedDbMigrate = dbReady.needMigrate;
 
-            await Task.Yield();
 
-            // if (IsSetup)
-            // {
-            //     return NotFound();
-            // }
+            if (IsSetup)
+            {
+                return Redirect("~/");
+            }
             return Page();
+        }
+
+        public async Task<IActionResult> OnPostDbMigrateAsync()
+        {
+            // 检查数据库是否已准备好
+            var dbReady = await SetupHelper.CheckDatabaseReadyAsync(dbContext);
+            IsDbCreated = dbReady.isCreated;
+            NeedDbMigrate = dbReady.needMigrate;
+
+            if(!IsDbCreated || NeedDbMigrate)
+            {
+                await dbContext.Database.MigrateAsync();
+            }
+
+            return RedirectToPage();
         }
     }
 }

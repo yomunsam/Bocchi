@@ -7,3 +7,37 @@
 
 
 <h3>Setup</h3>
+
+<div class="row">
+    <div class="col-12 col-md-6 mt-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Database</h5>
+                @if(Model.IsDatabaseReady)
+                {
+                    <p>Database 全部 好</p>
+                }
+                else
+                {
+                    <p class="card-text">Database created: @Model.IsDbCreated</p>
+                    <p class="card-text">Database need migrate: @Model.NeedDbMigrate</p>
+                    @* 数据库迁移按钮放出来 *@
+                    <form method="post" asp-page-handler="DbMigrate"> >
+                        <button type="submit" class="btn btn-primary">Migrate</button>
+                    </form>
+                }
+                
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 mt-3">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Site base configuration</h5>
+                <p class="card-text">Site base configuration: @Model.IsSiteSettingReady</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+

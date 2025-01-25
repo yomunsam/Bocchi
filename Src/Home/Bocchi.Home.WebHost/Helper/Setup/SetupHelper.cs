@@ -14,23 +14,18 @@ public static class SetupHelper
     /// <param name="isCreated">数据库是否已创建</param>
     /// <param name="needMigrate">是否需要迁移（包括从未迁移或有更新）</param>
     /// <returns></returns>
-    public static bool CheckDatabaseReady(AppDbContext dbContext, 
-        out bool isCreated,
-        out bool needMigrate 
-        )
+    public static async Task<(bool isCreated, bool needMigrate)> CheckDatabaseReadyAsync(AppDbContext dbContext)
     {
         // using var scope = serviceProvider.CreateScope();
         // var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        isCreated = dbContext.Database.GetService<IRelationalDatabaseCreator>().Exists();
+        bool isCreated = dbContext.Database.GetService<IRelationalDatabaseCreator>().Exists();
+        bool needMigrate = false;
         if (isCreated)
         {
-            needMigrate = dbContext.Database.GetPendingMigrations().Any();
+            needMigrate = (await dbContext.Database.GetPendingMigrationsAsync()).Any();
         }
-        else
-        {
-            needMigrate = true;
-        }
+        
 
-        return isCreated && !needMigrate;
+        return (isCreated, needMigrate);
     }
 }
