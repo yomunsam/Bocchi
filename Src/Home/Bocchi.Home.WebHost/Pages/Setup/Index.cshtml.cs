@@ -1,10 +1,15 @@
+using Bocchi.Home.Core.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Bocchi.Home.WebHost.Pages.Setup
 {
-    public class IndexModel : PageModel
+    public class IndexModel(AppDbContext dbContext)
+        : PageModel
     {
+
+        
+
         /// <summary>
         /// 数据库是否已经准备好
         /// </summary>
@@ -21,8 +26,9 @@ namespace Bocchi.Home.WebHost.Pages.Setup
 
 
         public async Task<IActionResult> OnGetAsync()
-        {
-            IsDatabaseReady = await Task.FromResult(false); // TODO: Check if database is ready
+        {   
+            // 检查数据库迁移是否已经完成
+            
 
             if (IsSetup)
             {

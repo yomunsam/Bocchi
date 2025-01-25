@@ -1,0 +1,12 @@
+{
+    "Database":{
+        "Bocchi":{
+            "UseConnectionPool" : false,
+            "PoolSize" : 1,
+            "Type" : "Sqlite",
+            "ConnectionString": {
+                "Sqlite": "Data Source=../Bocchi.db"
+            }
+        }
+    }
+}

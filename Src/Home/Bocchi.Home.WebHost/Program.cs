@@ -1,4 +1,9 @@
+using Bocchi.Home.Core;
+using Bocchi.Home.WebHost;
 using Bocchi.Home.WebHost.Components;
+using Bocchi.Home.WebHost.Extensions;
+using Bocchi.Home.Infrastructure;
+using Nekonya;
 using Serilog;
 
 #region Serilog
@@ -13,7 +18,48 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // Configuration (json)
+    WebHostModule.EnsureBocchiConfigurationFile(builder);
+    BuildConfiguration(builder, [
+        "Serilog",
+        "Database",
+        "Bocchi",
+    ]);
 
+    // Configuration (Command Line)
+    if (args is { Length: > 0 })
+    {
+        builder.Configuration.AddCommandLine(args);
+    }
+
+    // Serilog
+    builder.Host.UseSerilog((hostContext, loggerCfg) =>{
+        // 检查如果配置文件中有Serilog相关配置，则使用配置文件中的配置
+        if (hostContext.Configuration.GetSection("Serilog").Exists())
+        {
+            loggerCfg.ReadFrom.Configuration(hostContext.Configuration);
+        }
+        else
+        {
+            loggerCfg.WriteTo.Console();
+            Log.Warning("Serilog configuration not found, use default configuration");
+        }
+    });
+
+    // 配置主机服务
+    WebHostModule.ConfigureHost(builder);
+    WebHostModule.ConfigureServices(builder.Services);
+
+    CoreModule.ConfigureServices(builder.Services);
+    InfrastructureModule.ConfigureServices(builder.Services);
+
+
+    // Build and run
+    var app = builder.Build();
+
+    // 各种请求管道、中间件配置
+    WebHostModule.Configure(app);
+
+    app.Run();
 }
 catch (Exception ex)
 {
@@ -27,39 +73,6 @@ finally
 }
 
 
-// Razor Pages
-builder.Services.AddRazorPages();
-
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-
-
-app.UseAntiforgery();
-
-app.MapStaticAssets();
-
-// Razor Pages
-app.MapRazorPages();
-
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
-app.Run();
 
 
 //------------
