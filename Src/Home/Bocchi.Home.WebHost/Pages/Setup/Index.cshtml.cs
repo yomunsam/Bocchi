@@ -44,7 +44,7 @@ namespace Bocchi.Home.WebHost.Pages.Setup
             return Page();
         }
 
-        public async Task<IActionResult> OnPostDbMigrateAsync()
+        public async Task<IActionResult> OnPostMigrateAsync()
         {
             // 检查数据库是否已准备好
             var dbReady = await SetupHelper.CheckDatabaseReadyAsync(dbContext);
@@ -57,7 +57,8 @@ namespace Bocchi.Home.WebHost.Pages.Setup
                 logger.LogInformation("Database migrated");
             }
 
-            return RedirectToPage();
+            return Redirect("~/");
         }
+
     }
 }

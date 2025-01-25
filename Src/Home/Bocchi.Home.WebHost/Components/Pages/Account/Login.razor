@@ -15,6 +15,7 @@
 <div class="row justify-content-center">
     <div class="col-12 col-md-6 mt-3">
         <h1>Login</h1>
+        <StatusMessage Message="@ErrorMessage" ShowIcon="true" Type="StatusMessage.MessageType.Danger" />
         <div class="card">
             <div class="card-body">
                 <EditForm Model="Input" method="post" FormName="login" OnValidSubmit="LoginUserAsync" >

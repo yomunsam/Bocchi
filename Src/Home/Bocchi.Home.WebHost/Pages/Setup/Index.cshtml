@@ -22,9 +22,9 @@
                     <p class="card-text">Database created: @Model.IsDbCreated</p>
                     <p class="card-text">Database need migrate: @Model.NeedDbMigrate</p>
                     @* 数据库迁移按钮放出来 *@
-                    <form method="post" asp-page-handler="DbMigrate">
+                    <form method="post" >
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-primary" >Migrate</button>
+                        <button type="submit" class="btn btn-primary" asp-page-handler="Migrate">Migrate</button>
                     </form>
                 }
                 

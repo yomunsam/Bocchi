@@ -1,16 +1,47 @@
-
+@if(!this.DisplayMessage.IsNullOrEmpty())
+{
+    <div class="alert alert-@AlertClassName" role="alert">
+        @DisplayMessage
+    </div>
+}
 
 
 @code {
     [Parameter]
     public string? Message { get; set; }
 
+    [Parameter]
+    public MessageType Type { get; set; } = MessageType.Primary;
+
+    [Parameter]
+    public bool ShowIcon { get; set; } = true;
+
 
     private string? DisplayMessage => Message;
+
+    private string AlertClassName => this.Type switch
+    {
+        MessageType.Secondary => "secondary",
+        MessageType.Success => "success",
+        MessageType.Danger => "danger",
+        MessageType.Warning => "warning",
+        MessageType.Info => "info",
+        _ => "primary"
+    };
 
 
     protected override void OnInitialized()
     {
         
+    }
+
+    public enum MessageType
+    {
+        Primary,
+        Secondary,
+        Success,
+        Danger,
+        Warning,
+        Info
     }
 }
