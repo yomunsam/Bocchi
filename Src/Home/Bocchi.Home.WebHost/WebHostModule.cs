@@ -48,6 +48,9 @@ internal static class WebHostModule
 
         services.AddIdentityCore<BocchiUserEntity>(options => {
             options.SignIn.RequireConfirmedAccount = true;
+
+            options.Password.RequireUppercase = false;
+            options.Password.RequireNonAlphanumeric = false;
         })
             .AddEntityFrameworkStores<AppDbContext>()
             .AddSignInManager()

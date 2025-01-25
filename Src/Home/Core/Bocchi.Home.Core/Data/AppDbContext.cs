@@ -7,6 +7,8 @@ namespace Bocchi.Home.Core.Data;
 /// <summary>
 /// Bocchi Home 主数据库上下文
 /// </summary>
-public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<BocchiUserEntity>(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options) 
+    : IdentityDbContext<BocchiUserEntity, BocchiRoleIdentity, Guid>(options)
 {
+
 }

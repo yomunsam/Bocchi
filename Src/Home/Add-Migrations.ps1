@@ -1,4 +1,4 @@
-aram([string] $migration = 'InitialCreate', [string] $migrationProviderName = 'All')
+param([string] $migration = 'InitialCreate', [string] $migrationProviderName = 'All')
 
 $projectName = "Bocchi.Home.WebHost";
 $currentPath = Get-Location
@@ -26,18 +26,16 @@ foreach ($provider in $dbProviders.Keys) {
     
         Write-Host "[Bocchi]Generate migration for db provider:" $provider "`n";
 
-        if ((Test-Path $projectPath) -eq $true) {
-            foreach ($context in $targetContexts.Keys) {
+        foreach ($context in $targetContexts.Keys) {
                 
-                $migrationPath = $targetContexts[$context];
-                $OutputPath = $migrationPath + "/$provider";
+            $migrationPath = $targetContexts[$context];
+            $OutputPath = $migrationPath + "/$provider";
 
-                Write-Host "Migrating context " $context
-                # Write-Host "执行 dotnet ef migrations add $migration -c $context -o $OutputPath -p $TargetProjectPath -- --OverrideDbProvider $provider ";
-                dotnet ef migrations add $migration -c $context -o $OutputPath -p $TargetProjectPath -- --OverrideDbProvider $provider
-                Write-Host "`n"
-            } 
-        }
+            Write-Host "Migrating context " $context
+            # Write-Host "执行 dotnet ef migrations add $migration -c $context -o $OutputPath -p $TargetProjectPath -- --OverrideDbProvider $provider ";
+            dotnet ef migrations add $migration -c $context -o $OutputPath -p $TargetProjectPath -- --OverrideDbProvider $provider
+            Write-Host "`n"
+        } 
         
     }
 }
