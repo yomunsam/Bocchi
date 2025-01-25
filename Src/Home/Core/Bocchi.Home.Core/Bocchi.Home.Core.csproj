@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
+    <PackageReference Include="Nekonya.Common" Version="1.0.7" />
   </ItemGroup>
 
   <ItemGroup>
