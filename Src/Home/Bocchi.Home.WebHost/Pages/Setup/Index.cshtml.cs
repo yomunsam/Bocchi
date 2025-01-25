@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bocchi.Home.WebHost.Pages.Setup
 {
-    public class IndexModel(AppDbContext dbContext)
+    public class IndexModel(AppDbContext dbContext, ILogger<IndexModel> logger)
         : PageModel
     {
 
@@ -54,6 +54,7 @@ namespace Bocchi.Home.WebHost.Pages.Setup
             if(!IsDbCreated || NeedDbMigrate)
             {
                 await dbContext.Database.MigrateAsync();
+                logger.LogInformation("Database migrated");
             }
 
             return RedirectToPage();

@@ -63,6 +63,10 @@ try
 }
 catch (Exception ex)
 {
+    if(ex is HostAbortedException)
+    {
+        throw; //不要处理，直接抛出，否则dotnet ef工具里会看到异常。
+    }
     Log.Fatal(ex, "Bocchi Application terminated unexpectedly");
     return;
 }

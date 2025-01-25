@@ -28,13 +28,15 @@ public static class InfrastructureModule
             throw new InvalidOperationException($"Invalid database provider or connection string, configuration key: {confKey}");
         }
 
+        var migrationsAssembly = typeof(InfrastructureModule).Assembly.GetName().Name;
+
         if (usePool && poolSize > 0)
         {
             services.AddDbContextPool<AppDbContext>(options =>{
                 switch (dbProvider)
                 {
                     case DatabaseProvider.Sqlite:
-                        options.UseSqlite(connectionString);
+                        options.UseSqlite(connectionString, x => x.MigrationsAssembly(migrationsAssembly));
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported database provider: {dbProvider}");
@@ -47,7 +49,7 @@ public static class InfrastructureModule
                 switch (dbProvider)
                 {
                     case DatabaseProvider.Sqlite:
-                        options.UseSqlite(connectionString);
+                        options.UseSqlite(connectionString, x => x.MigrationsAssembly(migrationsAssembly));
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported database provider: {dbProvider}");
@@ -60,6 +62,11 @@ public static class InfrastructureModule
     private static (DatabaseProvider, string?) GetConnectionString(IConfiguration configuration, out string confKey)
     {
         var providerTypeStr = configuration.GetValue<string>("Database:Bocchi:Type");
+        string? overrideDbProviderText = configuration["OverrideDbProvider"]; // 配置中覆盖的数据库提供程序.
+        if (!string.IsNullOrWhiteSpace(overrideDbProviderText))
+        {
+            providerTypeStr = overrideDbProviderText;
+        }
         DatabaseProvider dbProvider = providerTypeStr?.ToLower() switch
         {
             "sqlite" or "sqlite3" => DatabaseProvider.Sqlite,
