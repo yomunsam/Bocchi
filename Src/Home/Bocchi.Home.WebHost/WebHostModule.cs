@@ -1,6 +1,11 @@
+using Bocchi.Home.Core.Data;
+using Bocchi.Home.Core.Entities.Identity;
 using Bocchi.Home.Infrastructure;
 using Bocchi.Home.WebHost.Components;
+using Bocchi.Home.WebHost.Components.Identity;
 using Bocchi.Home.WebHost.Extensions;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Serilog;
 
 namespace Bocchi.Home.WebHost;
@@ -30,6 +35,23 @@ internal static class WebHostModule
         // 数据库
         InfrastructureModule.AddBocchiAppDatabase(services, builder.Configuration);
         services.AddDatabaseDeveloperPageExceptionFilter();
+
+        // 身份验证
+        services.AddCascadingAuthenticationState();
+        services.AddScoped<IdentityRedirectManager>();
+        services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+        services.AddAuthentication(options => {
+            options.DefaultScheme = IdentityConstants.ApplicationScheme;
+            options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+        })
+            .AddIdentityCookies();
+
+        services.AddIdentityCore<BocchiUserEntity>(options => {
+            options.SignIn.RequireConfirmedAccount = true;
+        })
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
 
 
         // 配置Antiforgery

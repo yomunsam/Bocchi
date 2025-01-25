@@ -1,0 +1,116 @@
+@page "/Account/Login"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authentication
+@using System.ComponentModel.DataAnnotations;
+@using System.Text.RegularExpressions
+
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject SignInManager<BocchiUserEntity> SignInManager
+@inject UserManager<BocchiUserEntity> UserManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Login</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6 mt-3">
+        <h1>Login</h1>
+        <div class="card">
+            <div class="card-body">
+                <EditForm Model="Input" method="post" FormName="login" OnValidSubmit="LoginUserAsync" >
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" role="alert" />
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.LoginName" id="loginName" class="form-control" />
+                        <label for="Input.LoginName">Username or Email</label>
+                        <ValidationMessage For="@(() => Input.LoginName)" class="text-danger" />
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Input.Password" id="loginName" class="form-control" 
+                            autocomplete="currrent-password" aria-required="true" type="password"
+                            />
+                        <label for="Input.Password">Password</label>
+                        <ValidationMessage For="@(() => Input.Password)" class="text-danger" />
+                    </div>
+
+                    <div class="checkbox mb-3">
+                        <label class="form-label">
+                            <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
+                            Remember me
+                        </label>
+                    </div>
+
+                    <div>
+                        <button type="submit" class="w-100 btn btn-primary">Log in</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+@code {
+
+    private string? ErrorMessage { get; set; }
+
+    [CascadingParameter]
+    private HttpContent HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+
+    public async Task LoginUserAsync()
+    {
+        // 输入的LoginName可能是用户名或者邮箱, 所以我们要判断一下
+        // 使用正则
+        var isEmail = Regex.IsMatch(Input.LoginName, @"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+        BocchiUserEntity? userEntity;
+        if (isEmail)
+            userEntity = await UserManager.FindByEmailAsync(Input.LoginName);
+        else
+            userEntity = await UserManager.FindByNameAsync(Input.LoginName);
+
+        if (userEntity is null)
+        {
+            ErrorMessage = "User name or Email not found";
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(userEntity, Input.Password, Input.RememberMe, false);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if(result.RequiresTwoFactor)
+        {
+            ErrorMessage = "Todo: Two factor authentication";
+        }
+        else
+        {
+            ErrorMessage = "Invalid login attempt.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        public string LoginName { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "Remember me")]
+        public bool RememberMe { get; set; }
+    }
+}
