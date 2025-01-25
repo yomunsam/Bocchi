@@ -1,0 +1,5 @@
+我们把数据库（EFCore）迁移之类的代码放在Infrastructure这一层
+
+Core那边几乎是纯业务逻辑，Infrastructure这边会把Core的数据库上下文适配到不同的数据库实现中。
+
+暂定先支援Sqlite和Mariadb.
