@@ -34,6 +34,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastru
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bocchi.Home.Infrastructure", "Src\Home\Infrastructure\Bocchi.Home.Infrastructure\Bocchi.Home.Infrastructure.csproj", "{9A064982-576E-4475-AC8C-D7D31B9EC3D8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bocchi.Remote.WebApi", "Src\Remote\Bocchi.Remote.WebApi\Bocchi.Remote.WebApi.csproj", "{1A48F1D1-6A66-4D58-BD33-32A291BEDAAA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,6 +58,10 @@ Global
 		{9A064982-576E-4475-AC8C-D7D31B9EC3D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9A064982-576E-4475-AC8C-D7D31B9EC3D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9A064982-576E-4475-AC8C-D7D31B9EC3D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A48F1D1-6A66-4D58-BD33-32A291BEDAAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A48F1D1-6A66-4D58-BD33-32A291BEDAAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A48F1D1-6A66-4D58-BD33-32A291BEDAAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A48F1D1-6A66-4D58-BD33-32A291BEDAAA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -71,5 +77,6 @@ Global
 		{0D1E0F83-CDF9-4DB5-AC92-569C4F2045CD} = {68A43DEF-D494-45E5-AF21-119A9CFAE634}
 		{4D5E93AE-65E6-8D10-5982-DC32534AD885} = {8CAE4FE2-2B90-4EAA-A339-D07C3A8D170A}
 		{9A064982-576E-4475-AC8C-D7D31B9EC3D8} = {4D5E93AE-65E6-8D10-5982-DC32534AD885}
+		{1A48F1D1-6A66-4D58-BD33-32A291BEDAAA} = {85C300B6-7922-411C-BF71-86BCC79F3CE9}
 	EndGlobalSection
 EndGlobal
