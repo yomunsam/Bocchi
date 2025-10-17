@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250125144047_InitialCreate")]
+    [Migration("20250516174525_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -22,7 +22,8 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
 
             modelBuilder.Entity("Bocchi.Home.Core.Entities.Identity.BocchiRoleIdentity", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -48,7 +49,8 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
 
             modelBuilder.Entity("Bocchi.Home.Core.Entities.Identity.BocchiUserEntity", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("AccessFailedCount")
@@ -110,7 +112,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -122,8 +124,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.Property<string>("ClaimValue")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("RoleId")
-                        .IsRequired()
+                    b.Property<Guid>("RoleId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -133,7 +134,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.ToTable("AspNetRoleClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -145,8 +146,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.Property<string>("ClaimValue")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -156,7 +156,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.ToTable("AspNetUserClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
                     b.Property<string>("LoginProvider")
                         .HasColumnType("TEXT");
@@ -167,8 +167,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("LoginProvider", "ProviderKey");
@@ -178,12 +177,12 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.ToTable("AspNetUserLogins", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
                 {
-                    b.Property<string>("UserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("RoleId")
+                    b.Property<Guid>("RoleId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("UserId", "RoleId");
@@ -193,9 +192,9 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.ToTable("AspNetUserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
-                    b.Property<string>("UserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LoginProvider")
@@ -212,7 +211,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Bocchi.Home.Core.Entities.Identity.BocchiRoleIdentity", null)
                         .WithMany()
@@ -221,7 +220,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
                     b.HasOne("Bocchi.Home.Core.Entities.Identity.BocchiUserEntity", null)
                         .WithMany()
@@ -230,7 +229,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
                     b.HasOne("Bocchi.Home.Core.Entities.Identity.BocchiUserEntity", null)
                         .WithMany()
@@ -239,7 +238,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
                 {
                     b.HasOne("Bocchi.Home.Core.Entities.Identity.BocchiRoleIdentity", null)
                         .WithMany()
@@ -254,7 +253,7 @@ namespace Bocchi.Home.Infrastructure.Migrations.Bocchi.Sqlite
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
                     b.HasOne("Bocchi.Home.Core.Entities.Identity.BocchiUserEntity", null)
                         .WithMany()

@@ -14,4 +14,8 @@
     <ProjectReference Include="../../Core/Bocchi.Home.Core/Bocchi.Home.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Migrations\Bocchi\" />
+  </ItemGroup>
+
 </Project>

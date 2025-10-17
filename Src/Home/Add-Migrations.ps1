@@ -11,6 +11,7 @@ $targetContexts = @{
 
 $dbProviders = @{
     Sqlite = "Sqlite"
+    Mysql = "MySql"
 }
 
 #Fix issue when the tools is not installed and the nuget package does not work see https://github.com/MicrosoftDocs/azure-docs/issues/40048
