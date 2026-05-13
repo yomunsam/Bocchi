@@ -2,6 +2,32 @@
 
 个人自用的 个人主页/Blog系统。Since 2026
 
+## Quickstart
+
+> 需要 .NET 10 SDK（仓库通过 `global.json` 锁定，使用 `rollForward: latestFeature`）。
+
+```bash
+# 还原依赖
+dotnet restore Bocchi.sln
+
+# 构建（已开启 TreatWarningsAsErrors，警告即失败）
+dotnet build Bocchi.sln
+
+# 跑测试（含 Home Server 集成测试）
+dotnet test Bocchi.sln
+
+# 本地启动 Home Server，默认只监听回环地址 http://127.0.0.1:5081
+dotnet run --project Src/HomeServer/Bocchi.HomeServer
+```
+
+健康检查：`curl http://127.0.0.1:5081/healthz` 应返回 `Healthy`。
+
+更深入的文档：
+
+- `Docs/Architecture.md`：目标架构与模块边界
+- `Docs/Milestones.md`：里程碑总览
+- `Docs/Milestones/M1/M1.md`：M1 阶段详细规划与验证记录
+
 ## 简介
 
 本项目可以看作三个部分：

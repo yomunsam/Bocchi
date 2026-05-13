@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Bocchi.Workspace</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bocchi.ContentModel\Bocchi.ContentModel.csproj" />
+  </ItemGroup>
+
+</Project>

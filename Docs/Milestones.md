@@ -14,7 +14,7 @@
 | 状态 | ID | 里程碑 | 目标 | 问题定位入口 | 完成标准 |
 | --- | --- | --- | --- | --- | --- |
 | [x] | M0 | 架构与计划基线 | 固化系统边界、Theme Contract 和总体路线 | `Docs/Architecture.md`、`Docs/Milestones.md` | 架构文档和里程碑文档存在，核心开放问题被列出 |
-| [ ] | M1 | Solution 骨架 | 建立 .NET Home Server、测试项目和基础目录 | solution 文件、`Src/HomeServer/`、`Tests/` | 可启动空后台，可运行基础测试 |
+| [x] | M1 | Solution 骨架 | 建立 .NET Home Server、测试项目和基础目录 | solution 文件、`Src/HomeServer/`、`Tests/`、`Docs/Milestones/M1/M1.md` | 可启动空后台，可运行基础测试 |
 | [ ] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志 | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [ ] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/` | Full Build 可产出完整本地站点目录 |
 | [ ] | M4 | Home Server Dashboard | 提供可用的内网管理界面 | 后台首页、内容列表、编辑入口、构建日志 | 能通过 UI 管理内容并触发构建 |
@@ -80,6 +80,14 @@
 - 完整 UI。
 - 真实 Theme 构建。
 - Cloud Server。
+
+当前状态：已完成。详细规划与验证记录见 `Docs/Milestones/M1/M1.md`。
+
+验证记录：
+
+- `dotnet restore Bocchi.sln`、`dotnet build Bocchi.sln`、`dotnet test Bocchi.sln` 全部通过，0 警告 0 错误。
+- `dotnet run --project Src/HomeServer/Bocchi.HomeServer` 启动到 `http://127.0.0.1:5081`，`/healthz` 返回 `Healthy`，`/` 返回包含 "Bocchi Home Server" 的页面。
+- 集中包管理（Directory.Packages.props）与 `TreatWarningsAsErrors` 已生效。
 
 ## M2 Content Workspace
 
@@ -242,15 +250,23 @@
 
 ### 2026-05-13
 
-- Bocchi 采用“三段式”架构：Home Server、Page Frontend、Cloud Server。
+- Bocchi 采用"三段式"架构：Home Server、Page Frontend、Cloud Server。
 - Home Server 是内网 CMS 和构建器，不作为公网 API Server。
 - Page Frontend 通过 Theme Contract 接入，默认 Theme 暂定 SvelteKit。
 - 内容事实来源优先放在 Markdown 和媒体文件中，SQLite 只承担管理状态、索引和缓存职责。
 - Cloud Server 只预留，等评论、动态搜索、统计等真实需求出现后再实现。
 
+### 2026-05-13 (M1)
+
+- Home Server 后台 UI 采用 **Blazor Web App + InteractiveServer 渲染模式**。理由：后台是内网交互工作台，需要表单、按 schema 生成配置 UI、构建/发布日志的实时反馈；Blazor Server 与 .NET 生态一致，避免另外维护 SPA 构建链；将来若需要 SSR + 客户端混合，也可平滑切换到 InteractiveAuto。
+- 日志：采用 **Serilog**（Console + File sink），通过 `appsettings.json` 配置；M1 文件输出落在运行目录 `logs/`，M2 引入 workspace 概念后切换到 `.bocchi/logs/`，期间无过渡方案，仅修改配置即可。
+- 包管理：仓库根启用 **Central Package Management**（`Directory.Packages.props`）；所有项目版本统一在该文件维护。
+- 公共编译选项：`Nullable=enable`、`ImplicitUsings=enable`、`TreatWarningsAsErrors=true`、`LangVersion=latest`、`AnalysisLevel=latest-recommended` —— 一开始就把质量门槛拉满。
+- 测试：xUnit + FluentAssertions；Home Server 集成测试基于 `Microsoft.AspNetCore.Mvc.Testing`。
+- 监听策略：Home Server 默认仅绑定 `http://127.0.0.1:5081`，与 Architecture §12 一致。
+
 ## 待决问题
 
-- Home Server 后台 UI 使用 Razor Pages、Blazor 还是混合方案。
 - Markdown frontmatter 采用 YAML、TOML 还是兼容多格式。
 - 短文的初始存储格式使用 Markdown、JSON Lines 还是 SQLite + 导出。
 - 默认搜索使用自研 JSON index 还是 Pagefind。
