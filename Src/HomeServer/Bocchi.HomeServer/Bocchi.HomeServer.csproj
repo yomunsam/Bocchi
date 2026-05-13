@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <RootNamespace>Bocchi.HomeServer</RootNamespace>
+    <UserSecretsId>bocchi-home-server</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Settings.Configuration" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\Bocchi.ContentModel\Bocchi.ContentModel.csproj" />
+    <ProjectReference Include="..\..\Core\Bocchi.Workspace\Bocchi.Workspace.csproj" />
+    <ProjectReference Include="..\..\Core\Bocchi.GeneratorContract\Bocchi.GeneratorContract.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bocchi.HomeServer.Tests" />
+  </ItemGroup>
+
+</Project>

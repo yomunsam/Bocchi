@@ -1,0 +1,31 @@
+@page "/"
+@inject IHostEnvironment HostEnvironment
+@inject TimeProvider Time
+
+<PageTitle>Bocchi Home Server</PageTitle>
+
+<article class="bocchi-shell">
+    <header>
+        <h1>Bocchi Home Server</h1>
+        <p class="lede">个人主页与 Blog 的内网内容工作台。M1 仅交付骨架，后续里程碑将逐步点亮各模块。</p>
+    </header>
+
+    <section aria-labelledby="status-heading">
+        <h2 id="status-heading">运行状态</h2>
+        <dl>
+            <dt>版本</dt>
+            <dd>@ServerInfo.Version</dd>
+            <dt>环境</dt>
+            <dd>@HostEnvironment.EnvironmentName</dd>
+            <dt>服务器时间</dt>
+            <dd>@Time.GetUtcNow().ToString("u")</dd>
+            <dt>健康检查</dt>
+            <dd><a href="/healthz">/healthz</a></dd>
+        </dl>
+    </section>
+
+    <section aria-labelledby="roadmap-heading">
+        <h2 id="roadmap-heading">里程碑</h2>
+        <p>详见仓库内 <code>Docs/Milestones.md</code>。当前已完成 M0（架构基线）与 M1（解决方案骨架）。</p>
+    </section>
+</article>
