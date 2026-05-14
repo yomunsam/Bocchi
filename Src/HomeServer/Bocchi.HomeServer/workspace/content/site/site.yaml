@@ -1,0 +1,18 @@
+# 站点设置。详见 Docs/Architecture.md §4.6。
+title: My Site
+description: ""
+language: zh-CN
+timeZone: Asia/Shanghai
+baseUrl: https://example.com/
+
+author:
+  name: Anonymous
+  # email: you@example.com
+  # bio: ""
+
+social: []
+
+defaultThemeId:
+enableRss: true
+enableSitemap: true
+enableSearch: true

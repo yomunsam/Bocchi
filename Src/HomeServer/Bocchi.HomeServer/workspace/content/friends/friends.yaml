@@ -1,0 +1,2 @@
+# 友链列表。每项：name + url，可选 avatar / description / tags / order / status。
+friends: []
