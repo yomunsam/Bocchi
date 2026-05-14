@@ -73,41 +73,81 @@ MVP 阶段只保留接口边界和目录预留，不实现具体服务。
 
 ## 3. 内容工作区
 
-建议将用户内容和系统缓存分开。一个 Bocchi workspace 可以采用如下结构：
+Bocchi workspace 在物理上做严格的二段切分：**内容空间（Content Space）** 与 **Bocchi 系统空间**。这一切分是 M2 落地的核心架构决策。
+
+### 3.1 切分原则
+
+- **内容空间**：用户的纯创作资产 —— Blog、独立页面、作品集、短文、友链、站点设置。它必须满足：
+  - 可独立打包、迁移、备份。
+  - 可作为独立 Git 仓库（包括未来连接 GitHub 等）。
+  - 仅包含原始 Markdown 与原始媒体；**禁止出现任何构建产物 / 派生媒体**（如 webp、缩略图、HTML、搜索索引）。
+  - 不包含任何 Theme 专有配置或 Theme 实现 —— 这些都属于 Bocchi 这个程序的实现细节，不属于内容。
+  - 设计宗旨：Bocchi 这个程序未来可能被遗弃、重构、替换；内容空间应当能"一键带走"，不背负任何 Bocchi 痕迹。
+- **Bocchi 系统空间**：Bocchi 程序自己的实现状态 —— Theme 实现、Theme 配置、SQLite 状态、构建缓存、衍生媒体、构建产物、日志。它的存活周期与 Bocchi 项目一致，可被替换。
+
+### 3.2 默认目录布局
 
 ```text
-Workspace/
-  content/
+Workspace/                            <-- Bocchi workspace 根（host）
+  content/                            <-- 内容空间（可独立 / 可作为 Git 仓库）
+    README.md                         <-- 自动生成，说明本目录的"源工程"性质
+    .gitignore                        <-- 自动生成
     posts/
+      2026/                           <-- 年份一级分类（强约束）
+        hello-bocchi/                 <-- 文件夹名即 slug
+          index.md                    <-- frontmatter (YAML) + Markdown 正文
+          assets/                     <-- 仅放该篇引用的原始媒体
+            cover.jpg
     pages/
+      about/                          <-- 独立页面无年份层
+        index.md
+        assets/
     works/
+      2024/
+        my-game/
+          index.md
+          assets/
     notes/
+      2026/                           <-- 短文按年份分目录，单文件即一条
+        2026-05-13-2030-coffee.md
     friends/
-    photos/
-  media/
-    images/
-    videos/
-    files/
-  themes/
+      friends.yaml                    <-- 友链：单文件 YAML 列表
+    photos/                           <-- M2 仅占位
+    site/
+      site.yaml
+      navigation.yaml
+  themes/                             <-- Bocchi 系统空间：Theme 实现
     default-svelte/
-  site/
-    site.json
-    navigation.json
-  .bocchi/
+  .bocchi/                            <-- Bocchi 系统空间：状态 / 缓存 / 日志
     bocchi.sqlite
+    logs/
+    cache/
+      derivatives/                    <-- M3 起：衍生媒体（webp / 缩略图）
+    theme-config/                     <-- Theme 实例配置（与具体 Theme 绑定，不可移植）
+    input/                            <-- M3 起：Theme 输入数据
     build-manifest.json
     publish-history.json
-    theme-config/
-  output/
+  output/                             <-- 构建产物
     public/
 ```
 
-原则：
+强约束（M2 起生效）：
 
-- `content/` 与 `media/` 是用户可直接维护、可备份、可迁移的内容事实来源。
-- `.bocchi/` 是 Bocchi 管理状态，允许重建，不应成为唯一内容事实。
-- `output/` 是生成产物，可以清理后重新构建。
-- `themes/` 可以存放内置 Theme、副本 Theme 或用户自定义 Theme。
+- `posts/`、`works/`、`notes/`、`photos/` 强制使用 **年份目录** 作为一级分类，年份正则 `^\d{4}$`。
+- Post / Work 单篇为目录形式：`<kind>/<year>/<slug>/index.md` + `assets/`。`assets/` 仅放该篇原始媒体，frontmatter 中以相对路径引用（如 `cover: assets/cover.jpg`）。
+- Pages 不按年份分类（独立页面是"地点"而不是"事件"）。
+- 短文为单文件：`notes/<year>/<filename>.md`；文件名建议 `YYYY-MM-DD-HHMM-<slug>.md` 以便天然时间排序。
+- frontmatter 一律 YAML（`---` 边界）。
+- 内容空间内禁止出现派生扩展名（`*.webp` 等）；扫描器会发出 warning。
+- `.bocchi/`、`themes/`、`output/` **位于内容空间根之外**，不会被内容空间的 Git 仓库纳入索引。
+
+### 3.3 内容空间作为 Git 仓库
+
+M2 起，Bocchi 通过 `LibGit2Sharp` 把内容空间识别为 Git 工作区，并在内网后台提供：
+
+- `IsRepository` / `Init` / `Status` / `Commit`（本地）。
+
+远程（push / pull、GitHub 接入、凭据存储）作为发布管线的一部分，留给 M6。这一推迟是有意的：在没有发布管线之前提前引入凭据/Webhook 只会带来不必要的复杂度。详见 `Docs/Milestones/M2/M2.md` §3.6。
 
 ## 4. 内容模型
 
@@ -177,7 +217,7 @@ cover: "/media/images/cover.jpg"
 - `media`
 - `tags`
 
-短文可以在 MVP 中先以 Markdown 文件或 JSON Lines 文件表示。若后续发布频率较高，可再引入更适合追加写入的存储形式。
+短文采用 **Markdown 文件**，单文件即一条短文，按 `notes/<year>/<filename>.md` 组织（M2 决策）。文件名建议 `YYYY-MM-DD-HHMM-<slug>.md` 以便天然时间排序。短文正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。
 
 ### 4.5 Friend Link
 
@@ -208,7 +248,7 @@ cover: "/media/images/cover.jpg"
 
 ### 4.7 Photo
 
-照片墙预留。MVP 可以只定义字段，不强制实现完整 UI。
+照片墙预留。M2 仅在内容空间约定 `photos/<year>/...` 占位目录，不实现解析。完整实现留给后续专门的"照片墙"里程碑。
 
 字段建议：
 
@@ -456,12 +496,10 @@ Home Server 默认运行在可信内网或本机环境。
 
 ## 13. 开放问题
 
-- Home Server 后台 UI 使用 Razor Pages、Blazor 还是混合方案。
-- Markdown frontmatter 采用 YAML、TOML 还是同时兼容。
-- 短文的初始存储格式使用 Markdown 文件、JSON 文件还是 SQLite + 导出。
 - 默认搜索方案使用自研 JSON index 还是 Pagefind。
 - Cloudflare Pages 发布是先走本地目录手动部署，还是较早接入自动化。
 - 默认 Theme 是否支持评论占位，以及评论数据由 Cloud Server 还是第三方系统提供。
+- 内容空间作为 Git 仓库时与远程（GitHub 等）的接入策略：在 M6 发布管线中一起设计。
 
 ## 14. 架构护栏
 
