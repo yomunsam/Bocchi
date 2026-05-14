@@ -24,7 +24,7 @@
                 <h2 id="content-heading">Content</h2>
                 <label class="bocchi-compact-field">
                     <span>Type</span>
-                    <select @bind="_kindFilter">
+                    <select @bind="KindFilter">
                         <option value="">All</option>
                         <option value="Post">Posts</option>
                         <option value="Page">Pages</option>
@@ -163,11 +163,17 @@
     private IReadOnlyList<ContentSummary> _summaries = [];
 
     /// <summary>内容类型筛选值；空字符串表示全部。</summary>
-    private string _kindFilter = string.Empty;
+    [SupplyParameterFromQuery(Name = "kind")]
+    private string KindFilter { get; set; } = string.Empty;
+
+    /// <summary>顶部搜索框传入的内容关键词，用于按标题、路径或内容 id 过滤列表。</summary>
+    [SupplyParameterFromQuery(Name = "q")]
+    private string? SearchTerm { get; set; }
 
     /// <summary>根据当前 UI 筛选返回主列表内容。</summary>
     private IEnumerable<ContentSummary> FilteredSummaries => _summaries
-        .Where(x => string.IsNullOrWhiteSpace(_kindFilter) || x.Kind.ToString() == _kindFilter)
+        .Where(x => string.IsNullOrWhiteSpace(KindFilter) || x.Kind.ToString() == KindFilter)
+        .Where(MatchesSearch)
         .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
         .ThenBy(x => x.Title ?? x.ContentId);
 
@@ -238,6 +244,24 @@
     /// <summary>优先显示更新时间，其次显示发布时间。</summary>
     private static string ContentTimeLabel(ContentSummary summary)
         => (summary.UpdatedAt ?? summary.PublishedAt)?.ToString("yyyy-MM-dd") ?? "No date";
+
+    /// <summary>执行普通用户入口的轻量搜索；不读取正文，只匹配列表投影字段。</summary>
+    private bool MatchesSearch(ContentSummary summary)
+    {
+        if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            return true;
+        }
+
+        var term = SearchTerm.Trim();
+        return Contains(summary.Title, term)
+            || Contains(summary.RelativePath, term)
+            || Contains(summary.ContentId, term);
+    }
+
+    /// <summary>统一大小写不敏感的列表文本匹配。</summary>
+    private static bool Contains(string? value, string term)
+        => value?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>把扫描诊断级别映射到柔和状态色。</summary>
     private static string ErrorTone(ContentErrorSeverity severity)

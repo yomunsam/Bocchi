@@ -1,85 +1,120 @@
 @page "/Admin"
-@inject IHostEnvironment HostEnvironment
-@inject TimeProvider Time
 
 <PageTitle>Home · Bocchi</PageTitle>
 
-<article class="bocchi-shell">
-    <header class="bocchi-page-heading">
-        <span class="bocchi-page-heading__eyebrow">Bocchi Home Server</span>
-        <h1>Keep writing, preview softly.</h1>
-        <p>个人主页与 Blog 的内网内容工作台。Setup、Identity 和 `/Admin` 访问边界已经成为 M4 的正式地基。</p>
-    </header>
+<article class="bocchi-shell bocchi-shell--dashboard">
+    <section class="bocchi-home-hero" aria-labelledby="home-heading">
+        <div>
+            <span class="bocchi-page-heading__eyebrow">Bocchi Home Server</span>
+            <h1 id="home-heading">Good to see you.</h1>
+            <p>Here is what is happening with your site. Keep writing, preview softly, and publish when everything looks okay.</p>
+        </div>
+        <div class="bocchi-hero-illustration" aria-hidden="true">
+            <Blazicon Svg="Lucide.BookOpen" />
+            <span></span>
+        </div>
+    </section>
 
-    <div class="bocchi-two-column">
-        <section aria-labelledby="today-heading" class="bocchi-panel">
-            <h2 id="today-heading">Today</h2>
-            <BocchiListRow Kicker="Content" Title="整理内容空间">
-                <ChildContent>
-                    <p>查看 Markdown、媒体、Git 状态和最近扫描结果。</p>
-                </ChildContent>
-                <Metadata>
-                    <BocchiStatusPill Tone="info">Ready to check</BocchiStatusPill>
-                    <span>content/</span>
-                </Metadata>
-                <Action>
-                    <a class="bocchi-button secondary" href="/Admin/Content">Open</a>
-                </Action>
-            </BocchiListRow>
+    <div class="bocchi-dashboard-board">
+        <section class="bocchi-content-feed" aria-labelledby="feed-heading">
+            <div class="bocchi-feed-toolbar">
+                <div class="bocchi-feed-tabs" aria-label="Content filters">
+                    <a class="active" href="/Admin/Content">All</a>
+                    <a href="/Admin/Content?kind=Post">Posts</a>
+                    <a href="/Admin/Content?kind=Page">Pages</a>
+                    <a href="/Admin/Content?kind=Note">Notes</a>
+                    <a href="/Admin/Content?kind=Work">Works</a>
+                </div>
+                <a class="bocchi-sort-button" href="/Admin/Content">
+                    <Blazicon Svg="Lucide.ListFilter" />
+                    <span>Sort: Latest</span>
+                </a>
+            </div>
 
-            <BocchiListRow Kicker="Publish" Title="预览发布状态">
-                <ChildContent>
-                    <p>用普通用户能理解的检查状态进入构建流程，必要时再展开高级日志。</p>
-                </ChildContent>
-                <Metadata>
-                    <BocchiStatusPill Tone="success">Publish looks okay</BocchiStatusPill>
-                    <span>output/public/</span>
-                </Metadata>
-                <Action>
-                    <a class="bocchi-button secondary" href="/Admin/Publish">Open</a>
-                </Action>
-            </BocchiListRow>
+            <h2 id="feed-heading" class="bocchi-visually-hidden">Recent content</h2>
+            <div class="bocchi-content-list">
+                <a class="bocchi-content-item" href="/Admin/Content/Edit">
+                    <span class="bocchi-content-item__icon bocchi-content-item__icon--pink">
+                        <Blazicon Svg="Lucide.FileText" />
+                    </span>
+                    <span class="bocchi-content-item__main">
+                        <strong>Why I Write on Sundays</strong>
+                        <small>/posts/why-i-write-on-sundays</small>
+                    </span>
+                    <BocchiStatusPill Tone="success">Ready</BocchiStatusPill>
+                    <span class="bocchi-content-item__date">Today</span>
+                    <span class="bocchi-content-item__action">Preview</span>
+                </a>
 
-            <BocchiListRow Kicker="Preview" Title="前台预览准备中">
-                <ChildContent>
-                    <p>`/` 是登录后的受保护预览入口，HTML 页面会由 Home Server 注入轻量 Preview Toolbar。</p>
-                </ChildContent>
-                <Metadata>
-                    <BocchiStatusPill Tone="info">Preview ready</BocchiStatusPill>
-                    <span>/ preview host</span>
-                </Metadata>
-                <Action>
-                    <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">Open</a>
-                </Action>
-            </BocchiListRow>
+                <a class="bocchi-content-item" href="/Admin/Content/Edit">
+                    <span class="bocchi-content-item__icon bocchi-content-item__icon--lavender">
+                        <Blazicon Svg="Lucide.PenLine" />
+                    </span>
+                    <span class="bocchi-content-item__main">
+                        <strong>Bedroom Studio Tour</strong>
+                        <small>/posts/bedroom-studio-tour</small>
+                    </span>
+                    <BocchiStatusPill Tone="warning">Draft</BocchiStatusPill>
+                    <span class="bocchi-content-item__date">Yesterday</span>
+                    <span class="bocchi-content-item__action">Continue</span>
+                </a>
+
+                <a class="bocchi-content-item" href="/Admin/Content/Edit">
+                    <span class="bocchi-content-item__icon bocchi-content-item__icon--blue">
+                        <Blazicon Svg="Lucide.BookOpen" />
+                    </span>
+                    <span class="bocchi-content-item__main">
+                        <strong>About This Blog</strong>
+                        <small>/about</small>
+                    </span>
+                    <BocchiStatusPill Tone="success">Ready</BocchiStatusPill>
+                    <span class="bocchi-content-item__date">May 10</span>
+                    <span class="bocchi-content-item__action">Preview</span>
+                </a>
+
+                <a class="bocchi-content-item" href="/Admin/Content/Edit">
+                    <span class="bocchi-content-item__icon bocchi-content-item__icon--amber">
+                        <Blazicon Svg="Lucide.FolderOpen" />
+                    </span>
+                    <span class="bocchi-content-item__main">
+                        <strong>My Favorite Albums</strong>
+                        <small>/works/favorite-albums</small>
+                    </span>
+                    <BocchiStatusPill Tone="warning">Needs a look</BocchiStatusPill>
+                    <span class="bocchi-content-item__date">May 9</span>
+                    <span class="bocchi-content-item__action">Preview</span>
+                </a>
+            </div>
         </section>
 
-        <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="status-heading">
-            <h2 id="status-heading">Server</h2>
-            <dl class="bocchi-meta-list">
-                <div>
-                    <dt>版本</dt>
-                    <dd><span title="@ServerInfo.Version">@ShortVersion(ServerInfo.Version)</span></dd>
+        <aside class="bocchi-home-side" aria-label="Preview and publish readiness">
+            <section class="bocchi-preview-card">
+                <div class="bocchi-card-heading">
+                    <Blazicon Svg="Lucide.Monitor" />
+                    <h2>Site preview</h2>
+                    <a href="/" target="_blank" rel="noopener">Open site</a>
                 </div>
-                <div>
-                    <dt>环境</dt>
-                    <dd>@HostEnvironment.EnvironmentName</dd>
+                <div class="bocchi-preview-frame">
+                    <div class="bocchi-preview-sky"></div>
+                    <div class="bocchi-preview-desk"></div>
+                    <strong>soft notes from Bocchi</strong>
                 </div>
-                <div>
-                    <dt>服务器时间</dt>
-                    <dd>@Time.GetUtcNow().ToString("u")</dd>
+                <p><Blazicon Svg="Lucide.LockKeyhole" /> Password-protected</p>
+            </section>
+
+            <section class="bocchi-readiness-card">
+                <div class="bocchi-card-heading">
+                    <Blazicon Svg="Lucide.Sun" />
+                    <h2>Publish readiness</h2>
                 </div>
-                <div>
-                    <dt>健康检查</dt>
-                    <dd><a href="/healthz">/healthz</a></dd>
-                </div>
-            </dl>
+                <ul>
+                    <li><Blazicon Svg="Lucide.CircleCheck" />Content looks good</li>
+                    <li><Blazicon Svg="Lucide.CircleCheck" />Images look good</li>
+                    <li><Blazicon Svg="Lucide.TriangleAlert" />One link needs review</li>
+                    <li><Blazicon Svg="Lucide.CircleCheck" />Settings are set</li>
+                </ul>
+                <a class="bocchi-readiness-card__action" href="/Admin/Publish">Everything looks good</a>
+            </section>
         </aside>
     </div>
 </article>
-
-@code {
-    /// <summary>首页只展示短版本号，完整版本保留在 title 中用于排查。</summary>
-    private static string ShortVersion(string version)
-        => version.Length <= 12 ? version : $"{version[..12]}...";
-}

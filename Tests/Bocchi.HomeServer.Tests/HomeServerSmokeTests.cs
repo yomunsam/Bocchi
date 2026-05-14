@@ -33,7 +33,9 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Bocchi Home Server");
+        body.Should().Contain("Good to see you.");
+        body.Should().Contain("bocchi-content-feed");
+        body.Should().Contain("Site preview");
         body.Should().Contain("/healthz");
     }
 

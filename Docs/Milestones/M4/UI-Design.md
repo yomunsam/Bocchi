@@ -232,3 +232,20 @@ M4-T06 之后每个主要页面都应至少检查这些视口：
 - Logo 是否仍然只是 `Bocchi` 文字？
 - 技术状态是否翻译成普通人能理解的语言？
 - 是否完全避开了可识别动漫角色、服装、姿势和标识？
+
+## 11. 2026-05-15 Dashboard 精修规则
+
+M4 功能闭环完成后，Dashboard 进入正式交付精修。后续实现默认沿用以下追加规则：
+
+- 不在正式 Dashboard 顶栏保留不可用的 disabled search、占位按钮或“以后会做”的控件；没有实现的能力不占据主视觉。
+- Dashboard 背景保持安静，不使用装饰性径向光斑、bokeh 或大面积渐变来制造氛围。
+- Home 首页按正式 Overview 组织：主区是可扫读的 content feed，右侧是 Site preview 与 Publish readiness；Server / 数据库 / 日志等运维信息默认退到辅助区域或高级详情。
+- 顶栏优先提供真实可用的 Write、Content、Preview 快捷入口；Dashboard 外观切换仍保持紧凑下拉。
+- 每一轮 UI 精修都要检查 hover、focus-visible、移动端单列折叠和长路径换行，避免页面看起来只是功能原型。
+
+### 11.1 图标与样式工具选择
+
+- Dashboard 图标使用 `Blazicons.Lucide`，作为 Blazor 侧正式 icon library；导航、顶部动作、内容类型、预览和发布检查都应优先使用 Lucide 图标，不再用纯文字堆导航。
+- 暂不引入 Tailwind CSS 构建链。当前 Home Server 没有 npm / PostCSS pipeline，直接接 Tailwind 会先制造额外构建维护成本；M4 精修先用语义 CSS token、Blazor scoped CSS 和 Lucide 图标把视觉质量拉到交付线。
+- 如果后续 M4/M5 页面数量继续扩大，再评估 Tailwind 或 Blazor UI framework，但必须连同构建命令、watch/dev 体验和发布产物一起纳入设计，而不是只为了某一屏加依赖。
+- Overview 的正式结构对齐效果图：左侧 icon nav、顶部 search + New + appearance + account、主区 content feed、右侧 Site preview 和 Publish readiness；Server / 数据库 / 日志信息退到 sidebar 或高级详情。

@@ -8,10 +8,7 @@
     display: grid;
     min-height: 100vh;
     grid-template-columns: 15.5rem minmax(0, 1fr);
-    background:
-        radial-gradient(circle at 5% 0%, rgba(239, 179, 201, 0.2), transparent 24rem),
-        radial-gradient(circle at 94% 10%, rgba(124, 183, 248, 0.18), transparent 26rem),
-        var(--bocchi-bg);
+    background: var(--bocchi-bg);
     color: var(--bocchi-text);
 }
 
@@ -21,10 +18,10 @@
     display: flex;
     height: 100vh;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.65rem;
     border-right: 1px solid var(--bocchi-border);
-    background: color-mix(in srgb, var(--bocchi-surface) 86%, transparent);
-    padding: 1.25rem;
+    background: color-mix(in srgb, var(--bocchi-surface) 92%, var(--bocchi-bg));
+    padding: 1.4rem 1rem;
 }
 
 .bocchi-logo {
@@ -37,25 +34,35 @@
 
 .bocchi-primary-nav {
     display: grid;
-    gap: 0.35rem;
+    gap: 0.45rem;
 }
 
-.bocchi-primary-nav a,
+.bocchi-primary-nav ::deep a,
 .bocchi-primary-nav span {
     display: flex;
-    min-height: 2.5rem;
+    min-height: 3rem;
     align-items: center;
+    gap: 0.75rem;
     border-radius: 8px;
     color: var(--bocchi-text-muted);
-    font-weight: 650;
-    padding: 0 0.8rem;
+    font-weight: 720;
+    padding: 0 0.85rem;
     text-decoration: none;
+    transition: background 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
-.bocchi-primary-nav a:hover,
-.bocchi-primary-nav a.active {
-    background: var(--bocchi-surface-soft);
+.bocchi-primary-nav ::deep a:hover,
+.bocchi-primary-nav ::deep a.active {
+    background: var(--bocchi-nav-active);
     color: var(--bocchi-text);
+    transform: translateX(2px);
+}
+
+.bocchi-primary-nav ::deep svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: 0 0 auto;
+    color: currentColor;
 }
 
 .bocchi-primary-nav span {
@@ -71,39 +78,58 @@
     top: 0;
     z-index: 20;
     display: flex;
-    min-height: 4.25rem;
+    min-height: 4.6rem;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
     border-bottom: 1px solid var(--bocchi-border);
-    background: color-mix(in srgb, var(--bocchi-bg) 82%, transparent);
+    background: color-mix(in srgb, var(--bocchi-bg) 88%, transparent);
     padding: 0.8rem clamp(1rem, 3vw, 2rem);
     backdrop-filter: blur(16px);
 }
 
-.bocchi-topbar__search {
+.bocchi-command-search {
     display: flex;
-    width: min(30rem, 100%);
+    width: min(100%, 34rem);
+    min-height: 2.65rem;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
+    box-shadow: 0 10px 24px rgba(77, 67, 107, 0.04);
     color: var(--bocchi-text-muted);
-    padding: 0 0.8rem;
+    padding: 0 0.75rem;
 }
 
-.bocchi-topbar__search input {
+.bocchi-command-search svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.bocchi-command-search input {
     width: 100%;
-    min-height: 2.45rem;
+    min-width: 0;
+    min-height: 2.35rem;
     border: 0;
     background: transparent;
     color: var(--bocchi-text);
     font: inherit;
 }
 
-.bocchi-topbar__search input:disabled {
-    opacity: 1;
+.bocchi-command-search input::placeholder {
+    color: var(--bocchi-text-subtle);
+}
+
+.bocchi-command-search kbd {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 6px;
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 720;
+    padding: 0.18rem 0.38rem;
+    white-space: nowrap;
 }
 
 .bocchi-topbar__actions {
@@ -115,9 +141,11 @@
 }
 
 .bocchi-soft-link,
-.bocchi-appearance-control {
+.bocchi-appearance-control,
+.bocchi-icon-button,
+.bocchi-account-link {
     display: inline-flex;
-    min-height: 2.4rem;
+    min-height: 2.55rem;
     align-items: center;
     gap: 0.5rem;
     border: 1px solid var(--bocchi-border);
@@ -128,6 +156,27 @@
     font-weight: 650;
     padding: 0 0.7rem;
     text-decoration: none;
+    transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.bocchi-soft-link:hover,
+.bocchi-appearance-control:hover,
+.bocchi-icon-button:hover,
+.bocchi-account-link:hover {
+    border-color: color-mix(in srgb, var(--bocchi-blue) 45%, var(--bocchi-border));
+    transform: translateY(-1px);
+}
+
+.bocchi-soft-link--primary {
+    border-color: color-mix(in srgb, var(--bocchi-pink) 55%, var(--bocchi-border));
+    background: var(--bocchi-surface-pink);
+    color: var(--bocchi-action);
+}
+
+.bocchi-soft-link svg,
+.bocchi-icon-button svg {
+    width: 1rem;
+    height: 1rem;
 }
 
 .bocchi-appearance-control span {
@@ -143,10 +192,56 @@
     font-weight: 700;
 }
 
+.bocchi-account-link {
+    width: 2.55rem;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--bocchi-avatar-bg);
+    color: var(--bocchi-text);
+}
+
+.bocchi-account-link span {
+    font-size: 0.82rem;
+    font-weight: 780;
+}
+
+.bocchi-icon-button {
+    justify-content: center;
+    width: 2.55rem;
+    padding: 0;
+}
+
+.bocchi-sidebar-card {
+    display: grid;
+    gap: 0.25rem;
+    margin-top: auto;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    padding: 0.85rem;
+}
+
+.bocchi-sidebar-card__dot {
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 999px;
+    background: var(--bocchi-success-strong);
+}
+
+.bocchi-sidebar-card strong {
+    color: var(--bocchi-text);
+}
+
+.bocchi-sidebar-card p {
+    margin: 0;
+}
+
 .bocchi-page {
-    width: min(100%, 78rem);
+    width: min(100%, 86rem);
     margin: 0 auto;
-    padding: clamp(1.1rem, 3vw, 2rem);
+    padding: clamp(1rem, 2.5vw, 1.75rem);
 }
 
 #blazor-error-ui {
@@ -191,11 +286,25 @@
         gap: 0.35rem;
     }
 
-    .bocchi-primary-nav a,
+    .bocchi-primary-nav ::deep a,
     .bocchi-primary-nav span {
         min-height: 2.3rem;
         justify-content: center;
         padding: 0 0.75rem;
+    }
+
+    .bocchi-primary-nav ::deep a {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .bocchi-primary-nav ::deep svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .bocchi-sidebar-card {
+        display: none;
     }
 
     .bocchi-topbar {
@@ -204,7 +313,7 @@
         flex-direction: column;
     }
 
-    .bocchi-topbar__search,
+    .bocchi-command-search,
     .bocchi-topbar__actions {
         width: 100%;
     }

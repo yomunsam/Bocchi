@@ -8,6 +8,13 @@
     background: var(--bocchi-surface);
     overflow: hidden;
     padding: 1rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.bocchi-list-row:hover {
+    border-color: color-mix(in srgb, var(--bocchi-blue) 45%, var(--bocchi-border));
+    box-shadow: var(--bocchi-shadow-soft);
+    transform: translateY(-1px);
 }
 
 .bocchi-list-row + .bocchi-list-row {

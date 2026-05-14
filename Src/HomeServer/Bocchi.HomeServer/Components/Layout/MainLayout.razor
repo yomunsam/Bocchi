@@ -5,25 +5,53 @@
         <a class="bocchi-logo" href="/Admin" aria-label="Bocchi Admin">Bocchi</a>
 
         <nav class="bocchi-primary-nav">
-            <NavLink href="/Admin" Match="NavLinkMatch.All">Home</NavLink>
-            <NavLink href="/Admin/Content/Edit">Write</NavLink>
-            <NavLink href="/Admin/Content">Content</NavLink>
-            <NavLink href="/Admin/Preview">Preview</NavLink>
-            <NavLink href="/Admin/Publish">Publish</NavLink>
-            <NavLink href="/Admin/Settings">Settings</NavLink>
+            <NavLink href="/Admin" Match="NavLinkMatch.All">
+                <Blazicon Svg="Lucide.House" />
+                <span>Home</span>
+            </NavLink>
+            <NavLink href="/Admin/Content/Edit">
+                <Blazicon Svg="Lucide.PenLine" />
+                <span>Write</span>
+            </NavLink>
+            <NavLink href="/Admin/Content">
+                <Blazicon Svg="Lucide.FileText" />
+                <span>Content</span>
+            </NavLink>
+            <NavLink href="/Admin/Preview">
+                <Blazicon Svg="Lucide.Eye" />
+                <span>Preview</span>
+            </NavLink>
+            <NavLink href="/Admin/Publish">
+                <Blazicon Svg="Lucide.Send" />
+                <span>Publish</span>
+            </NavLink>
+            <NavLink href="/Admin/Settings">
+                <Blazicon Svg="Lucide.Settings" />
+                <span>Settings</span>
+            </NavLink>
         </nav>
+
+        <div class="bocchi-sidebar-card" aria-label="Server summary">
+            <span class="bocchi-sidebar-card__dot" aria-hidden="true"></span>
+            <strong>Bocchi M4</strong>
+            <p>Server is running</p>
+            <a href="/healthz">System Info</a>
+        </div>
     </aside>
 
     <div class="bocchi-workbench">
         <header class="bocchi-topbar">
-            <div class="bocchi-topbar__search" role="search">
-                <span aria-hidden="true">Search</span>
-                <input type="search" placeholder="Find posts, pages, notes..." aria-label="Search content" disabled />
-            </div>
+            <form class="bocchi-command-search" method="get" action="/Admin/Content" role="search">
+                <Blazicon Svg="Lucide.Search" />
+                <input name="q" type="search" placeholder="Search posts, pages, notes..." aria-label="Search content" />
+                <kbd>Ctrl K</kbd>
+            </form>
 
             <div class="bocchi-topbar__actions">
-                <a class="bocchi-soft-link" href="/Admin/Content">Content space</a>
-                <a class="bocchi-soft-link" href="/Admin/Users">Users</a>
+                <a class="bocchi-soft-link bocchi-soft-link--primary" href="/Admin/Content/Edit">
+                    <Blazicon Svg="Lucide.Plus" />
+                    <span>New</span>
+                </a>
                 <label class="bocchi-appearance-control">
                     <span>外观</span>
                     <select id="bocchi-appearance-select" aria-label="Dashboard dark mode" onchange="window.bocchiAppearance?.set(this.value)">
@@ -32,8 +60,13 @@
                         <option value="dark">Dark</option>
                     </select>
                 </label>
+                <a class="bocchi-account-link" href="/Admin/Users" aria-label="Open users">
+                    <span>me</span>
+                </a>
                 <form method="post" action="/Account/Logout">
-                    <button type="submit" class="secondary">Logout</button>
+                    <button type="submit" class="bocchi-icon-button" aria-label="Logout">
+                        <Blazicon Svg="Lucide.LogOut" />
+                    </button>
                 </form>
             </div>
         </header>
