@@ -1,0 +1,168 @@
+@page "/workspace"
+@using Bocchi.ContentModel
+@using Bocchi.Workspace
+@using Bocchi.Workspace.Git
+@using Bocchi.Workspace.Scanning
+@using Bocchi.Workspace.State
+@inject WorkspaceLayout Layout
+@inject IWorkspace WorkspaceService
+@inject IContentStateStore Store
+@inject IContentRepository Repository
+@inject ContentScanner Scanner
+
+<PageTitle>工作区 · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header>
+        <h1>工作区</h1>
+        <p class="lede">查看当前内容空间的扫描状态、Git 状态与诊断信息。可手动触发一次重新扫描。</p>
+    </header>
+
+    <section aria-labelledby="paths-heading">
+        <h2 id="paths-heading">目录</h2>
+        <dl>
+            <dt>工作区根</dt><dd><code>@Layout.Root</code></dd>
+            <dt>内容空间</dt><dd><code>@Layout.ContentSpaceRoot</code></dd>
+            <dt>SQLite</dt><dd><code>@Layout.SqliteDatabasePath</code></dd>
+            <dt>日志</dt><dd><code>@Layout.LogsDirectory</code></dd>
+        </dl>
+    </section>
+
+    <section aria-labelledby="git-heading">
+        <h2 id="git-heading">内容空间 Git</h2>
+        @if (_gitStatus is null)
+        {
+            <p>读取中…</p>
+        }
+        else if (!_gitStatus.IsRepository)
+        {
+            <p>内容空间尚未初始化为 Git 仓库。</p>
+            <button type="button" @onclick="InitGitAsync" disabled="@_busy">初始化 Git 仓库</button>
+        }
+        else
+        {
+            <dl>
+                <dt>分支</dt><dd>@_gitStatus.CurrentBranch</dd>
+                <dt>HEAD</dt><dd><code>@(_gitStatus.HeadCommitSha ?? "(无提交)")</code></dd>
+                <dt>HEAD 摘要</dt><dd>@_gitStatus.HeadCommitSummary</dd>
+                <dt>未提交文件数</dt><dd>@_gitStatus.DirtyFileCount</dd>
+            </dl>
+        }
+    </section>
+
+    <section aria-labelledby="scan-heading">
+        <h2 id="scan-heading">扫描</h2>
+        <button type="button" @onclick="RescanAsync" disabled="@_busy">@(_busy ? "扫描中…" : "重新扫描")</button>
+        @if (_lastRun is not null)
+        {
+            <dl>
+                <dt>最近运行</dt><dd>#@_lastRun.Id · @_lastRun.Status</dd>
+                <dt>开始</dt><dd>@_lastRun.StartedAt.ToString("u")</dd>
+                <dt>结束</dt><dd>@(_lastRun.FinishedAt?.ToString("u") ?? "—")</dd>
+                <dt>文件 / 内容项</dt><dd>@_lastRun.FilesScanned / @_lastRun.ItemsLoaded</dd>
+                <dt>错误 / 警告</dt><dd>@_lastRun.ErrorCount / @_lastRun.WarningCount</dd>
+            </dl>
+        }
+    </section>
+
+    <section aria-labelledby="errors-heading">
+        <h2 id="errors-heading">最近错误（最多 50 条）</h2>
+        @if (_errors.Count == 0)
+        {
+            <p>暂无诊断信息。</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr><th>等级</th><th>类型</th><th>路径</th><th>代码</th><th>说明</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var e in _errors)
+                {
+                    <tr>
+                        <td>@e.Severity</td>
+                        <td>@(e.Kind?.ToString() ?? "-")</td>
+                        <td><code>@e.RelativePath</code></td>
+                        <td><code>@e.Code</code></td>
+                        <td>@e.Message</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <section aria-labelledby="content-heading">
+        <h2 id="content-heading">内容（按类型）</h2>
+        @foreach (var group in _summaries.GroupBy(s => s.Kind))
+        {
+            <h3>@group.Key（@group.Count()）</h3>
+            <ul>
+            @foreach (var s in group.OrderByDescending(x => x.PublishedAt))
+            {
+                <li>
+                    <strong>@(s.Title ?? s.ContentId)</strong>
+                    @if (s.Year is not null)
+                    {
+                        <span> · @s.Year</span>
+                    }
+                    <span> · @s.Status</span>
+                    <span> · <code>@s.RelativePath</code></span>
+                </li>
+            }
+            </ul>
+        }
+    </section>
+</article>
+
+@code {
+    private bool _busy;
+    private ContentRepositoryStatus? _gitStatus;
+    private ScanRunRecord? _lastRun;
+    private IReadOnlyList<ContentValidationError> _errors = [];
+    private IReadOnlyList<ContentSummary> _summaries = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _gitStatus = await Repository.GetStatusAsync();
+        _lastRun = await Store.GetLatestScanRunAsync();
+        _errors = _lastRun is null
+            ? []
+            : (await Store.ListErrorsAsync(_lastRun.Id)).Take(50).ToList();
+        _summaries = await Store.ListContentSummariesAsync(null);
+    }
+
+    private async Task InitGitAsync()
+    {
+        _busy = true;
+        try
+        {
+            await Repository.InitializeAsync();
+            await RefreshAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RescanAsync()
+    {
+        _busy = true;
+        try
+        {
+            await Scanner.ScanAsync();
+            await RefreshAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

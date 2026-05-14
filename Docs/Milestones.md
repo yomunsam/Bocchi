@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- |
 | [x] | M0 | 架构与计划基线 | 固化系统边界、Theme Contract 和总体路线 | `Docs/Architecture.md`、`Docs/Milestones.md` | 架构文档和里程碑文档存在，核心开放问题被列出 |
 | [x] | M1 | Solution 骨架 | 建立 .NET Home Server、测试项目和基础目录 | solution 文件、`Src/HomeServer/`、`Tests/`、`Docs/Milestones/M1/M1.md` | 可启动空后台，可运行基础测试 |
-| [ ] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志 | 能扫描文章、页面、作品、短文、友链和站点设置 |
+| [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [ ] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/` | Full Build 可产出完整本地站点目录 |
 | [ ] | M4 | Home Server Dashboard | 提供可用的内网管理界面 | 后台首页、内容列表、编辑入口、构建日志 | 能通过 UI 管理内容并触发构建 |
 | [ ] | M5 | Default SvelteKit Theme | 提供默认静态前端 | `Themes/default-svelte/`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
@@ -91,28 +91,27 @@
 
 ## M2 Content Workspace
 
-目标：让 Bocchi 能读懂本地内容。
+目标：让 Bocchi 能读懂本地内容，并把"长期可控、可一键带走的创作内容"和"Bocchi 自己的系统状态"做出干净切分。
 
-建议任务：
+详细规划与决策记录见 `Docs/Milestones/M2/M2.md`；详细验证记录见 `Docs/Milestones/M2/M2.md` §8。
 
-- 定义 workspace 初始化流程。
-- 实现 `content/`、`media/`、`site/`、`.bocchi/` 目录约定。
-- 实现 Markdown + frontmatter 解析。
-- 实现文章、页面、作品、短文、友链、站点设置的数据模型。
-- 实现 SQLite 管理状态。
-- 实现内容校验和错误报告。
+完工内容：
 
-验收标准：
+- workspace 初始化流程落地，强制"内容空间 / Bocchi 系统空间"切分（`WorkspaceLayout` + `ContentSpaceLayout`）。
+- 内容空间默认目录约定生效：年份目录一级分类；Post / Work = 目录 + `assets/`；Page 不按年份；Note = 单文件 Markdown；Friends / Site = YAML。
+- Markdown + YAML frontmatter 解析（Markdig + YamlDotNet）：六个内容类型独立 Loader，统一错误模型 `ContentValidationError(Severity / Code / Field / Message)`。
+- SQLite 管理状态（`Microsoft.Data.Sqlite`）：`SchemaMigrator` 基于 `PRAGMA user_version`；`ContentStateStore` 持久化文件 hash、内容索引、扫描运行、错误聚合；不复制正文。
+- `ContentScanner` 端到端打通：年份目录校验、媒体引用校验、孤儿媒体 Info、可疑派生产物 Warning。
+- 内容空间 Git 集成（LibGit2Sharp）：本地 `init/status/commitAll`；远程接入按决策延后到 M6。
+- Home Server `/workspace` 页面、首页入口；Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/`。
 
-- 给定示例 workspace，可以扫描出所有 MVP 内容类型。
-- 草稿、slug、分类、标签、发布时间和媒体引用能被识别。
-- SQLite 能记录扫描状态、hash、错误和索引。
-- 错误信息能指出具体文件和字段。
+验收：`dotnet build` / `dotnet test` 全绿，34 个测试通过；`dotnet run` 启动后 `/workspace` 可显示工作区根、Git 状态、扫描结果与错误列表；`<workspace>/content/` 目录可独立打包，不含任何 Bocchi 系统痕迹。
 
-暂不做：
+暂不做（已显式延后）：
 
-- 完整可视化编辑器。
-- 增量构建优化。
+- 完整可视化编辑器（M4）。
+- 标准化内容图、Theme 输入数据写入、媒体衍生品、增量构建（M3）。
+- Git 远程接入（push/pull、GitHub、凭据）—— 与 M6 发布管线一起设计。
 - 照片墙完整体验。
 
 ## M3 Generator Pipeline
@@ -265,9 +264,23 @@
 - 测试：xUnit + FluentAssertions；Home Server 集成测试基于 `Microsoft.AspNetCore.Mvc.Testing`。
 - 监听策略：Home Server 默认仅绑定 `http://127.0.0.1:5081`，与 Architecture §12 一致。
 
+### 2026-05-14 (M2)
+
+- 内容工作区在物理上严格切分为 **内容空间** 与 **Bocchi 系统空间**。内容空间默认位于 `<workspace>/content/`，包含纯创作资产（Blog、独立页面、作品集、短文、友链、站点设置），可独立打包/迁移、可作为独立 Git 仓库；Bocchi 系统空间位于 `<workspace>/{themes,.bocchi,output}/`，与 Bocchi 项目同寿。理由：让用户的内容资产独立于"Bocchi 这个程序"的命运，未来 Bocchi 被遗弃/重构时可以一键带走。
+- 内容空间内的 Post / Work / Note / Photo 强制使用 **年份目录** 作为一级分类（`<kind>/<year>/...`，年份正则 `^\d{4}$`）。Pages 不按年份分类。
+- Post / Work 单篇为 "目录形式"：`<kind>/<year>/<slug>/index.md` + `assets/`，`assets/` 仅放该篇的原始媒体；frontmatter 中以相对路径引用。
+- Note 采用 **Markdown 单文件**（`notes/<year>/<filename>.md`），一条短文一个文件；正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。关闭原"短文存储格式"待决问题。
+- frontmatter 一律使用 **YAML**。关闭原 frontmatter 格式待决问题。
+- Markdown 引擎 `Markdig`，YAML 引擎 `YamlDotNet`。
+- SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。
+- 内容空间作为 Git 工作区使用 `LibGit2Sharp`：M2 提供 `init / status / commit` 等本地能力；远程接入（push/pull、GitHub、凭据存储）显式延后到 M6 发布管线。
+- 内容空间是"源工程"：禁止出现派生产物（webp、缩略图、HTML、搜索索引）；衍生媒体目录固定为 `<workspace>/.bocchi/cache/derivatives/`，由 M3 实施。
+- Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/bocchi-.log`。
+
+详细决策与落地清单见 `Docs/Milestones/M2/M2.md`。
+
 ## 待决问题
 
-- Markdown frontmatter 采用 YAML、TOML 还是兼容多格式。
-- 短文的初始存储格式使用 Markdown、JSON Lines 还是 SQLite + 导出。
 - 默认搜索使用自研 JSON index 还是 Pagefind。
 - Cloudflare Pages 发布优先手动目录流程还是自动化流程。
+- 内容空间作为 Git 仓库时与远程（GitHub 等）的接入策略：与 M6 发布管线一起设计，包括凭据存储、push 触发时机、webhook 回路等。

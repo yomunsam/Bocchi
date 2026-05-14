@@ -1,5 +1,8 @@
 using System.Globalization;
 using Bocchi.HomeServer.Components;
+using Bocchi.Workspace;
+using Bocchi.Workspace.DependencyInjection;
+using Bocchi.Workspace.State;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Serilog;
 
@@ -14,18 +17,48 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, services, configuration) => configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext());
+    // Workspace 必须先注册：日志的文件 sink 也要落到 <workspace>/.bocchi/logs。
+    builder.Services.AddBocchiWorkspace(
+        builder.Configuration,
+        sp => builder.Environment.ContentRootPath);
+
+    builder.Host.UseSerilog((context, services, configuration) =>
+    {
+        var layout = services.GetRequiredService<WorkspaceLayout>();
+        Directory.CreateDirectory(layout.LogsDirectory);
+        configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .WriteTo.File(
+                Path.Combine(layout.LogsDirectory, "home-server-.log"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 14,
+                formatProvider: CultureInfo.InvariantCulture);
+    });
 
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
 
-    builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
+
+    // 启动时执行：可选自动初始化 + 自动迁移 schema。
+    using (var scope = app.Services.CreateScope())
+    {
+        var sp = scope.ServiceProvider;
+        var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<WorkspaceOptions>>().Value;
+        if (options.AutoInitialize)
+        {
+            await sp.GetRequiredService<WorkspaceInitializer>().InitializeAsync();
+        }
+
+        if (options.AutoMigrateSchema)
+        {
+            await sp.GetRequiredService<SchemaMigrator>().MigrateAsync();
+        }
+    }
 
     app.UseSerilogRequestLogging();
 
