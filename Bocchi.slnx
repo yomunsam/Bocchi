@@ -1,0 +1,24 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Src/" />
+  <Folder Name="/Src/Core/">
+    <Project Path="Src/Core/Bocchi.ContentModel/Bocchi.ContentModel.csproj" />
+    <Project Path="Src/Core/Bocchi.Generator/Bocchi.Generator.csproj" />
+    <Project Path="Src/Core/Bocchi.GeneratorContract/Bocchi.GeneratorContract.csproj" />
+    <Project Path="Src/Core/Bocchi.Workspace/Bocchi.Workspace.csproj" />
+  </Folder>
+  <Folder Name="/Src/HomeServer/">
+    <Project Path="Src/HomeServer/Bocchi.HomeServer/Bocchi.HomeServer.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Bocchi.ContentModel.Tests/Bocchi.ContentModel.Tests.csproj" />
+    <Project Path="Tests/Bocchi.Generator.Tests/Bocchi.Generator.Tests.csproj" />
+    <Project Path="Tests/Bocchi.GeneratorContract.Tests/Bocchi.GeneratorContract.Tests.csproj" />
+    <Project Path="Tests/Bocchi.HomeServer.Tests/Bocchi.HomeServer.Tests.csproj" />
+    <Project Path="Tests/Bocchi.Workspace.Tests/Bocchi.Workspace.Tests.csproj" />
+  </Folder>
+</Solution>

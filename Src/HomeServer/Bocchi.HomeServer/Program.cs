@@ -1,4 +1,5 @@
 using System.Globalization;
+
 using Bocchi.Generator;
 using Bocchi.HomeServer;
 using Bocchi.HomeServer.Build;
@@ -6,7 +7,9 @@ using Bocchi.HomeServer.Components;
 using Bocchi.Workspace;
 using Bocchi.Workspace.DependencyInjection;
 using Bocchi.Workspace.State;
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+
 using Serilog;
 
 // Bootstrap logger so any failure during configuration is captured.
@@ -27,20 +30,23 @@ try
     builder.Services.AddBocchiGenerator(builder.Configuration);
     builder.Services.AddSingleton<BuildOrchestrator>();
 
-    builder.Host.UseSerilog((context, services, configuration) =>
+    if (!builder.Environment.IsEnvironment("Testing"))
     {
-        var layout = services.GetRequiredService<WorkspaceLayout>();
-        Directory.CreateDirectory(layout.LogsDirectory);
-        configuration
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .WriteTo.File(
-                Path.Combine(layout.LogsDirectory, "home-server-.log"),
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 14,
-                formatProvider: CultureInfo.InvariantCulture);
-    });
+        builder.Host.UseSerilog((context, services, configuration) =>
+        {
+            var layout = services.GetRequiredService<WorkspaceLayout>();
+            Directory.CreateDirectory(layout.LogsDirectory);
+            configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .WriteTo.File(
+                    Path.Combine(layout.LogsDirectory, "home-server-.log"),
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 14,
+                    formatProvider: CultureInfo.InvariantCulture);
+        });
+    }
 
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
@@ -65,7 +71,10 @@ try
         }
     }
 
-    app.UseSerilogRequestLogging();
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        app.UseSerilogRequestLogging();
+    }
 
     if (!app.Environment.IsDevelopment())
     {

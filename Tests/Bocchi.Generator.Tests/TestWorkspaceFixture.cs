@@ -8,6 +8,7 @@ using Bocchi.Workspace.DependencyInjection;
 using Bocchi.Workspace.Git;
 using Bocchi.Workspace.Scanning;
 using Bocchi.Workspace.State;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -75,15 +76,23 @@ internal sealed class TestWorkspaceFixture : IDisposable
     public void Dispose()
     {
         Services.Dispose();
-        try
+        for (var attempt = 0; attempt < 5; attempt++)
         {
-            Directory.Delete(Root, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
+            try
+            {
+                if (Directory.Exists(Root))
+                {
+                    Directory.Delete(Root, recursive: true);
+                }
+
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(50 * (attempt + 1));
+            }
         }
     }
 }

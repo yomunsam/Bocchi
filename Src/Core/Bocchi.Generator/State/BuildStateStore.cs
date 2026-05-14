@@ -1,7 +1,9 @@
 using System.Globalization;
+
 using Bocchi.Generator.Exceptions;
 using Bocchi.Generator.Pipeline;
 using Bocchi.Workspace.State;
+
 using Microsoft.Data.Sqlite;
 
 namespace Bocchi.Generator.State;
@@ -151,7 +153,7 @@ public sealed class BuildStateStore : IBuildStateStore
                 SELECT Id, SessionId, ScanRunId, Mode, Environment, ThemeId, IncludeDrafts,
                        StartedAtUtc, FinishedAtUtc, Status, Fingerprint, Reason
                 FROM BuildRuns
-                WHERE Status IN ('Succeeded', 'Skipped')
+                WHERE Status = 'Succeeded'
                 ORDER BY StartedAtUtc DESC
                 LIMIT 1;
                 """;

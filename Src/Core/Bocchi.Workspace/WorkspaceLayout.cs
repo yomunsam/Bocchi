@@ -78,4 +78,3 @@ public sealed record WorkspaceLayout
     /// <summary>静态站点输出目录。</summary>
     public string PublicOutputDirectory => Path.Combine(OutputDirectory, "public");
 }
-

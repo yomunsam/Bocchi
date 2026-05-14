@@ -58,4 +58,3 @@ public sealed record SiteSettings
     /// <summary><c>robots.txt</c> 策略。</summary>
     public RobotsPolicy Robots { get; init; } = new();
 }
-

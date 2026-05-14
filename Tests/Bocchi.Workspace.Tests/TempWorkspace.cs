@@ -19,15 +19,43 @@ public sealed class TempWorkspace : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(Root))
+        DeleteBestEffort(Root);
+    }
+
+    private static void DeleteBestEffort(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            return;
+        }
+
+        for (var attempt = 0; attempt < 5; attempt++)
         {
             try
             {
-                Directory.Delete(Root, recursive: true);
+                ClearReadOnlyAttributes(path);
+                Directory.Delete(path, recursive: true);
+                return;
             }
-            catch (IOException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // best effort
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(50 * (attempt + 1));
+            }
+        }
+    }
+
+    private static void ClearReadOnlyAttributes(string path)
+    {
+        foreach (var entry in Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories))
+        {
+            try
+            {
+                File.SetAttributes(entry, FileAttributes.Normal);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
             }
         }
     }

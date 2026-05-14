@@ -4,6 +4,7 @@ using Bocchi.Workspace.Content.Loaders;
 using Bocchi.Workspace.Git;
 using Bocchi.Workspace.Scanning;
 using Bocchi.Workspace.State;
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bocchi.Workspace.Tests;

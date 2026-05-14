@@ -1,5 +1,6 @@
 using Bocchi.ContentModel;
 using Bocchi.Workspace.Scanning;
+
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 

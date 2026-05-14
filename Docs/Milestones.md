@@ -85,7 +85,7 @@
 
 验证记录：
 
-- `dotnet restore Bocchi.sln`、`dotnet build Bocchi.sln`、`dotnet test Bocchi.sln` 全部通过，0 警告 0 错误。
+- `dotnet restore Bocchi.slnx`、`dotnet build Bocchi.slnx`、`dotnet test Bocchi.slnx` 全部通过，0 警告 0 错误。
 - `dotnet run --project Src/HomeServer/Bocchi.HomeServer` 启动到 `http://127.0.0.1:5081`，`/healthz` 返回 `Healthy`，`/` 返回包含 "Bocchi Home Server" 的页面。
 - 集中包管理（Directory.Packages.props）与 `TreatWarningsAsErrors` 已生效。
 
@@ -105,7 +105,7 @@
 - 内容空间 Git 集成（LibGit2Sharp）：本地 `init/status/commitAll`；远程接入按决策延后到 M6。
 - Home Server `/workspace` 页面、首页入口；Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/`。
 
-验收：`dotnet build` / `dotnet test` 全绿，34 个测试通过；`dotnet run` 启动后 `/workspace` 可显示工作区根、Git 状态、扫描结果与错误列表；`<workspace>/content/` 目录可独立打包，不含任何 Bocchi 系统痕迹。
+验收：`dotnet build` / `dotnet test` 全绿；`dotnet run` 启动后 `/workspace` 可显示工作区根、Git 状态、扫描结果与错误列表；`<workspace>/content/` 目录可独立打包，不含任何 Bocchi 系统痕迹。
 
 暂不做（已显式延后）：
 
@@ -276,6 +276,7 @@
 - Markdown 引擎 `Markdig`，YAML 引擎 `YamlDotNet`。
 - SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。
 - 内容空间作为 Git 工作区使用 `LibGit2Sharp`：M2 提供 `init / status / commit` 等本地能力；远程接入（push/pull、GitHub、凭据存储）显式延后到 M6 发布管线。
+- 2026-05-14 复查：`LibGit2Sharp` 0.31.0 是当前稳定版本，NuGet 计算兼容 `net10.0`；Bocchi 当前只使用内容空间本地 init/status/commitAll，继续使用该库。
 - 内容空间是"源工程"：禁止出现派生产物（webp、缩略图、HTML、搜索索引）；衍生媒体目录固定为 `<workspace>/.bocchi/cache/derivatives/`，由 M3 实施。
 - Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/bocchi-.log`。
 
@@ -283,6 +284,4 @@
 
 ## 待决问题
 
-- 默认搜索使用自研 JSON index 还是 Pagefind。
-- Cloudflare Pages 发布优先手动目录流程还是自动化流程。
 - 内容空间作为 Git 仓库时与远程（GitHub 等）的接入策略：与 M6 发布管线一起设计，包括凭据存储、push 触发时机、webhook 回路等。

@@ -125,10 +125,10 @@ Workspace/                            <-- Bocchi workspace 根（host）
       derivatives/                    <-- M3 起：衍生媒体（webp / 缩略图）
     theme-config/                     <-- Theme 实例配置（与具体 Theme 绑定，不可移植）
     input/                            <-- M3 起：Theme 输入数据
-    build-manifest.json
     publish-history.json
   output/                             <-- 构建产物
     public/
+      .bocchi-manifest.json
 ```
 
 强约束（M2 起生效）：

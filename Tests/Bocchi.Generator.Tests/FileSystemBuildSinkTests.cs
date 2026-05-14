@@ -1,7 +1,9 @@
 using System.Xml.Linq;
+
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.Workspace;
+
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bocchi.Generator.Tests;

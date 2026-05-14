@@ -1,4 +1,5 @@
 using Bocchi.Workspace.Exceptions;
+
 using LibGit2Sharp;
 
 namespace Bocchi.Workspace.Git;

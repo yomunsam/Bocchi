@@ -8,13 +8,13 @@
 
 ```bash
 # 还原依赖
-dotnet restore Bocchi.sln
+dotnet restore Bocchi.slnx
 
 # 构建（已开启 TreatWarningsAsErrors，警告即失败）
-dotnet build Bocchi.sln
+dotnet build Bocchi.slnx
 
 # 跑测试（含 Home Server 集成测试）
-dotnet test Bocchi.sln
+dotnet test Bocchi.slnx
 
 # 本地启动 Home Server，默认只监听回环地址 http://127.0.0.1:5081
 dotnet run --project Src/HomeServer/Bocchi.HomeServer
@@ -34,9 +34,9 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build [--theme=<id>] [-
 构建后的两个关键目录（均位于 Bocchi 系统空间，不会污染内容空间）：
 
 - `<workspace>/.bocchi/input/`：Theme 输入数据 JSON（`site.json` / `posts.json` / `pages.json` / `works.json` / `notes.json` / `friends.json` / `photos.json` / `navigation.json` / `theme-config.json` / `build-context.json`）
-- `<workspace>/output/public/`：可部署到任意静态托管的站点目录，含 `robots.txt` / `sitemap.xml` / `feed.xml` / `media/...` / `build-manifest.json`，M5 起会再加入 Theme 渲染输出
+- `<workspace>/output/public/`：可部署到任意静态托管的站点目录，含 `robots.txt` / `sitemap.xml` / `feed.xml` / `media/...` / `.bocchi-manifest.json`，M5 起会再加入 Theme 渲染输出
 
-实时预览端点：`GET /_bocchi/preview/<artifact 相对路径>`（仅支持 `.json` / `.xml` / `.txt`）会触发一次 Live 模式构建并将命中 artifact 流式吐出，供编辑器实时预览使用。
+实时预览端点：`GET /_bocchi/preview/data/{name}.json`、`GET /_bocchi/preview/media/{path}`、`GET /_bocchi/preview/{robots.txt|sitemap.xml|feed.xml|.bocchi-manifest.json}` 会触发一次 Live 模式构建并将命中 artifact 流式吐出，供编辑器实时预览使用。
 
 ### 内容空间（Content Space）
 

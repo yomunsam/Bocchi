@@ -1,4 +1,5 @@
 using System.Text.Json;
+
 using Bocchi.GeneratorContract;
 
 namespace Bocchi.Generator.Theme;

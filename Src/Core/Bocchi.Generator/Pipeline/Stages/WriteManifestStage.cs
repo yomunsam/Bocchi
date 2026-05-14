@@ -1,12 +1,15 @@
 using System.Globalization;
 using System.Text.Json;
+
 using Bocchi.Generator.ThemeInputs;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
-/// <summary>把所有 artifact 的元数据写成 <c>/build-manifest.json</c>（<see cref="ArtifactKind.SiteArtifact"/>）。</summary>
+/// <summary>把所有 artifact 的元数据写成 <c>/.bocchi-manifest.json</c>（<see cref="ArtifactKind.SiteArtifact"/>）。</summary>
 public sealed class WriteManifestStage : IBuildStage
 {
+    public const string ManifestPath = "/.bocchi-manifest.json";
+
     public string Name => nameof(WriteManifestStage);
 
     public async Task<bool> ExecuteAsync(BuildSession session)
@@ -22,7 +25,7 @@ public sealed class WriteManifestStage : IBuildStage
             ThemeId = session.GetItem<string>(BuildSessionKeys.ThemeId),
             Environment = session.Options.Environment,
             Artifacts = session.Artifacts
-                .Where(a => !string.Equals(a.Path, "/build-manifest.json", StringComparison.Ordinal))
+                .Where(a => !string.Equals(a.Path, ManifestPath, StringComparison.Ordinal))
                 .Select(a => new ManifestEntry(a.Path, a.Kind.ToString(), a.ContentType, a.SizeBytes, a.Sha256, a.ProducedBy))
                 .OrderBy(e => e.Path, StringComparer.Ordinal)
                 .ToArray(),
@@ -31,7 +34,7 @@ public sealed class WriteManifestStage : IBuildStage
         var sha = Sha256Util.Hex(bytes);
         var artifact = new BuildArtifact
         {
-            Path = "/build-manifest.json",
+            Path = ManifestPath,
             Kind = ArtifactKind.SiteArtifact,
             ContentType = "application/json; charset=utf-8",
             SizeBytes = bytes.Length,
@@ -40,11 +43,11 @@ public sealed class WriteManifestStage : IBuildStage
             Bytes = bytes,
         };
         await ArtifactSinkHelper.WriteAsync(session, artifact).ConfigureAwait(false);
-        session.Log(Name, BuildLogLevel.Info, $"build-manifest.json 已写入（{manifest.Artifacts.Length} 条）。");
+        session.Log(Name, BuildLogLevel.Info, $".bocchi-manifest.json 已写入（{manifest.Artifacts.Length} 条）。");
         return true;
     }
 
-    private sealed record BuildManifest
+    internal sealed record BuildManifest
     {
         public required string SessionId { get; init; }
         public string? Fingerprint { get; init; }
@@ -55,7 +58,7 @@ public sealed class WriteManifestStage : IBuildStage
         public required ManifestEntry[] Artifacts { get; init; }
     }
 
-    private sealed record ManifestEntry(string Path, string Kind, string ContentType, long SizeBytes, string Sha256, string ProducedBy);
+    internal sealed record ManifestEntry(string Path, string Kind, string ContentType, long SizeBytes, string Sha256, string ProducedBy);
 }
 
 internal static class Sha256Util

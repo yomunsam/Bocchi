@@ -1,7 +1,10 @@
 using System.IO.Compression;
+
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
+using Bocchi.Generator.State;
 using Bocchi.Workspace;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -15,6 +18,7 @@ public static class BuildEndpoints
     /// <summary>
     /// 注册：<br/>
     /// <c>GET /build/download</c> → 把 <c>output/public/</c> 打成 zip 流给客户端。<br/>
+    /// <c>POST /build/run</c> → 触发一次 Full Build，便于自动化测试和非 Blazor 客户端。<br/>
     /// <c>GET /_bocchi/preview/{path}</c> → 触发 Live 构建并把命中 artifact 直接流回。
     /// </summary>
     public static IEndpointRouteBuilder MapBuildEndpoints(this IEndpointRouteBuilder endpoints)
@@ -22,12 +26,42 @@ public static class BuildEndpoints
         ArgumentNullException.ThrowIfNull(endpoints);
 
         endpoints.MapGet("/build/download", DownloadPublicZipAsync);
+        endpoints.MapPost("/build/run", RunBuildAsync).DisableAntiforgery();
         endpoints.MapGet("/_bocchi/preview/{**path}", PreviewAsync);
         return endpoints;
     }
 
-    private static async Task DownloadPublicZipAsync(HttpContext context, WorkspaceLayout layout, CancellationToken cancellationToken)
+    private static async Task<IResult> RunBuildAsync(BuildOrchestrator orchestrator, CancellationToken cancellationToken)
     {
+        var result = await orchestrator.RunFullBuildAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Environment = "production" },
+            themeId: null,
+            cancellationToken).ConfigureAwait(false);
+
+        return Results.Json(new
+        {
+            result.SessionId,
+            Status = result.Status.ToString(),
+            Fingerprint = result.Fingerprint?.Value,
+            result.Reason,
+            ArtifactCount = result.Artifacts.Count,
+        });
+    }
+
+    private static async Task DownloadPublicZipAsync(
+        HttpContext context,
+        WorkspaceLayout layout,
+        IBuildStateStore store,
+        CancellationToken cancellationToken)
+    {
+        var latestSuccessful = await store.GetLatestSuccessfulRunAsync(cancellationToken).ConfigureAwait(false);
+        if (latestSuccessful is null)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await context.Response.WriteAsync("No successful build exists. Run a build first.", cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         var publicRoot = layout.PublicOutputDirectory;
         if (!Directory.Exists(publicRoot))
         {
@@ -38,34 +72,49 @@ public static class BuildEndpoints
 
         context.Response.ContentType = "application/zip";
         context.Response.Headers.ContentDisposition = $"attachment; filename=\"bocchi-site-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.zip\"";
-        using var zip = new ZipArchive(context.Response.Body, ZipArchiveMode.Create, leaveOpen: true);
         var rootFull = Path.GetFullPath(publicRoot);
-        foreach (var file in Directory.EnumerateFiles(rootFull, "*", SearchOption.AllDirectories))
+        var files = Directory.EnumerateFiles(rootFull, "*", SearchOption.AllDirectories).ToArray();
+        if (files.Length == 0)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var rel = Path.GetRelativePath(rootFull, file).Replace(Path.DirectorySeparatorChar, '/');
-            var entry = zip.CreateEntry(rel, CompressionLevel.Optimal);
-            await using var entryStream = entry.Open();
-            await using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
-            await fs.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            await context.Response.WriteAsync("Output directory is empty. Run a build first.", cancellationToken).ConfigureAwait(false);
+            return;
         }
+
+        await using var buffer = new MemoryStream();
+        using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var rel = Path.GetRelativePath(rootFull, file).Replace(Path.DirectorySeparatorChar, '/');
+                var entry = zip.CreateEntry(rel, CompressionLevel.Optimal);
+                await using var entryStream = entry.Open();
+                await using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+                await fs.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        buffer.Position = 0;
+        context.Response.ContentLength = buffer.Length;
+        await buffer.CopyToAsync(context.Response.Body, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task PreviewAsync(string? path, HttpContext context, BuildOrchestrator orchestrator)
     {
-        var siteRelative = "/" + (path ?? string.Empty);
-        // 仅允许预览 Theme 输入与站点级 artifact（以 .json / .xml / .txt 结尾），媒体走静态文件
-        if (!(siteRelative.EndsWith(".json", StringComparison.Ordinal)
-              || siteRelative.EndsWith(".xml", StringComparison.Ordinal)
-              || siteRelative.EndsWith(".txt", StringComparison.Ordinal)))
+        if (!TryMapPreviewPath(path, out var artifactPath))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        var sink = new HttpStreamBuildSink(context.Response.Body, siteRelative,
-            matched => context.Response.ContentType = matched.ContentType);
-        var options = new BuildOptions { Mode = BuildMode.Live, OnlyArtifactPath = siteRelative };
+        var sink = new HttpStreamBuildSink(context.Response.Body, artifactPath,
+            matched =>
+            {
+                context.Response.ContentType = matched.ContentType;
+                context.Response.Headers.ETag = $"\"sha256-{matched.Sha256}\"";
+            });
+        var options = new BuildOptions { Mode = BuildMode.Live, OnlyArtifactPath = artifactPath };
         var result = await orchestrator.RunLiveAsync(options, themeId: null, sink, context.RequestAborted).ConfigureAwait(false);
 
         if (!sink.Matched)
@@ -77,5 +126,44 @@ public static class BuildEndpoints
                 await context.Response.WriteAsync($"Build failed: {result.Reason}").ConfigureAwait(false);
             }
         }
+    }
+
+    private static bool TryMapPreviewPath(string? rawPath, out string artifactPath)
+    {
+        artifactPath = string.Empty;
+        var path = (rawPath ?? string.Empty).Replace('\\', '/').TrimStart('/');
+        if (path.Length == 0 || path.Contains("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (path.StartsWith("data/", StringComparison.Ordinal))
+        {
+            var name = path["data/".Length..];
+            if (name.Length == 0 || name.Contains('/', StringComparison.Ordinal) || !name.EndsWith(".json", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            artifactPath = "/" + name;
+            return true;
+        }
+
+        if (path.StartsWith("media/", StringComparison.Ordinal))
+        {
+            artifactPath = "/" + path;
+            return true;
+        }
+
+        if (string.Equals(path, "robots.txt", StringComparison.Ordinal)
+            || string.Equals(path, "sitemap.xml", StringComparison.Ordinal)
+            || string.Equals(path, "feed.xml", StringComparison.Ordinal)
+            || string.Equals(path, ".bocchi-manifest.json", StringComparison.Ordinal))
+        {
+            artifactPath = "/" + path;
+            return true;
+        }
+
+        return false;
     }
 }

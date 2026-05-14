@@ -28,4 +28,3 @@ public sealed record BuildContext
     /// <summary>本次构建是否纳入草稿。<c>true</c> 时 <c>status: draft</c> 的内容也会出现在 Theme 输入中。</summary>
     public bool IncludeDrafts { get; init; }
 }
-

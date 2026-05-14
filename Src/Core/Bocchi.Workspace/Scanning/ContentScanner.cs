@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+
 using Bocchi.ContentModel;
 using Bocchi.Workspace.Content;
 using Bocchi.Workspace.Content.Loaders;
 using Bocchi.Workspace.Git;
 using Bocchi.Workspace.State;
+
 using Microsoft.Extensions.Logging;
 
 namespace Bocchi.Workspace.Scanning;

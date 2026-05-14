@@ -2,6 +2,7 @@ using Bocchi.Generator.Exceptions;
 using Bocchi.Generator.Pipeline.Stages;
 using Bocchi.Generator.Sinks;
 using Bocchi.Generator.State;
+
 using Microsoft.Extensions.Logging;
 
 namespace Bocchi.Generator.Pipeline;
@@ -83,7 +84,7 @@ public sealed partial class GeneratorPipeline
     /// <param name="options">本次选项。</param>
     /// <param name="sink">输出端。</param>
     /// <param name="themeId">主题 id（可空，<c>null</c> 时回退到 <c>site.yaml</c> 的 <c>defaultThemeId</c>）。</param>
-    /// <param name="bocchiVersion">Bocchi 自身版本号，会写入 BuildRuns / build-manifest.json / build-context.json。</param>
+    /// <param name="bocchiVersion">Bocchi 自身版本号，会写入 BuildRuns / .bocchi-manifest.json / build-context.json。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     public async Task<BuildResult> RunAsync(
         BuildOptions options,
@@ -112,7 +113,7 @@ public sealed partial class GeneratorPipeline
 
         LogBuildStart(sessionId, options.Mode, options.Environment);
 
-        // 阶段固定顺序，详见 M3.md §3.8
+        // 阶段固定顺序，详见 M3.md §3.7
         IBuildStage[] stages =
         [
             _load,
@@ -124,8 +125,8 @@ public sealed partial class GeneratorPipeline
             _writeSite,
             _copyMedia,
             _runTheme,
-            _validate,
             _writeManifest,
+            _validate,
         ];
 
         BuildStatus status = BuildStatus.Failed;
@@ -134,8 +135,11 @@ public sealed partial class GeneratorPipeline
         try
         {
             await ExecuteAsync(_load, session).ConfigureAwait(false);
-            session.BuildRunId = await _store.BeginRunAsync(session, themeId, bocchiVersion, cancellationToken).ConfigureAwait(false);
-            persistedLogCount = await PersistLogsAsync(session, persistedLogCount).ConfigureAwait(false);
+            if (options.Mode == BuildMode.FullBuild)
+            {
+                session.BuildRunId = await _store.BeginRunAsync(session, themeId, bocchiVersion, cancellationToken).ConfigureAwait(false);
+                persistedLogCount = await PersistLogsAsync(session, persistedLogCount).ConfigureAwait(false);
+            }
 
             for (var i = 1; i < stages.Length; i++)
             {

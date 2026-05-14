@@ -1,7 +1,9 @@
 using System.Text.Json;
+
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.Generator.State;
+
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bocchi.Generator.Tests;
@@ -29,14 +31,14 @@ public sealed class GeneratorPipelineEndToEndTests
         result.Artifacts.Should().Contain(a => a.Path == "/robots.txt");
         result.Artifacts.Should().Contain(a => a.Path == "/sitemap.xml");
         result.Artifacts.Should().Contain(a => a.Path == "/feed.xml");
-        result.Artifacts.Should().Contain(a => a.Path == "/build-manifest.json");
+        result.Artifacts.Should().Contain(a => a.Path == "/.bocchi-manifest.json");
 
         // 文件应该真实存在
         File.Exists(Path.Combine(fixture.Layout.ThemeInputDirectory, "site.json")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "robots.txt")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "sitemap.xml")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "feed.xml")).Should().BeTrue();
-        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "build-manifest.json")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, ".bocchi-manifest.json")).Should().BeTrue();
 
         // 媒体应被复制到 output/public/media/posts/<year>/<slug>/<file>
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "media", "posts", "2025", "hello", "c.jpg"))
@@ -66,6 +68,50 @@ public sealed class GeneratorPipelineEndToEndTests
         second.Status.Should().Be(BuildStatus.Skipped);
         second.Fingerprint!.Value.Should().Be(first.Fingerprint!.Value);
         sink2.CapturedArtifacts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task FullBuild_WithDifferentOutputOption_DoesNotShortCircuit()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var first = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            null,
+            "0.0.0-test",
+            default);
+        first.Status.Should().Be(BuildStatus.Succeeded);
+
+        var second = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, FeedItemCount = 1 },
+            new FileSystemBuildSink(fixture.Layout),
+            null,
+            "0.0.0-test",
+            default);
+
+        second.Status.Should().Be(BuildStatus.Succeeded);
+        second.Fingerprint!.Value.Should().NotBe(first.Fingerprint!.Value);
+    }
+
+    [Fact]
+    public async Task LiveBuild_DoesNotPersistBuildRun()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var store = fixture.Services.GetRequiredService<IBuildStateStore>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.Live, OnlyArtifactPath = "/site.json" },
+            new DryRunBuildSink(),
+            null,
+            "0.0.0-test",
+            default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        result.BuildRunId.Should().BeNull();
+        (await store.ListRecentRunsAsync(10, default)).Should().BeEmpty();
     }
 
     [Fact]

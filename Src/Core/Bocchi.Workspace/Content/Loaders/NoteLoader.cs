@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+
 using Bocchi.ContentModel;
 using Bocchi.Workspace.Scanning;
+
 using YamlDotNet.Core;
 
 namespace Bocchi.Workspace.Content.Loaders;

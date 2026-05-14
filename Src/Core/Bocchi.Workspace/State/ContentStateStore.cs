@@ -1,7 +1,9 @@
 using System.Globalization;
+
 using Bocchi.ContentModel;
 using Bocchi.Workspace.Exceptions;
 using Bocchi.Workspace.Scanning;
+
 using Microsoft.Data.Sqlite;
 
 namespace Bocchi.Workspace.State;

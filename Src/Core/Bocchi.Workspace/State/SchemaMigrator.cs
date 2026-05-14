@@ -1,4 +1,5 @@
 using Bocchi.Workspace.Exceptions;
+
 using Microsoft.Data.Sqlite;
 
 namespace Bocchi.Workspace.State;

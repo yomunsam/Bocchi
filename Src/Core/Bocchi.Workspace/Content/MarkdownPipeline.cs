@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.RegularExpressions;
+
 using Bocchi.ContentModel;
+
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;

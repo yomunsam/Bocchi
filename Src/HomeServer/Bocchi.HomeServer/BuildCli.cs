@@ -2,6 +2,7 @@ using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.HomeServer.Build;
 using Bocchi.Workspace;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -9,7 +10,7 @@ namespace Bocchi.HomeServer;
 
 /// <summary>
 /// 把构建相关的最小命令行入口封装到 HomeServer 进程：<br/>
-/// <c>Bocchi.HomeServer -- build [--theme=&lt;id&gt;] [--include-drafts] [--env=&lt;name&gt;]</c>
+/// <c>Bocchi.HomeServer build [--theme=&lt;id&gt;] [--include-drafts] [--env=&lt;name&gt;]</c>
 /// </summary>
 public static partial class BuildCli
 {

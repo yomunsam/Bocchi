@@ -25,4 +25,3 @@ public sealed record InputEnvelope<T>
     [JsonPropertyOrder(0)]
     public required T Data { get; init; }
 }
-

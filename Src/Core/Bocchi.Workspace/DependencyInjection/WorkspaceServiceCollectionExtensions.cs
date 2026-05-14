@@ -3,6 +3,7 @@ using Bocchi.Workspace.Content.Loaders;
 using Bocchi.Workspace.Git;
 using Bocchi.Workspace.Scanning;
 using Bocchi.Workspace.State;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

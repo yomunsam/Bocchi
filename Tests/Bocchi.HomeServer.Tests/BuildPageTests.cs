@@ -1,0 +1,58 @@
+using System.Net;
+using System.Text.Json;
+
+namespace Bocchi.HomeServer.Tests;
+
+public sealed class BuildPageTests : IClassFixture<IsolatedWorkspaceWebApplicationFactory>
+{
+    private readonly IsolatedWorkspaceWebApplicationFactory _factory;
+
+    public BuildPageTests(IsolatedWorkspaceWebApplicationFactory factory)
+    {
+        _factory = factory;
+    }
+
+    [Fact]
+    public async Task BuildPage_RendersBuildSurface()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/build");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("构建");
+        body.Should().Contain("output/public/");
+        body.Should().Contain("/build/download");
+    }
+
+    [Fact]
+    public async Task BuildRunEndpoint_ProducesDownloadableZip()
+    {
+        _factory.SeedPublishedPostWithMedia();
+        using var client = _factory.CreateClient();
+
+        var run = await client.PostAsync("/build/run", content: null);
+        run.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await run.Content.ReadAsStringAsync());
+        doc.RootElement.GetProperty("status").GetString().Should().Be("Succeeded");
+        doc.RootElement.GetProperty("artifactCount").GetInt32().Should().BeGreaterThan(0);
+
+        var download = await client.GetAsync("/build/download");
+        download.EnsureSuccessStatusCode();
+        download.Content.Headers.ContentType!.MediaType.Should().Be("application/zip");
+        var bytes = await download.Content.ReadAsByteArrayAsync();
+        bytes.Should().StartWith([0x50, 0x4B]);
+    }
+
+    [Fact]
+    public async Task Download_Returns404BeforeFirstBuild()
+    {
+        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/build/download");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+}

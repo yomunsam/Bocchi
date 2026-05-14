@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+
 using Bocchi.Generator.Exceptions;
 
 namespace Bocchi.Generator.Pipeline.Stages;
@@ -26,8 +27,10 @@ public sealed class ComputeFingerprintStage : IBuildStage
         AppendLine(sha, $"mode={session.Options.Mode}");
         AppendLine(sha, $"env={session.Options.Environment}");
         AppendLine(sha, $"includeDrafts={session.Options.IncludeDrafts}");
-        AppendLine(sha, $"feedItemCount={session.Graph.Site.Settings.FeedItemCount}");
+        AppendLine(sha, $"feedItemCount={session.Options.FeedItemCount ?? session.Graph.Site.Settings.FeedItemCount}");
         AppendLine(sha, $"baseUrl={session.Graph.Site.NormalizedBaseUrl}");
+        AppendLine(sha, $"themeId={session.GetItem<string>(BuildSessionKeys.ThemeId) ?? session.Graph.Site.Settings.DefaultThemeId ?? string.Empty}");
+        AppendLine(sha, $"bocchiVersion={session.GetItem<string>(BuildSessionKeys.BocchiVersion) ?? string.Empty}");
 
         // 站点设置 / 导航：用全字段 toString 模拟稳定快照
         AppendLine(sha, $"site={session.Graph.Site.Settings}");
