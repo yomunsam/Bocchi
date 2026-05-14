@@ -1,133 +1,182 @@
-@page "/workspace"
+@page "/Admin/Content"
 @using Bocchi.ContentModel
 @using Bocchi.Workspace
 @using Bocchi.Workspace.Git
 @using Bocchi.Workspace.Scanning
 @using Bocchi.Workspace.State
 @inject WorkspaceLayout Layout
-@inject IWorkspace WorkspaceService
 @inject IContentStateStore Store
 @inject IContentRepository Repository
 @inject ContentScanner Scanner
 
-<PageTitle>工作区 · Bocchi</PageTitle>
+<PageTitle>Content · Bocchi</PageTitle>
 
 <article class="bocchi-shell">
-    <header>
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">Content space</span>
         <h1>工作区</h1>
-        <p class="lede">查看当前内容空间的扫描状态、Git 状态与诊断信息。可手动触发一次重新扫描。</p>
+        <p>用轻量列表查看内容、扫描结果和 Git 状态。技术诊断仍然保留，但默认收在高级详情里。</p>
     </header>
 
-    <section aria-labelledby="paths-heading">
-        <h2 id="paths-heading">目录</h2>
-        <dl>
-            <dt>工作区根</dt><dd><code>@Layout.Root</code></dd>
-            <dt>内容空间</dt><dd><code>@Layout.ContentSpaceRoot</code></dd>
-            <dt>SQLite</dt><dd><code>@Layout.SqliteDatabasePath</code></dd>
-            <dt>日志</dt><dd><code>@Layout.LogsDirectory</code></dd>
+    <div class="bocchi-two-column">
+        <section aria-labelledby="content-heading" class="bocchi-panel">
+            <div class="bocchi-inline-actions">
+                <h2 id="content-heading">Content</h2>
+                <label class="bocchi-compact-field">
+                    <span>Type</span>
+                    <select @bind="_kindFilter">
+                        <option value="">All</option>
+                        <option value="Post">Posts</option>
+                        <option value="Page">Pages</option>
+                        <option value="Work">Works</option>
+                        <option value="Note">Notes</option>
+                        <option value="FriendLink">Friends</option>
+                        <option value="SiteSettings">Site Settings</option>
+                    </select>
+                </label>
+                <button type="button" class="secondary" @onclick="RescanAsync" disabled="@_busy">@(_busy ? "Checking..." : "Check now")</button>
+            </div>
+
+            @if (_summaries.Count == 0)
+            {
+                <BocchiListRow Kicker="Empty" Title="还没有扫描到内容">
+                    <ChildContent>
+                        <p>先确认内容空间里有 Markdown、site.yaml 或 friends.yaml，然后点一次 Check now。</p>
+                    </ChildContent>
+                    <Metadata>
+                        <BocchiStatusPill Tone="warning">Needs a quick look</BocchiStatusPill>
+                        <span><code>content/</code></span>
+                    </Metadata>
+                </BocchiListRow>
+            }
+            else
+            {
+                @foreach (var item in FilteredSummaries)
+                {
+                    <BocchiListRow Kicker="@item.Kind.ToString()" Title="@(item.Title ?? item.ContentId)">
+                        <ChildContent>
+                            <p><code>@item.RelativePath</code></p>
+                        </ChildContent>
+                        <Metadata>
+                            <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
+                            @if (item.Year is not null)
+                            {
+                                <span>@item.Year</span>
+                            }
+                            <span>@ContentTimeLabel(item)</span>
+                        </Metadata>
+                        <Action>
+                            <a class="bocchi-button secondary" href="@ContentEditingService.EditUrl(item.RelativePath)">Edit</a>
+                        </Action>
+                    </BocchiListRow>
+                }
+            }
+        </section>
+
+        <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="status-heading">
+            <h2 id="status-heading">Site check</h2>
+            <dl class="bocchi-meta-list">
+                <div>
+                    <dt>最近运行</dt>
+                    <dd>@(_lastRun is null ? "No check yet" : $"#{_lastRun.Id} · {_lastRun.Status}")</dd>
+                </div>
+                <div>
+                    <dt>文件 / 内容项</dt>
+                    <dd>@(_lastRun is null ? "—" : $"{_lastRun.FilesScanned} / {_lastRun.ItemsLoaded}")</dd>
+                </div>
+                <div>
+                    <dt>错误 / 警告</dt>
+                    <dd>@(_lastRun is null ? "—" : $"{_lastRun.ErrorCount} / {_lastRun.WarningCount}")</dd>
+                </div>
+                <div>
+                    <dt>Git</dt>
+                    <dd>@GitStatusLabel()</dd>
+                </div>
+            </dl>
+
+            @if (_gitStatus is not null && !_gitStatus.IsRepository)
+            {
+                <p>内容空间还不是 Git 仓库。</p>
+                <button type="button" @onclick="InitGitAsync" disabled="@_busy">Init Git</button>
+            }
+        </aside>
+    </div>
+
+    <details class="bocchi-advanced-details">
+        <summary>Workspace paths</summary>
+        <dl class="bocchi-meta-list">
+            <div>
+                <dt>工作区根</dt>
+                <dd><code>@Layout.Root</code></dd>
+            </div>
+            <div>
+                <dt>内容空间</dt>
+                <dd><code>@Layout.ContentSpaceRoot</code></dd>
+            </div>
+            <div>
+                <dt>SQLite</dt>
+                <dd><code>@Layout.SqliteDatabasePath</code></dd>
+            </div>
+            <div>
+                <dt>日志</dt>
+                <dd><code>@Layout.LogsDirectory</code></dd>
+            </div>
         </dl>
-    </section>
+    </details>
 
-    <section aria-labelledby="git-heading">
-        <h2 id="git-heading">内容空间 Git</h2>
-        @if (_gitStatus is null)
-        {
-            <p>读取中…</p>
-        }
-        else if (!_gitStatus.IsRepository)
-        {
-            <p>内容空间尚未初始化为 Git 仓库。</p>
-            <button type="button" @onclick="InitGitAsync" disabled="@_busy">初始化 Git 仓库</button>
-        }
-        else
-        {
-            <dl>
-                <dt>分支</dt><dd>@_gitStatus.CurrentBranch</dd>
-                <dt>HEAD</dt><dd><code>@(_gitStatus.HeadCommitSha ?? "(无提交)")</code></dd>
-                <dt>HEAD 摘要</dt><dd>@_gitStatus.HeadCommitSummary</dd>
-                <dt>未提交文件数</dt><dd>@_gitStatus.DirtyFileCount</dd>
-            </dl>
-        }
-    </section>
-
-    <section aria-labelledby="scan-heading">
-        <h2 id="scan-heading">扫描</h2>
-        <button type="button" @onclick="RescanAsync" disabled="@_busy">@(_busy ? "扫描中…" : "重新扫描")</button>
-        @if (_lastRun is not null)
-        {
-            <dl>
-                <dt>最近运行</dt><dd>#@_lastRun.Id · @_lastRun.Status</dd>
-                <dt>开始</dt><dd>@_lastRun.StartedAt.ToString("u")</dd>
-                <dt>结束</dt><dd>@(_lastRun.FinishedAt?.ToString("u") ?? "—")</dd>
-                <dt>文件 / 内容项</dt><dd>@_lastRun.FilesScanned / @_lastRun.ItemsLoaded</dd>
-                <dt>错误 / 警告</dt><dd>@_lastRun.ErrorCount / @_lastRun.WarningCount</dd>
-            </dl>
-        }
-    </section>
-
-    <section aria-labelledby="errors-heading">
-        <h2 id="errors-heading">最近错误（最多 50 条）</h2>
+    <details class="bocchi-advanced-details">
+        <summary>Diagnostics (@_errors.Count)</summary>
         @if (_errors.Count == 0)
         {
             <p>暂无诊断信息。</p>
         }
         else
         {
-            <table>
-                <thead>
-                    <tr><th>等级</th><th>类型</th><th>路径</th><th>代码</th><th>说明</th></tr>
-                </thead>
-                <tbody>
-                @foreach (var e in _errors)
-                {
-                    <tr>
-                        <td>@e.Severity</td>
-                        <td>@(e.Kind?.ToString() ?? "-")</td>
-                        <td><code>@e.RelativePath</code></td>
-                        <td><code>@e.Code</code></td>
-                        <td>@e.Message</td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        }
-    </section>
-
-    <section aria-labelledby="content-heading">
-        <h2 id="content-heading">内容（按类型）</h2>
-        @foreach (var group in _summaries.GroupBy(s => s.Kind))
-        {
-            <h3>@group.Key（@group.Count()）</h3>
-            <ul>
-            @foreach (var s in group.OrderByDescending(x => x.PublishedAt))
+            @foreach (var e in _errors)
             {
-                <li>
-                    <strong>@(s.Title ?? s.ContentId)</strong>
-                    @if (s.Year is not null)
-                    {
-                        <span> · @s.Year</span>
-                    }
-                    <span> · @s.Status</span>
-                    <span> · <code>@s.RelativePath</code></span>
-                </li>
+                <BocchiListRow Kicker="@(e.Kind?.ToString() ?? "Workspace")" Title="@e.Message">
+                    <Metadata>
+                        <BocchiStatusPill Tone="@ErrorTone(e.Severity)">@e.Severity</BocchiStatusPill>
+                        <span><code>@e.Code</code></span>
+                        <span><code>@e.RelativePath</code></span>
+                    </Metadata>
+                </BocchiListRow>
             }
-            </ul>
         }
-    </section>
+    </details>
 </article>
 
 @code {
+    /// <summary>页面正在执行扫描或初始化动作时用于禁用按钮。</summary>
     private bool _busy;
+
+    /// <summary>内容空间 Git 状态。</summary>
     private ContentRepositoryStatus? _gitStatus;
+
+    /// <summary>最近一次内容扫描运行。</summary>
     private ScanRunRecord? _lastRun;
+
+    /// <summary>最近一次扫描产生的诊断信息。</summary>
     private IReadOnlyList<ContentValidationError> _errors = [];
+
+    /// <summary>SQLite 中的内容摘要，主列表不读取正文。</summary>
     private IReadOnlyList<ContentSummary> _summaries = [];
+
+    /// <summary>内容类型筛选值；空字符串表示全部。</summary>
+    private string _kindFilter = string.Empty;
+
+    /// <summary>根据当前 UI 筛选返回主列表内容。</summary>
+    private IEnumerable<ContentSummary> FilteredSummaries => _summaries
+        .Where(x => string.IsNullOrWhiteSpace(_kindFilter) || x.Kind.ToString() == _kindFilter)
+        .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
+        .ThenBy(x => x.Title ?? x.ContentId);
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
     }
 
+    /// <summary>刷新 Git、扫描摘要、诊断和内容列表。</summary>
     private async Task RefreshAsync()
     {
         _gitStatus = await Repository.GetStatusAsync();
@@ -138,6 +187,7 @@
         _summaries = await Store.ListContentSummariesAsync(null);
     }
 
+    /// <summary>把内容空间初始化为独立 Git 仓库。</summary>
     private async Task InitGitAsync()
     {
         _busy = true;
@@ -152,6 +202,7 @@
         }
     }
 
+    /// <summary>重新扫描内容空间并刷新页面投影。</summary>
     private async Task RescanAsync()
     {
         _busy = true;
@@ -164,5 +215,54 @@
         {
             _busy = false;
         }
+    }
+
+    /// <summary>把内容发布状态转成普通用户能理解的标签。</summary>
+    private static string ContentStatusLabel(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => "Ready",
+            ContentStatus.Archived => "Archived",
+            _ => "Draft",
+        };
+
+    /// <summary>把内容发布状态映射到柔和状态色。</summary>
+    private static string ContentStatusTone(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => "success",
+            ContentStatus.Archived => "neutral",
+            _ => "warning",
+        };
+
+    /// <summary>优先显示更新时间，其次显示发布时间。</summary>
+    private static string ContentTimeLabel(ContentSummary summary)
+        => (summary.UpdatedAt ?? summary.PublishedAt)?.ToString("yyyy-MM-dd") ?? "No date";
+
+    /// <summary>把扫描诊断级别映射到柔和状态色。</summary>
+    private static string ErrorTone(ContentErrorSeverity severity)
+        => severity switch
+        {
+            ContentErrorSeverity.Error => "danger",
+            ContentErrorSeverity.Warning => "warning",
+            _ => "info",
+        };
+
+    /// <summary>把 Git 状态翻译成首页可读的一句话。</summary>
+    private string GitStatusLabel()
+    {
+        if (_gitStatus is null)
+        {
+            return "Checking...";
+        }
+
+        if (!_gitStatus.IsRepository)
+        {
+            return "Not initialized";
+        }
+
+        return _gitStatus.DirtyFileCount == 0
+            ? "Clean"
+            : $"{_gitStatus.DirtyFileCount} changed files";
     }
 }

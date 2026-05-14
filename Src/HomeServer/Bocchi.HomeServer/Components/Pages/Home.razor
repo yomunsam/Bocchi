@@ -1,32 +1,85 @@
-@page "/"
+@page "/Admin"
 @inject IHostEnvironment HostEnvironment
 @inject TimeProvider Time
 
-<PageTitle>Bocchi Home Server</PageTitle>
+<PageTitle>Home · Bocchi</PageTitle>
 
 <article class="bocchi-shell">
-    <header>
-        <h1>Bocchi Home Server</h1>
-        <p class="lede">个人主页与 Blog 的内网内容工作台。M1 仅交付骨架，后续里程碑将逐步点亮各模块。</p>
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">Bocchi Home Server</span>
+        <h1>Keep writing, preview softly.</h1>
+        <p>个人主页与 Blog 的内网内容工作台。Setup、Identity 和 `/Admin` 访问边界已经成为 M4 的正式地基。</p>
     </header>
 
-    <section aria-labelledby="status-heading">
-        <h2 id="status-heading">运行状态</h2>
-        <dl>
-            <dt>版本</dt>
-            <dd>@ServerInfo.Version</dd>
-            <dt>环境</dt>
-            <dd>@HostEnvironment.EnvironmentName</dd>
-            <dt>服务器时间</dt>
-            <dd>@Time.GetUtcNow().ToString("u")</dd>
-            <dt>健康检查</dt>
-            <dd><a href="/healthz">/healthz</a></dd>
-        </dl>
-    </section>
+    <div class="bocchi-two-column">
+        <section aria-labelledby="today-heading" class="bocchi-panel">
+            <h2 id="today-heading">Today</h2>
+            <BocchiListRow Kicker="Content" Title="整理内容空间">
+                <ChildContent>
+                    <p>查看 Markdown、媒体、Git 状态和最近扫描结果。</p>
+                </ChildContent>
+                <Metadata>
+                    <BocchiStatusPill Tone="info">Ready to check</BocchiStatusPill>
+                    <span>content/</span>
+                </Metadata>
+                <Action>
+                    <a class="bocchi-button secondary" href="/Admin/Content">Open</a>
+                </Action>
+            </BocchiListRow>
 
-    <section aria-labelledby="roadmap-heading">
-        <h2 id="roadmap-heading">里程碑</h2>
-        <p>详见仓库内 <code>Docs/Milestones.md</code>。M2（Workspace 基础设施）已交付：内容空间扫描、SQLite 状态库、Git 集成。M3（Generator Pipeline）已交付：Theme 输入数据 + 站点级产物 + Sink 矩阵。</p>
-        <p><a href="/workspace">→ 打开工作区面板</a> · <a href="/build">→ 构建面板</a></p>
-    </section>
+            <BocchiListRow Kicker="Publish" Title="预览发布状态">
+                <ChildContent>
+                    <p>用普通用户能理解的检查状态进入构建流程，必要时再展开高级日志。</p>
+                </ChildContent>
+                <Metadata>
+                    <BocchiStatusPill Tone="success">Publish looks okay</BocchiStatusPill>
+                    <span>output/public/</span>
+                </Metadata>
+                <Action>
+                    <a class="bocchi-button secondary" href="/Admin/Publish">Open</a>
+                </Action>
+            </BocchiListRow>
+
+            <BocchiListRow Kicker="Preview" Title="前台预览准备中">
+                <ChildContent>
+                    <p>`/` 是登录后的受保护预览入口，HTML 页面会由 Home Server 注入轻量 Preview Toolbar。</p>
+                </ChildContent>
+                <Metadata>
+                    <BocchiStatusPill Tone="info">Preview ready</BocchiStatusPill>
+                    <span>/ preview host</span>
+                </Metadata>
+                <Action>
+                    <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">Open</a>
+                </Action>
+            </BocchiListRow>
+        </section>
+
+        <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="status-heading">
+            <h2 id="status-heading">Server</h2>
+            <dl class="bocchi-meta-list">
+                <div>
+                    <dt>版本</dt>
+                    <dd><span title="@ServerInfo.Version">@ShortVersion(ServerInfo.Version)</span></dd>
+                </div>
+                <div>
+                    <dt>环境</dt>
+                    <dd>@HostEnvironment.EnvironmentName</dd>
+                </div>
+                <div>
+                    <dt>服务器时间</dt>
+                    <dd>@Time.GetUtcNow().ToString("u")</dd>
+                </div>
+                <div>
+                    <dt>健康检查</dt>
+                    <dd><a href="/healthz">/healthz</a></dd>
+                </div>
+            </dl>
+        </aside>
+    </div>
 </article>
+
+@code {
+    /// <summary>首页只展示短版本号，完整版本保留在 title 中用于排查。</summary>
+    private static string ShortVersion(string version)
+        => version.Length <= 12 ? version : $"{version[..12]}...";
+}

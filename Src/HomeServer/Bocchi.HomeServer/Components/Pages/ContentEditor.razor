@@ -1,0 +1,231 @@
+@page "/Admin/Content/Edit"
+@using Bocchi.Workspace.Scanning
+@using Bocchi.Workspace.State
+@inject ContentEditingService Editor
+@inject Bocchi.Workspace.Content.MarkdownPipeline Markdown
+@inject ContentScanner Scanner
+@inject IContentStateStore Store
+
+<PageTitle>Write · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">Write / Markdown Editor</span>
+        <h1>Write in Markdown, preview softly.</h1>
+        <p>正文仍然写回内容空间文件；预览复用现有 Markdig pipeline，避免编辑体验和生成结果走成两套事实。</p>
+    </header>
+
+    @if (string.IsNullOrWhiteSpace(Path))
+    {
+        <section class="bocchi-panel" aria-labelledby="pick-file-heading">
+            <h2 id="pick-file-heading">Choose something to edit</h2>
+            @if (_summaries.Count == 0)
+            {
+                <BocchiListRow Kicker="Empty" Title="还没有可编辑内容">
+                    <ChildContent>
+                        <p>先在 Content 页面扫描工作区，或者在 content/ 下创建 Markdown 文件。</p>
+                    </ChildContent>
+                    <Action>
+                        <a class="bocchi-button secondary" href="/Admin/Content">Open Content</a>
+                    </Action>
+                </BocchiListRow>
+            }
+            else
+            {
+                @foreach (var item in _summaries)
+                {
+                    <BocchiListRow Kicker="@item.Kind.ToString()" Title="@(item.Title ?? item.ContentId)">
+                        <ChildContent>
+                            <p><code>@item.RelativePath</code></p>
+                        </ChildContent>
+                        <Metadata>
+                            <BocchiStatusPill Tone="info">@item.Status</BocchiStatusPill>
+                        </Metadata>
+                        <Action>
+                            <a class="bocchi-button secondary" href="@ContentEditingService.EditUrl(item.RelativePath)">Edit</a>
+                        </Action>
+                    </BocchiListRow>
+                }
+            }
+        </section>
+    }
+    else if (_error is not null)
+    {
+        <section class="bocchi-panel">
+            <h2>Needs a quick look</h2>
+            <p>@_error</p>
+            <a class="bocchi-button secondary" href="/Admin/Content">Back to Content</a>
+        </section>
+    }
+    else if (_file is null)
+    {
+        <section class="bocchi-panel">
+            <p>Loading editor…</p>
+        </section>
+    }
+    else
+    {
+        <section class="bocchi-editor-grid" aria-label="Markdown editor">
+            <div class="bocchi-panel bocchi-editor-panel">
+                <div class="bocchi-inline-actions">
+                    <h2>@_file.RelativePath</h2>
+                    <BocchiStatusPill Tone="@(_saved ? "success" : "info")">@(_saved ? "Saved" : "Editing")</BocchiStatusPill>
+                </div>
+                <label>
+                    Frontmatter
+                    <textarea class="bocchi-editor-textarea bocchi-editor-textarea--frontmatter" @bind="_yaml"></textarea>
+                </label>
+                <label>
+                    Markdown
+                    <textarea class="bocchi-editor-textarea" @bind="_markdown"></textarea>
+                </label>
+                <details class="bocchi-advanced-details" open>
+                    <summary>Diff before save</summary>
+                    <p>@DiffSummary</p>
+                    <label class="bocchi-checkbox">
+                        <input type="checkbox" @bind="_diffConfirmed" disabled="@(!IsDirty)" />
+                        I reviewed these changes
+                    </label>
+                </details>
+                <div class="bocchi-inline-actions">
+                    <button type="button" @onclick="SaveAsync" disabled="@(_busy || (IsDirty && !_diffConfirmed))">@(_busy ? "Saving..." : "Save")</button>
+                    <button type="button" class="secondary" @onclick="RefreshPreview">Refresh preview</button>
+                    <a class="bocchi-button secondary" href="/Admin/Content">Back</a>
+                </div>
+            </div>
+
+            <aside class="bocchi-panel bocchi-editor-preview">
+                <h2>Preview</h2>
+                <div class="bocchi-markdown-preview">@((MarkupString)_previewHtml)</div>
+            </aside>
+        </section>
+    }
+</article>
+
+@code {
+    /// <summary>查询字符串中的内容空间相对路径。</summary>
+    [SupplyParameterFromQuery(Name = "path")]
+    public string? Path { get; set; }
+
+    /// <summary>未指定 path 时展示的内容候选列表。</summary>
+    private IReadOnlyList<ContentSummary> _summaries = [];
+
+    /// <summary>当前编辑文件。</summary>
+    private EditableContentFile? _file;
+
+    /// <summary>frontmatter YAML 编辑缓冲区。</summary>
+    private string _yaml = string.Empty;
+
+    /// <summary>Markdown 正文编辑缓冲区。</summary>
+    private string _markdown = string.Empty;
+
+    /// <summary>载入时的原始 frontmatter，用于保存前确认。</summary>
+    private string _originalYaml = string.Empty;
+
+    /// <summary>载入时的原始 Markdown，用于保存前确认。</summary>
+    private string _originalMarkdown = string.Empty;
+
+    /// <summary>当前预览 HTML。</summary>
+    private string _previewHtml = string.Empty;
+
+    /// <summary>页面级错误提示。</summary>
+    private string? _error;
+
+    /// <summary>保存中禁用按钮。</summary>
+    private bool _busy;
+
+    /// <summary>保存成功后给用户一个轻反馈。</summary>
+    private bool _saved;
+
+    /// <summary>用户是否已经查看并确认当前差异。</summary>
+    private bool _diffConfirmed;
+
+    /// <summary>当前编辑缓冲区是否相对载入版本发生变化。</summary>
+    private bool IsDirty => _yaml != _originalYaml || _markdown != _originalMarkdown;
+
+    /// <summary>保存前给用户扫读的轻量差异摘要。</summary>
+    private string DiffSummary
+    {
+        get
+        {
+            var before = SplitLines(_originalYaml + "\n---body---\n" + _originalMarkdown);
+            var after = SplitLines(_yaml + "\n---body---\n" + _markdown);
+            var changed = 0;
+            for (var i = 0; i < Math.Max(before.Length, after.Length); i++)
+            {
+                var oldLine = i < before.Length ? before[i] : string.Empty;
+                var newLine = i < after.Length ? after[i] : string.Empty;
+                if (!string.Equals(oldLine, newLine, StringComparison.Ordinal))
+                {
+                    changed++;
+                }
+            }
+
+            return changed == 0
+                ? "No changes since this file was opened."
+                : $"{changed} line positions changed. Confirm before saving so accidental frontmatter rewrites do not slip through.";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _saved = false;
+        _error = null;
+        if (string.IsNullOrWhiteSpace(Path))
+        {
+            _summaries = await Store.ListContentSummariesAsync(null);
+            _file = null;
+            return;
+        }
+
+        try
+        {
+            _file = await Editor.ReadAsync(Path);
+            _yaml = _file.Yaml;
+            _markdown = _file.Markdown;
+            _originalYaml = _file.Yaml;
+            _originalMarkdown = _file.Markdown;
+            _previewHtml = _file.PreviewHtml;
+            _diffConfirmed = false;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    /// <summary>保存文件、刷新扫描投影，并重算预览。</summary>
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Path) || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Editor.SaveAsync(Path, _yaml, _markdown);
+            await Scanner.ScanAsync();
+            RefreshPreview();
+            _originalYaml = _yaml;
+            _originalMarkdown = _markdown;
+            _diffConfirmed = false;
+            _saved = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>用编辑缓冲区重算预览，避免每个键入事件都跑 Markdown 渲染。</summary>
+    private void RefreshPreview()
+    {
+        _previewHtml = Markdown.RenderHtml(_markdown);
+    }
+
+    /// <summary>跨平台拆分文本行，仅用于保存前差异摘要。</summary>
+    private static string[] SplitLines(string value)
+        => value.Replace("\r\n", "\n").Split('\n');
+}

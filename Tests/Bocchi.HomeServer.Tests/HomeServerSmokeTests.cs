@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using System.Net;
 
 namespace Bocchi.HomeServer.Tests;
 
@@ -26,9 +27,9 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
     [Fact]
     public async Task RootPage_RendersHomeServerShell()
     {
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/Admin");
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
@@ -39,13 +40,93 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
     [Fact]
     public async Task WorkspacePage_RendersAndShowsConfiguredRoot()
     {
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
-        var response = await client.GetAsync("/workspace");
+        var response = await client.GetAsync("/Admin/Content");
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("工作区");
         body.Should().Contain(_factory.WorkspaceRoot);
+    }
+
+    [Fact]
+    public async Task AdminRoute_RedirectsToSetupBeforeInitialization()
+    {
+        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/Admin");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Be("/Setup");
+    }
+
+    [Fact]
+    public async Task AdminRoute_RedirectsToLoginAfterSetupWhenAnonymous()
+    {
+        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+        using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await anonymous.GetAsync("/Admin");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Contain("/Account/Login");
+    }
+
+    [Fact]
+    public async Task ProtectedPreview_RendersToolbarForAuthenticatedUser()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("bocchi-preview-toolbar");
+        body.Should().Contain("Preview");
+    }
+
+    [Fact]
+    public async Task SettingsPage_RendersThemeAndExternalLoginSections()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Third-party Login");
+        body.Should().Contain("Save Theme config");
+    }
+
+    [Fact]
+    public async Task UsersPage_RendersRoleAndExternalLoginManagement()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Users");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Remove Admin");
+        body.Should().Contain("No external login bound.");
+    }
+
+    [Fact]
+    public async Task EditorPage_RendersDiffConfirmationForContentFile()
+    {
+        _factory.SeedPublishedPostWithMedia();
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Content/Edit?path=posts%2F2026%2Fhello-preview%2Findex.md");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Diff before save");
+        body.Should().Contain("I reviewed these changes");
     }
 }

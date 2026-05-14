@@ -1,0 +1,259 @@
+@page "/Admin/Settings"
+@using Bocchi.HomeServer.Data
+@using Bocchi.Workspace
+@inject DashboardSettingsService DashboardSettings
+@inject ExternalLoginSettingsService ExternalLogins
+@inject ThemeSettingsService ThemeSettings
+@inject WorkspaceLayout Layout
+
+<PageTitle>Settings · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">Settings</span>
+        <h1>Keep the server clear.</h1>
+        <p>设置页按 Basic Info、Database、Third-party Login、Theme、Users、Workspace 的 M4 二级分类组织；普通配置优先，危险细节收进说明区。</p>
+    </header>
+
+    <div class="bocchi-settings-layout">
+        <nav class="bocchi-secondary-nav" aria-label="Settings sections">
+            <a href="#basic">Basic Info</a>
+            <a href="#database">Database</a>
+            <a href="#login">Third-party Login</a>
+            <a href="#theme">Theme</a>
+            <a href="/Admin/Users">Users</a>
+            <a href="#workspace">Workspace</a>
+        </nav>
+
+        <div class="bocchi-settings-stack">
+            <section id="basic" class="bocchi-panel">
+                <h2>Basic Info</h2>
+                <div class="bocchi-form-grid">
+                    <label>
+                        Dashboard title
+                        <input type="text" @bind="_title" />
+                    </label>
+                    <label>
+                        Description
+                        <input type="text" @bind="_description" />
+                    </label>
+                    <label>
+                        Dashboard appearance
+                        <select @bind="_appearance">
+                            <option value="auto">Auto</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </label>
+                    <button type="button" @onclick="SaveDashboardAsync">Save basic info</button>
+                    @if (_basicSaved)
+                    {
+                        <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
+                    }
+                </div>
+            </section>
+
+            <section id="database" class="bocchi-panel">
+                <h2>Database</h2>
+                <dl class="bocchi-meta-list">
+                    <div>
+                        <dt>SQLite</dt>
+                        <dd><code>@Layout.SqliteDatabasePath</code></dd>
+                    </div>
+                    <div>
+                        <dt>Data Protection keys</dt>
+                        <dd><code>@System.IO.Path.Combine(Layout.BocchiDirectory, "data-protection-keys")</code></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section id="login" class="bocchi-panel">
+                <h2>Third-party Login</h2>
+                <div class="bocchi-provider-grid">
+                    <div class="bocchi-provider-card">
+                        <h3>GitHub</h3>
+                        <label class="bocchi-checkbox"><input type="checkbox" @bind="_github.Enabled" />Enabled</label>
+                        <label>Display name<input type="text" @bind="_github.DisplayName" /></label>
+                        <label>Client ID<input type="text" @bind="_github.ClientId" /></label>
+                        <label>Client secret<input type="password" @bind="_github.ClientSecret" placeholder="Leave blank to keep existing secret" /></label>
+                        <label>Callback path<input type="text" @bind="_github.CallbackPath" /></label>
+                        <button type="button" class="secondary" @onclick="SaveGitHubAsync">Save GitHub</button>
+                    </div>
+
+                    <div class="bocchi-provider-card">
+                        <h3>OpenID Connect</h3>
+                        <label class="bocchi-checkbox"><input type="checkbox" @bind="_oidc.Enabled" />Enabled</label>
+                        <label>Display name<input type="text" @bind="_oidc.DisplayName" /></label>
+                        <label>Authority<input type="text" @bind="_oidc.Authority" /></label>
+                        <label>Client ID<input type="text" @bind="_oidc.ClientId" /></label>
+                        <label>Client secret<input type="password" @bind="_oidc.ClientSecret" placeholder="Leave blank to keep existing secret" /></label>
+                        <label>Callback path<input type="text" @bind="_oidc.CallbackPath" /></label>
+                        <label>Scopes<input type="text" @bind="_oidc.Scopes" /></label>
+                        <button type="button" class="secondary" @onclick="SaveOidcAsync">Save OIDC</button>
+                    </div>
+                </div>
+                @if (_loginSaved)
+                {
+                    <p><BocchiStatusPill Tone="success">Saved</BocchiStatusPill> Login page buttons now follow enabled and complete Provider settings.</p>
+                }
+            </section>
+
+            <section id="theme" class="bocchi-panel">
+                <h2>Theme</h2>
+                <p>这里管理前台业务 Theme Contract，不是右上角 Dashboard 明暗外观。默认 SvelteKit Theme 的完整视觉进入 M5，但 M4 已经提供配置保存边界。</p>
+                <div class="bocchi-form-grid">
+                    <label>
+                        Theme id
+                        <input type="text" @bind="_themeId" />
+                    </label>
+                    <label>
+                        Configuration JSON
+                        <textarea class="bocchi-editor-textarea bocchi-editor-textarea--frontmatter" @bind="_themeJson"></textarea>
+                    </label>
+                    <button type="button" class="secondary" @onclick="SaveThemeAsync">Save Theme config</button>
+                    @if (_themeSaved)
+                    {
+                        <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
+                    }
+                </div>
+            </section>
+
+            <section id="workspace" class="bocchi-panel">
+                <h2>Workspace</h2>
+                <dl class="bocchi-meta-list">
+                    <div>
+                        <dt>Root</dt>
+                        <dd><code>@Layout.Root</code></dd>
+                    </div>
+                    <div>
+                        <dt>Content</dt>
+                        <dd><code>@Layout.ContentSpaceRoot</code></dd>
+                    </div>
+                    <div>
+                        <dt>Output</dt>
+                        <dd><code>@Layout.PublicOutputDirectory</code></dd>
+                    </div>
+                </dl>
+            </section>
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>Basic Info 标题编辑缓冲区。</summary>
+    private string _title = "Bocchi";
+
+    /// <summary>Basic Info 描述编辑缓冲区。</summary>
+    private string _description = string.Empty;
+
+    /// <summary>Dashboard 外观编辑缓冲区。</summary>
+    private string _appearance = "auto";
+
+    /// <summary>GitHub Provider 表单状态。</summary>
+    private ProviderForm _github = new();
+
+    /// <summary>OIDC Provider 表单状态。</summary>
+    private ProviderForm _oidc = new();
+
+    /// <summary>前台 Theme id 编辑缓冲区。</summary>
+    private string _themeId = "default-svelte";
+
+    /// <summary>前台 Theme JSON 配置编辑缓冲区。</summary>
+    private string _themeJson = "{}";
+
+    /// <summary>Basic Info 保存反馈。</summary>
+    private bool _basicSaved;
+
+    /// <summary>第三方登录保存反馈。</summary>
+    private bool _loginSaved;
+
+    /// <summary>Theme 配置保存反馈。</summary>
+    private bool _themeSaved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await DashboardSettings.GetAsync();
+        _title = settings.SiteTitle;
+        _description = settings.SiteDescription;
+        _appearance = settings.AppearanceMode;
+        var theme = await ThemeSettings.GetDefaultAsync();
+        _themeId = theme.ThemeId;
+        _themeJson = theme.ConfigurationJson;
+
+        foreach (var provider in await ExternalLogins.ListAsync())
+        {
+            var form = new ProviderForm
+            {
+                Enabled = provider.Enabled,
+                DisplayName = provider.DisplayName,
+                ClientId = provider.ClientId,
+                CallbackPath = provider.CallbackPath,
+                Authority = provider.Authority,
+                Scopes = provider.Scopes,
+            };
+            if (provider.ProviderKey == "github")
+            {
+                _github = form;
+            }
+            else if (provider.ProviderKey == "oidc")
+            {
+                _oidc = form;
+            }
+        }
+    }
+
+    /// <summary>保存 Dashboard 基本信息。</summary>
+    private async Task SaveDashboardAsync()
+    {
+        await DashboardSettings.SaveAsync(_title, _description, _appearance);
+        _basicSaved = true;
+    }
+
+    /// <summary>保存 GitHub Provider 设置。</summary>
+    private async Task SaveGitHubAsync()
+    {
+        await ExternalLogins.SaveGitHubAsync(_github.Enabled, _github.DisplayName, _github.ClientId, _github.ClientSecret, _github.CallbackPath);
+        _loginSaved = true;
+        _github.ClientSecret = string.Empty;
+    }
+
+    /// <summary>保存 OIDC Provider 设置。</summary>
+    private async Task SaveOidcAsync()
+    {
+        await ExternalLogins.SaveOidcAsync(_oidc.Enabled, _oidc.DisplayName, _oidc.Authority, _oidc.ClientId, _oidc.ClientSecret, _oidc.CallbackPath, _oidc.Scopes);
+        _loginSaved = true;
+        _oidc.ClientSecret = string.Empty;
+    }
+
+    /// <summary>保存前台 Theme Contract 配置。</summary>
+    private async Task SaveThemeAsync()
+    {
+        await ThemeSettings.SaveDefaultAsync(_themeId, _themeJson);
+        _themeSaved = true;
+    }
+
+    /// <summary>Provider 表单缓冲区，不直接暴露受保护 secret。</summary>
+    private sealed class ProviderForm
+    {
+        /// <summary>是否启用 Provider。</summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>登录页显示名称。</summary>
+        public string DisplayName { get; set; } = string.Empty;
+
+        /// <summary>Provider authority，仅 OIDC 使用。</summary>
+        public string? Authority { get; set; }
+
+        /// <summary>Client ID。</summary>
+        public string? ClientId { get; set; }
+
+        /// <summary>Client secret 输入框；留空表示不覆盖现有 secret。</summary>
+        public string? ClientSecret { get; set; }
+
+        /// <summary>回调路径。</summary>
+        public string? CallbackPath { get; set; }
+
+        /// <summary>OIDC scopes。</summary>
+        public string? Scopes { get; set; } = "openid profile email";
+    }
+}

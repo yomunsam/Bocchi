@@ -17,7 +17,7 @@
 | [x] | M1 | Solution 骨架 | 建立 .NET Home Server、测试项目和基础目录 | solution 文件、`Src/HomeServer/`、`Tests/`、`Docs/Milestones/M1/M1.md` | 可启动空后台，可运行基础测试 |
 | [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
-| [ ] | M4 | Home Server Dashboard | 提供可用的内网管理界面 | 后台首页、内容列表、编辑入口、构建日志 | 能通过 UI 管理内容并触发构建 |
+| [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
 | [ ] | M5 | Default SvelteKit Theme | 提供默认静态前端 | `Themes/default-svelte/`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
 | [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引和基础发布目标 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出 | 本地发布可用，Cloudflare Pages 路径明确 |
 | [ ] | M7 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
@@ -145,30 +145,53 @@
 
 ## M4 Home Server Dashboard
 
-目标：让 Home Server 成为日常可用的个人内容工作台。
+目标：让 Home Server 成为正式、日常可用、视觉亲和的个人内容发布后台，而不是临时后台壳或硬核专业工作台。
+
+详细规划：见 [`Docs/Milestones/M4/M4.md`](./Milestones/M4/M4.md)。
+
+当前状态：已完成。M4 已落地 EF Core + Identity、首次 Setup、第一个 Admin、本地登录、GitHub / OIDC 配置、`/Admin` Dashboard、内容扫描与编辑、设置、用户管理、发布面板、受保护 `/` Preview Host 与浮动工具栏。验证记录见 `Docs/Milestones/M4/M4.md` §11。
+
+关键方向：
+
+- Home Server Dashboard 固定在 `/Admin`，前台实时预览固定在 `/`。
+- 首次启动进入 `/Setup`，初始化 EF Core SQLite 数据库并创建第一个 Admin。
+- M4 引入 ASP.NET Core Identity、EF Core、SQLite、单一 `Admin` 角色和默认全站鉴权。
+- 底层支持多用户，但不是多租户；除 `Admin` 之外的用户没有 Dashboard 权限。
+- Dashboard 要像柔和的个人发布 App：低到中信息密度、App-like 内容列表、普通用户可理解的发布状态；先集中确认 UI 风格、信息架构、Light / Dark / Auto 和移动端方案，再开发主要功能。
+- 内容编辑以 Markdown 分栏预览为主，不做 WYSIWYG。
+- GitHub 与通用 OpenID Connect Provider 通过设置页启用，Logto 只作为 OIDC 示例，不写死到模型中。
+- Home Server 内的前台站点是受保护预览模式，可由 Preview Host 注入浮动工具栏，提供返回 Dashboard 和内容编辑入口。
 
 建议任务：
 
-- 后台首页与状态总览。
-- 内容列表、筛选和详情入口。
-- Markdown 编辑或外部编辑器打开入口。
-- 媒体引用查看。
-- 站点设置编辑。
-- Theme 配置 UI，根据 `config-schema.json` 自动生成表单。
-- 构建和发布日志页面。
+- UI 风格与设计基线：柔和粉蓝、文字 Logo、Dashboard 外观下拉、低密度 App-like 内容列表、组件状态、响应式布局和外观 token。
+- EF Core + ASP.NET Core Identity：`BocchiDbContext`、SQLite migrations、Admin role、用户禁用状态。
+- Welcome / Setup：初始化数据库、创建第一个 Admin、关闭公开注册。
+- 授权路由：`/Admin` Dashboard、`/` 受保护 Preview、默认 fallback auth policy。
+- 第三方登录设置：GitHub OAuth 与通用 OpenID Connect Provider。
+- Dashboard Shell：一级/二级导航，桌面二级菜单，移动端二级分类下拉。
+- 内容列表、筛选、详情入口和 Markdown 分栏编辑器。
+- 站点设置、Theme 配置 UI、数据库状态、用户管理。
+- 面向普通用户的发布/检查状态，以及高级构建日志、manifest、artifact 树和 zip 下载页面。
+- 前台预览浮动工具栏和 route → content 编辑跳转。
 
 验收标准：
 
-- 可以通过 UI 浏览和管理 MVP 内容类型。
-- 可以修改站点设置和 Theme 配置。
-- 可以触发构建并查看结果。
-- 错误信息能定位到具体文件、字段或构建阶段。
+- 首次启动可完成 Setup，第一个账户自动成为 Admin，公开注册随即关闭。
+- 未登录不能访问 `/Admin` 或 `/`；非 Admin 用户没有 Dashboard 权限。
+- Dashboard 在桌面和移动端都可用，Light / Dark / Auto 生效。
+- 可以通过 UI 浏览和管理 MVP 内容类型，至少 Post / Page 支持 Markdown 分栏编辑与保存。
+- 可以修改站点设置、Theme 配置和第三方登录设置。
+- 可以触发构建、查看普通用户可理解的发布/检查状态、进入高级日志、查看产物并定位失败阶段。
+- `/` 可打开受保护前台预览，Preview Toolbar 可返回 Dashboard，并在可定位内容页跳转到编辑页面。
 
 暂不做：
 
-- 多人权限系统。
+- 多租户。
+- 复杂多角色权限系统。
 - 公网 API。
-- 富文本编辑器优先级不高，Markdown 优先。
+- WYSIWYG 编辑器。
+- 默认 SvelteKit Theme 的完整视觉实现（M5）。
 
 ## M5 Default SvelteKit Theme
 
@@ -281,6 +304,25 @@
 - Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/bocchi-.log`。
 
 详细决策与落地清单见 `Docs/Milestones/M2/M2.md`。
+
+### 2026-05-14 (M4 planning)
+
+- M4 的 Home Server Dashboard 升级为正式 CMS / Blog 后台方向：先确认 UI 风格和信息架构，再进入主要页面开发。
+- Home Server 应使用正式 ASP.NET Core Identity 用户系统；底层多用户但非多租户，只设置一个 `Admin` 业务角色，第一个账户默认 Admin，Setup 完成后关闭公开注册。
+- M4 起 Home Server 应用状态采用 EF Core + SQLite 作为正式数据访问方式；内容事实仍在 Markdown / YAML / 原始媒体文件中，EF Core 不保存正文事实。
+- Dashboard 基础 URL 为 `/Admin`；Home Server 内前台站点基础 URL 为 `/`，且作为登录后的实时预览模式存在。
+- 前台预览模式可以由 Home Server Preview Host 注入浮动工具栏，用于提示 Preview 状态、返回 Dashboard，并在文章 / 页面 / 作品详情页跳转到后台编辑。
+- 第三方登录包含 GitHub 和通用 OpenID Connect Provider；Logto 只作为 OIDC 示例，不写死到类型名、表名或路由中。
+
+### 2026-05-14 (M4 UI baseline)
+
+- M4-T01 的 UI 方向已确认并写入 `Docs/Milestones/M4/UI-Design.md`：Bocchi Admin 走柔和、低到中信息密度、App-like 的个人发布工具方向，不走 GitHub 风格仓库面板、企业 CMS 或硬核运维工作台方向。
+- 左上角 Logo 暂定只显示文字 `Bocchi`；右上角 Dashboard 外观 / dark mode 切换使用紧凑下拉，不使用占宽分段控件；前台业务 Theme 选择另放正文设置组件。
+- 主内容区优先使用移动端友好的简单列表 / feed row，避免宽密表格和底部堆叠小框框。
+- Publish / Build 在普通入口中表达为人能理解的发布/检查状态；raw log、manifest、artifact tree 进入高级详情。
+- 视觉可参考 `Docs/Milestones/M4/Assets/m4-ui-style-direction-2026-05-14.png`；后续 UI 设计、效果图、实现和评审使用 `.codex/skills/bocchi-ui-style/SKILL.md` 复位风格护栏。
+- Bocchi 的 anime-inspired 灵感只允许进入抽象气质、低饱和粉蓝和个人创作氛围；不得复制任何可识别角色、服装、发型、姿势、乐队标识或具体场景。
+- 首批 UI 代码基线已进入 M4-T06：`MainLayout`、全局外观 token、Dashboard 外观下拉、`BocchiStatusPill`、`BocchiListRow`，以及现有 Home / Workspace / Build 页面低密度重排。该基线不改变前台业务 Theme Contract，构建页中的 `Theme id` 明确表示前台业务 Theme。
 
 ## 待决问题
 

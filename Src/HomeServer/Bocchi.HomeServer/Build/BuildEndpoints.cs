@@ -17,17 +17,18 @@ public static class BuildEndpoints
 {
     /// <summary>
     /// 注册：<br/>
-    /// <c>GET /build/download</c> → 把 <c>output/public/</c> 打成 zip 流给客户端。<br/>
-    /// <c>POST /build/run</c> → 触发一次 Full Build，便于自动化测试和非 Blazor 客户端。<br/>
+    /// <c>GET /Admin/Publish/download</c> → 把 <c>output/public/</c> 打成 zip 流给客户端。<br/>
+    /// <c>POST /Admin/Publish/run</c> → 触发一次 Full Build，便于自动化测试和非 Blazor 客户端。<br/>
     /// <c>GET /_bocchi/preview/{path}</c> → 触发 Live 构建并把命中 artifact 直接流回。
     /// </summary>
     public static IEndpointRouteBuilder MapBuildEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapGet("/build/download", DownloadPublicZipAsync);
-        endpoints.MapPost("/build/run", RunBuildAsync).DisableAntiforgery();
-        endpoints.MapGet("/_bocchi/preview/{**path}", PreviewAsync);
+        var publish = endpoints.MapGroup("/Admin/Publish").RequireAuthorization("Admin");
+        publish.MapGet("/download", DownloadPublicZipAsync);
+        publish.MapPost("/run", RunBuildAsync).DisableAntiforgery();
+        endpoints.MapGet("/_bocchi/preview/{**path}", PreviewAsync).RequireAuthorization();
         return endpoints;
     }
 

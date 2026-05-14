@@ -1,9 +1,161 @@
+.bocchi-admin-shell,
+.bocchi-admin-shell *,
+#blazor-error-ui {
+    box-sizing: border-box;
+}
+
+.bocchi-admin-shell {
+    display: grid;
+    min-height: 100vh;
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+    background:
+        radial-gradient(circle at 5% 0%, rgba(239, 179, 201, 0.2), transparent 24rem),
+        radial-gradient(circle at 94% 10%, rgba(124, 183, 248, 0.18), transparent 26rem),
+        var(--bocchi-bg);
+    color: var(--bocchi-text);
+}
+
+.bocchi-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    height: 100vh;
+    flex-direction: column;
+    gap: 2rem;
+    border-right: 1px solid var(--bocchi-border);
+    background: color-mix(in srgb, var(--bocchi-surface) 86%, transparent);
+    padding: 1.25rem;
+}
+
+.bocchi-logo {
+    color: var(--bocchi-text);
+    font-size: 1.45rem;
+    font-weight: 760;
+    letter-spacing: 0;
+    text-decoration: none;
+}
+
+.bocchi-primary-nav {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.bocchi-primary-nav a,
+.bocchi-primary-nav span {
+    display: flex;
+    min-height: 2.5rem;
+    align-items: center;
+    border-radius: 8px;
+    color: var(--bocchi-text-muted);
+    font-weight: 650;
+    padding: 0 0.8rem;
+    text-decoration: none;
+}
+
+.bocchi-primary-nav a:hover,
+.bocchi-primary-nav a.active {
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text);
+}
+
+.bocchi-primary-nav span {
+    opacity: 0.58;
+}
+
+.bocchi-workbench {
+    min-width: 0;
+}
+
+.bocchi-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    min-height: 4.25rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--bocchi-border);
+    background: color-mix(in srgb, var(--bocchi-bg) 82%, transparent);
+    padding: 0.8rem clamp(1rem, 3vw, 2rem);
+    backdrop-filter: blur(16px);
+}
+
+.bocchi-topbar__search {
+    display: flex;
+    width: min(30rem, 100%);
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    padding: 0 0.8rem;
+}
+
+.bocchi-topbar__search input {
+    width: 100%;
+    min-height: 2.45rem;
+    border: 0;
+    background: transparent;
+    color: var(--bocchi-text);
+    font: inherit;
+}
+
+.bocchi-topbar__search input:disabled {
+    opacity: 1;
+}
+
+.bocchi-topbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+}
+
+.bocchi-soft-link,
+.bocchi-appearance-control {
+    display: inline-flex;
+    min-height: 2.4rem;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-size: 0.9rem;
+    font-weight: 650;
+    padding: 0 0.7rem;
+    text-decoration: none;
+}
+
+.bocchi-appearance-control span {
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-appearance-control select {
+    min-height: 2rem;
+    border: 0;
+    background: transparent;
+    color: var(--bocchi-text);
+    font: inherit;
+    font-weight: 700;
+}
+
+.bocchi-page {
+    width: min(100%, 78rem);
+    margin: 0 auto;
+    padding: clamp(1.1rem, 3vw, 2rem);
+}
+
 #blazor-error-ui {
     color-scheme: light only;
     background: lightyellow;
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
     box-sizing: border-box;
+    color: #26253a;
     display: none;
     left: 0;
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;
@@ -18,3 +170,46 @@
         right: 0.75rem;
         top: 0.5rem;
     }
+
+@media (max-width: 860px) {
+    .bocchi-admin-shell {
+        display: block;
+    }
+
+    .bocchi-sidebar {
+        position: static;
+        height: auto;
+        gap: 0.85rem;
+        border-right: 0;
+        border-bottom: 1px solid var(--bocchi-border);
+        padding: 0.9rem 1rem;
+    }
+
+    .bocchi-primary-nav {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.35rem;
+    }
+
+    .bocchi-primary-nav a,
+    .bocchi-primary-nav span {
+        min-height: 2.3rem;
+        justify-content: center;
+        padding: 0 0.75rem;
+    }
+
+    .bocchi-topbar {
+        position: static;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .bocchi-topbar__search,
+    .bocchi-topbar__actions {
+        width: 100%;
+    }
+
+    .bocchi-topbar__actions {
+        justify-content: space-between;
+    }
+}

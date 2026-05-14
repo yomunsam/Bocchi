@@ -1,0 +1,61 @@
+@page "/Admin/Preview"
+@inject PreviewRouteMapService RouteMap
+
+<PageTitle>Preview · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">Preview</span>
+        <h1>Open the protected site preview.</h1>
+        <p>`/` 是登录后的前台预览入口；HTML 由 Home Server 注入轻量工具栏，能定位内容时提供 Edit 返回链路。</p>
+    </header>
+
+    <div class="bocchi-two-column">
+        <section class="bocchi-panel" aria-labelledby="route-map-heading">
+            <div class="bocchi-inline-actions">
+                <h2 id="route-map-heading">Route map</h2>
+                <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">Open Preview</a>
+            </div>
+            @if (_routes.Count == 0)
+            {
+                <BocchiListRow Kicker="Empty" Title="还没有可定位的预览 route">
+                    <ChildContent>
+                        <p>先扫描内容空间并跑一次 Publish；M4 不会为了空状态发明临时前台主题。</p>
+                    </ChildContent>
+                    <Action>
+                        <a class="bocchi-button secondary" href="/Admin/Publish">Publish</a>
+                    </Action>
+                </BocchiListRow>
+            }
+            else
+            {
+                @foreach (var item in _routes)
+                {
+                    <BocchiListRow Kicker="@item.Kind" Title="@item.Title">
+                        <ChildContent>
+                            <p><code>@item.Route</code></p>
+                        </ChildContent>
+                        <Action>
+                            <a class="bocchi-button secondary" href="@item.EditUrl">Edit</a>
+                        </Action>
+                    </BocchiListRow>
+                }
+            }
+        </section>
+
+        <aside class="bocchi-panel bocchi-panel--soft">
+            <h2>Toolbar rules</h2>
+            <p>工具栏默认轻量固定在边缘，显示 Preview、当前 route、返回 Admin、Rebuild；只有 route 能唯一定位内容时才显示 Edit。</p>
+        </aside>
+    </div>
+</article>
+
+@code {
+    /// <summary>当前内容扫描投影生成的 route map。</summary>
+    private IReadOnlyList<PreviewRouteMapItem> _routes = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _routes = await RouteMap.ListAsync();
+    }
+}

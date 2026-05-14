@@ -1,9 +1,51 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-@Body
+<div class="bocchi-admin-shell">
+    <aside class="bocchi-sidebar" aria-label="Dashboard navigation">
+        <a class="bocchi-logo" href="/Admin" aria-label="Bocchi Admin">Bocchi</a>
+
+        <nav class="bocchi-primary-nav">
+            <NavLink href="/Admin" Match="NavLinkMatch.All">Home</NavLink>
+            <NavLink href="/Admin/Content/Edit">Write</NavLink>
+            <NavLink href="/Admin/Content">Content</NavLink>
+            <NavLink href="/Admin/Preview">Preview</NavLink>
+            <NavLink href="/Admin/Publish">Publish</NavLink>
+            <NavLink href="/Admin/Settings">Settings</NavLink>
+        </nav>
+    </aside>
+
+    <div class="bocchi-workbench">
+        <header class="bocchi-topbar">
+            <div class="bocchi-topbar__search" role="search">
+                <span aria-hidden="true">Search</span>
+                <input type="search" placeholder="Find posts, pages, notes..." aria-label="Search content" disabled />
+            </div>
+
+            <div class="bocchi-topbar__actions">
+                <a class="bocchi-soft-link" href="/Admin/Content">Content space</a>
+                <a class="bocchi-soft-link" href="/Admin/Users">Users</a>
+                <label class="bocchi-appearance-control">
+                    <span>外观</span>
+                    <select id="bocchi-appearance-select" aria-label="Dashboard dark mode" onchange="window.bocchiAppearance?.set(this.value)">
+                        <option value="auto">Auto</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </label>
+                <form method="post" action="/Account/Logout">
+                    <button type="submit" class="secondary">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <main class="bocchi-page">
+            @Body
+        </main>
+    </div>
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
     <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    <span class="dismiss">×</span>
 </div>

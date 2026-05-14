@@ -1,0 +1,259 @@
+@page "/Admin/Users"
+@using Bocchi.HomeServer.Data
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<BocchiUser> UsersService
+@inject RoleManager<IdentityRole> RolesService
+
+<PageTitle>Users · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">Users</span>
+        <h1>Keep access intentional.</h1>
+        <p>M4 只有 Admin 一个业务角色。非 Admin 用户可以存在，但不能进入 Dashboard、内容、设置、构建或编辑功能。</p>
+    </header>
+
+    <div class="bocchi-two-column">
+        <section class="bocchi-panel" aria-labelledby="users-heading">
+            <h2 id="users-heading">People</h2>
+            @foreach (var user in _users)
+            {
+                <BocchiListRow Kicker="@(user.IsAdmin ? "Admin" : "No Dashboard access")" Title="@(user.DisplayName ?? user.Email ?? user.Id)">
+                    <ChildContent>
+                        <p>@user.Email</p>
+                        @if (user.ExternalLogins.Count == 0)
+                        {
+                            <p>No external login bound.</p>
+                        }
+                        else
+                        {
+                            <p>External login: @string.Join(", ", user.ExternalLogins.Select(x => x.ProviderDisplayName))</p>
+                        }
+                    </ChildContent>
+                    <Metadata>
+                        <BocchiStatusPill Tone="@(user.IsDisabled ? "warning" : "success")">@(user.IsDisabled ? "Disabled" : "Can sign in")</BocchiStatusPill>
+                        <span>Created @user.CreatedAt.ToString("yyyy-MM-dd")</span>
+                        <span>@(user.LastLoginAt is null ? "No login yet" : $"Last login {user.LastLoginAt:yyyy-MM-dd HH:mm}")</span>
+                    </Metadata>
+                    <Action>
+                        <button type="button" class="secondary" @onclick="() => ToggleAdminAsync(user.Id)">
+                            @(user.IsAdmin ? "Remove Admin" : "Make Admin")
+                        </button>
+                        <button type="button" class="secondary" @onclick="() => ToggleDisabledAsync(user.Id)">
+                            @(user.IsDisabled ? "Enable" : "Disable")
+                        </button>
+                        @foreach (var login in user.ExternalLogins)
+                        {
+                            <button type="button" class="secondary" @onclick="() => RemoveExternalLoginAsync(user.Id, login.LoginProvider, login.ProviderKey)">
+                                Unlink @login.ProviderDisplayName
+                            </button>
+                        }
+                    </Action>
+                </BocchiListRow>
+            }
+        </section>
+
+        <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="create-user-heading">
+            <h2 id="create-user-heading">Create user</h2>
+            <div class="bocchi-form-grid">
+                <label>Email<input type="email" @bind="_newEmail" /></label>
+                <label>Display name<input type="text" @bind="_newDisplayName" /></label>
+                <label>Password<input type="password" @bind="_newPassword" /></label>
+                <label class="bocchi-checkbox"><input type="checkbox" @bind="_newIsAdmin" />Admin</label>
+                <button type="button" @onclick="CreateUserAsync">Create</button>
+                @if (!string.IsNullOrWhiteSpace(_message))
+                {
+                    <p>@_message</p>
+                }
+            </div>
+        </aside>
+    </div>
+</article>
+
+@code {
+    /// <summary>用户列表投影，包含角色信息，避免组件里重复查 Identity。</summary>
+    private IReadOnlyList<UserRow> _users = [];
+
+    /// <summary>新用户 email。</summary>
+    private string _newEmail = string.Empty;
+
+    /// <summary>新用户显示名。</summary>
+    private string _newDisplayName = string.Empty;
+
+    /// <summary>新用户初始密码。</summary>
+    private string _newPassword = string.Empty;
+
+    /// <summary>是否把新用户加入 Admin role。</summary>
+    private bool _newIsAdmin;
+
+    /// <summary>用户操作后的轻量反馈。</summary>
+    private string? _message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await RolesService.RoleExistsAsync(BocchiRoleNames.Admin))
+        {
+            await RolesService.CreateAsync(new IdentityRole(BocchiRoleNames.Admin));
+        }
+
+        await RefreshAsync();
+    }
+
+    /// <summary>创建本地用户；Admin 角色必须显式勾选。</summary>
+    private async Task CreateUserAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newEmail) || string.IsNullOrWhiteSpace(_newPassword))
+        {
+            _message = "Email and password are required.";
+            return;
+        }
+
+        var user = new BocchiUser
+        {
+            UserName = _newEmail.Trim(),
+            Email = _newEmail.Trim(),
+            EmailConfirmed = true,
+            DisplayName = string.IsNullOrWhiteSpace(_newDisplayName) ? _newEmail.Trim() : _newDisplayName.Trim(),
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        var result = await UsersService.CreateAsync(user, _newPassword);
+        if (result.Succeeded && _newIsAdmin)
+        {
+            result = await UsersService.AddToRoleAsync(user, BocchiRoleNames.Admin);
+        }
+
+        _message = result.Succeeded
+            ? "User created."
+            : string.Join("; ", result.Errors.Select(x => x.Description));
+        if (result.Succeeded)
+        {
+            _newEmail = string.Empty;
+            _newDisplayName = string.Empty;
+            _newPassword = string.Empty;
+            _newIsAdmin = false;
+            await RefreshAsync();
+        }
+    }
+
+    /// <summary>切换用户禁用状态；不会删除用户或外部登录绑定。</summary>
+    private async Task ToggleDisabledAsync(string userId)
+    {
+        var user = await UsersService.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return;
+        }
+
+        if (!user.IsDisabled && await IsLastEnabledAdminAsync(user).ConfigureAwait(false))
+        {
+            _message = "At least one enabled Admin must remain.";
+            return;
+        }
+
+        user.IsDisabled = !user.IsDisabled;
+        var result = await UsersService.UpdateAsync(user);
+        _message = result.Succeeded
+            ? (user.IsDisabled ? "User disabled." : "User enabled.")
+            : string.Join("; ", result.Errors.Select(x => x.Description));
+        await RefreshAsync();
+    }
+
+    /// <summary>切换已有用户的 Admin role；避免误删最后一个可用管理员。</summary>
+    private async Task ToggleAdminAsync(string userId)
+    {
+        var user = await UsersService.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return;
+        }
+
+        var isAdmin = await UsersService.IsInRoleAsync(user, BocchiRoleNames.Admin);
+        if (isAdmin)
+        {
+            if (await IsLastEnabledAdminAsync(user).ConfigureAwait(false))
+            {
+                _message = "At least one enabled Admin must remain.";
+                return;
+            }
+
+            var result = await UsersService.RemoveFromRoleAsync(user, BocchiRoleNames.Admin);
+            _message = result.Succeeded
+                ? "Admin role removed."
+                : string.Join("; ", result.Errors.Select(x => x.Description));
+        }
+        else
+        {
+            var result = await UsersService.AddToRoleAsync(user, BocchiRoleNames.Admin);
+            _message = result.Succeeded
+                ? "Admin role added."
+                : string.Join("; ", result.Errors.Select(x => x.Description));
+        }
+
+        await RefreshAsync();
+    }
+
+    /// <summary>解绑用户的外部登录；本地账号仍保留，不删除用户本身。</summary>
+    private async Task RemoveExternalLoginAsync(string userId, string provider, string providerKey)
+    {
+        var user = await UsersService.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return;
+        }
+
+        var result = await UsersService.RemoveLoginAsync(user, provider, providerKey);
+        _message = result.Succeeded
+            ? "External login unlinked."
+            : string.Join("; ", result.Errors.Select(x => x.Description));
+        await RefreshAsync();
+    }
+
+    /// <summary>刷新用户列表和角色投影。</summary>
+    private async Task RefreshAsync()
+    {
+        var list = new List<UserRow>();
+        foreach (var user in UsersService.Users.OrderBy(x => x.Email).ToList())
+        {
+            var roles = await UsersService.GetRolesAsync(user);
+            var logins = await UsersService.GetLoginsAsync(user);
+            list.Add(new UserRow(
+                user.Id,
+                user.Email,
+                user.DisplayName,
+                user.CreatedAt,
+                user.LastLoginAt,
+                user.IsDisabled,
+                roles.Contains(BocchiRoleNames.Admin),
+                logins.Select(x => new LoginRow(x.LoginProvider, x.ProviderKey, x.ProviderDisplayName ?? x.LoginProvider)).ToArray()));
+        }
+
+        _users = list;
+    }
+
+    /// <summary>判断目标用户是否是当前最后一个可登录 Admin；用于防止把后台锁死。</summary>
+    private async Task<bool> IsLastEnabledAdminAsync(BocchiUser target)
+    {
+        if (!await UsersService.IsInRoleAsync(target, BocchiRoleNames.Admin))
+        {
+            return false;
+        }
+
+        var admins = await UsersService.GetUsersInRoleAsync(BocchiRoleNames.Admin);
+        return admins.Count(x => !x.IsDisabled) <= 1;
+    }
+
+    /// <summary>用户列表行投影。</summary>
+    private sealed record UserRow(
+        string Id,
+        string? Email,
+        string? DisplayName,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset? LastLoginAt,
+        bool IsDisabled,
+        bool IsAdmin,
+        IReadOnlyList<LoginRow> ExternalLogins);
+
+    /// <summary>外部登录绑定投影，只展示 provider 信息，不暴露 secret。</summary>
+    private sealed record LoginRow(string LoginProvider, string ProviderKey, string ProviderDisplayName);
+}

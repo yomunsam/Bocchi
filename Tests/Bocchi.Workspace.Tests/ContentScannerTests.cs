@@ -77,6 +77,7 @@ public sealed class ContentScannerTests
             summaries.Should().Contain(s => s.Kind == ContentKind.Post && s.ContentId == "hello");
             summaries.Should().Contain(s => s.Kind == ContentKind.Page && s.ContentId == "about");
             summaries.Should().Contain(s => s.Kind == ContentKind.Work && s.ContentId == "alpha");
+            summaries.Should().Contain(s => s.Kind == ContentKind.SiteSettings && s.RelativePath.EndsWith("site.yaml", StringComparison.Ordinal));
         }
     }
 

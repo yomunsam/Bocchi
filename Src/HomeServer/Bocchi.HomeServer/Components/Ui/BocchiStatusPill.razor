@@ -1,0 +1,12 @@
+@* 统一的柔和状态标签，用来把技术状态翻译成用户能快速扫读的短语。 *@
+<span class="bocchi-status-pill bocchi-status-pill--@Tone">@ChildContent</span>
+
+@code {
+    /// <summary>状态颜色语义，例如 success、warning、danger、info 或 neutral。</summary>
+    [Parameter]
+    public string Tone { get; set; } = "neutral";
+
+    /// <summary>标签内显示的短文案。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

@@ -269,11 +269,11 @@ public sealed partial class ContentScanner
         var result = SiteSettingsLoader.Load(siteLocation, siteRaw, navLocation, navRaw);
         if (result.Document is not null)
         {
-            await UpsertFileRecordAsync(cs.SiteSettingsFile, siteLocation, ContentKind.SiteSettings, ct).ConfigureAwait(false);
+            var fileId = await UpsertFileRecordAsync(cs.SiteSettingsFile, siteLocation, ContentKind.SiteSettings, ct).ConfigureAwait(false);
             await _store.UpsertContentItemAsync(new ContentItemUpsert(
                 ContentKind.SiteSettings, "site", Slug: null, result.Document.Title,
                 ContentStatus.Published, Year: null, PublishedAt: null, UpdatedAt: null,
-                FrontmatterJson: null, siteLocation.RelativePath), null, ct).ConfigureAwait(false);
+                FrontmatterJson: null, siteLocation.RelativePath), fileId, ct).ConfigureAwait(false);
         }
 
         return (result.Document, result.Errors, files);

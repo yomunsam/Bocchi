@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bocchi UI Style"
+  short_description: "Bocchi M4 UI style guardrails"
+  default_prompt: "Use $bocchi-ui-style to design or review Bocchi M4 dashboard UI work."

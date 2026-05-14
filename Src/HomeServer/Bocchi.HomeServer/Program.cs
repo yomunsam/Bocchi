@@ -4,11 +4,20 @@ using Bocchi.Generator;
 using Bocchi.HomeServer;
 using Bocchi.HomeServer.Build;
 using Bocchi.HomeServer.Components;
+using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Security;
+using Bocchi.HomeServer.Services;
 using Bocchi.Workspace;
 using Bocchi.Workspace.DependencyInjection;
 using Bocchi.Workspace.State;
 
+using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 using Serilog;
 
@@ -29,6 +38,51 @@ try
         sp => builder.Environment.ContentRootPath);
     builder.Services.AddBocchiGenerator(builder.Configuration);
     builder.Services.AddSingleton<BuildOrchestrator>();
+    builder.Services.AddDbContext<BocchiDbContext>((sp, options) =>
+    {
+        var layout = sp.GetRequiredService<WorkspaceLayout>();
+        Directory.CreateDirectory(layout.BocchiDirectory);
+        options.UseSqlite($"Data Source={layout.SqliteDatabasePath}");
+    });
+    builder.Services.AddIdentity<BocchiUser, IdentityRole>(options =>
+        {
+            // Home Server 是本机私有工具，密码策略要安全但不过分劝退普通创作者。
+            options.Password.RequiredLength = 8;
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = false;
+            options.Password.RequireUppercase = false;
+            options.Password.RequireNonAlphanumeric = false;
+            options.User.RequireUniqueEmail = true;
+        })
+        .AddEntityFrameworkStores<BocchiDbContext>()
+        .AddDefaultTokenProviders();
+    builder.Services.ConfigureApplicationCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/Denied";
+    });
+    builder.Services.AddAuthentication()
+        .AddOAuth("github", _ => { })
+        .AddOpenIdConnect("oidc", _ => { });
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("Admin", policy => policy.RequireRole(BocchiRoleNames.Admin));
+    });
+    builder.Services.AddCascadingAuthenticationState();
+    builder.Services.AddSingleton<ExternalLoginOptionsConfigurator>();
+    builder.Services.AddSingleton<IConfigureOptions<OAuthOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
+    builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
+    builder.Services.AddScoped<HomeServerSetupService>();
+    builder.Services.AddScoped<DashboardSettingsService>();
+    builder.Services.AddScoped<ExternalLoginSettingsService>();
+    builder.Services.AddScoped<ThemeSettingsService>();
+    builder.Services.AddScoped<ContentEditingService>();
+    builder.Services.AddScoped<PreviewRouteMapService>();
+    builder.Services.AddScoped<PreviewHost>();
+
+    var workspaceRootForKeys = ResolveWorkspaceRoot(builder.Configuration, builder.Environment.ContentRootPath);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(workspaceRootForKeys, ".bocchi", "data-protection-keys")));
 
     if (!builder.Environment.IsEnvironment("Testing"))
     {
@@ -69,6 +123,8 @@ try
         {
             await sp.GetRequiredService<SchemaMigrator>().MigrateAsync();
         }
+
+        await sp.GetRequiredService<HomeServerSetupService>().EnsureDatabaseAsync();
     }
 
     if (!app.Environment.IsEnvironment("Testing"))
@@ -82,9 +138,12 @@ try
         app.UseHsts();
     }
 
-    app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-
     app.UseAntiforgery();
+    app.UseBocchiSetupGate();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
     app.MapStaticAssets();
 
@@ -97,10 +156,21 @@ try
         },
     });
 
-    app.MapRazorComponents<App>()
-        .AddInteractiveServerRenderMode();
+    app.MapBocchiAccountEndpoints();
 
     app.MapBuildEndpoints();
+
+    app.MapGet("/", (PreviewHost preview, CancellationToken cancellationToken)
+            => preview.RenderAsync(null, cancellationToken))
+        .RequireAuthorization();
+
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode()
+        .RequireAuthorization("Admin");
+
+    app.MapGet("/{**previewPath}", (string? previewPath, PreviewHost preview, CancellationToken cancellationToken)
+            => preview.RenderAsync(previewPath, cancellationToken))
+        .RequireAuthorization();
 
     // CLI 子命令：`Bocchi.HomeServer -- build [--theme=...] [--include-drafts]` 跑完即退出。
     if (BuildCli.TryParse(args, out var cliOptions))
@@ -125,6 +195,20 @@ catch (Exception ex) when (ex is not HostAbortedException)
 finally
 {
     Log.CloseAndFlush();
+}
+
+/// <summary>根据配置解析 Data Protection key 所在工作区根目录。</summary>
+static string ResolveWorkspaceRoot(IConfiguration configuration, string contentRootPath)
+{
+    var configured = configuration[$"{WorkspaceOptions.SectionName}:WorkspaceRoot"];
+    if (string.IsNullOrWhiteSpace(configured))
+    {
+        return Path.Combine(contentRootPath, "workspace");
+    }
+
+    return Path.IsPathRooted(configured)
+        ? Path.GetFullPath(configured)
+        : Path.GetFullPath(Path.Combine(contentRootPath, configured));
 }
 
 /// <summary>

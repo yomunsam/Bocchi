@@ -1,0 +1,49 @@
+@* App-like 内容行：桌面和移动端都按同一套单列信息结构折叠。 *@
+<article class="bocchi-list-row @Class">
+    <div class="bocchi-list-row__main">
+        @if (!string.IsNullOrWhiteSpace(Kicker))
+        {
+            <span class="bocchi-list-row__kicker">@Kicker</span>
+        }
+        <h3>@Title</h3>
+        @if (ChildContent is not null)
+        {
+            <div class="bocchi-list-row__body">@ChildContent</div>
+        }
+        @if (Metadata is not null)
+        {
+            <div class="bocchi-list-row__meta">@Metadata</div>
+        }
+    </div>
+
+    @if (Action is not null)
+    {
+        <div class="bocchi-list-row__action">@Action</div>
+    }
+</article>
+
+@code {
+    /// <summary>行首的轻量分类，例如 Post、Page、Publish。</summary>
+    [Parameter]
+    public string? Kicker { get; set; }
+
+    /// <summary>列表行主标题。</summary>
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>标题下方的正文说明。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>路径、时间、状态等次级信息。</summary>
+    [Parameter]
+    public RenderFragment? Metadata { get; set; }
+
+    /// <summary>右侧或移动端下方的主操作。</summary>
+    [Parameter]
+    public RenderFragment? Action { get; set; }
+
+    /// <summary>额外样式类，供少量页面级差异使用。</summary>
+    [Parameter]
+    public string? Class { get; set; }
+}

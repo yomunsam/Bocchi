@@ -1,0 +1,38 @@
+.bocchi-status-pill {
+    display: inline-flex;
+    min-height: 1.65rem;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 760;
+    line-height: 1;
+    padding: 0 0.62rem;
+    white-space: nowrap;
+}
+
+.bocchi-status-pill--neutral {
+    border-color: var(--bocchi-border);
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-status-pill--info {
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-blue-strong);
+}
+
+.bocchi-status-pill--success {
+    background: var(--bocchi-success-soft);
+    color: var(--bocchi-success-strong);
+}
+
+.bocchi-status-pill--warning {
+    background: var(--bocchi-warning-soft);
+    color: var(--bocchi-warning-strong);
+}
+
+.bocchi-status-pill--danger {
+    background: var(--bocchi-danger-soft);
+    color: var(--bocchi-danger-strong);
+}

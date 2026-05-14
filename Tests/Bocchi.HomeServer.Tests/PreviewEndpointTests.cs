@@ -15,7 +15,7 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedWorkspaceWebApp
     [Fact]
     public async Task PreviewDataEndpoint_ReturnsThemeInputJson()
     {
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
         var response = await client.GetAsync("/_bocchi/preview/data/site.json");
 
@@ -30,7 +30,7 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedWorkspaceWebApp
     public async Task PreviewMediaEndpoint_ReturnsMediaBytes()
     {
         var mediaPath = _factory.SeedPublishedPostWithMedia();
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
         var response = await client.GetAsync("/_bocchi/preview" + mediaPath);
 
@@ -43,7 +43,7 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedWorkspaceWebApp
     [Fact]
     public async Task PreviewEndpoint_RejectsPathTraversal()
     {
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
         var response = await client.GetAsync("/_bocchi/preview/media/%2e%2e/secret.jpg");
 

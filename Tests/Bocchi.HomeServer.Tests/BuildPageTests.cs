@@ -15,30 +15,30 @@ public sealed class BuildPageTests : IClassFixture<IsolatedWorkspaceWebApplicati
     [Fact]
     public async Task BuildPage_RendersBuildSurface()
     {
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
-        var response = await client.GetAsync("/build");
+        var response = await client.GetAsync("/Admin/Publish");
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("构建");
         body.Should().Contain("output/public/");
-        body.Should().Contain("/build/download");
+        body.Should().Contain("/Admin/Publish/download");
     }
 
     [Fact]
     public async Task BuildRunEndpoint_ProducesDownloadableZip()
     {
         _factory.SeedPublishedPostWithMedia();
-        using var client = _factory.CreateClient();
+        using var client = await _factory.CreateAdminClientAsync();
 
-        var run = await client.PostAsync("/build/run", content: null);
+        var run = await client.PostAsync("/Admin/Publish/run", content: null);
         run.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await run.Content.ReadAsStringAsync());
         doc.RootElement.GetProperty("status").GetString().Should().Be("Succeeded");
         doc.RootElement.GetProperty("artifactCount").GetInt32().Should().BeGreaterThan(0);
 
-        var download = await client.GetAsync("/build/download");
+        var download = await client.GetAsync("/Admin/Publish/download");
         download.EnsureSuccessStatusCode();
         download.Content.Headers.ContentType!.MediaType.Should().Be("application/zip");
         var bytes = await download.Content.ReadAsByteArrayAsync();
@@ -49,9 +49,9 @@ public sealed class BuildPageTests : IClassFixture<IsolatedWorkspaceWebApplicati
     public async Task Download_Returns404BeforeFirstBuild()
     {
         using var factory = new IsolatedWorkspaceWebApplicationFactory();
-        using var client = factory.CreateClient();
+        using var client = await factory.CreateAdminClientAsync();
 
-        var response = await client.GetAsync("/build/download");
+        var response = await client.GetAsync("/Admin/Publish/download");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
