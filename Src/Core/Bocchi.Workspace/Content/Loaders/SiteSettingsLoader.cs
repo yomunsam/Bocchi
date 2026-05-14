@@ -92,6 +92,13 @@ public static class SiteSettingsLoader
         var enableRss = YamlAccess.GetBool(mapping, "enableRss") ?? true;
         var enableSitemap = YamlAccess.GetBool(mapping, "enableSitemap") ?? true;
         var enableSearch = YamlAccess.GetBool(mapping, "enableSearch") ?? true;
+        var feedItemCount = YamlAccess.GetInt(mapping, "feedItemCount") ?? 20;
+        if (feedItemCount < 1)
+        {
+            feedItemCount = 1;
+        }
+
+        var robots = ParseRobots(mapping);
 
         if (errors.Any(e => e.Severity == ContentErrorSeverity.Error))
         {
@@ -112,9 +119,28 @@ public static class SiteSettingsLoader
             EnableRss = enableRss,
             EnableSitemap = enableSitemap,
             EnableSearch = enableSearch,
+            FeedItemCount = feedItemCount,
+            Robots = robots,
         };
 
         return LoadResult.Ok<SiteSettings>(settings, errors);
+    }
+
+    private static RobotsPolicy ParseRobots(YamlMappingNode root)
+    {
+        var node = YamlAccess.GetMapping(root, "robots");
+        if (node is null)
+        {
+            return new RobotsPolicy();
+        }
+
+        var allow = YamlAccess.GetStringList(node, "allow");
+        var disallow = YamlAccess.GetStringList(node, "disallow");
+        return new RobotsPolicy
+        {
+            Allow = allow.Count == 0 ? new RobotsPolicy().Allow : allow,
+            Disallow = disallow,
+        };
     }
 
     private static AuthorInfo? ParseAuthor(YamlMappingNode root)

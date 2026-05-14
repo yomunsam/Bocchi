@@ -24,12 +24,26 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer
 
 工作区面板：浏览器打开 `http://127.0.0.1:5081/workspace` 可看到当前内容空间路径、Git 状态以及一键扫描结果。
 
+构建面板：浏览器打开 `http://127.0.0.1:5081/build` 可触发一次 Full Build 并查看 fingerprint、阶段日志、产物列表与历史；点击"下载 zip"即得 `output/public/` 的完整静态目录打包文件。也可以从命令行直接构建：
+
+```bash
+# 单次 Full Build（构建完成后退出，不启动 Web）
+dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build [--theme=<id>] [--include-drafts] [--env=<name>]
+```
+
+构建后的两个关键目录（均位于 Bocchi 系统空间，不会污染内容空间）：
+
+- `<workspace>/.bocchi/input/`：Theme 输入数据 JSON（`site.json` / `posts.json` / `pages.json` / `works.json` / `notes.json` / `friends.json` / `photos.json` / `navigation.json` / `theme-config.json` / `build-context.json`）
+- `<workspace>/output/public/`：可部署到任意静态托管的站点目录，含 `robots.txt` / `sitemap.xml` / `feed.xml` / `media/...` / `build-manifest.json`，M5 起会再加入 Theme 渲染输出
+
+实时预览端点：`GET /_bocchi/preview/<artifact 相对路径>`（仅支持 `.json` / `.xml` / `.txt`）会触发一次 Live 模式构建并将命中 artifact 流式吐出，供编辑器实时预览使用。
+
 ### 内容空间（Content Space）
 
 Bocchi 把"工作区"严格切分为两部分：
 
 - **内容空间**（默认 `<workspace>/content/`）：纯创作资产（Blog、作品集、短文、友链、site.yaml），独立可携、可作为独立 Git 仓库迁移。任何时候都能整体打包带走，不依赖 Bocchi 的代码。
-- **Bocchi 系统空间**（`<workspace>/.bocchi/`、`themes/`、`output/`）：Bocchi 程序的状态库（SQLite）、日志、缓存、Theme 与构建产物，与 Bocchi 同寿。
+- **Bocchi 系统空间**（`<workspace>/.bocchi/`、`themes/`、`output/`）：Bocchi 程序的状态库（SQLite）、日志、缓存、Theme 输入与构建产物，与 Bocchi 同寿。
 
 通过 `appsettings.json` 中的 `Bocchi:WorkspaceRoot`（或环境变量 `Bocchi__WorkspaceRoot`）指向你已有的工作区目录；留空时回退到 `<ContentRoot>/workspace/`。首次启动会自动创建必需的目录结构（包括 `content/README.md` 与 `content/.gitignore`），然后在 `/workspace` 页面手动触发一次扫描即可。
 
@@ -39,6 +53,7 @@ Bocchi 把"工作区"严格切分为两部分：
 - `Docs/Milestones.md`：里程碑总览
 - `Docs/Milestones/M1/M1.md`：M1 阶段详细规划与验证记录
 - `Docs/Milestones/M2/M2.md`：M2 阶段详细规划与验证记录
+- `Docs/Milestones/M3/M3.md`：M3 阶段详细规划与验证记录
 
 ## 简介
 

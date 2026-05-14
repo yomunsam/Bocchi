@@ -4,12 +4,13 @@ using Microsoft.Data.Sqlite;
 namespace Bocchi.Workspace.State;
 
 /// <summary>
-/// SQLite schema 显式迁移器。基于 <c>PRAGMA user_version</c>，0 → 1 建立 M2 状态表。
+/// SQLite schema 显式迁移器。基于 <c>PRAGMA user_version</c>。
+/// 历史：v1 → M2 内容扫描相关表；v2 预留；v3 → M3 构建记录表。
 /// </summary>
 public sealed class SchemaMigrator
 {
     private readonly SqliteConnectionFactory _factory;
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 3;
 
     public SchemaMigrator(SqliteConnectionFactory factory)
     {
@@ -33,6 +34,11 @@ public sealed class SchemaMigrator
             if (current < 1)
             {
                 ApplyV1(connection, tx);
+            }
+
+            if (current < 3)
+            {
+                ApplyV3(connection, tx);
             }
 
             SetUserVersion(connection, tx, CurrentVersion);
@@ -129,6 +135,60 @@ public sealed class SchemaMigrator
 
             CREATE INDEX IX_ContentErrors_Run ON ContentErrors(ScanRunId);
             CREATE INDEX IX_ContentErrors_Severity ON ContentErrors(Severity);
+            """;
+
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    private static void ApplyV3(SqliteConnection conn, SqliteTransaction tx)
+    {
+        const string sql = """
+            CREATE TABLE BuildRuns (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                SessionId TEXT NOT NULL UNIQUE,
+                ScanRunId INTEGER NULL REFERENCES ScanRuns(Id) ON DELETE SET NULL,
+                Mode TEXT NOT NULL,
+                Environment TEXT NOT NULL,
+                ThemeId TEXT NULL,
+                IncludeDrafts INTEGER NOT NULL,
+                StartedAtUtc TEXT NOT NULL,
+                FinishedAtUtc TEXT NULL,
+                Status TEXT NOT NULL,
+                Fingerprint TEXT NULL,
+                Reason TEXT NULL,
+                BocchiVersion TEXT NULL
+            );
+
+            CREATE INDEX IX_BuildRuns_StartedAt ON BuildRuns(StartedAtUtc DESC);
+
+            CREATE TABLE BuildArtifacts (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                BuildRunId INTEGER NOT NULL REFERENCES BuildRuns(Id) ON DELETE CASCADE,
+                Path TEXT NOT NULL,
+                Kind TEXT NOT NULL,
+                ContentType TEXT NOT NULL,
+                SizeBytes INTEGER NOT NULL,
+                Sha256 TEXT NOT NULL,
+                ProducedBy TEXT NOT NULL
+            );
+
+            CREATE INDEX IX_BuildArtifacts_Run ON BuildArtifacts(BuildRunId);
+            CREATE INDEX IX_BuildArtifacts_Path ON BuildArtifacts(Path);
+
+            CREATE TABLE BuildStageLogs (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                BuildRunId INTEGER NOT NULL REFERENCES BuildRuns(Id) ON DELETE CASCADE,
+                OccurredAtUtc TEXT NOT NULL,
+                Stage TEXT NOT NULL,
+                Level TEXT NOT NULL,
+                Message TEXT NOT NULL
+            );
+
+            CREATE INDEX IX_BuildStageLogs_Run ON BuildStageLogs(BuildRunId);
+            CREATE INDEX IX_BuildStageLogs_Level ON BuildStageLogs(Level);
             """;
 
         using var cmd = conn.CreateCommand();
