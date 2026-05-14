@@ -1,4 +1,7 @@
 using System.Globalization;
+using Bocchi.Generator;
+using Bocchi.HomeServer;
+using Bocchi.HomeServer.Build;
 using Bocchi.HomeServer.Components;
 using Bocchi.Workspace;
 using Bocchi.Workspace.DependencyInjection;
@@ -21,6 +24,8 @@ try
     builder.Services.AddBocchiWorkspace(
         builder.Configuration,
         sp => builder.Environment.ContentRootPath);
+    builder.Services.AddBocchiGenerator(builder.Configuration);
+    builder.Services.AddSingleton<BuildOrchestrator>();
 
     builder.Host.UseSerilog((context, services, configuration) =>
     {
@@ -85,6 +90,21 @@ try
 
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
+
+    app.MapBuildEndpoints();
+
+    // CLI 子命令：`Bocchi.HomeServer -- build [--theme=...] [--include-drafts]` 跑完即退出。
+    if (BuildCli.TryParse(args, out var cliOptions))
+    {
+        await using (app)
+        {
+            using var scope = app.Services.CreateScope();
+            var exitCode = await BuildCli.RunAsync(scope.ServiceProvider, cliOptions, default);
+            Environment.ExitCode = exitCode;
+        }
+
+        return;
+    }
 
     app.Run();
 }

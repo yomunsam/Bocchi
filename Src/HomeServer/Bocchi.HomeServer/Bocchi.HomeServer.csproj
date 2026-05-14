@@ -17,6 +17,7 @@
     <ProjectReference Include="..\..\Core\Bocchi.ContentModel\Bocchi.ContentModel.csproj" />
     <ProjectReference Include="..\..\Core\Bocchi.Workspace\Bocchi.Workspace.csproj" />
     <ProjectReference Include="..\..\Core\Bocchi.GeneratorContract\Bocchi.GeneratorContract.csproj" />
+    <ProjectReference Include="..\..\Core\Bocchi.Generator\Bocchi.Generator.csproj" />
   </ItemGroup>
 
   <ItemGroup>

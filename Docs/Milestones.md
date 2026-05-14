@@ -16,7 +16,7 @@
 | [x] | M0 | 架构与计划基线 | 固化系统边界、Theme Contract 和总体路线 | `Docs/Architecture.md`、`Docs/Milestones.md` | 架构文档和里程碑文档存在，核心开放问题被列出 |
 | [x] | M1 | Solution 骨架 | 建立 .NET Home Server、测试项目和基础目录 | solution 文件、`Src/HomeServer/`、`Tests/`、`Docs/Milestones/M1/M1.md` | 可启动空后台，可运行基础测试 |
 | [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
-| [ ] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/` | Full Build 可产出完整本地站点目录 |
+| [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [ ] | M4 | Home Server Dashboard | 提供可用的内网管理界面 | 后台首页、内容列表、编辑入口、构建日志 | 能通过 UI 管理内容并触发构建 |
 | [ ] | M5 | Default SvelteKit Theme | 提供默认静态前端 | `Themes/default-svelte/`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
 | [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引和基础发布目标 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出 | 本地发布可用，Cloudflare Pages 路径明确 |
@@ -117,6 +117,8 @@
 ## M3 Generator Pipeline
 
 目标：从内容工作区生成可供 Theme 消费的数据，并产出本地静态目录。
+
+详细规划：见 [`Docs/Milestones/M3/M3.md`](./Milestones/M3/M3.md)。
 
 建议任务：
 

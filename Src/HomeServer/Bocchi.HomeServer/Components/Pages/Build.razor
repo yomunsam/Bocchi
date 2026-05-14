@@ -1,0 +1,140 @@
+@page "/build"
+@using Bocchi.Generator.Pipeline
+@using Bocchi.Generator.State
+@using Bocchi.HomeServer.Build
+@using Bocchi.Workspace
+@inject WorkspaceLayout Layout
+@inject BuildOrchestrator Orchestrator
+@inject IBuildStateStore Store
+@inject NavigationManager Nav
+
+<PageTitle>构建 · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header>
+        <h1>构建</h1>
+        <p class="lede">把内容空间生成为静态站点（写入 <code>output/public/</code>）。M3 阶段产出 Theme 输入数据 + 站点级功能性产物（robots.txt / sitemap.xml / feed.xml）+ 媒体复制。</p>
+    </header>
+
+    <section aria-labelledby="paths-heading">
+        <h2 id="paths-heading">输出位置</h2>
+        <dl>
+            <dt>Theme 输入</dt><dd><code>@Layout.ThemeInputDirectory</code></dd>
+            <dt>静态站点</dt><dd><code>@Layout.PublicOutputDirectory</code></dd>
+        </dl>
+    </section>
+
+    <section aria-labelledby="run-heading">
+        <h2 id="run-heading">运行一次构建</h2>
+        <form @onsubmit="RunAsync" @onsubmit:preventDefault>
+            <p>
+                <label>Theme id（可选）：<input type="text" @bind="_themeId" placeholder="留空使用 site.yaml 的 defaultThemeId" /></label>
+            </p>
+            <p>
+                <label>环境：<input type="text" @bind="_env" /></label>
+            </p>
+            <p>
+                <label><input type="checkbox" @bind="_includeDrafts" /> 包含草稿</label>
+            </p>
+            <p>
+                <button type="submit" disabled="@_busy">@(_busy ? "构建中…" : "开始构建")</button>
+                <a href="/build/download" target="_blank" rel="noopener">下载 zip</a>
+            </p>
+        </form>
+        @if (_lastResult is not null)
+        {
+            <p class="result">
+                上次结果：<strong>@_lastResult.Status</strong>，耗时 @_lastResult.Duration.TotalSeconds.ToString("F2") 秒，
+                指纹 <code>@(_lastResult.Fingerprint?.Value ?? "-")</code>
+                @if (!string.IsNullOrEmpty(_lastResult.Reason))
+                {
+                    <span>，原因：@_lastResult.Reason</span>
+                }
+            </p>
+            <details>
+                <summary>日志（@_lastResult.Logs.Count 条）</summary>
+                <pre>@string.Join('\n', _lastResult.Logs.Select(l => $"[{l.OccurredAt:HH:mm:ss}] {l.Level,-7} {l.Stage,-28} {l.Message}"))</pre>
+            </details>
+            <details>
+                <summary>产物（@_lastResult.Artifacts.Count 条）</summary>
+                <ul>
+                    @foreach (var a in _lastResult.Artifacts)
+                    {
+                        <li><code>@a.Path</code> — @a.Kind，@a.SizeBytes 字节</li>
+                    }
+                </ul>
+            </details>
+        }
+    </section>
+
+    <section aria-labelledby="history-heading">
+        <h2 id="history-heading">最近构建</h2>
+        @if (_recent is null)
+        {
+            <p>读取中…</p>
+        }
+        else if (_recent.Count == 0)
+        {
+            <p>暂无构建记录。</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr><th>#</th><th>开始时间</th><th>状态</th><th>模式</th><th>指纹</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in _recent)
+                    {
+                        <tr>
+                            <td>@r.Id</td>
+                            <td>@r.StartedAt.ToString("u")</td>
+                            <td>@r.Status</td>
+                            <td>@r.Mode</td>
+                            <td><code>@(string.IsNullOrEmpty(r.Fingerprint) ? "-" : r.Fingerprint[..Math.Min(12, r.Fingerprint.Length)])</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+</article>
+
+@code {
+    private string? _themeId;
+    private string _env = "production";
+    private bool _includeDrafts;
+    private bool _busy;
+    private BuildResult? _lastResult;
+    private IReadOnlyList<BuildRunSummary>? _recent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recent = await Store.ListRecentRunsAsync(20, default);
+    }
+
+    private async Task RunAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var options = new BuildOptions
+            {
+                Mode = BuildMode.FullBuild,
+                Environment = string.IsNullOrWhiteSpace(_env) ? "production" : _env,
+                IncludeDrafts = _includeDrafts,
+            };
+            _lastResult = await Orchestrator.RunFullBuildAsync(options, string.IsNullOrWhiteSpace(_themeId) ? null : _themeId, default);
+            _recent = await Store.ListRecentRunsAsync(20, default);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

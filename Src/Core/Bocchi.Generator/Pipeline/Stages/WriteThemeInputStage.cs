@@ -24,9 +24,16 @@ public sealed class WriteThemeInputStage : IBuildStage
             throw new BuildPipelineException($"{Name} 需要内容图。");
         }
 
-        var themeId = session.GetItem<string>(BuildSessionKeys.ThemeId)
-            ?? session.Graph.Site.Settings.DefaultThemeId
-            ?? "unknown";
+        var themeId = session.GetItem<string>(BuildSessionKeys.ThemeId);
+        if (string.IsNullOrWhiteSpace(themeId))
+        {
+            themeId = session.Graph.Site.Settings.DefaultThemeId;
+        }
+
+        if (string.IsNullOrWhiteSpace(themeId))
+        {
+            themeId = "unknown";
+        }
         var bocchiVersion = session.GetItem<string>(BuildSessionKeys.BocchiVersion);
         var pairs = _writer.Build(session.Graph, themeId, session.Options.Environment, session.Options.IncludeDrafts, bocchiVersion);
         foreach (var (artifact, _) in pairs)
