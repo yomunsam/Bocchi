@@ -1,0 +1,105 @@
+using Bocchi.ContentModel;
+
+namespace Bocchi.Generator.ContentGraph;
+
+/// <summary>独立页面在 <see cref="ContentGraph"/> 中的视图。</summary>
+public sealed record GraphPage
+{
+    public required string Slug { get; init; }
+
+    public required string Title { get; init; }
+
+    public ContentStatus Status { get; init; } = ContentStatus.Published;
+
+    public int Order { get; init; }
+
+    public bool ShowInNavigation { get; init; }
+
+    public string? Summary { get; init; }
+
+    public required string SiteRelativeUrl { get; init; }
+
+    public required string BodyMarkdown { get; init; }
+
+    public required string BodyHtml { get; init; }
+
+    public string? Excerpt { get; init; }
+
+    public IReadOnlyList<MediaReference> Media { get; init; } = [];
+}
+
+/// <summary>作品视图。</summary>
+public sealed record GraphWork
+{
+    public required string Slug { get; init; }
+
+    public required string Year { get; init; }
+
+    public required string Title { get; init; }
+
+    public ContentStatus Status { get; init; } = ContentStatus.Published;
+
+    public string? Role { get; init; }
+
+    public string? Period { get; init; }
+
+    public MediaReference? Cover { get; init; }
+
+    public IReadOnlyList<WorkLink> Links { get; init; } = [];
+
+    public IReadOnlyList<string> Stack { get; init; } = [];
+
+    public string? Summary { get; init; }
+
+    public bool Featured { get; init; }
+
+    public required string SiteRelativeUrl { get; init; }
+
+    public required string BodyMarkdown { get; init; }
+
+    public required string BodyHtml { get; init; }
+
+    public string? Excerpt { get; init; }
+
+    public IReadOnlyList<MediaReference> Media { get; init; } = [];
+}
+
+/// <summary>短文视图。短文 <c>Text</c> 与 <c>BodyMarkdown</c> 是同一份事实。</summary>
+public sealed record GraphNote
+{
+    public required string Id { get; init; }
+
+    public required string Year { get; init; }
+
+    public ContentStatus Status { get; init; } = ContentStatus.Published;
+
+    public DateTimeOffset? PublishedAt { get; init; }
+
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public required string BodyMarkdown { get; init; }
+
+    public required string BodyHtml { get; init; }
+
+    public string? Excerpt { get; init; }
+
+    public IReadOnlyList<MediaReference> Media { get; init; } = [];
+}
+
+/// <summary>友链视图。</summary>
+public sealed record GraphFriend
+{
+    public required string Name { get; init; }
+
+    public required string Url { get; init; }
+
+    public MediaReference? Avatar { get; init; }
+
+    public string? Description { get; init; }
+
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    public ContentStatus Status { get; init; } = ContentStatus.Published;
+
+    public int Order { get; init; }
+}

@@ -19,4 +19,13 @@ public sealed record BuildContext
 
     /// <summary>本次构建启用的功能开关。</summary>
     public required ThemeFeatureFlags Features { get; init; }
+
+    /// <summary>
+    /// Bocchi 自身的语义化版本（来源于程序集 InformationalVersion）。Theme 可据此做兼容性检查。
+    /// </summary>
+    public string? BocchiVersion { get; init; }
+
+    /// <summary>本次构建是否纳入草稿。<c>true</c> 时 <c>status: draft</c> 的内容也会出现在 Theme 输入中。</summary>
+    public bool IncludeDrafts { get; init; }
 }
+
