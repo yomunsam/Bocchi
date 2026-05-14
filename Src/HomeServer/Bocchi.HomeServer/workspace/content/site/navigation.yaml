@@ -1,6 +1,0 @@
-# 顶部导航条目。覆盖 site.yaml 中的 navigation 字段（如果同时存在）。
-# - title: Home
-#   href: /
-# - title: Blog
-#   href: /posts/
-items: []

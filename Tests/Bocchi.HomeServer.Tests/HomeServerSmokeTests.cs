@@ -2,11 +2,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Bocchi.HomeServer.Tests;
 
-public sealed class HomeServerSmokeTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly IsolatedWorkspaceWebApplicationFactory _factory;
 
-    public HomeServerSmokeTests(WebApplicationFactory<Program> factory)
+    public HomeServerSmokeTests(IsolatedWorkspaceWebApplicationFactory factory)
     {
         _factory = factory;
     }
@@ -34,5 +34,18 @@ public sealed class HomeServerSmokeTests : IClassFixture<WebApplicationFactory<P
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("Bocchi Home Server");
         body.Should().Contain("/healthz");
+    }
+
+    [Fact]
+    public async Task WorkspacePage_RendersAndShowsConfiguredRoot()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/workspace");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("工作区");
+        body.Should().Contain(_factory.WorkspaceRoot);
     }
 }

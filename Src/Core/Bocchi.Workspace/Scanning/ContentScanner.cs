@@ -505,12 +505,12 @@ public sealed partial class ContentScanner
         }
     }
 
-    private static TimeSpan ResolveTimeZoneOffset(string ianaOrId, List<ContentValidationError> warnings, string siteFile)
+    private TimeSpan ResolveTimeZoneOffset(string ianaOrId, List<ContentValidationError> warnings, string siteFile)
     {
         try
         {
             var tz = TimeZoneInfo.FindSystemTimeZoneById(ianaOrId);
-            return tz.GetUtcOffset(DateTimeOffset.UtcNow);
+            return tz.GetUtcOffset(_timeProvider.GetUtcNow());
         }
         catch (TimeZoneNotFoundException)
         {

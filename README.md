@@ -22,11 +22,23 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer
 
 健康检查：`curl http://127.0.0.1:5081/healthz` 应返回 `Healthy`。
 
+工作区面板：浏览器打开 `http://127.0.0.1:5081/workspace` 可看到当前内容空间路径、Git 状态以及一键扫描结果。
+
+### 内容空间（Content Space）
+
+Bocchi 把"工作区"严格切分为两部分：
+
+- **内容空间**（默认 `<workspace>/content/`）：纯创作资产（Blog、作品集、短文、友链、site.yaml），独立可携、可作为独立 Git 仓库迁移。任何时候都能整体打包带走，不依赖 Bocchi 的代码。
+- **Bocchi 系统空间**（`<workspace>/.bocchi/`、`themes/`、`output/`）：Bocchi 程序的状态库（SQLite）、日志、缓存、Theme 与构建产物，与 Bocchi 同寿。
+
+通过 `appsettings.json` 中的 `Bocchi:WorkspaceRoot`（或环境变量 `Bocchi__WorkspaceRoot`）指向你已有的工作区目录；留空时回退到 `<ContentRoot>/workspace/`。首次启动会自动创建必需的目录结构（包括 `content/README.md` 与 `content/.gitignore`），然后在 `/workspace` 页面手动触发一次扫描即可。
+
 更深入的文档：
 
 - `Docs/Architecture.md`：目标架构与模块边界
 - `Docs/Milestones.md`：里程碑总览
 - `Docs/Milestones/M1/M1.md`：M1 阶段详细规划与验证记录
+- `Docs/Milestones/M2/M2.md`：M2 阶段详细规划与验证记录
 
 ## 简介
 
