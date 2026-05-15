@@ -65,16 +65,27 @@ internal static class DefaultStaticThemeAssets
         .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
         .card{border:1px solid var(--line);background:var(--surface);padding:24px;border-radius:8px}
         .card:hover{border-color:var(--text)}
+        .card__cover{display:block;margin:-24px -24px 20px;border-bottom:1px solid var(--line);aspect-ratio:16/9;overflow:hidden;background:var(--surface-soft)}
+        .card__cover img{width:100%;height:100%;object-fit:cover}
         .card h3{margin:0 0 12px;font-size:22px}
         .card p{margin:0;color:var(--text-muted)}
+        .card__meta{margin-top:12px;color:var(--text-faint);font-family:var(--font-mono);font-size:12px}
         .tags{margin-top:16px;color:var(--text-faint);font-family:var(--font-mono);font-size:12px}
         .tags span::before{content:"· "}
         .note{max-width:var(--prose);padding:24px 0;border-bottom:1px solid var(--line)}
+        bocchi-time{display:inline-flex;align-items:baseline;gap:6px}
         .note time{font-family:var(--font-mono);font-size:12px;color:var(--text-faint)}
+        .bocchi-time__zone{border:1px solid var(--line);border-radius:999px;color:var(--text-muted);font-family:var(--font-mono);font-size:11px;line-height:1;padding:3px 7px}
         .note__body{margin-top:8px;color:var(--text)}
+        .note__media{margin-top:16px}
+        .media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+        .media-grid img{width:100%;aspect-ratio:1/1;object-fit:cover;border:1px solid var(--line);background:var(--surface-soft)}
         .article-header{padding:72px 0 48px}
         .article-header h1{font-size:48px;line-height:1.12;margin:0}
         .article-meta{margin-top:16px;color:var(--text-muted);font-family:var(--font-mono);font-size:13px}
+        .media-cover{margin-bottom:32px;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line);background:var(--surface-soft)}
+        .media-cover img{width:100%;height:100%;object-fit:cover}
+        .friend-avatar{width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--line);background:var(--surface-soft)}
         .prose-body{font-size:17px;line-height:1.78}
         .prose-body h2,.prose-body h3{margin:40px 0 12px;line-height:1.25}
         .prose-body p,.prose-body ul,.prose-body ol,.prose-body blockquote{margin:0 0 22px}
@@ -88,13 +99,19 @@ internal static class DefaultStaticThemeAssets
     /// <summary>默认 Theme 的原生渐进增强脚本。</summary>
     public const string Js = """
         const root = document.documentElement;
-        const storedTheme = localStorage.getItem("bocchi-theme");
+        const readTheme = () => {
+          try { return localStorage.getItem("bocchi-theme"); } catch { return null; }
+        };
+        const writeTheme = (value) => {
+          try { localStorage.setItem("bocchi-theme", value); } catch {}
+        };
+        const storedTheme = readTheme();
         if (storedTheme === "dark" || storedTheme === "light") root.dataset.theme = storedTheme;
         document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
           button.addEventListener("click", () => {
             const next = root.dataset.theme === "dark" ? "light" : "dark";
             root.dataset.theme = next;
-            localStorage.setItem("bocchi-theme", next);
+            writeTheme(next);
           });
         });
         document.querySelectorAll("[data-mobile-toggle]").forEach((button) => {
@@ -105,17 +122,35 @@ internal static class DefaultStaticThemeAssets
             button.setAttribute("aria-expanded", String(open));
           });
         });
-        customElements.define("bocchi-time", class extends HTMLElement {
-          connectedCallback() {
-            const value = this.getAttribute("datetime");
-            const authorZone = this.getAttribute("author-time-zone");
-            if (!value || !authorZone) return;
-            const visitorZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            if (!visitorZone || visitorZone === authorZone) return;
-            const date = new Date(value);
-            const visitor = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: visitorZone }).format(date);
-            this.title = `${this.textContent?.trim()} / ${visitor} (${visitorZone})`;
-          }
-        });
+        if (!customElements.get("bocchi-time")) {
+          customElements.define("bocchi-time", class extends HTMLElement {
+            connectedCallback() {
+              if (this.dataset.ready === "true") return;
+              this.dataset.ready = "true";
+              const value = this.getAttribute("datetime");
+              const authorZone = this.getAttribute("author-time-zone");
+              const date = value ? new Date(value) : null;
+              if (!date || Number.isNaN(date.getTime()) || !authorZone) return;
+
+              const authorText = this.querySelector("time")?.textContent?.trim() || this.textContent?.trim() || value;
+              const authorLabel = `${authorText} (${authorZone})`;
+              this.setAttribute("aria-label", authorLabel);
+
+              const visitorZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+              if (!visitorZone || visitorZone === authorZone) return;
+
+              const visitorText = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: visitorZone }).format(date);
+              const detail = `Author: ${authorLabel} / Local: ${visitorText} (${visitorZone})`;
+              this.title = detail;
+              this.setAttribute("aria-label", detail);
+
+              const badge = document.createElement("span");
+              badge.className = "bocchi-time__zone";
+              badge.textContent = visitorZone.replace(/_/g, " ");
+              badge.setAttribute("aria-hidden", "true");
+              this.append(badge);
+            }
+          });
+        }
         """;
 }

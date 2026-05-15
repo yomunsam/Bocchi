@@ -18,7 +18,7 @@
 | [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
-| [~] | M5 | Default Static Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`default-static`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
+| [x] | M5 | Default Static Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`default-static`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
 | [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
 | [ ] | M7 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
 
@@ -199,7 +199,7 @@
 
 详细规划：见 [`Docs/Milestones/M5/M5.md`](./Milestones/M5/M5.md)。
 
-当前状态：默认 Theme 最小构建闭环已打通。`default-static` 会物化到工作区，`builtin-template` runner 可在不依赖 Node.js 的情况下输出首页、文章、页面、作品、短文、友链、404、CSS、JS，并进入 `.bocchi-manifest.json`；`theme-context.json`、Theme 配置文件边界和 manifest 对账已有测试。下一步需要把 typed helper 页面生成迁入真实 Fluid 模板，并补 Preview Host 与多视口截图验收。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
+当前状态：已完成。`default-static` 会物化到工作区，`builtin-template` runner 可在不依赖 Node.js 的情况下执行工作区 `.liquid` 模板，输出首页、文章、页面、作品、短文、友链、404、CSS、JS，并进入 `.bocchi-manifest.json`；`theme-context.json`、Theme 配置文件边界、manifest 对账、模板覆盖、Preview Host 首页、四个关键视口和 `bocchi-time` 双时区增强均已有验证。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
 
 建议任务：
 

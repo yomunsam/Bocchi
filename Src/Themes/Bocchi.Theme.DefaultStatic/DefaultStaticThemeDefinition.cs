@@ -28,10 +28,33 @@ public sealed class DefaultStaticThemeDefinition
         await EnsureFileAsync(Path.Combine(themeRoot, "config-schema.json"), ConfigSchemaJson, cancellationToken).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "templates", "layouts", "base.liquid"), BaseTemplate, cancellationToken).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "index.liquid"), IndexTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "posts.liquid"), PostsTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "works.liquid"), WorksTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "notes.liquid"), NotesTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "friends.liquid"), FriendsTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "article.liquid"), ArticleTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "standalone-page.liquid"), StandalonePageTemplate, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "404.liquid"), NotFoundTemplate, cancellationToken).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "assets", "favicon.svg"), DefaultStaticThemeAssets.FaviconSvg, cancellationToken).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "assets", "app.css"), DefaultStaticThemeAssets.Css, cancellationToken).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "assets", "app.js"), DefaultStaticThemeAssets.Js, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>读取内置默认模板，供旧工作区缺少新增模板文件时回退。</summary>
+    internal static string? TryGetTemplate(string relativePath)
+        => relativePath.Replace('\\', '/') switch
+        {
+            "layouts/base.liquid" => BaseTemplate,
+            "pages/index.liquid" => IndexTemplate,
+            "pages/posts.liquid" => PostsTemplate,
+            "pages/works.liquid" => WorksTemplate,
+            "pages/notes.liquid" => NotesTemplate,
+            "pages/friends.liquid" => FriendsTemplate,
+            "pages/article.liquid" => ArticleTemplate,
+            "pages/standalone-page.liquid" => StandalonePageTemplate,
+            "pages/404.liquid" => NotFoundTemplate,
+            _ => null,
+        };
 
     /// <summary>只在目标文件不存在时写入默认内容，避免覆盖用户修改后的 Theme 文件。</summary>
     private static async Task EnsureFileAsync(string path, string content, CancellationToken cancellationToken)
@@ -133,32 +156,209 @@ public sealed class DefaultStaticThemeDefinition
         }
         """;
 
-    /// <summary>给用户看的布局模板占位；当前 renderer 已先用 typed helper 输出页面。</summary>
+    /// <summary>默认全局布局模板。</summary>
     private const string BaseTemplate = """
         <!doctype html>
         <html lang="{{ site.language }}">
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>{{ page.title }} · {{ site.title }}</title>
+          <meta name="description" content="{{ site.description }}">
+          <title>{{ page.fullTitle }}</title>
           <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
           <link rel="stylesheet" href="/assets/app.css">
+          <style>:root{--accent: {{ site.accentColor }};}</style>
         </head>
         <body>
-          {{ content | html }}
+          <header class="topbar">
+            <div class="topbar__inner">
+              <a class="wordmark" href="/">{{ site.title }}</a>
+              <nav class="nav" aria-label="Primary">
+                {% for item in navigation %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
+              </nav>
+              <div class="toolbar">
+                <button class="icon-button" type="button" data-theme-toggle aria-label="Toggle appearance">◐</button>
+                <button class="icon-button mobile-toggle" type="button" data-mobile-toggle aria-expanded="false" aria-label="Open menu">☰</button>
+              </div>
+            </div>
+            <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
+              {% for item in navigation %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
+            </nav>
+          </header>
+          <main>{{ content | html }}</main>
+          <footer class="footer">
+            <div class="footer__inner">
+              <span>{{ site.title }} · {{ site.generatedYear }}</span>
+              <span><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span>
+            </div>
+          </footer>
           <script type="module" src="/assets/app.js"></script>
         </body>
         </html>
         """;
 
-    /// <summary>给用户看的首页模板占位；M5 后续会把 typed 输出逐步迁入 Fluid 模板。</summary>
+    /// <summary>默认首页模板。</summary>
     private const string IndexTemplate = """
-        <main class="site-main">
-          <section class="hero">
-            <p class="eyebrow">Index</p>
-            <h1>{{ site.title }}</h1>
-            <p>{{ site.description }}</p>
-          </section>
-        </main>
+        <section class="hero container">
+          <p class="eyebrow">Index · {{ site.authorTimeZone }}</p>
+          <h1>{{ site.title }} <em>writing</em>, work, and notes.</h1>
+          <p class="lead">{{ site.description }}</p>
+          <div class="meta-row"><span>{{ site.authorName }}</span><span>{{ site.language }}</span><span>{{ site.baseUrl }}</span></div>
+        </section>
+        <section class="content section">
+          <div class="section-head"><h2>Selected Writing</h2><a class="arrow-link" href="/posts/">All</a></div>
+          {% if hasFeaturedPosts %}
+          <div class="list">
+            {% for item in featuredPosts %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ item.yearMonth }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.meta }}</span></a>{% endfor %}
+          </div>
+          {% else %}<div class="empty">No writing yet.</div>{% endif %}
+        </section>
+        <section class="content section">
+          <div class="section-head"><h2>Selected Work</h2><a class="arrow-link" href="/works/">All</a></div>
+          {% if hasFeaturedWorks %}
+          <div class="grid">
+            {% for item in featuredWorks %}
+            <article class="card">
+              {% if item.hasCover %}<a class="card__cover" href="{{ item.url }}"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></a>{% endif %}
+              <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
+              <p>{{ item.summary }}</p>
+              {% if item.hasStack %}<div class="tags">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}<div class="empty">No work entries yet.</div>{% endif %}
+        </section>
+        <section class="content section">
+          <div class="section-head"><h2>Recent Notes</h2><a class="arrow-link" href="/notes/">All</a></div>
+          {% if hasRecentNotes %}
+            {% for item in recentNotes %}<article class="note"><bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time>{{ item.displayDateTime }}</time></bocchi-time><div class="note__body">{{ item.html | html }}</div></article>{% endfor %}
+          {% else %}<div class="empty">No notes yet.</div>{% endif %}
+        </section>
+        {% if showFriends %}
+        <section class="content section">
+          <div class="section-head"><h2>Friends</h2><a class="arrow-link" href="/friends/">All</a></div>
+          {% if hasFriends %}
+          <div class="list">
+            {% for item in friends %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">Link</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.summary }}</span></a>{% endfor %}
+          </div>
+          {% else %}<div class="empty">No friend links yet.</div>{% endif %}
+        </section>
+        {% endif %}
+        """;
+
+    /// <summary>默认文章列表模板。</summary>
+    private const string PostsTemplate = """
+        <section class="content section">
+          <p class="eyebrow">{{ hero.number }}</p>
+          <h1>{{ hero.title }}</h1>
+          <p class="lead">{{ hero.description }}</p>
+        </section>
+        <section class="content section">
+          {% if hasItems %}
+          <div class="list">
+            {% for item in items %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ item.yearMonth }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.meta }}</span></a>{% endfor %}
+          </div>
+          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+        </section>
+        """;
+
+    /// <summary>默认作品列表模板。</summary>
+    private const string WorksTemplate = """
+        <section class="content section">
+          <p class="eyebrow">{{ hero.number }}</p>
+          <h1>{{ hero.title }}</h1>
+          <p class="lead">{{ hero.description }}</p>
+        </section>
+        <section class="content section">
+          {% if hasItems %}
+          <div class="grid">
+            {% for item in items %}
+            <article class="card">
+              {% if item.hasCover %}<a class="card__cover" href="{{ item.url }}"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></a>{% endif %}
+              <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
+              <p>{{ item.summary }}</p>
+              {% if item.meta %}<div class="card__meta">{{ item.meta }}</div>{% endif %}
+              {% if item.hasStack %}<div class="tags">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+            </article>
+            {% endfor %}
+          </div>
+          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+        </section>
+        """;
+
+    /// <summary>默认短文列表模板。</summary>
+    private const string NotesTemplate = """
+        <section class="content section">
+          <p class="eyebrow">{{ hero.number }}</p>
+          <h1>{{ hero.title }}</h1>
+          <p class="lead">{{ hero.description }}</p>
+        </section>
+        <section class="content section">
+          {% if hasItems %}
+            {% for item in items %}
+            <article class="note">
+              <bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time>{{ item.displayDateTime }}</time></bocchi-time>
+              <div class="note__body">{{ item.html | html }}</div>
+              {% if item.hasMedia %}<div class="media-grid note__media">{% for media in item.media %}<img src="{{ media.path }}" alt="{{ media.alt }}">{% endfor %}</div>{% endif %}
+            </article>
+            {% endfor %}
+          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+        </section>
+        """;
+
+    /// <summary>默认友链模板。</summary>
+    private const string FriendsTemplate = """
+        <section class="content section">
+          <p class="eyebrow">{{ hero.number }}</p>
+          <h1>{{ hero.title }}</h1>
+          <p class="lead">{{ hero.description }}</p>
+        </section>
+        <section class="content section">
+          {% if hasItems %}
+          <div class="list">
+            {% for item in items %}
+            <a class="list-row friend-row" href="{{ item.url }}">
+              <span class="list-row__date">{% if item.hasAvatar %}<img class="friend-avatar" src="{{ item.avatar.path }}" alt="{{ item.avatar.alt }}">{% else %}Link{% endif %}</span>
+              <span class="list-row__title">{{ item.title }}</span>
+              <span class="list-row__meta">{{ item.summary }}</span>
+            </a>
+            {% endfor %}
+          </div>
+          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+        </section>
+        """;
+
+    /// <summary>默认文章和作品详情模板。</summary>
+    private const string ArticleTemplate = """
+        <article class="prose article-header">
+          <p><a class="arrow-link" href="{{ section.url }}">Back to {{ section.name }}</a></p>
+          <p class="article-meta">{{ section.name }}{% if item.date %} · {{ item.date }}{% endif %}</p>
+          <h1>{{ item.title }}</h1>
+        </article>
+        {% if item.hasCover %}<figure class="prose media-cover"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></figure>{% endif %}
+        <article class="prose prose-body">{{ item.html | html }}</article>
+        <nav class="prose section" aria-label="Adjacent content">
+          {% if hasPrevious %}<a class="arrow-link" href="{{ previous.url }}">Previous: {{ previous.title }}</a>{% endif %}
+          {% if hasNext %}<a class="arrow-link" href="{{ next.url }}">Next: {{ next.title }}</a>{% endif %}
+        </nav>
+        """;
+
+    /// <summary>默认独立页面模板。</summary>
+    private const string StandalonePageTemplate = """
+        <article class="prose article-header">
+          <p class="eyebrow">Page</p>
+          <h1>{{ item.title }}</h1>
+        </article>
+        <article class="prose prose-body">{{ item.html | html }}</article>
+        """;
+
+    /// <summary>默认 404 模板。</summary>
+    private const string NotFoundTemplate = """
+        <section class="content section">
+          <p class="eyebrow">{{ hero.number }}</p>
+          <h1>{{ hero.title }}</h1>
+          <p class="lead">{{ hero.description }}</p>
+        </section>
+        <section class="content section"><a class="arrow-link" href="/">Back to index</a></section>
         """;
 }

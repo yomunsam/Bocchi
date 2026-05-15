@@ -212,6 +212,80 @@ public sealed class GeneratorPipelineEndToEndTests
         second.Fingerprint!.Value.Should().NotBe(first.Fingerprint!.Value);
     }
 
+    [Fact]
+    public async Task FullBuild_WhenDefaultThemeTemplateChanges_DoesNotShortCircuit()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var first = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        var indexTemplate = Path.Combine(fixture.Layout.ThemesDirectory, "default-static", "templates", "pages", "index.liquid");
+        await File.WriteAllTextAsync(indexTemplate, """<section id="theme-template-changed">Changed template</section>""");
+
+        var second = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        second.Status.Should().Be(BuildStatus.Succeeded);
+        second.Fingerprint!.Value.Should().NotBe(first.Fingerprint!.Value);
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        html.Should().Contain("theme-template-changed");
+    }
+
+    [Fact]
+    public async Task DefaultStaticTheme_ExecutesWorkspaceFluidTemplate()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pageTemplateDirectory = Path.Combine(fixture.Layout.ThemesDirectory, "default-static", "templates", "pages");
+        Directory.CreateDirectory(pageTemplateDirectory);
+        await File.WriteAllTextAsync(Path.Combine(pageTemplateDirectory, "index.liquid"), """
+            <section id="fluid-override">
+              {% for item in featuredPosts %}<span>{{ item.title }}</span>{% endfor %}
+            </section>
+            """);
+
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        html.Should().Contain("""<section id="fluid-override">""");
+        html.Should().Contain("<span>Hello</span>");
+    }
+
+    [Fact]
+    public async Task DefaultStaticTheme_RendersBodyHtmlThroughExplicitHtmlFilter()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "2025", "hello", "index.html"));
+        html.Should().Contain("<p>Body <img");
+        html.Should().NotContain("&lt;p&gt;Body");
+    }
+
     /// <summary>创建一个只用于测试 Theme 加载边界的 process Theme manifest。</summary>
     private static void CreateProcessTheme(TestWorkspaceFixture fixture, string themeId)
     {
