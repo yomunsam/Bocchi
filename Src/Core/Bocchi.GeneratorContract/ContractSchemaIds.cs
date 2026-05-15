@@ -20,5 +20,6 @@ public static class ContractSchemaIds
     public const string Friends = Base + "friends.json";
     public const string Photos = Base + "photos.json";
     public const string ThemeConfig = Base + "theme-config.json";
+    public const string ThemeContext = Base + "theme-context.json";
     public const string BuildContext = Base + "build-context.json";
 }

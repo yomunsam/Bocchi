@@ -1,4 +1,5 @@
 using Bocchi.Generator.Theme;
+using Bocchi.Theme.DefaultStatic;
 using Bocchi.Workspace;
 
 namespace Bocchi.Generator.Pipeline.Stages;
@@ -9,8 +10,10 @@ namespace Bocchi.Generator.Pipeline.Stages;
 /// </summary>
 public sealed class LoadThemeStage : IBuildStage
 {
+    /// <summary>当前工作区路径约定。</summary>
     private readonly WorkspaceLayout _layout;
 
+    /// <summary>构造 Theme 加载阶段。</summary>
     public LoadThemeStage(WorkspaceLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
@@ -31,6 +34,11 @@ public sealed class LoadThemeStage : IBuildStage
         }
 
         session.SetItem(BuildSessionKeys.ThemeId, themeId);
+        if (string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+        {
+            await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, session.CancellationToken).ConfigureAwait(false);
+        }
+
         var loaded = await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, session.CancellationToken).ConfigureAwait(false);
         if (loaded is null)
         {

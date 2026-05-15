@@ -21,6 +21,7 @@ public sealed class ValidateOutputStage : IBuildStage
         "/notes.json",
         "/friends.json",
         "/photos.json",
+        "/theme-context.json",
         "/build-context.json",
     ];
 

@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using Bocchi.ContentModel;
 
 namespace Bocchi.Generator.ThemeInputs.Models;
@@ -109,3 +111,66 @@ public sealed record FriendInput
 
 /// <summary>媒体引用。<see cref="Path"/> 总是站点根相对（以 <c>/</c> 开头）。</summary>
 public sealed record MediaReferenceInput(string Path, string? Alt = null);
+
+/// <summary>对应 <c>.bocchi/input/theme-context.json</c> 的全局渲染上下文。</summary>
+public sealed record ThemeContextInput
+{
+    public required ThemeContextBocchi Bocchi { get; init; }
+    public required ThemeContextBuild Build { get; init; }
+    public required ThemeContextSite Site { get; init; }
+    public required ThemeContextAuthor Author { get; init; }
+    public required ThemeContextFeatures Features { get; init; }
+    public required ThemeContextTheme Theme { get; init; }
+}
+
+/// <summary>Bocchi 程序自身信息。</summary>
+public sealed record ThemeContextBocchi
+{
+    public string? Version { get; init; }
+}
+
+/// <summary>本次构建的运行信息。</summary>
+public sealed record ThemeContextBuild
+{
+    public required DateTimeOffset GeneratedAt { get; init; }
+    public required string Environment { get; init; }
+    public required bool IncludeDrafts { get; init; }
+}
+
+/// <summary>Theme 渲染所需的站点事实。</summary>
+public sealed record ThemeContextSite
+{
+    public required string Title { get; init; }
+    public string? Description { get; init; }
+    public required string Language { get; init; }
+    public required string TimeZone { get; init; }
+    public required string BaseUrl { get; init; }
+}
+
+/// <summary>Theme 渲染所需的作者信息。</summary>
+public sealed record ThemeContextAuthor
+{
+    public required string Name { get; init; }
+    public required string DisplayName { get; init; }
+    public required string TimeZone { get; init; }
+    public string? Email { get; init; }
+    public string? Bio { get; init; }
+    public required IReadOnlyList<SocialLink> Links { get; init; }
+}
+
+/// <summary>跨 Theme 的站点功能开关。</summary>
+public sealed record ThemeContextFeatures
+{
+    public required bool Rss { get; init; }
+    public required bool Sitemap { get; init; }
+    public required bool Search { get; init; }
+}
+
+/// <summary>当前 Theme 的身份与有效配置。</summary>
+public sealed record ThemeContextTheme
+{
+    public required string Id { get; init; }
+    public required string Name { get; init; }
+    public required string Version { get; init; }
+    public JsonObject Config { get; init; } = new();
+}

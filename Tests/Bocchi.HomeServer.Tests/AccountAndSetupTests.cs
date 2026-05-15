@@ -2,6 +2,7 @@ using System.Net;
 
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
+using Bocchi.Workspace;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -76,5 +77,25 @@ public sealed class AccountAndSetupTests
         login.EnsureSuccessStatusCode();
         var body = await login.Content.ReadAsStringAsync();
         body.Should().Contain("Continue with GitHub");
+    }
+
+    [Fact]
+    public async Task ThemeSettings_SaveDefault_SyncsWorkspaceConfigFile()
+    {
+        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
+        await settings.SaveDefaultAsync("default-static", """{"visual":{"accentColor":"#E85D3A"}}""");
+
+        var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
+        db.ThemeConfigurations.Single().ThemeId.Should().Be("default-static");
+        var layout = scope.ServiceProvider.GetRequiredService<WorkspaceLayout>();
+        var configPath = Path.Combine(layout.ThemeConfigDirectory, "default-static.json");
+        File.Exists(configPath).Should().BeTrue();
+        (await File.ReadAllTextAsync(configPath)).Should().Contain("#E85D3A");
     }
 }

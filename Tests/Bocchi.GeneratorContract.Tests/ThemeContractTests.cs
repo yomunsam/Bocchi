@@ -30,6 +30,28 @@ public sealed class ThemeContractTests
     }
 
     [Fact]
+    public void ThemeManifest_SupportsRunnerSpecWithoutLegacyBuildCommand()
+    {
+        var manifest = new ThemeManifest
+        {
+            Id = "default-static",
+            Name = "Bocchi Mono",
+            Version = "0.1.0",
+            ContractVersion = ThemeContractVersion.V1,
+            Runner = new ThemeRunnerSpec
+            {
+                Kind = "builtin-template",
+                Entry = "fluid",
+            },
+        };
+
+        manifest.Runner.Should().NotBeNull();
+        manifest.Runner!.Kind.Should().Be("builtin-template");
+        manifest.Runner.Entry.Should().Be("fluid");
+        manifest.Build.Should().BeNull();
+    }
+
+    [Fact]
     public void ThemeConfigSchema_SupportsArchitectureFieldTypes()
     {
         var allTypes = Enum.GetValues<ThemeConfigFieldType>();

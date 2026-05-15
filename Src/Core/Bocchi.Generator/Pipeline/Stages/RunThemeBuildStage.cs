@@ -42,12 +42,15 @@ public sealed class RunThemeBuildStage : IBuildStage
 
         var manifest = loaded.Manifest;
         var themeRoot = loaded.ThemeRoot;
+        var outputDirectory = ThemeOutputPathResolver.ResolveLocalOutputDirectory(themeRoot, manifest.OutputDir);
+        ThemeOutputPathResolver.ResetLocalOutputDirectory(outputDirectory);
+
         var invocation = new ThemeRunInvocation
         {
             ThemeRoot = themeRoot,
             Manifest = manifest,
             InputDirectoryAbsolute = _layout.ThemeInputDirectory,
-            OutputDirectoryAbsolute = _layout.PublicOutputDirectory,
+            OutputDirectoryAbsolute = outputDirectory,
             BaseUrl = session.Graph?.Site.NormalizedBaseUrl.AbsoluteUri ?? "/",
             Environment = session.Options.Environment,
             RunInstall = false,

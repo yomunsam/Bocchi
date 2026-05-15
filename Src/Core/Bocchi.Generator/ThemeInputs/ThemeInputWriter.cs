@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 using Bocchi.ContentModel;
@@ -41,7 +42,13 @@ public sealed class ThemeInputWriter
     /// 序列化所有 Theme 输入 artifact，但不实际写入 Sink；返回 artifact + 字节内容（供 caller 写到任何 Sink）。
     /// </summary>
     public IReadOnlyList<(BuildArtifact Artifact, ReadOnlyMemory<byte> Bytes)> Build(
-        ContentGraph.ContentGraph graph, string themeId, string environment, bool includeDrafts, string? bocchiVersion)
+        ContentGraph.ContentGraph graph,
+        string themeId,
+        string environment,
+        bool includeDrafts,
+        string? bocchiVersion,
+        ThemeManifest? manifest = null,
+        JsonObject? themeConfig = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentException.ThrowIfNullOrWhiteSpace(themeId);
@@ -82,6 +89,10 @@ public sealed class ThemeInputWriter
         Add("notes.json", ContractSchemaIds.Notes, graph.Notes.Select(MapNote).ToArray());
         Add("friends.json", ContractSchemaIds.Friends, graph.Friends.Select(MapFriend).ToArray());
         Add("photos.json", ContractSchemaIds.Photos, Array.Empty<object>());
+        Add(
+            "theme-context.json",
+            ContractSchemaIds.ThemeContext,
+            MapThemeContext(graph, themeId, environment, includeDrafts, bocchiVersion, generatedAt, manifest, themeConfig));
 
         var buildContext = new BuildContext
         {
@@ -99,6 +110,64 @@ public sealed class ThemeInputWriter
         Add("build-context.json", ContractSchemaIds.BuildContext, buildContext);
 
         return result;
+    }
+
+    private static ThemeContextInput MapThemeContext(
+        ContentGraph.ContentGraph graph,
+        string themeId,
+        string environment,
+        bool includeDrafts,
+        string? bocchiVersion,
+        DateTimeOffset generatedAt,
+        ThemeManifest? manifest,
+        JsonObject? themeConfig)
+    {
+        var settings = graph.Site.Settings;
+        var authorName = settings.Author?.Name ?? "Anonymous";
+        var themeFeatures = manifest?.Features;
+        return new ThemeContextInput
+        {
+            Bocchi = new ThemeContextBocchi
+            {
+                Version = bocchiVersion,
+            },
+            Build = new ThemeContextBuild
+            {
+                GeneratedAt = generatedAt,
+                Environment = environment,
+                IncludeDrafts = includeDrafts,
+            },
+            Site = new ThemeContextSite
+            {
+                Title = settings.Title,
+                Description = settings.Description,
+                Language = settings.Language,
+                TimeZone = settings.TimeZone,
+                BaseUrl = graph.Site.NormalizedBaseUrl.AbsoluteUri,
+            },
+            Author = new ThemeContextAuthor
+            {
+                Name = authorName,
+                DisplayName = authorName,
+                TimeZone = settings.TimeZone,
+                Email = settings.Author?.Email,
+                Bio = settings.Author?.Bio,
+                Links = settings.Social,
+            },
+            Features = new ThemeContextFeatures
+            {
+                Rss = settings.EnableRss,
+                Sitemap = settings.EnableSitemap,
+                Search = themeFeatures?.Search ?? settings.EnableSearch,
+            },
+            Theme = new ThemeContextTheme
+            {
+                Id = themeId,
+                Name = manifest?.Name ?? themeId,
+                Version = manifest?.Version ?? "0.0.0",
+                Config = themeConfig ?? new JsonObject(),
+            },
+        };
     }
 
     private static SiteInput MapSite(GraphSite site) => new()

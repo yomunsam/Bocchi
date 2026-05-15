@@ -8,6 +8,7 @@
     <ProjectReference Include="..\Bocchi.ContentModel\Bocchi.ContentModel.csproj" />
     <ProjectReference Include="..\Bocchi.Workspace\Bocchi.Workspace.csproj" />
     <ProjectReference Include="..\Bocchi.GeneratorContract\Bocchi.GeneratorContract.csproj" />
+    <ProjectReference Include="..\..\Themes\Bocchi.Theme.DefaultStatic\Bocchi.Theme.DefaultStatic.csproj" />
   </ItemGroup>
 
   <ItemGroup>

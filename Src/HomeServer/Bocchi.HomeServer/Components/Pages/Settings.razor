@@ -100,7 +100,7 @@
 
             <section id="theme" class="bocchi-panel">
                 <h2>Theme</h2>
-                <p>这里管理前台业务 Theme Contract，不是右上角 Dashboard 明暗外观。默认 SvelteKit Theme 的完整视觉进入 M5，但 M4 已经提供配置保存边界。</p>
+                <p>这里管理前台业务 Theme Contract，不是右上角 Dashboard 明暗外观。M5 默认 Theme 为 <code>default-static</code> / Bocchi Mono，保存后会同步写入工作区 Theme 配置文件。</p>
                 <div class="bocchi-form-grid">
                     <label>
                         Theme id
@@ -156,7 +156,7 @@
     private ProviderForm _oidc = new();
 
     /// <summary>前台 Theme id 编辑缓冲区。</summary>
-    private string _themeId = "default-svelte";
+    private string _themeId = "default-static";
 
     /// <summary>前台 Theme JSON 配置编辑缓冲区。</summary>
     private string _themeJson = "{}";

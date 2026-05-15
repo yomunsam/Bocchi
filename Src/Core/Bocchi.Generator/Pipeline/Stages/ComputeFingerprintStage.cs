@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Bocchi.Generator.Exceptions;
+using Bocchi.Workspace;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
@@ -12,6 +13,14 @@ namespace Bocchi.Generator.Pipeline.Stages;
 /// </summary>
 public sealed class ComputeFingerprintStage : IBuildStage
 {
+    private readonly WorkspaceLayout _layout;
+
+    public ComputeFingerprintStage(WorkspaceLayout layout)
+    {
+        ArgumentNullException.ThrowIfNull(layout);
+        _layout = layout;
+    }
+
     public string Name => nameof(ComputeFingerprintStage);
 
     public Task<bool> ExecuteAsync(BuildSession session)
@@ -29,7 +38,9 @@ public sealed class ComputeFingerprintStage : IBuildStage
         AppendLine(sha, $"includeDrafts={session.Options.IncludeDrafts}");
         AppendLine(sha, $"feedItemCount={session.Options.FeedItemCount ?? session.Graph.Site.Settings.FeedItemCount}");
         AppendLine(sha, $"baseUrl={session.Graph.Site.NormalizedBaseUrl}");
-        AppendLine(sha, $"themeId={session.GetItem<string>(BuildSessionKeys.ThemeId) ?? session.Graph.Site.Settings.DefaultThemeId ?? string.Empty}");
+        var themeId = session.GetItem<string>(BuildSessionKeys.ThemeId) ?? session.Graph.Site.Settings.DefaultThemeId ?? string.Empty;
+        AppendLine(sha, $"themeId={themeId}");
+        AppendThemeConfigHash(sha, _layout.ThemeConfigDirectory, themeId);
         AppendLine(sha, $"bocchiVersion={session.GetItem<string>(BuildSessionKeys.BocchiVersion) ?? string.Empty}");
 
         // 站点设置 / 导航：用全字段 toString 模拟稳定快照
@@ -93,5 +104,36 @@ public sealed class ComputeFingerprintStage : IBuildStage
         Span<byte> bodyHash = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(body), bodyHash);
         sha.AppendData(bodyHash);
+    }
+
+    private static void AppendThemeConfigHash(IncrementalHash sha, string themeConfigDirectory, string themeId)
+    {
+        if (string.IsNullOrWhiteSpace(themeId) ||
+            themeId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            themeId.Contains('/') ||
+            themeId.Contains('\\') ||
+            string.Equals(themeId, ".", StringComparison.Ordinal) ||
+            string.Equals(themeId, "..", StringComparison.Ordinal))
+        {
+            AppendLine(sha, "themeConfig=none");
+            return;
+        }
+
+        var path = Path.Combine(themeConfigDirectory, themeId + ".json");
+        if (!File.Exists(path))
+        {
+            AppendLine(sha, "themeConfig=missing");
+            return;
+        }
+
+        Span<byte> fileHash = stackalloc byte[32];
+        SHA256.HashData(File.ReadAllBytes(path), fileHash);
+        var sb = new StringBuilder(fileHash.Length * 2);
+        foreach (var b in fileHash)
+        {
+            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+        }
+
+        AppendLine(sha, $"themeConfig={sb}");
     }
 }

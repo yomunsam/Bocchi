@@ -4,6 +4,7 @@ using Bocchi.Generator.Pipeline.Stages;
 using Bocchi.Generator.State;
 using Bocchi.Generator.Theme;
 using Bocchi.Generator.ThemeInputs;
+using Bocchi.Theme.DefaultStatic;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,7 @@ public static class GeneratorServiceCollectionExtensions
         services.AddSingleton<WriteSiteArtifactsStage>();
         services.AddSingleton<CopyMediaStage>();
         services.AddSingleton<RunThemeBuildStage>();
+        services.AddSingleton<CollectThemeOutputStage>();
         services.AddSingleton<ValidateOutputStage>();
         services.AddSingleton<WriteManifestStage>();
 
