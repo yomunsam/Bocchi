@@ -18,7 +18,7 @@
 | [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
-| [ ] | M5 | Default SvelteKit Theme | 提供默认静态前端 | `Themes/default-svelte/`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
+| [~] | M5 | Default SvelteKit Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`Themes/default-svelte/`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
 | [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引和基础发布目标 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出 | 本地发布可用，Cloudflare Pages 路径明确 |
 | [ ] | M7 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
 
@@ -197,19 +197,19 @@
 
 目标：提供一套可真实使用的默认静态个人主页。
 
+详细规划：见 [`Docs/Milestones/M5/M5.md`](./Milestones/M5/M5.md)。
+
+当前状态：设计阶段已开工。M5 先补齐默认 Theme 物化、`theme-config.json`、Theme 输出登记和 manifest 对账，再实现 `default-svelte` 的 SvelteKit 静态页面。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
+
 建议任务：
 
-- 建立 `default-svelte` Theme。
-- 实现 `theme.json`。
-- 实现 `config-schema.json`。
-- 实现 Theme 输入数据加载。
-- 实现首页。
-- 实现文章列表和详情页。
-- 实现独立页面。
-- 实现作品列表和详情页。
-- 实现短文列表。
-- 实现友链页。
-- 实现基础响应式布局。
+- 建立 `Themes/default-svelte/` 作为仓库内置默认 Theme 源。
+- 明确仓库内置 Theme 到工作区 `<workspace>/themes/default-svelte/` 的物化方式。
+- 补齐 `theme-config.json` 输入，让 Dashboard Theme 设置参与构建。
+- 新增 Theme 输出收集阶段，把 SvelteKit 输出登记为 `ArtifactKind.ThemeOutput` 并纳入 manifest。
+- 实现 `theme.json`、`config-schema.json` 和 Theme 输入数据加载。
+- 实现首页、文章列表和详情页、独立页面、作品列表和详情页、短文列表、友链页、404 页面。
+- 实现基础响应式布局、Light / Dark、focus-visible 和移动端导航。
 
 验收标准：
 
@@ -217,10 +217,13 @@
 - 静态输出可直接打开或部署。
 - 所有 MVP 内容类型都有对应展示。
 - Theme 配置能影响实际页面。
+- `.bocchi-manifest.json` 包含 Theme HTML / CSS / JS / assets，不存在未登记输出。
 
 暂不做：
 
 - 评论系统。
+- 搜索 UI 和搜索索引。
+- 多语言内容模型。
 - 复杂动画。
 - 多套视觉主题。
 
