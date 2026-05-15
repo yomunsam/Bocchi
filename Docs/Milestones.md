@@ -18,8 +18,8 @@
 | [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
-| [~] | M5 | Default SvelteKit Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`Themes/default-svelte/`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
-| [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引和基础发布目标 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出 | 本地发布可用，Cloudflare Pages 路径明确 |
+| [~] | M5 | Default Static Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`default-static`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
+| [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
 | [ ] | M7 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
 
 ## 推进规则
@@ -191,25 +191,26 @@
 - 复杂多角色权限系统。
 - 公网 API。
 - WYSIWYG 编辑器。
-- 默认 SvelteKit Theme 的完整视觉实现（M5）。
+- 默认前台 Static Theme 的完整视觉实现（M5）。
 
-## M5 Default SvelteKit Theme
+## M5 Default Static Theme
 
 目标：提供一套可真实使用的默认静态个人主页。
 
 详细规划：见 [`Docs/Milestones/M5/M5.md`](./Milestones/M5/M5.md)。
 
-当前状态：设计阶段已开工。M5 先补齐默认 Theme 物化、`theme-config.json`、Theme 输出登记和 manifest 对账，再实现 `default-svelte` 的 SvelteKit 静态页面。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
+当前状态：设计阶段已开工。M5 先补齐默认 Theme 物化、`theme-context.json`、runner 边界、Theme 输出登记和 manifest 对账，再实现 `default-static` 的 Fluid 模板静态页面和原生渐进增强脚本。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
 
 建议任务：
 
-- 建立 `Themes/default-svelte/` 作为仓库内置默认 Theme 源。
-- 明确仓库内置 Theme 到工作区 `<workspace>/themes/default-svelte/` 的物化方式。
-- 补齐 `theme-config.json` 输入，让 Dashboard Theme 设置参与构建。
-- 新增 Theme 输出收集阶段，把 SvelteKit 输出登记为 `ArtifactKind.ThemeOutput` 并纳入 manifest。
+- 建立 `Src/Themes/Bocchi.Theme.DefaultStatic/` 作为内置 Fluid 模板 renderer。
+- 明确内置默认 Theme 到工作区 `<workspace>/themes/default-static/` manifest/schema/templates/assets 的物化方式。
+- 补齐 `theme-context.json` 输入，让 Dashboard Theme 设置和站点/作者/构建上下文参与构建。
+- 新增 `builtin-template` / `process` runner 边界，默认 Theme 走 `builtin-template`，第三方 Theme 可继续走本机命令。
+- 新增 Theme 输出收集阶段，把 Theme 本地输出登记为 `ArtifactKind.ThemeOutput` 并纳入 manifest。
 - 实现 `theme.json`、`config-schema.json` 和 Theme 输入数据加载。
 - 实现首页、文章列表和详情页、独立页面、作品列表和详情页、短文列表、友链页、404 页面。
-- 实现基础响应式布局、Light / Dark、focus-visible 和移动端导航。
+- 实现基础响应式布局、Light / Dark、focus-visible、移动端导航和 `bocchi-time` 双时区提示。
 
 验收标准：
 
@@ -226,6 +227,7 @@
 - 多语言内容模型。
 - 复杂动画。
 - 多套视觉主题。
+- GitHub Actions Remote Runner。
 
 ## M6 Feeds, Search and Publish
 
@@ -238,6 +240,7 @@
 - 静态搜索索引生成。
 - Local Directory 发布目标。
 - Cloudflare Pages 发布路径。
+- GitHub Actions Remote Runner 规划：远端完整 Bocchi build、状态轮询、artifact 读取或直接发布。
 - 发布历史记录。
 - 构建产物 manifest 与发布 manifest 对齐。
 
@@ -247,11 +250,12 @@
 - 搜索能覆盖文章、页面、作品和短文。
 - 本地目录发布可重复执行。
 - Cloudflare Pages 的产物目录和操作流程明确。
+- GitHub Actions Remote Runner 有清晰边界：需要内容 Git 同步、workflow 触发、日志/状态回传和 artifact/deploy 处理；不作为本地 Preview 依赖。
 
 暂不做：
 
 - 动态搜索服务。
-- 复杂 CI/CD。
+- 复杂 CI/CD 自动编排。
 - 多账号发布凭据管理。
 
 ## M7 Cloud Server 预留
@@ -279,7 +283,7 @@
 
 - Bocchi 采用"三段式"架构：Home Server、Page Frontend、Cloud Server。
 - Home Server 是内网 CMS 和构建器，不作为公网 API Server。
-- Page Frontend 通过 Theme Contract 接入，默认 Theme 暂定 SvelteKit。
+- Page Frontend 通过 Theme Contract 接入；默认 Theme 使用最小静态输出，SvelteKit 作为未来/第三方前端 Theme 路线保留。
 - 内容事实来源优先放在 Markdown 和媒体文件中，SQLite 只承担管理状态、索引和缓存职责。
 - Cloud Server 只预留，等评论、动态搜索、统计等真实需求出现后再实现。
 
