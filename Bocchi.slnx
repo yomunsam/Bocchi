@@ -14,6 +14,9 @@
   <Folder Name="/Src/HomeServer/">
     <Project Path="Src/HomeServer/Bocchi.HomeServer/Bocchi.HomeServer.csproj" />
   </Folder>
+  <Folder Name="/Src/Themes/">
+    <Project Path="Src/Themes/Bocchi.Theme.DefaultStatic/Bocchi.Theme.DefaultStatic.csproj" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Bocchi.ContentModel.Tests/Bocchi.ContentModel.Tests.csproj" />
     <Project Path="Tests/Bocchi.Generator.Tests/Bocchi.Generator.Tests.csproj" />

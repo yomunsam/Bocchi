@@ -22,6 +22,7 @@ public sealed partial class GeneratorPipeline
     private readonly WriteSiteArtifactsStage _writeSite;
     private readonly CopyMediaStage _copyMedia;
     private readonly RunThemeBuildStage _runTheme;
+    private readonly CollectThemeOutputStage _collectThemeOutput;
     private readonly ValidateOutputStage _validate;
     private readonly WriteManifestStage _writeManifest;
     private readonly IBuildStateStore _store;
@@ -38,6 +39,7 @@ public sealed partial class GeneratorPipeline
         WriteSiteArtifactsStage writeSite,
         CopyMediaStage copyMedia,
         RunThemeBuildStage runTheme,
+        CollectThemeOutputStage collectThemeOutput,
         ValidateOutputStage validate,
         WriteManifestStage writeManifest,
         IBuildStateStore store,
@@ -53,6 +55,7 @@ public sealed partial class GeneratorPipeline
         ArgumentNullException.ThrowIfNull(writeSite);
         ArgumentNullException.ThrowIfNull(copyMedia);
         ArgumentNullException.ThrowIfNull(runTheme);
+        ArgumentNullException.ThrowIfNull(collectThemeOutput);
         ArgumentNullException.ThrowIfNull(validate);
         ArgumentNullException.ThrowIfNull(writeManifest);
         ArgumentNullException.ThrowIfNull(store);
@@ -67,6 +70,7 @@ public sealed partial class GeneratorPipeline
         _writeSite = writeSite;
         _copyMedia = copyMedia;
         _runTheme = runTheme;
+        _collectThemeOutput = collectThemeOutput;
         _validate = validate;
         _writeManifest = writeManifest;
         _store = store;
@@ -125,6 +129,7 @@ public sealed partial class GeneratorPipeline
             _writeSite,
             _copyMedia,
             _runTheme,
+            _collectThemeOutput,
             _writeManifest,
             _validate,
         ];

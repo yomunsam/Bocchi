@@ -199,7 +199,7 @@
 
 详细规划：见 [`Docs/Milestones/M5/M5.md`](./Milestones/M5/M5.md)。
 
-当前状态：设计阶段已开工。M5 先补齐默认 Theme 物化、`theme-context.json`、runner 边界、Theme 输出登记和 manifest 对账，再实现 `default-static` 的 Fluid 模板静态页面和原生渐进增强脚本。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
+当前状态：默认 Theme 最小构建闭环已打通。`default-static` 会物化到工作区，`builtin-template` runner 可在不依赖 Node.js 的情况下输出首页、文章、页面、作品、短文、友链、404、CSS、JS，并进入 `.bocchi-manifest.json`；`theme-context.json`、Theme 配置文件边界和 manifest 对账已有测试。下一步需要把 typed helper 页面生成迁入真实 Fluid 模板，并补 Preview Host 与多视口截图验收。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
 
 建议任务：
 

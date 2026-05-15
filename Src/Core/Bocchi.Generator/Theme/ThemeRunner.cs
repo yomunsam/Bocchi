@@ -2,10 +2,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using Bocchi.Generator.Pipeline;
+using Bocchi.GeneratorContract;
+using Bocchi.Theme.DefaultStatic;
 
 namespace Bocchi.Generator.Theme;
 
-/// <summary>基于 <see cref="Process"/> 的默认 <see cref="IThemeRunner"/>。</summary>
+/// <summary>默认 <see cref="IThemeRunner"/>。支持 M5 内置模板 runner，并保留旧版 <c>build.command</c> 兼容路径。</summary>
 public sealed class ThemeRunner : IThemeRunner
 {
     /// <inheritdoc />
@@ -17,12 +19,91 @@ public sealed class ThemeRunner : IThemeRunner
         ArgumentNullException.ThrowIfNull(invocation);
         ArgumentNullException.ThrowIfNull(onLog);
 
-        if (invocation.RunInstall && !string.IsNullOrWhiteSpace(invocation.Manifest.Build.InstallCommand))
+        if (IsBuiltinTemplate(invocation.Manifest))
         {
-            await ExecuteAsync(invocation.Manifest.Build.InstallCommand!, "install", invocation, onLog, cancellationToken).ConfigureAwait(false);
+            await RunBuiltinTemplateAsync(invocation, onLog, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
-        await ExecuteAsync(invocation.Manifest.Build.Command, "build", invocation, onLog, cancellationToken).ConfigureAwait(false);
+        var processRunner = ResolveProcessRunner(invocation.Manifest);
+        if (invocation.RunInstall && !string.IsNullOrWhiteSpace(processRunner.InstallCommand))
+        {
+            await ExecuteAsync(processRunner.InstallCommand!, "install", invocation, onLog, cancellationToken).ConfigureAwait(false);
+        }
+
+        await ExecuteAsync(processRunner.Command, "build", invocation, onLog, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>判断 manifest 是否声明为内置模板 runner。</summary>
+    private static bool IsBuiltinTemplate(ThemeManifest manifest)
+        => manifest.Runner is not null &&
+           string.Equals(manifest.Runner.Kind.Trim(), "builtin-template", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>运行受信任的内置默认模板 renderer。</summary>
+    private static async Task RunBuiltinTemplateAsync(
+        ThemeRunInvocation invocation,
+        Action<BuildLogLevel, string> onLog,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(invocation.Manifest.Id, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+        {
+            throw new ThemeRunnerException($"builtin-template runner 暂时只支持 '{DefaultStaticThemeDefinition.ThemeId}'。");
+        }
+
+        try
+        {
+            await DefaultStaticTemplateRenderer.RenderAsync(
+                new DefaultStaticRenderRequest
+                {
+                    ThemeRoot = invocation.ThemeRoot,
+                    InputDirectory = invocation.InputDirectoryAbsolute,
+                    OutputDirectory = invocation.OutputDirectoryAbsolute,
+                    Manifest = invocation.Manifest,
+                    BaseUrl = invocation.BaseUrl,
+                    Environment = invocation.Environment,
+                },
+                cancellationToken).ConfigureAwait(false);
+            onLog(BuildLogLevel.Info, "[builtin-template] default-static rendered.");
+        }
+        catch (DefaultStaticThemeException ex)
+        {
+            throw new ThemeRunnerException($"Theme '{invocation.Manifest.Id}' builtin-template 渲染失败：{ex.Message}", ex);
+        }
+    }
+
+    /// <summary>把新旧 Theme manifest 统一解析成 process runner 命令；非 process runner 交给后续内置 renderer 实现。</summary>
+    internal static ResolvedProcessRunner ResolveProcessRunner(ThemeManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        if (manifest.Runner is null)
+        {
+            if (manifest.Build is null)
+            {
+                throw new ThemeRunnerException($"Theme '{manifest.Id}' 未声明 runner，也没有旧版 build.command。");
+            }
+
+            return new ResolvedProcessRunner(manifest.Build.Command, manifest.Build.InstallCommand);
+        }
+
+        var kind = manifest.Runner.Kind.Trim();
+        if (!string.Equals(kind, "process", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ThemeRunnerException($"Theme '{manifest.Id}' runner.kind='{manifest.Runner.Kind}' 尚未由当前 Generator 支持。");
+        }
+
+        var command = string.IsNullOrWhiteSpace(manifest.Runner.Command)
+            ? manifest.Build?.Command
+            : manifest.Runner.Command;
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            throw new ThemeRunnerException($"Theme '{manifest.Id}' 的 process runner 缺少 command。");
+        }
+
+        var installCommand = string.IsNullOrWhiteSpace(manifest.Runner.InstallCommand)
+            ? manifest.Build?.InstallCommand
+            : manifest.Runner.InstallCommand;
+        return new ResolvedProcessRunner(command!, installCommand);
     }
 
     private static async Task ExecuteAsync(
@@ -176,4 +257,7 @@ public sealed class ThemeRunner : IThemeRunner
             ? $"cmd /c echo {text}"
             : $"/bin/sh -c \"echo {text}\"";
     }
+
+    /// <summary>已解析的 process runner 命令组。</summary>
+    internal sealed record ResolvedProcessRunner(string Command, string? InstallCommand);
 }

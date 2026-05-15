@@ -25,7 +25,7 @@ internal sealed class TestWorkspaceFixture : IDisposable
 
     public ServiceProvider Services { get; }
 
-    public TestWorkspaceFixture()
+    public TestWorkspaceFixture(Action<IServiceCollection>? configureServices = null)
     {
         Root = Path.Combine(Path.GetTempPath(), "bocchi-gen-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
@@ -50,6 +50,7 @@ internal sealed class TestWorkspaceFixture : IDisposable
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
         services.AddBocchiWorkspace(configuration, _ => Root);
         services.AddBocchiGenerator(configuration);
+        configureServices?.Invoke(services);
 
         Services = services.BuildServiceProvider();
 

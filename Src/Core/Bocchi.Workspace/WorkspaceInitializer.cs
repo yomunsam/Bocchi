@@ -136,7 +136,7 @@ public sealed class WorkspaceInitializer
 
         social: []
 
-        defaultThemeId:
+        defaultThemeId: default-static
         enableRss: true
         enableSitemap: true
         enableSearch: true

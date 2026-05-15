@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Local browser verification artifacts
+.playwright-cli/
+output/playwright/
+
 # User-specific files
 *.rsuser
 *.suo

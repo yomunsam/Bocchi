@@ -23,7 +23,9 @@ public static class ThemeManifestLoader
         ArgumentException.ThrowIfNullOrWhiteSpace(themesDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(themeId);
 
-        var themeRoot = Path.Combine(themesDirectory, themeId);
+        var themesRoot = Path.GetFullPath(themesDirectory);
+        var themeRoot = Path.GetFullPath(Path.Combine(themesRoot, themeId));
+        EnsureUnderThemesRoot(themeRoot, themesRoot, themeId);
         var manifestPath = Path.Combine(themeRoot, "theme.json");
         if (!File.Exists(manifestPath))
         {
@@ -42,5 +44,15 @@ public static class ThemeManifestLoader
         var manifest = await JsonSerializer.DeserializeAsync<ThemeManifest>(stream, Options, cancellationToken).ConfigureAwait(false)
             ?? throw new ThemeRunnerException($"theme.json 反序列化为空：'{manifestPath}'");
         return (manifest, themeRoot);
+    }
+
+    private static void EnsureUnderThemesRoot(string themeRoot, string themesRoot, string themeId)
+    {
+        var rootWithSep = themesRoot.EndsWith(Path.DirectorySeparatorChar) ? themesRoot : themesRoot + Path.DirectorySeparatorChar;
+        if (!themeRoot.StartsWith(rootWithSep, StringComparison.Ordinal) ||
+            string.Equals(themeRoot, themesRoot, StringComparison.Ordinal))
+        {
+            throw new ThemeRunnerException($"Theme id '{themeId}' 未指向 themes 根目录下的独立 Theme。");
+        }
     }
 }

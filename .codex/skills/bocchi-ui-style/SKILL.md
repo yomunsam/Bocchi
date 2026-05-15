@@ -11,6 +11,14 @@ Use this skill to keep Bocchi M4 UI work aligned with the confirmed direction: a
 
 The target feeling is gentle, young, personal, and clear: anime-inspired in mood, but never a copy of any character, scene, costume, logo, band, or copyrighted visual identity.
 
+## Scope Boundary
+
+This skill is only for Bocchi Home Server / Admin UI work: Dashboard shell, Setup/Login, Settings, content management, editor, publish/build screens, Preview Host toolbar, and related Home Server mockups or docs.
+
+Do not use this skill to constrain the visual style of a public frontend Theme. Each frontend Theme owns its own art direction, palette, typography, layout rhythm, and interaction tone through the Theme Contract. When implementing or reviewing a frontend Theme, read that Theme's milestone/spec/reference assets first, and treat Home Server UI rules as relevant only for the injected Preview Toolbar and Admin integration boundaries.
+
+For M5 `default-static` / `Bocchi Mono`, the visual source of truth is `Docs/Milestones/M5/M5.md` plus `Bocchi-BlogStaticDraft/themes/mono` as art reference only. Do not blend the M4 Dashboard palette, density, or App-like publishing-tool mood into the public Theme unless the Theme spec explicitly asks for it.
+
 ## Core Direction
 
 Treat Bocchi Admin as a personal Blog/CMS app for people aged roughly 18-35. It should be approachable for both PC-native users and mobile-native users.
