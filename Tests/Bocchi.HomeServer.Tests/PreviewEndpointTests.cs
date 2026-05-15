@@ -27,6 +27,23 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedWorkspaceWebApp
     }
 
     [Fact]
+    public async Task PreviewRoot_ReturnsDefaultThemeHomeAfterFullBuild()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var build = await client.PostAsync("/Admin/Publish/run", content: null);
+        build.EnsureSuccessStatusCode();
+
+        var response = await client.GetAsync("/");
+
+        response.EnsureSuccessStatusCode();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        var html = await response.Content.ReadAsStringAsync();
+        html.Should().Contain("Selected Writing");
+        html.Should().Contain("bocchi-preview-toolbar");
+    }
+
+    [Fact]
     public async Task PreviewMediaEndpoint_ReturnsMediaBytes()
     {
         var mediaPath = _factory.SeedPublishedPostWithMedia();

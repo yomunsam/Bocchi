@@ -3,13 +3,14 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Bocchi.Generator.Exceptions;
+using Bocchi.Generator.Theme;
 using Bocchi.Workspace;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
 /// <summary>
-/// 计算本次构建的全局指纹：把所有源 markdown 字节 + frontmatter 文本 + media SHA + site.yaml + 选项扁平化为一个稳定字节串，
-/// 再 SHA-256 取小写十六进制。详见 <c>Docs/Milestones/M3/M3.md §3.7</c>。
+/// 计算本次构建的全局指纹：把内容源、媒体、站点设置、Theme 配置、Theme 源文件和构建选项扁平化为稳定字节串，
+/// 再 SHA-256 取小写十六进制。详见 <c>Docs/Milestones/M3/M3.md §3.7</c> 与 M5 Theme 输出链路。
 /// </summary>
 public sealed class ComputeFingerprintStage : IBuildStage
 {
@@ -41,6 +42,7 @@ public sealed class ComputeFingerprintStage : IBuildStage
         var themeId = session.GetItem<string>(BuildSessionKeys.ThemeId) ?? session.Graph.Site.Settings.DefaultThemeId ?? string.Empty;
         AppendLine(sha, $"themeId={themeId}");
         AppendThemeConfigHash(sha, _layout.ThemeConfigDirectory, themeId);
+        AppendThemeFileHashes(sha, session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme));
         AppendLine(sha, $"bocchiVersion={session.GetItem<string>(BuildSessionKeys.BocchiVersion) ?? string.Empty}");
 
         // 站点设置 / 导航：用全字段 toString 模拟稳定快照
@@ -135,5 +137,63 @@ public sealed class ComputeFingerprintStage : IBuildStage
         }
 
         AppendLine(sha, $"themeConfig={sb}");
+    }
+
+    /// <summary>把 Theme 源文件纳入构建指纹，避免模板或 CSS 修改后被错误短路。</summary>
+    private static void AppendThemeFileHashes(IncrementalHash sha, LoadedTheme? loadedTheme)
+    {
+        if (loadedTheme is null || !Directory.Exists(loadedTheme.ThemeRoot))
+        {
+            AppendLine(sha, "themeFiles=missing");
+            return;
+        }
+
+        var themeRoot = Path.GetFullPath(loadedTheme.ThemeRoot);
+        var outputRoot = Path.GetFullPath(Path.Combine(themeRoot, loadedTheme.Manifest.OutputDir));
+        foreach (var file in Directory.EnumerateFiles(themeRoot, "*", SearchOption.AllDirectories)
+            .Select(Path.GetFullPath)
+            .Where(path => IsThemeSourceFile(themeRoot, outputRoot, path))
+            .OrderBy(path => Path.GetRelativePath(themeRoot, path), StringComparer.Ordinal))
+        {
+            var bytes = File.ReadAllBytes(file);
+            var fileHash = SHA256.HashData(bytes);
+            var relativePath = Path.GetRelativePath(themeRoot, file).Replace(Path.DirectorySeparatorChar, '/');
+            AppendLine(sha, $"themeFile:{relativePath}|sha={ToHex(fileHash)}|size={bytes.Length}");
+        }
+    }
+
+    /// <summary>判断某个 Theme 文件是否属于用户可编辑源，而不是构建输出或依赖缓存。</summary>
+    private static bool IsThemeSourceFile(string themeRoot, string outputRoot, string filePath)
+    {
+        if (!IsUnderDirectory(filePath, themeRoot) || IsUnderDirectory(filePath, outputRoot))
+        {
+            return false;
+        }
+
+        var relativePath = Path.GetRelativePath(themeRoot, filePath).Replace(Path.DirectorySeparatorChar, '/');
+        return !relativePath.Split('/').Any(segment =>
+            string.Equals(segment, ".git", StringComparison.Ordinal) ||
+            string.Equals(segment, "node_modules", StringComparison.Ordinal));
+    }
+
+    /// <summary>判断文件是否在指定目录下，目录本身不算作命中。</summary>
+    private static bool IsUnderDirectory(string path, string directory)
+    {
+        var normalizedDirectory = directory.EndsWith(Path.DirectorySeparatorChar)
+            ? directory
+            : directory + Path.DirectorySeparatorChar;
+        return path.StartsWith(normalizedDirectory, StringComparison.Ordinal);
+    }
+
+    /// <summary>把 hash bytes 转为小写十六进制字符串。</summary>
+    private static string ToHex(ReadOnlySpan<byte> bytes)
+    {
+        var sb = new StringBuilder(bytes.Length * 2);
+        foreach (var b in bytes)
+        {
+            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+        }
+
+        return sb.ToString();
     }
 }

@@ -122,9 +122,9 @@ public sealed partial class GeneratorPipeline
         [
             _load,
             _graph,
+            _loadTheme,
             _fingerprint,
             _shortCircuit,
-            _loadTheme,
             _writeInput,
             _writeSite,
             _copyMedia,

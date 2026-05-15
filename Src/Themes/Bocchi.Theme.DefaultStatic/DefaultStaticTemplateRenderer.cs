@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Net;
 using System.Text;
 using System.Text.Json;
 
@@ -7,9 +6,12 @@ using Bocchi.GeneratorContract;
 
 namespace Bocchi.Theme.DefaultStatic;
 
-/// <summary>内置默认静态 Theme renderer。当前实现先用 typed helper 输出完整静态页面，后续再把模板主体迁入 Fluid。</summary>
+/// <summary>内置默认静态 Theme renderer，负责把 Theme Contract 输入转成 Fluid 模板模型并输出静态文件。</summary>
 public sealed class DefaultStaticTemplateRenderer
 {
+    /// <summary>默认 accent，配置值不合法时使用它避免 CSS 注入。</summary>
+    private const string DefaultAccentColor = "#E85D3A";
+
     /// <summary>执行一次默认 Theme 渲染。</summary>
     public static async Task RenderAsync(DefaultStaticRenderRequest request, CancellationToken cancellationToken = default)
     {
@@ -30,16 +32,16 @@ public sealed class DefaultStaticTemplateRenderer
         var visibleFriends = FilterVisible(input.Friends, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
 
         await WriteAssetsAsync(request, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "index.html", RenderHome(site, input, visiblePosts, visibleWorks, visibleNotes, visibleFriends), cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "posts/index.html", RenderPostList(site, visiblePosts), cancellationToken).ConfigureAwait(false);
-        await WritePostDetailsAsync(request.OutputDirectory, site, visiblePosts, cancellationToken).ConfigureAwait(false);
-        await WriteStandalonePagesAsync(request.OutputDirectory, site, visiblePages, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "works/index.html", RenderWorkList(site, visibleWorks), cancellationToken).ConfigureAwait(false);
-        await WriteWorkDetailsAsync(request.OutputDirectory, site, visibleWorks, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "notes/index.html", RenderNotes(site, visibleNotes, null), cancellationToken).ConfigureAwait(false);
-        await WriteNoteYearPagesAsync(request.OutputDirectory, site, visibleNotes, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "friends/index.html", RenderFriends(site, visibleFriends), cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "404.html", RenderNotFound(site), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, input, visiblePosts, visibleWorks, visibleNotes, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePostDetailsAsync(request, site, visiblePosts, cancellationToken).ConfigureAwait(false);
+        await WriteStandalonePagesAsync(request, site, visiblePages, cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "works/index.html", await RenderWorkListAsync(request, site, visibleWorks, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WriteWorkDetailsAsync(request, site, visibleWorks, cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "notes/index.html", await RenderNotesAsync(request, site, visibleNotes, null, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WriteNoteYearPagesAsync(request, site, visibleNotes, cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "friends/index.html", await RenderFriendsAsync(request, site, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "404.html", await RenderNotFoundAsync(request, site, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>读取所有 M5 默认 Theme 需要的 Theme Contract 输入。</summary>
@@ -130,249 +132,392 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>渲染首页。</summary>
-    private static string RenderHome(
+    private static Task<string> RenderHomeAsync(
+        DefaultStaticRenderRequest request,
         SiteInfo site,
         ThemeInputSet input,
         JsonElement[] posts,
         JsonElement[] works,
         JsonElement[] notes,
-        JsonElement[] friends)
+        JsonElement[] friends,
+        CancellationToken cancellationToken)
     {
-        var featuredPosts = Limit(posts, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredPosts"], 5));
-        var featuredWorks = Limit(works, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredWorks"], 4));
-        var recentNotes = Limit(notes, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "recentNotes"], 3));
-        var showFriends = GetConfigBool(input.ThemeContext, ["theme", "config", "home", "showFriends"], true);
+        var featuredPosts = MapContentItems(Limit(posts, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredPosts"], 5)), site);
+        var featuredWorks = MapContentItems(Limit(works, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredWorks"], 4)), site);
+        var recentNotes = MapContentItems(Limit(notes, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "recentNotes"], 3)), site);
+        var friendLinks = MapFriendItems(Limit(friends, 6));
 
-        var body = $"""
-            <section class="hero container">
-              <p class="eyebrow">Index · {H(site.AuthorTimeZone)}</p>
-              <h1>{H(site.Title)} <em>writing</em>, work, and notes.</h1>
-              <p class="lead">{H(site.DescriptionOrFallback)}</p>
-              <div class="meta-row"><span>{H(site.AuthorName)}</span><span>{H(site.Language)}</span><span>{H(site.BaseUrl)}</span></div>
-            </section>
-            {RenderSection("Selected Writing", "/posts/", RenderRows(featuredPosts, "No writing yet."))}
-            {RenderSection("Selected Work", "/works/", RenderCards(featuredWorks, "No work entries yet."))}
-            {RenderSection("Recent Notes", "/notes/", RenderNoteItems(recentNotes, "No notes yet."))}
-            {(showFriends ? RenderSection("Friends", "/friends/", RenderFriendLinks(Limit(friends, 6), "No friend links yet.")) : string.Empty)}
-            """;
-        return Layout(site, "Index", "/", body);
+        var model = CreatePageModel(site, "Index", "/");
+        model["featuredPosts"] = featuredPosts;
+        model["hasFeaturedPosts"] = featuredPosts.Length > 0;
+        model["featuredWorks"] = featuredWorks;
+        model["hasFeaturedWorks"] = featuredWorks.Length > 0;
+        model["recentNotes"] = recentNotes;
+        model["hasRecentNotes"] = recentNotes.Length > 0;
+        model["friends"] = friendLinks;
+        model["hasFriends"] = friendLinks.Length > 0;
+        model["showFriends"] = GetConfigBool(input.ThemeContext, ["theme", "config", "home", "showFriends"], true);
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "index", model, cancellationToken);
     }
 
     /// <summary>渲染文章列表页。</summary>
-    private static string RenderPostList(SiteInfo site, JsonElement[] posts)
-        => Layout(site, "Writing", "/posts/", PageHero("Writing", "Long-form notes and essays.", "02") + RenderRows(posts, "No writing yet."));
+    private static Task<string> RenderPostListAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        JsonElement[] posts,
+        CancellationToken cancellationToken)
+    {
+        var items = MapContentItems(posts, site);
+        var model = CreateListingModel(site, "Writing", "/posts/", "Long-form notes and essays.", "02", items, "No writing yet.");
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "posts", model, cancellationToken);
+    }
 
     /// <summary>渲染作品列表页。</summary>
-    private static string RenderWorkList(SiteInfo site, JsonElement[] works)
-        => Layout(site, "Work", "/works/", PageHero("Work", "Selected projects and experiments.", "03") + RenderCards(works, "No work entries yet."));
+    private static Task<string> RenderWorkListAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        JsonElement[] works,
+        CancellationToken cancellationToken)
+    {
+        var items = MapContentItems(works, site);
+        var model = CreateListingModel(site, "Work", "/works/", "Selected projects and experiments.", "03", items, "No work entries yet.");
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "works", model, cancellationToken);
+    }
 
     /// <summary>渲染短文总览或年份页。</summary>
-    private static string RenderNotes(SiteInfo site, JsonElement[] notes, string? year)
+    private static Task<string> RenderNotesAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        JsonElement[] notes,
+        string? year,
+        CancellationToken cancellationToken)
     {
         var title = year is null ? "Notes" : $"Notes {year}";
-        return Layout(site, title, year is null ? "/notes/" : $"/notes/{year}/", PageHero(title, "Short updates in plain text.", "04") + RenderNoteItems(notes, "No notes yet."));
+        var currentPath = year is null ? "/notes/" : $"/notes/{year}/";
+        var model = CreateListingModel(site, title, currentPath, "Short updates in plain text.", "04", MapContentItems(notes, site), "No notes yet.");
+        model["year"] = year;
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "notes", model, cancellationToken);
     }
 
     /// <summary>渲染友链页。</summary>
-    private static string RenderFriends(SiteInfo site, JsonElement[] friends)
-        => Layout(site, "Friends", "/friends/", PageHero("Friends", "People and sites worth visiting.", "05") + RenderFriendLinks(friends, "No friend links yet."));
+    private static Task<string> RenderFriendsAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        JsonElement[] friends,
+        CancellationToken cancellationToken)
+    {
+        var items = MapFriendItems(friends);
+        var model = CreateListingModel(site, "Friends", "/friends/", "People and sites worth visiting.", "05", items, "No friend links yet.");
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "friends", model, cancellationToken);
+    }
 
     /// <summary>渲染 404 页面。</summary>
-    private static string RenderNotFound(SiteInfo site)
-        => Layout(site, "Not Found", string.Empty, PageHero("404", "This page is not in the static output.", "404") + """<section class="content section"><a class="arrow-link" href="/">Back to index</a></section>""");
+    private static Task<string> RenderNotFoundAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        CancellationToken cancellationToken)
+    {
+        var model = CreatePageModel(site, "Not Found", string.Empty);
+        model["hero"] = CreateHeroModel("404", "This page is not in the static output.", "404");
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "404", model, cancellationToken);
+    }
 
     /// <summary>渲染文章详情页。</summary>
-    private static async Task WritePostDetailsAsync(string outputDirectory, SiteInfo site, JsonElement[] posts, CancellationToken cancellationToken)
+    private static async Task WritePostDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] posts, CancellationToken cancellationToken)
     {
         for (var i = 0; i < posts.Length; i++)
         {
             var post = posts[i];
-            var body = RenderArticle(site, "Writing", "/posts/", post, Previous(posts, i), Next(posts, i));
-            await WritePageAsync(outputDirectory, ToOutputPath(GetString(post, "url")), body, cancellationToken).ConfigureAwait(false);
+            var body = await RenderArticleAsync(request, site, "Writing", "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(post, "url")), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>渲染独立页面。</summary>
-    private static async Task WriteStandalonePagesAsync(string outputDirectory, SiteInfo site, JsonElement[] pages, CancellationToken cancellationToken)
+    private static async Task WriteStandalonePagesAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] pages, CancellationToken cancellationToken)
     {
         foreach (var page in pages)
         {
             var title = GetTitle(page);
-            var body = $"""
-                <article class="prose article-header">
-                  <p class="eyebrow">Page</p>
-                  <h1>{H(title)}</h1>
-                </article>
-                <article class="prose prose-body">{RawHtml(page)}</article>
-                """;
-            await WritePageAsync(outputDirectory, ToOutputPath(GetString(page, "url")), Layout(site, title, GetString(page, "url"), body), cancellationToken).ConfigureAwait(false);
+            var model = CreatePageModel(site, title, GetString(page, "url"));
+            model["item"] = MapContentItem(page, site);
+            var body = await DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "standalone-page", model, cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(page, "url")), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>渲染作品详情页。</summary>
-    private static async Task WriteWorkDetailsAsync(string outputDirectory, SiteInfo site, JsonElement[] works, CancellationToken cancellationToken)
+    private static async Task WriteWorkDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] works, CancellationToken cancellationToken)
     {
         for (var i = 0; i < works.Length; i++)
         {
             var work = works[i];
-            var body = RenderArticle(site, "Work", "/works/", work, Previous(works, i), Next(works, i));
-            await WritePageAsync(outputDirectory, ToOutputPath(GetString(work, "url")), body, cancellationToken).ConfigureAwait(false);
+            var body = await RenderArticleAsync(request, site, "Work", "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(work, "url")), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>按年份渲染短文页。</summary>
-    private static async Task WriteNoteYearPagesAsync(string outputDirectory, SiteInfo site, JsonElement[] notes, CancellationToken cancellationToken)
+    private static async Task WriteNoteYearPagesAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] notes, CancellationToken cancellationToken)
     {
         foreach (var group in notes.GroupBy(note => GetString(note, "year")).Where(group => !string.IsNullOrWhiteSpace(group.Key)))
         {
-            await WritePageAsync(outputDirectory, $"notes/{group.Key}/index.html", RenderNotes(site, group.ToArray(), group.Key), cancellationToken)
-                .ConfigureAwait(false);
+            await WritePageAsync(
+                request.OutputDirectory,
+                $"notes/{group.Key}/index.html",
+                await RenderNotesAsync(request, site, group.ToArray(), group.Key, cancellationToken).ConfigureAwait(false),
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>渲染文章或作品详情。</summary>
-    private static string RenderArticle(SiteInfo site, string sectionName, string sectionUrl, JsonElement item, JsonElement? previous, JsonElement? next)
+    private static Task<string> RenderArticleAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        string sectionName,
+        string sectionUrl,
+        JsonElement item,
+        JsonElement? previous,
+        JsonElement? next,
+        CancellationToken cancellationToken)
     {
         var title = GetTitle(item);
-        var date = FormatDate(GetContentDate(item), site.AuthorTimeZone);
-        var meta = string.IsNullOrWhiteSpace(date) ? sectionName : $"{sectionName} · {date}";
-        var body = $"""
-            <article class="prose article-header">
-              <p><a class="arrow-link" href="{H(sectionUrl)}">Back to {H(sectionName)}</a></p>
-              <p class="article-meta">{H(meta)}</p>
-              <h1>{H(title)}</h1>
-            </article>
-            <article class="prose prose-body">{RawHtml(item)}</article>
-            <nav class="prose section" aria-label="Adjacent content">
-              {(previous is null ? string.Empty : $"""<a class="arrow-link" href="{H(GetString(previous.Value, "url"))}">Previous: {H(GetTitle(previous.Value))}</a>""")}
-              {(next is null ? string.Empty : $"""<a class="arrow-link" href="{H(GetString(next.Value, "url"))}">Next: {H(GetTitle(next.Value))}</a>""")}
-            </nav>
-            """;
-        return Layout(site, title, GetString(item, "url"), body);
-    }
-
-    /// <summary>生成页面通用 Hero。</summary>
-    private static string PageHero(string title, string description, string number)
-        => $"""
-            <section class="content section">
-              <p class="eyebrow">{H(number)}</p>
-              <h1>{H(title)}</h1>
-              <p class="lead">{H(description)}</p>
-            </section>
-            """;
-
-    /// <summary>生成首页分区。</summary>
-    private static string RenderSection(string title, string href, string content)
-        => $"""
-            <section class="content section">
-              <div class="section-head"><h2>{H(title)}</h2><a class="arrow-link" href="{H(href)}">All</a></div>
-              {content}
-            </section>
-            """;
-
-    /// <summary>渲染行式内容列表。</summary>
-    private static string RenderRows(IEnumerable<JsonElement> items, string emptyText)
-    {
-        var rows = items.Select(item =>
+        var model = CreatePageModel(site, title, GetString(item, "url"));
+        model["section"] = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            var date = FormatYearMonth(GetContentDate(item));
-            var meta = GetString(item, "category");
-            if (string.IsNullOrWhiteSpace(meta))
-            {
-                meta = string.Join(" · ", GetStringArray(item, "tags").Take(2));
-            }
-
-            return $"""<a class="list-row" href="{H(GetString(item, "url"))}"><span class="list-row__date">{H(date)}</span><span class="list-row__title">{H(GetTitle(item))}</span><span class="list-row__meta">{H(meta)}</span></a>""";
-        }).ToArray();
-        return rows.Length == 0 ? $"""<div class="empty">{H(emptyText)}</div>""" : $"""<div class="list">{string.Concat(rows)}</div>""";
+            ["name"] = sectionName,
+            ["url"] = sectionUrl,
+        };
+        model["item"] = MapContentItem(item, site);
+        model["previous"] = previous is null ? null : MapContentItem(previous.Value, site);
+        model["hasPrevious"] = previous is not null;
+        model["next"] = next is null ? null : MapContentItem(next.Value, site);
+        model["hasNext"] = next is not null;
+        return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "article", model, cancellationToken);
     }
 
-    /// <summary>渲染作品卡片。</summary>
-    private static string RenderCards(IEnumerable<JsonElement> items, string emptyText)
+    /// <summary>创建列表页通用模板模型。</summary>
+    private static Dictionary<string, object?> CreateListingModel(
+        SiteInfo site,
+        string title,
+        string currentPath,
+        string description,
+        string number,
+        Dictionary<string, object?>[] items,
+        string emptyText)
     {
-        var cards = items.Select(item =>
-        {
-            var tags = string.Concat(GetStringArray(item, "stack").Take(4).Select(tag => $"""<span>{H(tag)}</span>"""));
-            return $"""<article class="card"><h3><a href="{H(GetString(item, "url"))}">{H(GetTitle(item))}</a></h3><p>{H(GetSummary(item))}</p><div class="tags">{tags}</div></article>""";
-        }).ToArray();
-        return cards.Length == 0 ? $"""<div class="empty">{H(emptyText)}</div>""" : $"""<div class="grid">{string.Concat(cards)}</div>""";
+        var model = CreatePageModel(site, title, currentPath);
+        model["hero"] = CreateHeroModel(title, description, number);
+        model["items"] = items;
+        model["hasItems"] = items.Length > 0;
+        model["emptyText"] = emptyText;
+        return model;
     }
 
-    /// <summary>渲染短文条目。</summary>
-    private static string RenderNoteItems(IEnumerable<JsonElement> notes, string emptyText)
-    {
-        var items = notes.Select(note =>
-        {
-            var publishedAt = GetContentDate(note);
-            var iso = publishedAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty;
-            var display = publishedAt?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "undated";
-            return $"""<article class="note"><bocchi-time datetime="{H(iso)}" author-time-zone="UTC"><time>{H(display)}</time></bocchi-time><div class="note__body">{RawHtml(note)}</div></article>""";
-        }).ToArray();
-        return items.Length == 0 ? $"""<div class="empty">{H(emptyText)}</div>""" : string.Concat(items);
-    }
-
-    /// <summary>渲染友链列表。</summary>
-    private static string RenderFriendLinks(IEnumerable<JsonElement> friends, string emptyText)
-    {
-        var rows = friends.Select(friend =>
-        {
-            var url = GetString(friend, "url");
-            return $"""<a class="list-row" href="{H(url)}"><span class="list-row__date">Link</span><span class="list-row__title">{H(GetTitle(friend))}</span><span class="list-row__meta">{H(GetSummary(friend))}</span></a>""";
-        }).ToArray();
-        return rows.Length == 0 ? $"""<div class="empty">{H(emptyText)}</div>""" : $"""<div class="list">{string.Concat(rows)}</div>""";
-    }
-
-    /// <summary>生成完整 HTML 文档。</summary>
-    private static string Layout(SiteInfo site, string title, string currentPath, string body)
+    /// <summary>创建所有页面共享的模板模型。</summary>
+    private static Dictionary<string, object?> CreatePageModel(SiteInfo site, string title, string currentPath)
     {
         var fullTitle = string.Equals(title, "Index", StringComparison.Ordinal) ? site.Title : $"{title} · {site.Title}";
-        return $$"""
-            <!doctype html>
-            <html lang="{{H(site.Language)}}">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <meta name="description" content="{{H(site.DescriptionOrFallback)}}">
-              <title>{{H(fullTitle)}}</title>
-              <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-              <link rel="stylesheet" href="/assets/app.css">
-              <style>:root{--accent: {{H(site.AccentColor)}};}</style>
-            </head>
-            <body>
-              <header class="topbar">
-                <div class="topbar__inner">
-                  <a class="wordmark" href="/">{{H(site.Title)}}</a>
-                  <nav class="nav" aria-label="Primary">
-                    {{NavLink("/", "Index", currentPath)}}
-                    {{NavLink("/posts/", "Writing", currentPath)}}
-                    {{NavLink("/works/", "Work", currentPath)}}
-                    {{NavLink("/notes/", "Notes", currentPath)}}
-                    {{NavLink("/friends/", "Friends", currentPath)}}
-                  </nav>
-                  <div class="toolbar">
-                    <button class="icon-button" type="button" data-theme-toggle aria-label="Toggle appearance">◐</button>
-                    <button class="icon-button mobile-toggle" type="button" data-mobile-toggle aria-expanded="false" aria-label="Open menu">☰</button>
-                  </div>
-                </div>
-                <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
-                  <a href="/">Index</a><a href="/posts/">Writing</a><a href="/works/">Work</a><a href="/notes/">Notes</a><a href="/friends/">Friends</a>
-                </nav>
-              </header>
-              <main>{{body}}</main>
-              <footer class="footer"><div class="footer__inner"><span>{{H(site.Title)}} · {{DateTimeOffset.UtcNow.Year.ToString(CultureInfo.InvariantCulture)}}</span><span><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span></div></footer>
-              <script type="module" src="/assets/app.js"></script>
-            </body>
-            </html>
-            """;
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["site"] = CreateSiteModel(site),
+            ["page"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["title"] = title,
+                ["fullTitle"] = fullTitle,
+                ["currentPath"] = currentPath,
+            },
+            ["navigation"] = CreateNavigationModel(currentPath),
+        };
     }
 
-    /// <summary>生成导航链接并标记当前页。</summary>
-    private static string NavLink(string href, string label, string currentPath)
+    /// <summary>创建布局层使用的站点模型。</summary>
+    private static Dictionary<string, object?> CreateSiteModel(SiteInfo site)
+    {
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["title"] = site.Title,
+            ["description"] = site.DescriptionOrFallback,
+            ["language"] = site.Language,
+            ["baseUrl"] = site.BaseUrl,
+            ["authorName"] = site.AuthorName,
+            ["authorTimeZone"] = site.AuthorTimeZone,
+            ["accentColor"] = site.AccentColor,
+            ["generatedYear"] = site.GeneratedYear,
+        };
+    }
+
+    /// <summary>创建顶栏和移动端导航使用的链接模型。</summary>
+    private static Dictionary<string, object?>[] CreateNavigationModel(string currentPath)
+    {
+        return new[]
+        {
+            CreateNavigationItem("/", "Index", currentPath),
+            CreateNavigationItem("/posts/", "Writing", currentPath),
+            CreateNavigationItem("/works/", "Work", currentPath),
+            CreateNavigationItem("/notes/", "Notes", currentPath),
+            CreateNavigationItem("/friends/", "Friends", currentPath),
+        };
+    }
+
+    /// <summary>创建单个导航链接模型并标记当前页。</summary>
+    private static Dictionary<string, object?> CreateNavigationItem(string href, string label, string currentPath)
     {
         var current = string.Equals(href, currentPath, StringComparison.Ordinal) ||
             href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal);
-        var currentAttribute = current ? " aria-current=\"page\"" : string.Empty;
-        return $"""<a href="{H(href)}"{currentAttribute}>{H(label)}</a>""";
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["href"] = href,
+            ["label"] = label,
+            ["current"] = current,
+        };
+    }
+
+    /// <summary>创建页面 Hero 模型。</summary>
+    private static Dictionary<string, object?> CreateHeroModel(string title, string description, string number)
+    {
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["title"] = title,
+            ["description"] = description,
+            ["number"] = number,
+        };
+    }
+
+    /// <summary>把内容输入映射成模板可访问的字典数组。</summary>
+    private static Dictionary<string, object?>[] MapContentItems(IEnumerable<JsonElement> items, SiteInfo site)
+        => items.Select(item => MapContentItem(item, site)).ToArray();
+
+    /// <summary>把文章、页面、作品或短文映射成模板模型。</summary>
+    private static Dictionary<string, object?> MapContentItem(JsonElement item, SiteInfo site)
+    {
+        var date = GetContentDate(item);
+        var tags = GetStringArray(item, "tags").ToArray();
+        var stack = GetStringArray(item, "stack").ToArray();
+        var cover = MapMediaReference(item, "cover");
+        var media = MapMediaArray(item);
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["url"] = GetString(item, "url"),
+            ["title"] = GetTitle(item),
+            ["summary"] = GetSummary(item),
+            ["html"] = GetString(item, "html"),
+            ["year"] = GetString(item, "year"),
+            ["status"] = GetString(item, "status"),
+            ["category"] = GetString(item, "category"),
+            ["role"] = GetString(item, "role"),
+            ["period"] = GetString(item, "period"),
+            ["date"] = FormatDate(date, site.AuthorTimeZone),
+            ["yearMonth"] = FormatYearMonth(date),
+            ["isoDate"] = date?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty,
+            ["displayDateTime"] = date?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "undated",
+            ["meta"] = BuildRowMeta(item, tags),
+            ["tags"] = tags,
+            ["hasTags"] = tags.Length > 0,
+            ["stack"] = stack,
+            ["hasStack"] = stack.Length > 0,
+            ["cover"] = cover,
+            ["hasCover"] = cover is not null,
+            ["media"] = media,
+            ["hasMedia"] = media.Length > 0,
+        };
+    }
+
+    /// <summary>把友链输入映射成模板可访问的字典数组。</summary>
+    private static Dictionary<string, object?>[] MapFriendItems(IEnumerable<JsonElement> friends)
+        => friends.Select(MapFriendItem).ToArray();
+
+    /// <summary>把单条友链映射成模板模型。</summary>
+    private static Dictionary<string, object?> MapFriendItem(JsonElement friend)
+    {
+        var avatar = MapMediaReference(friend, "avatar");
+        var tags = GetStringArray(friend, "tags").ToArray();
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["url"] = GetString(friend, "url"),
+            ["title"] = GetTitle(friend),
+            ["summary"] = GetSummary(friend),
+            ["meta"] = GetSummary(friend),
+            ["tags"] = tags,
+            ["hasTags"] = tags.Length > 0,
+            ["avatar"] = avatar,
+            ["hasAvatar"] = avatar is not null,
+        };
+    }
+
+    /// <summary>读取单个媒体引用对象。</summary>
+    private static Dictionary<string, object?>? MapMediaReference(JsonElement item, string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var media) || media.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var path = GetString(media, "path");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["path"] = path,
+            ["alt"] = GetString(media, "alt"),
+        };
+    }
+
+    /// <summary>读取内容正文引用的媒体数组。</summary>
+    private static Dictionary<string, object?>[] MapMediaArray(JsonElement item)
+    {
+        if (!item.TryGetProperty("media", out var media) || media.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return media.EnumerateArray()
+            .Select(MapMediaReferenceValue)
+            .Where(value => value is not null)
+            .Cast<Dictionary<string, object?>>()
+            .ToArray();
+    }
+
+    /// <summary>把媒体引用 JSON 对象映射成模板模型。</summary>
+    private static Dictionary<string, object?>? MapMediaReferenceValue(JsonElement media)
+    {
+        if (media.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var path = GetString(media, "path");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["path"] = path,
+            ["alt"] = GetString(media, "alt"),
+        };
+    }
+
+    /// <summary>为行式列表生成紧凑 meta 文本。</summary>
+    private static string BuildRowMeta(JsonElement item, IReadOnlyList<string> tags)
+    {
+        var category = GetString(item, "category");
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            return category;
+        }
+
+        var period = GetString(item, "period");
+        if (!string.IsNullOrWhiteSpace(period))
+        {
+            return period;
+        }
+
+        return string.Join(" · ", tags.Take(2));
     }
 
     /// <summary>过滤发布内容；预览构建可以通过 includeDrafts 纳入草稿。</summary>
@@ -461,14 +606,6 @@ public sealed class DefaultStaticTemplateRenderer
         return current;
     }
 
-    /// <summary>输出经过 HTML escape 的文本。</summary>
-    private static string H(string? value)
-        => WebUtility.HtmlEncode(value ?? string.Empty);
-
-    /// <summary>输出 Markdown pipeline 已生成的正文 HTML。只在明确的正文位置使用。</summary>
-    private static string RawHtml(JsonElement item)
-        => GetString(item, "html");
-
     /// <summary>格式化年月。</summary>
     private static string FormatYearMonth(DateTimeOffset? value)
         => value?.ToString("yyyy - MM", CultureInfo.InvariantCulture) ?? "undated";
@@ -476,6 +613,17 @@ public sealed class DefaultStaticTemplateRenderer
     /// <summary>格式化详情页日期。</summary>
     private static string FormatDate(DateTimeOffset? value, string timeZone)
         => value is null ? string.Empty : $"{value.Value:yyyy-MM-dd} {timeZone}";
+
+    /// <summary>只接受十六进制 CSS color，避免配置值逃逸到 style 上下文。</summary>
+    private static string NormalizeAccentColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value[0] != '#' || value.Length is not (4 or 7))
+        {
+            return DefaultAccentColor;
+        }
+
+        return value.Skip(1).All(Uri.IsHexDigit) ? value : DefaultAccentColor;
+    }
 
     /// <summary>默认 Theme 输入集合。</summary>
     private sealed record ThemeInputSet(JsonElement ThemeContext, JsonElement[] Posts, JsonElement[] Pages, JsonElement[] Works, JsonElement[] Notes, JsonElement[] Friends)
@@ -485,15 +633,32 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>布局层常用站点信息。</summary>
-    private sealed record SiteInfo(
-        string Title,
-        string DescriptionOrFallback,
-        string Language,
-        string BaseUrl,
-        string AuthorName,
-        string AuthorTimeZone,
-        string AccentColor)
+    private sealed record SiteInfo
     {
+        /// <summary>站点标题。</summary>
+        public required string Title { get; init; }
+
+        /// <summary>站点描述；缺失时会使用作者 fallback。</summary>
+        public required string DescriptionOrFallback { get; init; }
+
+        /// <summary>HTML lang 使用的语言代码。</summary>
+        public required string Language { get; init; }
+
+        /// <summary>站点基础 URL。</summary>
+        public required string BaseUrl { get; init; }
+
+        /// <summary>作者展示名。</summary>
+        public required string AuthorName { get; init; }
+
+        /// <summary>作者时区。</summary>
+        public required string AuthorTimeZone { get; init; }
+
+        /// <summary>经过 CSS 安全归一化的 accent color。</summary>
+        public required string AccentColor { get; init; }
+
+        /// <summary>构建时间对应年份，用于 footer。</summary>
+        public required int GeneratedYear { get; init; }
+
         /// <summary>从 theme-context.json 的 data 节点创建站点信息。</summary>
         public static SiteInfo From(JsonElement context)
         {
@@ -507,8 +672,23 @@ public sealed class DefaultStaticTemplateRenderer
             var timeZone = TryGetPath(context, ["author", "timeZone"])?.GetString()
                 ?? TryGetPath(context, ["site", "timeZone"])?.GetString()
                 ?? "UTC";
-            var accent = TryGetPath(context, ["theme", "config", "visual", "accentColor"])?.GetString() ?? "#E85D3A";
-            return new SiteInfo(title, string.IsNullOrWhiteSpace(description) ? $"A personal site by {author}." : description!, language, baseUrl, author, timeZone, accent);
+            var accent = NormalizeAccentColor(TryGetPath(context, ["theme", "config", "visual", "accentColor"])?.GetString());
+            var generatedAtRaw = TryGetPath(context, ["build", "generatedAt"])?.GetString();
+            var generatedYear = DateTimeOffset.TryParse(generatedAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var generatedAt)
+                ? generatedAt.Year
+                : DateTimeOffset.UtcNow.Year;
+
+            return new SiteInfo
+            {
+                Title = title,
+                DescriptionOrFallback = string.IsNullOrWhiteSpace(description) ? $"A personal site by {author}." : description!,
+                Language = language,
+                BaseUrl = baseUrl,
+                AuthorName = author,
+                AuthorTimeZone = timeZone,
+                AccentColor = accent,
+                GeneratedYear = generatedYear,
+            };
         }
     }
 }
