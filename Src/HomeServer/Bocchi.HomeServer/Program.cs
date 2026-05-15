@@ -21,6 +21,10 @@ using Microsoft.Extensions.Options;
 
 using Serilog;
 
+// 文件日志保留 SourceContext 与结构化属性，便于排查 console 里被筛掉的框架细节。
+const string FileLogOutputTemplate =
+    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext} {Message:lj} {Properties:j}{NewLine}{Exception}";
+
 // Bootstrap logger so any failure during configuration is captured.
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(formatProvider: CultureInfo.InvariantCulture)
@@ -98,6 +102,7 @@ try
                     Path.Combine(layout.LogsDirectory, "home-server-.log"),
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 14,
+                    outputTemplate: FileLogOutputTemplate,
                     formatProvider: CultureInfo.InvariantCulture);
         });
     }
