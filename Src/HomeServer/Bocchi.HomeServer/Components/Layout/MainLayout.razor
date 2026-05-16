@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject DashboardLocalizationService I18n
+@inject NavigationManager Navigation
 
 <div class="bocchi-admin-shell">
     <aside class="bocchi-sidebar" aria-label="Dashboard navigation">
@@ -7,35 +9,35 @@
         <nav class="bocchi-primary-nav">
             <NavLink href="/Admin" Match="NavLinkMatch.All">
                 <Blazicon Svg="Lucide.House" />
-                <span>Home</span>
+                <span>@I18n["nav.home"]</span>
             </NavLink>
             <NavLink href="/Admin/Content/Edit">
                 <Blazicon Svg="Lucide.PenLine" />
-                <span>Write</span>
+                <span>@I18n["nav.write"]</span>
             </NavLink>
             <NavLink href="/Admin/Content">
                 <Blazicon Svg="Lucide.FileText" />
-                <span>Content</span>
+                <span>@I18n["nav.content"]</span>
             </NavLink>
             <NavLink href="/Admin/Preview">
                 <Blazicon Svg="Lucide.Eye" />
-                <span>Preview</span>
+                <span>@I18n["nav.preview"]</span>
             </NavLink>
             <NavLink href="/Admin/Publish">
                 <Blazicon Svg="Lucide.Send" />
-                <span>Publish</span>
+                <span>@I18n["nav.publish"]</span>
             </NavLink>
             <NavLink href="/Admin/Settings">
                 <Blazicon Svg="Lucide.Settings" />
-                <span>Settings</span>
+                <span>@I18n["nav.settings"]</span>
             </NavLink>
         </nav>
 
-        <div class="bocchi-sidebar-card" aria-label="Server summary">
+        <div class="bocchi-sidebar-card" aria-label='@I18n["sidebar.summary.label"]'>
             <span class="bocchi-sidebar-card__dot" aria-hidden="true"></span>
-            <strong>Bocchi M4</strong>
-            <p>Server is running</p>
-            <a href="/healthz">System Info</a>
+            <strong>@I18n["sidebar.summary.version"]</strong>
+            <p>@I18n["sidebar.summary.running"]</p>
+            <a href="/healthz">@I18n["sidebar.summary.systemInfo"]</a>
         </div>
     </aside>
 
@@ -43,28 +45,40 @@
         <header class="bocchi-topbar">
             <form class="bocchi-command-search" method="get" action="/Admin/Content" role="search">
                 <Blazicon Svg="Lucide.Search" />
-                <input name="q" type="search" placeholder="Search posts, pages, notes..." aria-label="Search content" />
+                <input name="q" type="search" placeholder='@I18n["topbar.search.placeholder"]' aria-label='@I18n["topbar.search.aria"]' />
                 <kbd>Ctrl K</kbd>
             </form>
 
             <div class="bocchi-topbar__actions">
                 <a class="bocchi-soft-link bocchi-soft-link--primary" href="/Admin/Content/Edit">
                     <Blazicon Svg="Lucide.Plus" />
-                    <span>New</span>
+                    <span>@I18n["topbar.new"]</span>
                 </a>
+                <form class="bocchi-language-control" method="post" action="/Admin/Settings/Localization/UiLanguage">
+                    <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
+                    <label>
+                        <span>@I18n["topbar.language.label"]</span>
+                        <select name="uiLanguage" aria-label='@I18n["topbar.language.aria"]' onchange="this.form.submit()">
+                            @foreach (var language in DashboardLocalizationService.SupportedDashboardLanguages)
+                            {
+                                <option value="@language.Code" selected="@IsCurrentDashboardLanguage(language.Code)">@language.NativeName</option>
+                            }
+                        </select>
+                    </label>
+                </form>
                 <label class="bocchi-appearance-control">
-                    <span>外观</span>
-                    <select id="bocchi-appearance-select" aria-label="Dashboard dark mode" onchange="window.bocchiAppearance?.set(this.value)">
+                    <span>@I18n["topbar.appearance.label"]</span>
+                    <select id="bocchi-appearance-select" aria-label='@I18n["topbar.appearance.aria"]' onchange="window.bocchiAppearance?.set(this.value)">
                         <option value="auto">Auto</option>
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
                     </select>
                 </label>
-                <a class="bocchi-account-link" href="/Admin/Users" aria-label="Open users">
+                <a class="bocchi-account-link" href="/Admin/Users" aria-label='@I18n["topbar.account.aria"]'>
                     <span>me</span>
                 </a>
                 <form method="post" action="/Account/Logout">
-                    <button type="submit" class="bocchi-icon-button" aria-label="Logout">
+                    <button type="submit" class="bocchi-icon-button" aria-label='@I18n["topbar.logout.aria"]'>
                         <Blazicon Svg="Lucide.LogOut" />
                     </button>
                 </form>
@@ -82,3 +96,19 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">×</span>
 </div>
+
+@code {
+    /// <summary>语言切换后返回当前 Dashboard 路由，避免用户从编辑页被带离。</summary>
+    private string CurrentReturnUrl
+    {
+        get
+        {
+            var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+            return string.IsNullOrWhiteSpace(relative) ? "/" : "/" + relative;
+        }
+    }
+
+    /// <summary>判断语言选项是否为当前 culture cookie 解析出的 UI 语言。</summary>
+    private bool IsCurrentDashboardLanguage(string code)
+        => string.Equals(I18n.CurrentLanguage.Code, code, StringComparison.OrdinalIgnoreCase);
+}

@@ -39,6 +39,7 @@ public sealed class HomeServerSetupService
         await _db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
         await EnsureAdminRoleAsync().ConfigureAwait(false);
         await EnsureDashboardSettingsAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureLocalizationSettingsAsync(cancellationToken).ConfigureAwait(false);
         await EnsureExternalProviderDefaultsAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -170,5 +171,25 @@ public sealed class HomeServerSetupService
         }
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>确保站点本地化设置存在，供 Settings / Localization 首次打开时直接编辑。</summary>
+    private async Task EnsureLocalizationSettingsAsync(CancellationToken cancellationToken)
+    {
+        if (!await _db.LocalizationSettings.AnyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var primaryLanguage = LocalizationSettingsService.BuiltInLanguages
+                .First(x => string.Equals(x.Code, LocalizationSettingsService.DefaultPrimaryLanguage, StringComparison.Ordinal));
+            _db.LocalizationSettings.Add(new LocalizationSettingsRecord
+            {
+                Id = 1,
+                PrimaryLanguage = primaryLanguage.Code,
+                EnabledLanguagesJson = System.Text.Json.JsonSerializer.Serialize(new[] { primaryLanguage }),
+                CustomLanguagesJson = "[]",
+                UrlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy,
+                UpdatedAt = _time.GetUtcNow(),
+            });
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 }

@@ -4,25 +4,28 @@
 @inject DashboardSettingsService DashboardSettings
 @inject ExternalLoginSettingsService ExternalLogins
 @inject ThemeSettingsService ThemeSettings
+@inject LocalizationSettingsService LocalizationSettings
+@inject DashboardLocalizationService I18n
 @inject WorkspaceLayout Layout
 
-<PageTitle>Settings · Bocchi</PageTitle>
+<PageTitle>@I18n["settings.page.title"] · Bocchi</PageTitle>
 
 <article class="bocchi-shell">
     <header class="bocchi-page-heading">
-        <span class="bocchi-page-heading__eyebrow">Settings</span>
-        <h1>Keep the server clear.</h1>
-        <p>设置页按 Basic Info、Database、Third-party Login、Theme、Users、Workspace 的 M4 二级分类组织；普通配置优先，危险细节收进说明区。</p>
+        <span class="bocchi-page-heading__eyebrow">@I18n["settings.page.eyebrow"]</span>
+        <h1>@I18n["settings.page.heading"]</h1>
+        <p>@I18n["settings.page.description"]</p>
     </header>
 
     <div class="bocchi-settings-layout">
         <nav class="bocchi-secondary-nav" aria-label="Settings sections">
-            <a href="#basic">Basic Info</a>
-            <a href="#database">Database</a>
-            <a href="#login">Third-party Login</a>
-            <a href="#theme">Theme</a>
-            <a href="/Admin/Users">Users</a>
-            <a href="#workspace">Workspace</a>
+            <a href="#basic">@I18n["settings.nav.basic"]</a>
+            <a href="#localization">@I18n["settings.nav.localization"]</a>
+            <a href="#database">@I18n["settings.nav.database"]</a>
+            <a href="#login">@I18n["settings.nav.login"]</a>
+            <a href="#theme">@I18n["settings.nav.theme"]</a>
+            <a href="/Admin/Users">@I18n["settings.nav.users"]</a>
+            <a href="#workspace">@I18n["settings.nav.workspace"]</a>
         </nav>
 
         <div class="bocchi-settings-stack">
@@ -50,6 +53,113 @@
                     {
                         <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
                     }
+                </div>
+            </section>
+
+            <section id="localization" class="bocchi-panel">
+                <div class="bocchi-section-heading">
+                    <h2>@I18n["settings.localization.title"]</h2>
+                    <p>@I18n["settings.localization.description"]</p>
+                </div>
+
+                <div class="bocchi-localization-grid">
+                    <div class="bocchi-localization-card">
+                        <h3>@I18n["settings.localization.dashboardTitle"]</h3>
+                        <p>@I18n["settings.localization.dashboardDescription"]</p>
+                        <form class="bocchi-form-grid" method="post" action="/Admin/Settings/Localization/UiLanguage">
+                            <input type="hidden" name="returnUrl" value="/Admin/Settings#localization" />
+                            <label>
+                                @I18n["settings.localization.dashboardTitle"]
+                                <select name="uiLanguage" aria-label='@I18n["topbar.language.aria"]'>
+                                    @foreach (var language in DashboardLocalizationService.SupportedDashboardLanguages)
+                                    {
+                                        <option value="@language.Code" selected="@IsCurrentDashboardLanguage(language.Code)">@language.DisplayName</option>
+                                    }
+                                </select>
+                            </label>
+                            <button type="submit" class="secondary">@I18n["settings.localization.saveUiLanguage"]</button>
+                        </form>
+                    </div>
+
+                    <div class="bocchi-localization-card">
+                        <h3>@I18n["settings.localization.siteTitle"]</h3>
+                        <div class="bocchi-form-grid">
+                            <label>
+                                @I18n["settings.localization.primaryLanguage"]
+                                <select @bind="_primaryLanguage">
+                                    @foreach (var language in _availableLanguages)
+                                    {
+                                        <option value="@language.Code">@language.DisplayName</option>
+                                    }
+                                </select>
+                            </label>
+
+                            <div class="bocchi-language-list" aria-label='@I18n["settings.localization.enabledLanguages"]'>
+                                <strong>@I18n["settings.localization.enabledLanguages"]</strong>
+                                @foreach (var language in _availableLanguages)
+                                {
+                                    <label class="bocchi-language-option">
+                                        <input
+                                            type="checkbox"
+                                            checked="@IsLanguageEnabled(language.Code)"
+                                            disabled="@IsPrimaryLanguage(language.Code)"
+                                            @onchange="args => ToggleEnabledLanguage(language.Code, args)" />
+                                        <span>
+                                            <strong>@language.NativeName</strong>
+                                            <small>@language.EnglishName · @language.Code</small>
+                                        </span>
+                                    </label>
+                                }
+                                <p>@I18n["settings.localization.primaryIncluded"]</p>
+                            </div>
+
+                            <dl class="bocchi-meta-list">
+                                <div>
+                                    <dt>@I18n["settings.localization.urlPolicy"]</dt>
+                                    <dd><code>@_urlPolicy</code> — @I18n["settings.localization.urlPolicyValue"]</dd>
+                                </div>
+                            </dl>
+
+                            <button type="button" @onclick="SaveLocalizationAsync">@I18n["settings.localization.saveSite"]</button>
+                            @if (_localizationSaved)
+                            {
+                                <p><BocchiStatusPill Tone="success">@I18n["settings.localization.saved"]</BocchiStatusPill> @_localizationMessage</p>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="bocchi-localization-card bocchi-localization-card--wide">
+                        <h3>@I18n["settings.localization.customTitle"]</h3>
+                        <p>@I18n["settings.localization.customDescription"]</p>
+                        <div class="bocchi-custom-language-form">
+                            <label>
+                                @I18n["settings.localization.customCode"]
+                                <input type="text" @bind="_customLanguageCode" placeholder="en-GB" />
+                            </label>
+                            <label>
+                                @I18n["settings.localization.customNativeName"]
+                                <input type="text" @bind="_customLanguageNativeName" placeholder="English (UK)" />
+                            </label>
+                            <label>
+                                @I18n["settings.localization.customEnglishName"]
+                                <input type="text" @bind="_customLanguageEnglishName" placeholder="British English" />
+                            </label>
+                            <button type="button" class="secondary" @onclick="AddCustomLanguage">@I18n["settings.localization.addCustom"]</button>
+                        </div>
+
+                        @if (_customLanguages.Count > 0)
+                        {
+                            <div class="bocchi-language-chip-list">
+                                @foreach (var language in _customLanguages)
+                                {
+                                    <span class="bocchi-language-chip">
+                                        @language.DisplayName
+                                        <button type="button" class="secondary" @onclick="() => RemoveCustomLanguage(language.Code)">@I18n["settings.localization.removeCustom"]</button>
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
                 </div>
             </section>
 
@@ -149,6 +259,30 @@
     /// <summary>Dashboard 外观编辑缓冲区。</summary>
     private string _appearance = "auto";
 
+    /// <summary>站点主要语言编辑缓冲区。</summary>
+    private string _primaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+
+    /// <summary>站点启用语言编辑缓冲区。</summary>
+    private HashSet<string> _enabledLanguageCodes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>自定义语言编辑缓冲区。</summary>
+    private List<LanguageRecord> _customLanguages = [];
+
+    /// <summary>Picklist 可用语言，内置语言在前，自定义语言在后。</summary>
+    private IReadOnlyList<LanguageRecord> _availableLanguages = LocalizationSettingsService.BuiltInLanguages;
+
+    /// <summary>URL policy 显示缓冲区；M6 固定为 PrimaryUnprefixed。</summary>
+    private string _urlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy;
+
+    /// <summary>自定义语言 code 输入。</summary>
+    private string _customLanguageCode = string.Empty;
+
+    /// <summary>自定义语言 nativeName 输入。</summary>
+    private string _customLanguageNativeName = string.Empty;
+
+    /// <summary>自定义语言 englishName 输入。</summary>
+    private string _customLanguageEnglishName = string.Empty;
+
     /// <summary>GitHub Provider 表单状态。</summary>
     private ProviderForm _github = new();
 
@@ -164,6 +298,12 @@
     /// <summary>Basic Info 保存反馈。</summary>
     private bool _basicSaved;
 
+    /// <summary>本地化设置保存反馈。</summary>
+    private bool _localizationSaved;
+
+    /// <summary>本地化设置保存后的说明文本。</summary>
+    private string? _localizationMessage;
+
     /// <summary>第三方登录保存反馈。</summary>
     private bool _loginSaved;
 
@@ -176,6 +316,7 @@
         _title = settings.SiteTitle;
         _description = settings.SiteDescription;
         _appearance = settings.AppearanceMode;
+        await LoadLocalizationAsync();
         var theme = await ThemeSettings.GetDefaultAsync();
         _themeId = theme.ThemeId;
         _themeJson = theme.ConfigurationJson;
@@ -209,6 +350,15 @@
         _basicSaved = true;
     }
 
+    /// <summary>保存站点本地化设置。</summary>
+    private async Task SaveLocalizationAsync()
+    {
+        await LocalizationSettings.SaveAsync(_primaryLanguage, _enabledLanguageCodes, _customLanguages);
+        await LoadLocalizationAsync();
+        _localizationSaved = true;
+        _localizationMessage = I18n["settings.localization.primaryIncluded"];
+    }
+
     /// <summary>保存 GitHub Provider 设置。</summary>
     private async Task SaveGitHubAsync()
     {
@@ -230,6 +380,107 @@
     {
         await ThemeSettings.SaveDefaultAsync(_themeId, _themeJson);
         _themeSaved = true;
+    }
+
+    /// <summary>读取站点本地化设置并刷新 Settings 页缓冲区。</summary>
+    private async Task LoadLocalizationAsync()
+    {
+        var localization = await LocalizationSettings.GetAsync();
+        _primaryLanguage = localization.PrimaryLanguage.Code;
+        _enabledLanguageCodes = new HashSet<string>(localization.EnabledLanguages.Select(x => x.Code), StringComparer.OrdinalIgnoreCase);
+        _customLanguages = [.. localization.CustomLanguages];
+        _urlPolicy = localization.UrlPolicy;
+        RefreshAvailableLanguages();
+    }
+
+    /// <summary>把自定义语言加入当前编辑缓冲区。</summary>
+    private void AddCustomLanguage()
+    {
+        if (string.IsNullOrWhiteSpace(_customLanguageCode)
+            || string.IsNullOrWhiteSpace(_customLanguageNativeName)
+            || string.IsNullOrWhiteSpace(_customLanguageEnglishName))
+        {
+            _localizationSaved = false;
+            _localizationMessage = I18n["settings.localization.customIncomplete"];
+            return;
+        }
+
+        var code = _customLanguageCode.Trim();
+        if (_availableLanguages.Any(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase)))
+        {
+            _localizationSaved = false;
+            _localizationMessage = I18n["settings.localization.customDuplicate"];
+            return;
+        }
+
+        _customLanguages.Add(new LanguageRecord
+        {
+            Code = code,
+            NativeName = _customLanguageNativeName.Trim(),
+            EnglishName = _customLanguageEnglishName.Trim(),
+        });
+        _enabledLanguageCodes.Add(code);
+        _customLanguageCode = string.Empty;
+        _customLanguageNativeName = string.Empty;
+        _customLanguageEnglishName = string.Empty;
+        _localizationSaved = false;
+        _localizationMessage = null;
+        RefreshAvailableLanguages();
+    }
+
+    /// <summary>从编辑缓冲区移除一个自定义语言。</summary>
+    private void RemoveCustomLanguage(string code)
+    {
+        _customLanguages.RemoveAll(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase));
+        _enabledLanguageCodes.Remove(code);
+        if (string.Equals(_primaryLanguage, code, StringComparison.OrdinalIgnoreCase))
+        {
+            _primaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+            _enabledLanguageCodes.Add(_primaryLanguage);
+        }
+
+        _localizationSaved = false;
+        RefreshAvailableLanguages();
+    }
+
+    /// <summary>切换站点启用语言；主要语言始终保持启用。</summary>
+    private void ToggleEnabledLanguage(string code, ChangeEventArgs args)
+    {
+        if (IsPrimaryLanguage(code))
+        {
+            _enabledLanguageCodes.Add(code);
+            return;
+        }
+
+        if (args.Value is bool enabled && enabled)
+        {
+            _enabledLanguageCodes.Add(code);
+        }
+        else
+        {
+            _enabledLanguageCodes.Remove(code);
+        }
+
+        _localizationSaved = false;
+    }
+
+    /// <summary>判断站点语言是否处于启用状态。</summary>
+    private bool IsLanguageEnabled(string code)
+        => IsPrimaryLanguage(code) || _enabledLanguageCodes.Contains(code);
+
+    /// <summary>判断语言是否为当前站点主要语言。</summary>
+    private bool IsPrimaryLanguage(string code)
+        => string.Equals(_primaryLanguage, code, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>判断 Dashboard 语言选项是否为当前 UI culture。</summary>
+    private bool IsCurrentDashboardLanguage(string code)
+        => string.Equals(I18n.CurrentLanguage.Code, code, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>刷新 Picklist 数据源，保持内置语言在前、自定义语言在后。</summary>
+    private void RefreshAvailableLanguages()
+    {
+        _availableLanguages = [.. LocalizationSettingsService.BuiltInLanguages, .. _customLanguages];
+        _enabledLanguageCodes.Add(_primaryLanguage);
     }
 
     /// <summary>Provider 表单缓冲区，不直接暴露受保护 secret。</summary>

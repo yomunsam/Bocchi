@@ -190,6 +190,38 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.ToTable("ExternalLoginProviderSettings", (string)null);
                 });
 
+            modelBuilder.Entity("Bocchi.HomeServer.Data.LocalizationSettingsRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CustomLanguagesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnabledLanguagesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimaryLanguage")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UrlPolicy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LocalizationSettings", (string)null);
+                });
+
             modelBuilder.Entity("Bocchi.HomeServer.Data.SetupState", b =>
                 {
                     b.Property<int>("Id")

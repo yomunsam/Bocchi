@@ -740,6 +740,7 @@ h1:focus {
 .bocchi-form-grid input[type="email"],
 .bocchi-form-grid input[type="password"],
 .bocchi-form-grid select,
+.bocchi-custom-language-form input[type="text"],
 .bocchi-auth-card input[type="text"],
 .bocchi-auth-card input[type="email"],
 .bocchi-auth-card input[type="password"],
@@ -874,6 +875,104 @@ h1:focus {
     gap: 1rem;
 }
 
+.bocchi-localization-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 0.9rem;
+}
+
+.bocchi-localization-card {
+    display: grid;
+    gap: 0.65rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
+    padding: 0.9rem;
+}
+
+.bocchi-localization-card--wide {
+    grid-column: 1 / -1;
+}
+
+.bocchi-localization-card h3,
+.bocchi-localization-card p {
+    margin: 0;
+}
+
+.bocchi-localization-card p,
+.bocchi-language-list p {
+    color: var(--bocchi-text-muted);
+    line-height: 1.55;
+}
+
+.bocchi-language-list {
+    display: grid;
+    gap: 0.5rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.75rem;
+}
+
+.bocchi-language-option {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.55rem !important;
+    color: var(--bocchi-text);
+}
+
+.bocchi-language-option span {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.bocchi-language-option small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.82rem;
+}
+
+.bocchi-custom-language-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 0.65rem;
+    align-items: end;
+}
+
+.bocchi-custom-language-form label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.bocchi-language-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.bocchi-language-chip {
+    display: inline-flex;
+    min-height: 2.4rem;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.25rem 0.35rem 0.25rem 0.75rem;
+}
+
+.bocchi-language-chip button {
+    min-height: 1.9rem;
+    padding: 0 0.55rem;
+}
+
 .bocchi-provider-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -968,6 +1067,8 @@ h1:focus {
 
     .bocchi-editor-grid,
     .bocchi-settings-layout,
+    .bocchi-localization-grid,
+    .bocchi-custom-language-form,
     .bocchi-provider-grid {
         grid-template-columns: 1fr;
     }

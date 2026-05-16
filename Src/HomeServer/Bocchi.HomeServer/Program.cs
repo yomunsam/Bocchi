@@ -11,6 +11,7 @@ using Bocchi.Workspace;
 using Bocchi.Workspace.DependencyInjection;
 using Bocchi.Workspace.State;
 
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
@@ -80,9 +81,21 @@ try
     builder.Services.AddScoped<DashboardSettingsService>();
     builder.Services.AddScoped<ExternalLoginSettingsService>();
     builder.Services.AddScoped<ThemeSettingsService>();
+    builder.Services.AddScoped<LocalizationSettingsService>();
+    builder.Services.AddSingleton<DashboardLocalizationService>();
     builder.Services.AddScoped<ContentEditingService>();
     builder.Services.AddScoped<PreviewRouteMapService>();
     builder.Services.AddScoped<PreviewHost>();
+    builder.Services.Configure<RequestLocalizationOptions>(options =>
+    {
+        // Dashboard UI language 是后台偏好；当前只让 RequestLocalization 影响 Admin 文案，不进入 Theme Contract。
+        var cultures = DashboardLocalizationService.SupportedDashboardLanguages
+            .Select(x => CultureInfo.GetCultureInfo(x.Code))
+            .ToArray();
+        options.DefaultRequestCulture = new RequestCulture(DashboardLocalizationService.DefaultLanguageCode);
+        options.SupportedCultures = cultures;
+        options.SupportedUICultures = cultures;
+    });
 
     var workspaceRootForKeys = ResolveWorkspaceRoot(builder.Configuration, builder.Environment.ContentRootPath);
     builder.Services.AddDataProtection()
@@ -143,6 +156,7 @@ try
         app.UseHsts();
     }
 
+    app.UseRequestLocalization();
     app.UseAntiforgery();
     app.UseBocchiSetupGate();
     app.UseAuthentication();
@@ -162,6 +176,7 @@ try
     });
 
     app.MapBocchiAccountEndpoints();
+    app.MapDashboardLocalizationEndpoints();
 
     app.MapBuildEndpoints();
 

@@ -102,7 +102,32 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("Third-party Login");
+        body.Should().Contain("Localization");
+        body.Should().Contain("Site primary language");
+        body.Should().Contain("PrimaryUnprefixed");
         body.Should().Contain("Save Theme config");
+    }
+
+    [Fact]
+    public async Task DashboardUiLanguageEndpoint_SetsCultureCookieAndRendersChineseSettings()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.PostAsync("/Admin/Settings/Localization/UiLanguage", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["uiLanguage"] = "zh-CN",
+            ["returnUrl"] = "/Admin/Settings#localization",
+        }));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.ToString().Should().Be("/Admin/Settings#localization");
+
+        var settings = await client.GetAsync("/Admin/Settings");
+        settings.EnsureSuccessStatusCode();
+        var body = await settings.Content.ReadAsStringAsync();
+        body.Should().Contain("本地化");
+        body.Should().Contain("保持服务器清爽");
+        body.Should().Contain("站点主要语言");
     }
 
     [Fact]

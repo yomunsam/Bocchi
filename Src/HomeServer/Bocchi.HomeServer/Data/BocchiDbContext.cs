@@ -27,6 +27,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>前台业务 Theme 配置投影。</summary>
     public DbSet<ThemeConfigurationRecord> ThemeConfigurations => Set<ThemeConfigurationRecord>();
 
+    /// <summary>站点本地化设置。</summary>
+    public DbSet<LocalizationSettingsRecord> LocalizationSettings => Set<LocalizationSettingsRecord>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -81,6 +84,16 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.HasIndex(x => x.ThemeId).IsUnique();
             entity.Property(x => x.ThemeId).HasMaxLength(160).IsRequired();
             entity.Property(x => x.ConfigurationJson).IsRequired();
+        });
+
+        builder.Entity<LocalizationSettingsRecord>(entity =>
+        {
+            entity.ToTable("LocalizationSettings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PrimaryLanguage).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.EnabledLanguagesJson).IsRequired();
+            entity.Property(x => x.CustomLanguagesJson).IsRequired();
+            entity.Property(x => x.UrlPolicy).HasMaxLength(64).IsRequired();
         });
     }
 }

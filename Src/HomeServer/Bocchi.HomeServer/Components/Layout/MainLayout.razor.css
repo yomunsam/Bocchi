@@ -141,6 +141,7 @@
 }
 
 .bocchi-soft-link,
+.bocchi-language-control label,
 .bocchi-appearance-control,
 .bocchi-icon-button,
 .bocchi-account-link {
@@ -160,6 +161,7 @@
 }
 
 .bocchi-soft-link:hover,
+.bocchi-language-control label:hover,
 .bocchi-appearance-control:hover,
 .bocchi-icon-button:hover,
 .bocchi-account-link:hover {
@@ -183,6 +185,19 @@
     color: var(--bocchi-text-muted);
 }
 
+.bocchi-language-control {
+    margin: 0;
+}
+
+.bocchi-language-control label {
+    cursor: pointer;
+}
+
+.bocchi-language-control span {
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-language-control select,
 .bocchi-appearance-control select {
     min-height: 2rem;
     border: 0;

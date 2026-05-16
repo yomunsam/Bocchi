@@ -19,8 +19,9 @@
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`.bocchi/input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
 | [x] | M5 | Default Static Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`default-static`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
-| [ ] | M6 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
-| [ ] | M7 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
+| [ ] | M6 | Localization and Content i18n | 完成 Dashboard i18n、站点语言设置、Theme 本地化约定和内容多语言版本 | `Docs/Milestones/M6/M6.md`、Settings / Localization、Theme Context、content variants | 普通写作流不受打扰；Post/Page/Work 可管理语言版本；默认 Theme 输出语言切换和 SEO 元数据 |
+| [ ] | M7 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
+| [ ] | M8 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
 
 ## 推进规则
 
@@ -102,7 +103,7 @@
 - Markdown + YAML frontmatter 解析（Markdig + YamlDotNet）：六个内容类型独立 Loader，统一错误模型 `ContentValidationError(Severity / Code / Field / Message)`。
 - SQLite 管理状态（`Microsoft.Data.Sqlite`）：`SchemaMigrator` 基于 `PRAGMA user_version`；`ContentStateStore` 持久化文件 hash、内容索引、扫描运行、错误聚合；不复制正文。
 - `ContentScanner` 端到端打通：年份目录校验、媒体引用校验、孤儿媒体 Info、可疑派生产物 Warning。
-- 内容空间 Git 集成（LibGit2Sharp）：本地 `init/status/commitAll`；远程接入按决策延后到 M6。
+- 内容空间 Git 集成（LibGit2Sharp）：本地 `init/status/commitAll`；远程接入按决策延后到 M7。
 - Home Server `/workspace` 页面、首页入口；Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/`。
 
 验收：`dotnet build` / `dotnet test` 全绿；`dotnet run` 启动后 `/workspace` 可显示工作区根、Git 状态、扫描结果与错误列表；`<workspace>/content/` 目录可独立打包，不含任何 Bocchi 系统痕迹。
@@ -111,7 +112,7 @@
 
 - 完整可视化编辑器（M4）。
 - 标准化内容图、Theme 输入数据写入、媒体衍生品、增量构建（M3）。
-- Git 远程接入（push/pull、GitHub、凭据）—— 与 M6 发布管线一起设计。
+- Git 远程接入（push/pull、GitHub、凭据）—— 与 M7 发布管线一起设计。
 - 照片墙完整体验。
 
 ## M3 Generator Pipeline
@@ -229,7 +230,53 @@
 - 多套视觉主题。
 - GitHub Actions Remote Runner。
 
-## M6 Feeds, Search and Publish
+## M6 Localization and Content i18n
+
+目标：让 Bocchi 在不打断普通写作流程的前提下，支持 Dashboard 自身 i18n、站点语言设置、Theme 本地化约定和内容多语言版本。
+
+详细规划：见 [`Docs/Milestones/M6/M6.md`](./Milestones/M6/M6.md)。
+
+关键方向：
+
+- Dashboard UI language 是后台 UI 偏好，和 Site primary language 分开。
+- Site primary language + Site enabled languages 表达前台站点语言配置；启用语言必须包含主要语言。
+- 语言记录包含 `code`、`nativeName`、`englishName`；语言图标不进入 Home Server / Dashboard 通用模型。
+- `Settings / Localization` 管理站点语言、自定义语言、Common i18n key 覆盖和 URL policy。
+- `Settings / Theme` 管理当前 Theme、Theme manifest、Theme 私有配置和 Theme 私有 i18n key 覆盖。
+- Post / Page / Work 使用 localization group + content variant 表达多语言内容；同一个 group 强制放在同一个内容目录下，例如 `index.md`、`index.zh-TW.md`。
+- M6 固定 `PrimaryUnprefixed` URL 策略：主语言无前缀，其他语言使用语言前缀。
+- 默认 Theme 首批示范 `en-US`、`zh-CN`、`zh-TW`、`ja-JP`，输出语言切换、翻译提示、canonical 和 `hreflang`。
+
+建议任务：
+
+- Dashboard i18n JSON 资源、语言选择和持久化。
+- Localization 设置页、语言 Picklist 和自定义语言管理。
+- Common i18n key 覆盖、Theme 私有 i18n key 声明与覆盖。
+- Theme Context 增加 localization 节点。
+- Post / Page / Work loader、scanner、state store、content graph 和 Theme input 增加 language / localization variant 字段。
+- 编辑器 `Language & versions` 小组件和“添加语言版本”Modal。
+- Generator 输出语言 URL、`html lang`、canonical、`hreflang`、Preview Route Map 和 Sitemap 多语言条目。
+- 默认 Theme 本地化示范和 Translation Provider 抽象。
+
+验收标准：
+
+- Dashboard 自身 UI 可在 `zh-CN` / `en-US` 间切换，控件可扩展到更多语言。
+- 站点主要语言、启用语言和自定义语言可配置并持久化。
+- 普通新建和编辑内容时不需要理解多语言概念。
+- Post / Page / Work 可添加语言版本，并生成同一目录下的独立 Markdown variant。
+- Translation variant 能记录来源语言和来源内容。
+- 默认 Theme 输出语言切换、翻译提示、`html lang`、canonical 和 `hreflang`。
+- Preview Host 能从带语言前缀的前台 route 跳转到正确的编辑页面。
+
+暂不做：
+
+- 专业翻译管理平台式的批量矩阵编辑。
+- HTML / Markdown / rich text 形式的 i18n 覆盖值。
+- 语言图标、国旗或地区象征。
+- Note 的独立语言版本详情页。
+- 第三方翻译 API 和 LLM API 的完整配置界面。
+
+## M7 Feeds, Search and Publish
 
 目标：让站点具备基本发布能力和可发现性。
 
@@ -258,7 +305,7 @@
 - 复杂 CI/CD 自动编排。
 - 多账号发布凭据管理。
 
-## M7 Cloud Server 预留
+## M8 Cloud Server 预留
 
 目标：为动态功能留出边界，但不提前制造复杂度。
 
@@ -305,7 +352,7 @@
 - frontmatter 一律使用 **YAML**。关闭原 frontmatter 格式待决问题。
 - Markdown 引擎 `Markdig`，YAML 引擎 `YamlDotNet`。
 - SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。
-- 内容空间作为 Git 工作区使用 `LibGit2Sharp`：M2 提供 `init / status / commit` 等本地能力；远程接入（push/pull、GitHub、凭据存储）显式延后到 M6 发布管线。
+- 内容空间作为 Git 工作区使用 `LibGit2Sharp`：M2 提供 `init / status / commit` 等本地能力；远程接入（push/pull、GitHub、凭据存储）显式延后到 M7 发布管线。
 - 2026-05-14 复查：`LibGit2Sharp` 0.31.0 是当前稳定版本，NuGet 计算兼容 `net10.0`；Bocchi 当前只使用内容空间本地 init/status/commitAll，继续使用该库。
 - 内容空间是"源工程"：禁止出现派生产物（webp、缩略图、HTML、搜索索引）；衍生媒体目录固定为 `<workspace>/.bocchi/cache/derivatives/`，由 M3 实施。
 - Serilog 文件 sink 切换到 `<workspace>/.bocchi/logs/bocchi-.log`。
@@ -331,6 +378,14 @@
 - Bocchi 的 anime-inspired 灵感只允许进入抽象气质、低饱和粉蓝和个人创作氛围；不得复制任何可识别角色、服装、发型、姿势、乐队标识或具体场景。
 - 首批 UI 代码基线已进入 M4-T06：`MainLayout`、全局外观 token、Dashboard 外观下拉、`BocchiStatusPill`、`BocchiListRow`，以及现有 Home / Workspace / Build 页面低密度重排。该基线不改变前台业务 Theme Contract，构建页中的 `Theme id` 明确表示前台业务 Theme。
 
+### 2026-05-16 (M6 planning)
+
+- M6 调整为 Localization and Content i18n；原 M6 Feeds/Search/Publish 顺延为 M7，原 M7 Cloud Server 预留顺延为 M8。
+- Dashboard 自身 i18n 与前台站点本地化分开设计：Dashboard UI language 是后台 UI 偏好，Site primary language / Site enabled languages 是站点能力。
+- 前台语言记录只包含 `code`、`nativeName`、`englishName`；Home Server、Dashboard 和默认 Theme 都不展示语言图标或国旗。
+- Post / Page / Work 的多语言内容使用 localization group + content variant 表达，并强制同一个 group 放在同一个内容目录下。
+- M6 固定主语言无前缀、其他语言带语言前缀的 URL 策略；默认 Theme 负责基础语言切换、翻译提示、canonical 和 `hreflang` 示范。
+
 ## 待决问题
 
-- 内容空间作为 Git 仓库时与远程（GitHub 等）的接入策略：与 M6 发布管线一起设计，包括凭据存储、push 触发时机、webhook 回路等。
+- 内容空间作为 Git 仓库时与远程（GitHub 等）的接入策略：与 M7 发布管线一起设计，包括凭据存储、push 触发时机、webhook 回路等。
