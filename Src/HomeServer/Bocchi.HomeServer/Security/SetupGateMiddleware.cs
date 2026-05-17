@@ -32,6 +32,7 @@ public sealed class SetupGateMiddleware
     {
         var value = path.Value ?? "/";
         if (value.Equals("/Setup", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("/Setup/", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase)
             || value.Equals("/healthz", StringComparison.OrdinalIgnoreCase))
         {

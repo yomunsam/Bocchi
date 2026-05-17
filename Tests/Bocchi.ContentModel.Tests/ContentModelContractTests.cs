@@ -55,5 +55,7 @@ public sealed class ContentModelContractTests
         settings.EnableRss.Should().BeTrue();
         settings.EnableSitemap.Should().BeTrue();
         settings.EnableSearch.Should().BeTrue();
+        settings.DefaultTitle.Should().BeNull();
+        settings.CopyrightNotice.Should().BeNull();
     }
 }

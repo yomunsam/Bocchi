@@ -30,6 +30,9 @@ public sealed record SiteSettings
 {
     public required string Title { get; init; }
 
+    /// <summary>前台页面缺少专用标题时使用的默认标题。</summary>
+    public string? DefaultTitle { get; init; }
+
     public string? Description { get; init; }
 
     public string Language { get; init; } = "zh-CN";
@@ -37,6 +40,9 @@ public sealed record SiteSettings
     public string TimeZone { get; init; } = "Asia/Shanghai";
 
     public required Uri BaseUrl { get; init; }
+
+    /// <summary>前台 footer 和 Theme Context 使用的版权文案。</summary>
+    public string? CopyrightNotice { get; init; }
 
     public AuthorInfo? Author { get; init; }
 

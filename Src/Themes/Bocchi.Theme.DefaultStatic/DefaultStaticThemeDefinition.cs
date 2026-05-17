@@ -216,7 +216,7 @@ public sealed class DefaultStaticThemeDefinition
           <main>{{ content | html }}</main>
           <footer class="footer">
             <div class="footer__inner">
-              <span>{{ site.title }} · {{ site.generatedYear }}</span>
+              <span>{{ site.copyrightNotice }}</span>
               <span><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span>
             </div>
           </footer>

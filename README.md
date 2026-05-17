@@ -47,7 +47,7 @@ Bocchi 把持久化数据根与用户内容目录严格切分：
 - **workspace**（默认 `<data>/workspace/`）：纯创作资产（Blog、作品集、短文、友链、`site/site.yaml`），独立可携、可作为独立 Git 仓库迁移。任何时候都能整体打包带走，不依赖 Bocchi 的代码。
 - **DataRoot 运行数据**（`<data>/state/`、`<data>/themes/`、`<data>/cache/`、`<data>/output/`、`<data>/logs/`）：Bocchi 程序的状态库（SQLite）、日志、缓存、Theme 输入与构建产物，与 Bocchi 同寿。
 
-通过 `appsettings.json` 中的 `Bocchi:DataRoot`（或环境变量 `Bocchi__DataRoot`）指向 DataRoot；开发期留空时回退到 Home Server 项目下的 `data/`，发布后裸机运行默认在程序目录旁的 `data/`，Docker 运行建议挂载到容器内 `/app/data`。首次启动会自动创建必需的目录结构（包括 `workspace/README.md`、`workspace/.gitignore` 与 `workspace/site/site.yaml`），完成 `/Setup` 后在 `/Admin/Content` 手动触发一次扫描即可。
+通过 `appsettings.json` 中的 `Bocchi:DataRoot`（或环境变量 `Bocchi__DataRoot`）指向 DataRoot；开发期留空时回退到 Home Server 项目下的 `.bocchi-dev-data/`，避免 `data/` 在大小写不敏感文件系统上撞进源码 `Data/` 目录；发布后裸机运行默认在程序目录旁的 `data/`，Docker 运行建议挂载到容器内 `/app/data`。首次启动会自动创建必需的目录结构（包括 `workspace/README.md`、`workspace/.gitignore` 与 `workspace/site/site.yaml`），完成 `/Setup` 后在 `/Admin/Content` 手动触发一次扫描即可。
 
 更深入的文档：
 

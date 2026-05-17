@@ -1,120 +1,252 @@
 @page "/Admin"
+@using System.Globalization
+@using Bocchi.ContentModel
+@using Bocchi.Workspace.State
+@inject DashboardLocalizationService I18n
+@inject IContentStateStore Store
 
-<PageTitle>Home · Bocchi</PageTitle>
+<PageTitle>@I18n["home.page.title"] · Bocchi</PageTitle>
 
 <article class="bocchi-shell bocchi-shell--dashboard">
     <section class="bocchi-home-hero" aria-labelledby="home-heading">
         <div>
-            <span class="bocchi-page-heading__eyebrow">Bocchi Home Server</span>
-            <h1 id="home-heading">Good to see you.</h1>
-            <p>Here is what is happening with your site. Keep writing, preview softly, and publish when everything looks okay.</p>
+            <span class="bocchi-page-heading__eyebrow">@I18n["home.page.eyebrow"]</span>
+            <h1 id="home-heading">@I18n["home.page.heading"]</h1>
+            <p>@I18n["home.page.description"]</p>
         </div>
-        <div class="bocchi-hero-illustration" aria-hidden="true">
-            <Blazicon Svg="Lucide.BookOpen" />
-            <span></span>
+        <div class="bocchi-home-summary" aria-label='@I18n["home.summary.aria"]'>
+            <div>
+                <span>@I18n["home.summary.server"]</span>
+                <strong>@I18n["home.summary.serverRunning"]</strong>
+            </div>
+            <div>
+                <span>@I18n["home.summary.content"]</span>
+                <strong>@ContentCountLabel</strong>
+            </div>
+            <div>
+                <span>@I18n["home.summary.lastCheck"]</span>
+                <strong>@LastCheckLabel</strong>
+            </div>
         </div>
     </section>
 
     <div class="bocchi-dashboard-board">
         <section class="bocchi-content-feed" aria-labelledby="feed-heading">
             <div class="bocchi-feed-toolbar">
-                <div class="bocchi-feed-tabs" aria-label="Content filters">
-                    <a class="active" href="/Admin/Content">All</a>
-                    <a href="/Admin/Content?kind=Post">Posts</a>
-                    <a href="/Admin/Content?kind=Page">Pages</a>
-                    <a href="/Admin/Content?kind=Note">Notes</a>
-                    <a href="/Admin/Content?kind=Work">Works</a>
+                <div class="bocchi-feed-title">
+                    <span>@I18n["home.feed.eyebrow"]</span>
+                    <h2 id="feed-heading">@I18n["home.feed.title"]</h2>
                 </div>
                 <a class="bocchi-sort-button" href="/Admin/Content">
                     <Blazicon Svg="Lucide.ListFilter" />
-                    <span>Sort: Latest</span>
+                    <span>@I18n["home.feed.openContent"]</span>
                 </a>
             </div>
 
-            <h2 id="feed-heading" class="bocchi-visually-hidden">Recent content</h2>
-            <div class="bocchi-content-list">
-                <a class="bocchi-content-item" href="/Admin/Content/Edit">
-                    <span class="bocchi-content-item__icon bocchi-content-item__icon--pink">
+            @if (_recentContent.Count == 0)
+            {
+                <div class="bocchi-home-empty">
+                    <span class="bocchi-home-empty__icon">
                         <Blazicon Svg="Lucide.FileText" />
                     </span>
-                    <span class="bocchi-content-item__main">
-                        <strong>Why I Write on Sundays</strong>
-                        <small>/posts/why-i-write-on-sundays</small>
-                    </span>
-                    <BocchiStatusPill Tone="success">Ready</BocchiStatusPill>
-                    <span class="bocchi-content-item__date">Today</span>
-                    <span class="bocchi-content-item__action">Preview</span>
-                </a>
-
-                <a class="bocchi-content-item" href="/Admin/Content/Edit">
-                    <span class="bocchi-content-item__icon bocchi-content-item__icon--lavender">
-                        <Blazicon Svg="Lucide.PenLine" />
-                    </span>
-                    <span class="bocchi-content-item__main">
-                        <strong>Bedroom Studio Tour</strong>
-                        <small>/posts/bedroom-studio-tour</small>
-                    </span>
-                    <BocchiStatusPill Tone="warning">Draft</BocchiStatusPill>
-                    <span class="bocchi-content-item__date">Yesterday</span>
-                    <span class="bocchi-content-item__action">Continue</span>
-                </a>
-
-                <a class="bocchi-content-item" href="/Admin/Content/Edit">
-                    <span class="bocchi-content-item__icon bocchi-content-item__icon--blue">
-                        <Blazicon Svg="Lucide.BookOpen" />
-                    </span>
-                    <span class="bocchi-content-item__main">
-                        <strong>About This Blog</strong>
-                        <small>/about</small>
-                    </span>
-                    <BocchiStatusPill Tone="success">Ready</BocchiStatusPill>
-                    <span class="bocchi-content-item__date">May 10</span>
-                    <span class="bocchi-content-item__action">Preview</span>
-                </a>
-
-                <a class="bocchi-content-item" href="/Admin/Content/Edit">
-                    <span class="bocchi-content-item__icon bocchi-content-item__icon--amber">
-                        <Blazicon Svg="Lucide.FolderOpen" />
-                    </span>
-                    <span class="bocchi-content-item__main">
-                        <strong>My Favorite Albums</strong>
-                        <small>/works/favorite-albums</small>
-                    </span>
-                    <BocchiStatusPill Tone="warning">Needs a look</BocchiStatusPill>
-                    <span class="bocchi-content-item__date">May 9</span>
-                    <span class="bocchi-content-item__action">Preview</span>
-                </a>
-            </div>
+                    <div>
+                        <strong>@I18n["home.feed.emptyTitle"]</strong>
+                        <p>@I18n["home.feed.emptyDescription"]</p>
+                    </div>
+                    <div class="bocchi-home-empty__actions">
+                        <a class="bocchi-button" href="/Admin/Content/Edit">@I18n["home.feed.createFirst"]</a>
+                        <a class="bocchi-button secondary" href="/Admin/Content">@I18n["home.feed.checkContent"]</a>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="bocchi-content-list">
+                    @foreach (var item in _recentContent)
+                    {
+                        <a class="bocchi-content-item" href="@ContentEditingService.EditUrl(item.RelativePath)">
+                            <span class="bocchi-content-item__icon @ContentIconClass(item.Kind)">
+                                <Blazicon Svg="@ContentIcon(item.Kind)" />
+                            </span>
+                            <span class="bocchi-content-item__main">
+                                <strong>@ContentTitle(item)</strong>
+                                <small>@item.RelativePath</small>
+                            </span>
+                            <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
+                            <span class="bocchi-content-item__date">@ContentTimeLabel(item)</span>
+                            <span class="bocchi-content-item__action">@ContentActionLabel(item.Status)</span>
+                        </a>
+                    }
+                </div>
+            }
         </section>
 
-        <aside class="bocchi-home-side" aria-label="Preview and publish readiness">
+        <aside class="bocchi-home-side" aria-label='@I18n["home.side.aria"]'>
             <section class="bocchi-preview-card">
                 <div class="bocchi-card-heading">
                     <Blazicon Svg="Lucide.Monitor" />
-                    <h2>Site preview</h2>
-                    <a href="/" target="_blank" rel="noopener">Open site</a>
+                    <h2>@I18n["home.preview.title"]</h2>
+                    <a href="/" target="_blank" rel="noopener">@I18n["home.preview.open"]</a>
                 </div>
-                <div class="bocchi-preview-frame">
-                    <div class="bocchi-preview-sky"></div>
-                    <div class="bocchi-preview-desk"></div>
-                    <strong>soft notes from Bocchi</strong>
-                </div>
-                <p><Blazicon Svg="Lucide.LockKeyhole" /> Password-protected</p>
+                <p class="bocchi-card-copy">@I18n["home.preview.description"]</p>
+                <dl class="bocchi-meta-list bocchi-home-meta">
+                    <div>
+                        <dt>@I18n["home.preview.access"]</dt>
+                        <dd>@I18n["home.preview.protected"]</dd>
+                    </div>
+                    <div>
+                        <dt>@I18n["home.preview.entry"]</dt>
+                        <dd><code>/</code></dd>
+                    </div>
+                </dl>
             </section>
 
             <section class="bocchi-readiness-card">
                 <div class="bocchi-card-heading">
-                    <Blazicon Svg="Lucide.Sun" />
-                    <h2>Publish readiness</h2>
+                    <Blazicon Svg="Lucide.CircleCheck" />
+                    <h2>@I18n["home.publish.title"]</h2>
                 </div>
                 <ul>
-                    <li><Blazicon Svg="Lucide.CircleCheck" />Content looks good</li>
-                    <li><Blazicon Svg="Lucide.CircleCheck" />Images look good</li>
-                    <li><Blazicon Svg="Lucide.TriangleAlert" />One link needs review</li>
-                    <li><Blazicon Svg="Lucide.CircleCheck" />Settings are set</li>
+                    <li class="@ReadinessItemClass">
+                        <Blazicon Svg="@ReadinessIcon" />
+                        <span>@ReadinessLabel</span>
+                    </li>
+                    <li>
+                        <Blazicon Svg="Lucide.CircleCheck" />
+                        <span>@ContentInventoryLabel</span>
+                    </li>
+                    <li>
+                        <Blazicon Svg="Lucide.CircleCheck" />
+                        <span>@I18n["home.publish.settingsReady"]</span>
+                    </li>
                 </ul>
-                <a class="bocchi-readiness-card__action" href="/Admin/Publish">Everything looks good</a>
+                <a class="bocchi-readiness-card__action" href="/Admin/Publish">@I18n["home.publish.action"]</a>
             </section>
         </aside>
     </div>
 </article>
+
+@code {
+    /// <summary>首页只读取轻量投影，避免首次进入 Dashboard 时扫描或读取正文。</summary>
+    private IReadOnlyList<ContentSummary> _recentContent = [];
+
+    /// <summary>最近一次内容检查运行，用于把发布准备状态翻译成可读摘要。</summary>
+    private ScanRunRecord? _lastRun;
+
+    /// <summary>内容投影总数，用于首页概览数字。</summary>
+    private int _contentCount;
+
+    /// <summary>内容总数的本地化文案。</summary>
+    private string ContentCountLabel => string.Format(CultureInfo.CurrentCulture, I18n["home.summary.contentFormat"], _contentCount);
+
+    /// <summary>最近一次内容检查的本地化文案；未检查时不伪造成功状态。</summary>
+    private string LastCheckLabel => _lastRun is null
+        ? I18n["home.summary.notChecked"]
+        : string.Format(CultureInfo.CurrentCulture, I18n["home.summary.lastCheckFormat"], _lastRun.Id, ScanStatusLabel(_lastRun.Status));
+
+    /// <summary>发布准备第一行图标；存在错误或警告时用提醒图标。</summary>
+    private SvgIcon ReadinessIcon => _lastRun is null || _lastRun.ErrorCount > 0 || _lastRun.WarningCount > 0
+        ? Lucide.TriangleAlert
+        : Lucide.CircleCheck;
+
+    /// <summary>发布准备第一行的语义 class；未检查或有问题时显示为提醒色。</summary>
+    private string ReadinessItemClass => _lastRun is null || _lastRun.ErrorCount > 0 || _lastRun.WarningCount > 0
+        ? "bocchi-readiness-card__item--warning"
+        : string.Empty;
+
+    /// <summary>发布准备第一行文案，表达真实检查状态，不再展示静态“looks good”。</summary>
+    private string ReadinessLabel
+    {
+        get
+        {
+            if (_lastRun is null)
+            {
+                return I18n["home.publish.noCheck"];
+            }
+
+            if (_lastRun.ErrorCount == 0 && _lastRun.WarningCount == 0)
+            {
+                return I18n["home.publish.noIssues"];
+            }
+
+            return string.Format(CultureInfo.CurrentCulture, I18n["home.publish.issueFormat"], _lastRun.ErrorCount, _lastRun.WarningCount);
+        }
+    }
+
+    /// <summary>内容清单状态文案；空 workspace 要明确提示，而不是展示示例内容。</summary>
+    private string ContentInventoryLabel => _contentCount == 0
+        ? I18n["home.publish.noContent"]
+        : string.Format(CultureInfo.CurrentCulture, I18n["home.publish.contentFormat"], _contentCount);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var summaries = await Store.ListContentSummariesAsync(null);
+        _contentCount = summaries.Count;
+        _recentContent = summaries
+            .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
+            .ThenBy(x => x.Title ?? x.ContentId)
+            .Take(4)
+            .ToList();
+        _lastRun = await Store.GetLatestScanRunAsync();
+    }
+
+    /// <summary>内容标题为空时退回业务 id，避免首页出现空白主标题。</summary>
+    private static string ContentTitle(ContentSummary item)
+        => string.IsNullOrWhiteSpace(item.Title) ? item.ContentId : item.Title;
+
+    /// <summary>把内容状态转成普通用户可读文案。</summary>
+    private string ContentStatusLabel(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => I18n["home.status.ready"],
+            ContentStatus.Archived => I18n["home.status.archived"],
+            _ => I18n["home.status.draft"],
+        };
+
+    /// <summary>把内容状态映射到柔和状态色。</summary>
+    private static string ContentStatusTone(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => "success",
+            ContentStatus.Archived => "neutral",
+            _ => "warning",
+        };
+
+    /// <summary>根据内容状态选择首页主动作文案。</summary>
+    private string ContentActionLabel(ContentStatus status)
+        => status == ContentStatus.Draft ? I18n["home.action.continue"] : I18n["home.action.edit"];
+
+    /// <summary>优先显示更新时间，其次显示发布时间。</summary>
+    private static string ContentTimeLabel(ContentSummary item)
+        => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
+
+    /// <summary>按内容类型选择稳定的 Lucide 图标。</summary>
+    private static SvgIcon ContentIcon(ContentKind kind)
+        => kind switch
+        {
+            ContentKind.Page => Lucide.BookOpen,
+            ContentKind.Work => Lucide.FolderOpen,
+            ContentKind.Note => Lucide.PenLine,
+            _ => Lucide.FileText,
+        };
+
+    /// <summary>按内容类型选择图标背景色；保持与已有首页 token 对齐。</summary>
+    private static string ContentIconClass(ContentKind kind)
+        => kind switch
+        {
+            ContentKind.Page => "bocchi-content-item__icon--blue",
+            ContentKind.Work => "bocchi-content-item__icon--amber",
+            ContentKind.Note => "bocchi-content-item__icon--lavender",
+            _ => "bocchi-content-item__icon--pink",
+        };
+
+    /// <summary>把扫描状态映射成短文案，避免把内部 status 字符串直接暴露在 Overview。</summary>
+    private string ScanStatusLabel(string status)
+        => status switch
+        {
+            "succeeded" => I18n["home.scan.succeeded"],
+            "failed" => I18n["home.scan.failed"],
+            "running" => I18n["home.scan.running"],
+            _ => status,
+        };
+}

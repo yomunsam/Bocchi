@@ -68,6 +68,42 @@ public sealed class ThemeSettingsService
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>列出当前可选择的前台 Theme；内置默认 Theme 始终会被物化并排在第一位。</summary>
+    public async Task<IReadOnlyList<ThemeOption>> ListAvailableThemesAsync(CancellationToken cancellationToken = default)
+    {
+        await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
+
+        var options = new Dictionary<string, ThemeOption>(StringComparer.Ordinal)
+        {
+            [DefaultStaticThemeDefinition.ThemeId] = new(
+                DefaultStaticThemeDefinition.ThemeId,
+                DefaultStaticThemeDefinition.ThemeName),
+        };
+
+        foreach (var themeDirectory in Directory.EnumerateDirectories(_layout.ThemesDirectory).Order(StringComparer.Ordinal))
+        {
+            var themeId = Path.GetFileName(themeDirectory);
+            if (string.IsNullOrWhiteSpace(themeId) ||
+                string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var loaded = await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (loaded is not null)
+            {
+                var manifest = loaded.Value.Manifest;
+                options[manifest.Id] = new ThemeOption(manifest.Id, manifest.Name);
+            }
+        }
+
+        return options.Values
+            .OrderByDescending(x => string.Equals(x.Id, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     /// <summary>读取当前 Theme manifest 声明的私有 i18n key 和用户覆盖值。</summary>
     public async Task<ThemeI18nSettingsView> GetI18nAsync(string themeId, CancellationToken cancellationToken = default)
     {

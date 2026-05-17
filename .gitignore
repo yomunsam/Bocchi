@@ -10,6 +10,9 @@
 .playwright-cli/
 output/playwright/
 
+# Bocchi local development DataRoot. Keep runtime data out of source directories.
+Src/HomeServer/Bocchi.HomeServer/.bocchi-dev-data/
+
 # User-specific files
 *.rsuser
 *.suo

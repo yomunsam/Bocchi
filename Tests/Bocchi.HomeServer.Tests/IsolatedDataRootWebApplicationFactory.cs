@@ -1,3 +1,5 @@
+using System.Net;
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -18,7 +20,7 @@ public sealed class IsolatedDataRootWebApplicationFactory
     public string DataRoot { get; } =
         Path.Combine(Path.GetTempPath(), "bocchi-tests", Guid.NewGuid().ToString("N"));
 
-    public const string AdminEmail = "admin@example.test";
+    public const string AdminUserName = "admin";
 
     public const string AdminPassword = "soft-password";
 
@@ -60,14 +62,29 @@ public sealed class IsolatedDataRootWebApplicationFactory
         var client = CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var setup = await client.GetAsync("/Setup");
         var setupBody = await setup.Content.ReadAsStringAsync();
-        if (setup.IsSuccessStatusCode && setupBody.Contains("Create Admin", StringComparison.Ordinal))
+        if (setup.IsSuccessStatusCode && setupBody.Contains("name=\"username\"", StringComparison.Ordinal))
         {
-            var created = await client.PostAsync("/Setup", new FormUrlEncodedContent(new Dictionary<string, string>
+            var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["email"] = AdminEmail,
+                ["username"] = AdminUserName,
                 ["displayName"] = "Bocchi Admin",
+                ["email"] = string.Empty,
                 ["password"] = AdminPassword,
                 ["confirmPassword"] = AdminPassword,
+            }));
+            siteStep.EnsureSuccessStatusCode();
+            var siteStepBody = await siteStep.Content.ReadAsStringAsync();
+            var setupPayload = ExtractHiddenFieldValue(siteStepBody, "setupPayload");
+
+            var created = await client.PostAsync("/Setup/Complete", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["setupPayload"] = setupPayload,
+                ["siteName"] = "Bocchi Test Site",
+                ["defaultTitle"] = "Bocchi Test",
+                ["description"] = "Test publishing workspace",
+                ["publicBaseUrl"] = "https://bocchi.example/",
+                ["copyrightNotice"] = "Copyright © 2026 Bocchi Test.",
+                ["defaultThemeId"] = "default-static",
             }));
             created.StatusCode.Should().Be(System.Net.HttpStatusCode.Redirect);
             created.Headers.Location!.ToString().Should().Be("/Admin");
@@ -76,7 +93,7 @@ public sealed class IsolatedDataRootWebApplicationFactory
 
         var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["email"] = AdminEmail,
+            ["username"] = AdminUserName,
             ["password"] = AdminPassword,
             ["remember"] = "on",
         }));
@@ -84,16 +101,16 @@ public sealed class IsolatedDataRootWebApplicationFactory
         return client;
     }
 
-    public async Task CreateLocalUserAsync(string email, string password, bool isAdmin)
+    public async Task CreateLocalUserAsync(string userName, string password, bool isAdmin, string? email = null)
     {
         using var scope = Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<BocchiUser>>();
         var user = new BocchiUser
         {
-            UserName = email,
-            Email = email,
-            EmailConfirmed = true,
-            DisplayName = email,
+            UserName = userName,
+            Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim(),
+            EmailConfirmed = !string.IsNullOrWhiteSpace(email),
+            DisplayName = userName,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         var create = await users.CreateAsync(user, password);
@@ -126,5 +143,20 @@ public sealed class IsolatedDataRootWebApplicationFactory
                 Thread.Sleep(50 * (attempt + 1));
             }
         }
+    }
+
+    private static string ExtractHiddenFieldValue(string html, string fieldName)
+    {
+        var nameNeedle = $"name=\"{fieldName}\"";
+        var nameIndex = html.IndexOf(nameNeedle, StringComparison.Ordinal);
+        nameIndex.Should().BeGreaterThanOrEqualTo(0, $"Setup step 2 should include hidden field {fieldName}.");
+
+        var valueNeedle = "value=\"";
+        var valueIndex = html.IndexOf(valueNeedle, nameIndex, StringComparison.Ordinal);
+        valueIndex.Should().BeGreaterThanOrEqualTo(0, $"Hidden field {fieldName} should include a value.");
+        var valueStart = valueIndex + valueNeedle.Length;
+        var valueEnd = html.IndexOf('"', valueStart);
+        valueEnd.Should().BeGreaterThan(valueStart, $"Hidden field {fieldName} should not be empty.");
+        return WebUtility.HtmlDecode(html[valueStart..valueEnd]);
     }
 }

@@ -8,10 +8,12 @@ namespace Bocchi.Generator.ThemeInputs.Models;
 public sealed record SiteInput
 {
     public required string Title { get; init; }
+    public string? DefaultTitle { get; init; }
     public string? Description { get; init; }
     public required string Language { get; init; }
     public required string TimeZone { get; init; }
     public required string BaseUrl { get; init; }
+    public string? CopyrightNotice { get; init; }
     public AuthorInfo? Author { get; init; }
     public required IReadOnlyList<SocialLink> Social { get; init; }
     public required bool EnableRss { get; init; }
@@ -143,10 +145,12 @@ public sealed record ThemeContextBuild
 public sealed record ThemeContextSite
 {
     public required string Title { get; init; }
+    public string? DefaultTitle { get; init; }
     public string? Description { get; init; }
     public required string Language { get; init; }
     public required string TimeZone { get; init; }
     public required string BaseUrl { get; init; }
+    public string? CopyrightNotice { get; init; }
 }
 
 /// <summary>Theme Contract 的站点本地化节点，表达站点语言、URL policy 与 Common i18n 文本覆盖。</summary>

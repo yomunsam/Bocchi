@@ -23,6 +23,9 @@ public sealed class BocchiDataInitializerTests
         File.Exists(temp.Layout.Workspace.FriendsFile).Should().BeTrue();
         File.Exists(temp.Layout.Workspace.ReadmeFile).Should().BeTrue();
         File.Exists(temp.Layout.Workspace.GitIgnoreFile).Should().BeTrue();
+        var siteYaml = await File.ReadAllTextAsync(temp.Layout.Workspace.SiteSettingsFile);
+        siteYaml.Should().Contain("defaultTitle: My Site");
+        siteYaml.Should().Contain("copyright: Copyright © 2026 My Site.");
     }
 
     [Fact]

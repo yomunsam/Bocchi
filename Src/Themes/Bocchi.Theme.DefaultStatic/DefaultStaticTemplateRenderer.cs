@@ -317,7 +317,7 @@ public sealed class DefaultStaticTemplateRenderer
     /// <summary>创建所有页面共享的模板模型。</summary>
     private static Dictionary<string, object?> CreatePageModel(SiteInfo site, string title, string currentPath)
     {
-        var fullTitle = string.Equals(title, "Index", StringComparison.Ordinal) ? site.Title : $"{title} · {site.Title}";
+        var fullTitle = string.Equals(title, "Index", StringComparison.Ordinal) ? site.DefaultTitle : $"{title} · {site.Title}";
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["site"] = CreateSiteModel(site),
@@ -337,9 +337,11 @@ public sealed class DefaultStaticTemplateRenderer
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["title"] = site.Title,
+            ["defaultTitle"] = site.DefaultTitle,
             ["description"] = site.DescriptionOrFallback,
             ["language"] = site.Language,
             ["baseUrl"] = site.BaseUrl,
+            ["copyrightNotice"] = site.CopyrightNotice,
             ["authorName"] = site.AuthorName,
             ["authorTimeZone"] = site.AuthorTimeZone,
             ["accentColor"] = site.AccentColor,
@@ -638,6 +640,9 @@ public sealed class DefaultStaticTemplateRenderer
         /// <summary>站点标题。</summary>
         public required string Title { get; init; }
 
+        /// <summary>首页和无专用标题页面使用的默认标题。</summary>
+        public required string DefaultTitle { get; init; }
+
         /// <summary>站点描述；缺失时会使用作者 fallback。</summary>
         public required string DescriptionOrFallback { get; init; }
 
@@ -646,6 +651,9 @@ public sealed class DefaultStaticTemplateRenderer
 
         /// <summary>站点基础 URL。</summary>
         public required string BaseUrl { get; init; }
+
+        /// <summary>前台 footer 使用的版权文案。</summary>
+        public required string CopyrightNotice { get; init; }
 
         /// <summary>作者展示名。</summary>
         public required string AuthorName { get; init; }
@@ -663,9 +671,11 @@ public sealed class DefaultStaticTemplateRenderer
         public static SiteInfo From(JsonElement context)
         {
             var title = TryGetPath(context, ["site", "title"])?.GetString() ?? "My Site";
+            var defaultTitle = TryGetPath(context, ["site", "defaultTitle"])?.GetString();
             var description = TryGetPath(context, ["site", "description"])?.GetString();
             var language = TryGetPath(context, ["site", "language"])?.GetString() ?? "zh-CN";
             var baseUrl = TryGetPath(context, ["site", "baseUrl"])?.GetString() ?? "/";
+            var copyright = TryGetPath(context, ["site", "copyrightNotice"])?.GetString();
             var author = TryGetPath(context, ["author", "displayName"])?.GetString()
                 ?? TryGetPath(context, ["author", "name"])?.GetString()
                 ?? "Anonymous";
@@ -681,9 +691,11 @@ public sealed class DefaultStaticTemplateRenderer
             return new SiteInfo
             {
                 Title = title,
+                DefaultTitle = string.IsNullOrWhiteSpace(defaultTitle) ? title : defaultTitle!,
                 DescriptionOrFallback = string.IsNullOrWhiteSpace(description) ? $"A personal site by {author}." : description!,
                 Language = language,
                 BaseUrl = baseUrl,
+                CopyrightNotice = string.IsNullOrWhiteSpace(copyright) ? $"{title} · {generatedYear}" : copyright!,
                 AuthorName = author,
                 AuthorTimeZone = timeZone,
                 AccentColor = accent,

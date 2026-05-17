@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// Dashboard 基本设置服务。它只处理后台体验设置，不修改前台 Theme Contract。
+/// Dashboard 偏好设置服务。它只处理后台体验，不管理站点基础约定。
 /// </summary>
 public sealed class DashboardSettingsService
 {
@@ -34,12 +34,10 @@ public sealed class DashboardSettingsService
         return settings;
     }
 
-    /// <summary>保存 Dashboard 基本信息与外观偏好。</summary>
-    public async Task SaveAsync(string title, string description, string appearanceMode, CancellationToken cancellationToken = default)
+    /// <summary>保存 Dashboard 明暗外观偏好。</summary>
+    public async Task SaveAsync(string appearanceMode, CancellationToken cancellationToken = default)
     {
         var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
-        settings.SiteTitle = string.IsNullOrWhiteSpace(title) ? "Bocchi" : title.Trim();
-        settings.SiteDescription = string.IsNullOrWhiteSpace(description) ? "Personal publishing workspace" : description.Trim();
         settings.AppearanceMode = NormalizeAppearance(appearanceMode);
         settings.UpdatedAt = _time.GetUtcNow();
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

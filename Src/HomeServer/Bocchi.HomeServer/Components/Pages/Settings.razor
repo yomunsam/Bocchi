@@ -2,6 +2,7 @@
 @using Bocchi.HomeServer.Data
 @using Bocchi.Workspace
 @inject DashboardSettingsService DashboardSettings
+@inject SiteProfileSettingsService SiteProfileSettings
 @inject ExternalLoginSettingsService ExternalLogins
 @inject ThemeSettingsService ThemeSettings
 @inject LocalizationSettingsService LocalizationSettings
@@ -33,12 +34,32 @@
                 <h2>Basic Info</h2>
                 <div class="bocchi-form-grid">
                     <label>
-                        Dashboard title
-                        <input type="text" @bind="_title" />
+                        Site name
+                        <input type="text" @bind="_siteName" />
+                    </label>
+                    <label>
+                        Default title
+                        <input type="text" @bind="_defaultTitle" />
+                    </label>
+                    <label>
+                        Default frontend URL
+                        <input type="text" @bind="_publicBaseUrl" />
+                    </label>
+                    <label>
+                        Default frontend Theme
+                        <input type="text" @bind="_siteDefaultThemeId" />
+                    </label>
+                    <label>
+                        Time zone
+                        <input type="text" @bind="_siteTimeZone" />
                     </label>
                     <label>
                         Description
-                        <input type="text" @bind="_description" />
+                        <input type="text" @bind="_siteDescription" />
+                    </label>
+                    <label>
+                        Copyright
+                        <input type="text" @bind="_copyrightNotice" />
                     </label>
                     <label>
                         Dashboard appearance
@@ -48,7 +69,7 @@
                             <option value="dark">Dark</option>
                         </select>
                     </label>
-                    <button type="button" @onclick="SaveDashboardAsync">Save basic info</button>
+                    <button type="button" @onclick="SaveBasicInfoAsync">Save basic info</button>
                     @if (_basicSaved)
                     {
                         <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
@@ -399,11 +420,26 @@
 </article>
 
 @code {
-    /// <summary>Basic Info 标题编辑缓冲区。</summary>
-    private string _title = "Bocchi";
+    /// <summary>站点名称编辑缓冲区。</summary>
+    private string _siteName = "Bocchi";
 
-    /// <summary>Basic Info 描述编辑缓冲区。</summary>
-    private string _description = string.Empty;
+    /// <summary>默认前台标题编辑缓冲区。</summary>
+    private string _defaultTitle = "Bocchi";
+
+    /// <summary>站点描述编辑缓冲区。</summary>
+    private string _siteDescription = string.Empty;
+
+    /// <summary>公开前台 URL 编辑缓冲区。</summary>
+    private string _publicBaseUrl = string.Empty;
+
+    /// <summary>版权文案编辑缓冲区。</summary>
+    private string _copyrightNotice = string.Empty;
+
+    /// <summary>站点基础约定中的默认前台 Theme id。</summary>
+    private string _siteDefaultThemeId = "default-static";
+
+    /// <summary>站点默认时区编辑缓冲区。</summary>
+    private string _siteTimeZone = "Asia/Shanghai";
 
     /// <summary>Dashboard 外观编辑缓冲区。</summary>
     private string _appearance = "auto";
@@ -506,9 +542,15 @@
     protected override async Task OnInitializedAsync()
     {
         var settings = await DashboardSettings.GetAsync();
-        _title = settings.SiteTitle;
-        _description = settings.SiteDescription;
         _appearance = settings.AppearanceMode;
+        var site = await SiteProfileSettings.GetAsync();
+        _siteName = site.SiteName;
+        _defaultTitle = site.DefaultTitle;
+        _siteDescription = site.Description;
+        _publicBaseUrl = site.PublicBaseUrl;
+        _copyrightNotice = site.CopyrightNotice;
+        _siteDefaultThemeId = site.DefaultThemeId;
+        _siteTimeZone = site.TimeZone;
         await LoadLocalizationAsync();
         await LoadThemeAsync();
 
@@ -534,10 +576,11 @@
         }
     }
 
-    /// <summary>保存 Dashboard 基本信息。</summary>
-    private async Task SaveDashboardAsync()
+    /// <summary>保存站点基础约定与 Dashboard 外观偏好。</summary>
+    private async Task SaveBasicInfoAsync()
     {
-        await DashboardSettings.SaveAsync(_title, _description, _appearance);
+        await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+        await DashboardSettings.SaveAsync(_appearance);
         _basicSaved = true;
     }
 
@@ -546,9 +589,24 @@
     {
         await LocalizationSettings.SaveAsync(_primaryLanguage, _enabledLanguageCodes, _customLanguages);
         await LoadLocalizationAsync();
+        await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
         _localizationSaved = true;
         _localizationMessage = I18n["settings.localization.primaryIncluded"];
     }
+
+    /// <summary>把 Settings 页缓冲区整理成 Home Server 站点基础设置保存输入。</summary>
+    private SiteProfileSettingsUpdate BuildSiteProfileUpdate()
+        => new()
+        {
+            SiteName = _siteName,
+            DefaultTitle = _defaultTitle,
+            Description = _siteDescription,
+            PublicBaseUrl = _publicBaseUrl,
+            CopyrightNotice = _copyrightNotice,
+            Language = _primaryLanguage,
+            TimeZone = _siteTimeZone,
+            DefaultThemeId = _siteDefaultThemeId,
+        };
 
     /// <summary>保存 Common i18n 覆盖；空输入会在服务层被丢弃。</summary>
     private async Task SaveCommonTextOverridesAsync()
@@ -584,6 +642,8 @@
     private async Task SaveThemeAsync()
     {
         await ThemeSettings.SaveDefaultAsync(_themeId, _themeJson);
+        _siteDefaultThemeId = _themeId;
+        await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
         await LoadThemeI18nAsync();
         _themeSaved = true;
     }

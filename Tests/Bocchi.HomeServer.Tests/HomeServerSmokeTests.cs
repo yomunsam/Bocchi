@@ -33,9 +33,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Good to see you.");
+        body.Should().Contain("Site overview");
+        body.Should().Contain("Home Server");
         body.Should().Contain("bocchi-content-feed");
-        body.Should().Contain("Site preview");
+        body.Should().Contain("Protected preview");
+        body.Should().Contain("Publishing status");
+        body.Should().NotContain("Good to see you.");
+        body.Should().NotContain("Setup complete");
         body.Should().Contain("/healthz");
     }
 
@@ -133,6 +137,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("本地化");
         body.Should().Contain("保持服务器清爽");
         body.Should().Contain("站点主要语言");
+
+        var home = await client.GetAsync("/Admin");
+        home.EnsureSuccessStatusCode();
+        body = WebUtility.HtmlDecode(await home.Content.ReadAsStringAsync());
+        body.Should().Contain("站点概览");
+        body.Should().Contain("受保护预览");
+        body.Should().NotContain("Setup 已完成");
     }
 
     [Fact]

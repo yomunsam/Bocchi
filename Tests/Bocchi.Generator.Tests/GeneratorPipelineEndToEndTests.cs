@@ -139,10 +139,15 @@ public sealed class GeneratorPipelineEndToEndTests
         doc.RootElement.GetProperty("contractVersion").GetString().Should().Be("1.0");
         doc.RootElement.GetProperty("generatedAt").ValueKind.Should().Be(JsonValueKind.String);
         doc.RootElement.GetProperty("data").ValueKind.Should().Be(JsonValueKind.Object);
+        doc.RootElement.GetProperty("data").GetProperty("defaultTitle").GetString().Should().Be("My Site");
+        doc.RootElement.GetProperty("data").GetProperty("copyrightNotice").GetString().Should().Be("Copyright © 2026 My Site.");
 
         var contextJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
         using var contextDoc = JsonDocument.Parse(contextJson);
         contextDoc.RootElement.GetProperty("$schema").GetString().Should().Be("https://bocchi.local/schema/v1/theme-context.json");
+        contextDoc.RootElement.GetProperty("data").GetProperty("site").GetProperty("defaultTitle").GetString().Should().Be("My Site");
+        contextDoc.RootElement.GetProperty("data").GetProperty("site").GetProperty("copyrightNotice").GetString()
+            .Should().Be("Copyright © 2026 My Site.");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("id").GetString().Should().Be("default-static");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
             .GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#E85D3A");

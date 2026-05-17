@@ -153,10 +153,12 @@ public sealed class ThemeInputWriter
             Site = new ThemeContextSite
             {
                 Title = settings.Title,
+                DefaultTitle = settings.DefaultTitle,
                 Description = settings.Description,
                 Language = settings.Language,
                 TimeZone = settings.TimeZone,
                 BaseUrl = graph.Site.NormalizedBaseUrl.AbsoluteUri,
+                CopyrightNotice = settings.CopyrightNotice,
             },
             Localization = MapLocalization(settings, localization),
             Author = new ThemeContextAuthor
@@ -361,10 +363,12 @@ public sealed class ThemeInputWriter
     private static SiteInput MapSite(GraphSite site) => new()
     {
         Title = site.Settings.Title,
+        DefaultTitle = site.Settings.DefaultTitle,
         Description = site.Settings.Description,
         Language = site.Settings.Language,
         TimeZone = site.Settings.TimeZone,
         BaseUrl = site.NormalizedBaseUrl.AbsoluteUri,
+        CopyrightNotice = site.Settings.CopyrightNotice,
         Author = site.Settings.Author,
         Social = site.Settings.Social,
         EnableRss = site.Settings.EnableRss,

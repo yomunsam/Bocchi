@@ -125,10 +125,12 @@ public sealed class BocchiDataInitializer
     private const string DefaultSiteSettingsYaml = """
         # 站点设置。详见 Docs/Architecture.md §4.6。
         title: My Site
+        defaultTitle: My Site
         description: ""
         language: zh-CN
         timeZone: Asia/Shanghai
-        baseUrl: https://example.com/
+        baseUrl: ""
+        copyright: Copyright © 2026 My Site.
 
         author:
           name: Anonymous

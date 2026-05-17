@@ -55,6 +55,7 @@ public static class SiteSettingsLoader
                 "site.yaml 必须包含 title。"));
         }
 
+        var defaultTitle = YamlAccess.GetString(mapping, "defaultTitle");
         var description = YamlAccess.GetString(mapping, "description");
         var language = YamlAccess.GetString(mapping, "language") ?? "zh-CN";
         var timeZone = YamlAccess.GetString(mapping, "timeZone") ?? "Asia/Shanghai";
@@ -63,10 +64,7 @@ public static class SiteSettingsLoader
         var baseUrlRaw = YamlAccess.GetString(mapping, "baseUrl");
         if (string.IsNullOrWhiteSpace(baseUrlRaw))
         {
-            errors.Add(new ContentValidationError(
-                siteLocation.RelativePath, ContentKind.SiteSettings, "baseUrl",
-                ContentErrorSeverity.Error, "SITE_MISSING_BASEURL",
-                "site.yaml 必须包含 baseUrl。"));
+            baseUrl = new Uri("http://localhost/");
         }
         else if (!Uri.TryCreate(baseUrlRaw, UriKind.Absolute, out baseUrl))
         {
@@ -79,6 +77,7 @@ public static class SiteSettingsLoader
         var author = ParseAuthor(mapping);
         var social = ParseSocial(mapping);
         var navigation = ParseNavigationFromMapping(mapping);
+        var copyrightNotice = YamlAccess.GetString(mapping, "copyright");
 
         if (navigationYaml is not null && navigationLocation is not null)
         {
@@ -109,10 +108,12 @@ public static class SiteSettingsLoader
         var settings = new SiteSettings
         {
             Title = title!,
+            DefaultTitle = defaultTitle,
             Description = description,
             Language = language,
             TimeZone = timeZone,
             BaseUrl = baseUrl!,
+            CopyrightNotice = copyrightNotice,
             Author = author,
             Social = social,
             Navigation = navigation,

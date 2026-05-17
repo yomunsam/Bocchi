@@ -125,7 +125,7 @@ public sealed class LoaderTests
     }
 
     [Fact]
-    public void SiteSettingsLoader_RequiresTitleAndBaseUrl()
+    public void SiteSettingsLoader_RequiresTitleAndFallsBackWhenBaseUrlIsMissing()
     {
         var yaml = "language: en\n";
 
@@ -133,7 +133,22 @@ public sealed class LoaderTests
 
         result.Document.Should().BeNull();
         result.Errors.Should().Contain(e => e.Code == "SITE_MISSING_TITLE");
-        result.Errors.Should().Contain(e => e.Code == "SITE_MISSING_BASEURL");
+        result.Errors.Should().NotContain(e => e.Code == "SITE_MISSING_BASEURL");
+    }
+
+    [Fact]
+    public void SiteSettingsLoader_UsesLocalhostFallbackWhenBaseUrlIsBlank()
+    {
+        var yaml = """
+            title: Demo
+            baseUrl: ""
+            """;
+
+        var result = SiteSettingsLoader.Load(Loc("site/site.yaml"), yaml, null, null);
+
+        result.Errors.Should().BeEmpty();
+        result.Document.Should().NotBeNull();
+        result.Document!.BaseUrl.Should().Be(new Uri("http://localhost/"));
     }
 
     [Fact]
@@ -141,7 +156,9 @@ public sealed class LoaderTests
     {
         var siteYaml = """
             title: Demo
+            defaultTitle: Demo Default
             baseUrl: https://demo.example/
+            copyright: Copyright © 2026 Demo.
             navigation:
               - title: A
                 href: /a
@@ -159,6 +176,8 @@ public sealed class LoaderTests
             Loc("site/navigation.yaml"), navYaml);
 
         result.Errors.Should().BeEmpty();
+        result.Document!.DefaultTitle.Should().Be("Demo Default");
+        result.Document.CopyrightNotice.Should().Be("Copyright © 2026 Demo.");
         result.Document!.Navigation.Should().HaveCount(2);
         result.Document.Navigation[0].Title.Should().Be("B");
     }

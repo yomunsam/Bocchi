@@ -24,6 +24,108 @@ public sealed class AccountAndSetupTests
         admin.EnsureSuccessStatusCode();
         setup.StatusCode.Should().Be(HttpStatusCode.Redirect);
         setup.Headers.Location!.ToString().Should().Be("/Admin");
+
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<BocchiUser>>();
+        var user = await users.FindByNameAsync(IsolatedDataRootWebApplicationFactory.AdminUserName);
+        user.Should().NotBeNull();
+        user!.Email.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SetupPost_SavesSiteProfileAndWorkspaceProjection()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
+        var site = db.SiteProfileSettings.Single();
+        site.SiteName.Should().Be("Bocchi Test Site");
+        site.DefaultTitle.Should().Be("Bocchi Test");
+        site.PublicBaseUrl.Should().Be("https://bocchi.example/");
+        site.CopyrightNotice.Should().Be("Copyright © 2026 Bocchi Test.");
+
+        var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
+        var yaml = await File.ReadAllTextAsync(layout.Workspace.SiteSettingsFile);
+        yaml.Should().Contain("title: Bocchi Test Site");
+        yaml.Should().Contain("defaultTitle: Bocchi Test");
+        yaml.Should().Contain("baseUrl: https://bocchi.example/");
+        yaml.Should().Contain("copyright: Copyright © 2026 Bocchi Test.");
+    }
+
+    [Fact]
+    public async Task SetupFlow_RendersAdminAndSiteBasicsAsSeparatePages()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var adminStep = await client.GetAsync("/Setup");
+        adminStep.EnsureSuccessStatusCode();
+        var adminBody = await adminStep.Content.ReadAsStringAsync();
+        adminBody.Should().Contain("name=\"username\"");
+        adminBody.Should().Contain("name=\"email\"");
+        adminBody.Should().NotContain("name=\"siteName\"");
+
+        var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["displayName"] = "Bocchi Admin",
+            ["email"] = string.Empty,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+            ["confirmPassword"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+        siteStep.EnsureSuccessStatusCode();
+        var siteBody = await siteStep.Content.ReadAsStringAsync();
+        siteBody.Should().Contain("name=\"setupPayload\"");
+        siteBody.Should().Contain("name=\"siteName\"");
+        siteBody.Should().Contain("<select name=\"defaultThemeId\"");
+        siteBody.Should().Contain("placeholder=\"https://domain.com/\"");
+        siteBody.Should().NotContain("name=\"publicBaseUrl\" type=\"url\" value=\"\" placeholder=\"https://domain.com/\" required");
+        siteBody.Should().Contain("name=\"description\" type=\"text\" value=\"\"");
+        siteBody.Should().Contain("Finish initialization");
+        siteBody.Should().NotContain("workspace/site/site.yaml");
+        siteBody.Should().NotContain("http://127.0.0.1");
+        siteBody.Should().NotContain("name=\"password\"");
+    }
+
+    [Fact]
+    public async Task SetupComplete_AllowsBlankPublicBaseUrl()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["displayName"] = "Bocchi Admin",
+            ["email"] = string.Empty,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+            ["confirmPassword"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+        siteStep.EnsureSuccessStatusCode();
+        var siteBody = await siteStep.Content.ReadAsStringAsync();
+        var setupPayload = ExtractHiddenFieldValue(siteBody, "setupPayload");
+
+        var completed = await client.PostAsync("/Setup/Complete", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["setupPayload"] = setupPayload,
+            ["siteName"] = "Blank URL Site",
+            ["defaultTitle"] = "Blank URL Site",
+            ["description"] = string.Empty,
+            ["publicBaseUrl"] = string.Empty,
+            ["copyrightNotice"] = "Copyright © 2026 Blank URL Site.",
+            ["defaultThemeId"] = "default-static",
+        }));
+
+        completed.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        completed.Headers.Location!.ToString().Should().Be("/Admin");
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
+        db.SiteProfileSettings.Single().PublicBaseUrl.Should().BeEmpty();
     }
 
     [Fact]
@@ -33,12 +135,12 @@ public sealed class AccountAndSetupTests
         using (await factory.CreateAdminClientAsync())
         {
         }
-        await factory.CreateLocalUserAsync("reader@example.test", "reader-password", isAdmin: false);
+        await factory.CreateLocalUserAsync("reader", "reader-password", isAdmin: false);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["email"] = "reader@example.test",
+            ["username"] = "reader",
             ["password"] = "reader-password",
         }));
         var admin = await client.GetAsync("/Admin");
@@ -132,5 +234,20 @@ public sealed class AccountAndSetupTests
             && x.Values["en-US"] == "Powered quietly");
         var snapshot = await settings.GetBuildI18nTextOverridesAsync("default-static");
         snapshot["theme.defaultStatic.colophonBuiltWith"]["en-US"].Should().Be("Powered quietly");
+    }
+
+    private static string ExtractHiddenFieldValue(string html, string fieldName)
+    {
+        var nameNeedle = $"name=\"{fieldName}\"";
+        var nameIndex = html.IndexOf(nameNeedle, StringComparison.Ordinal);
+        nameIndex.Should().BeGreaterThanOrEqualTo(0, $"Setup step 2 should include hidden field {fieldName}.");
+
+        var valueNeedle = "value=\"";
+        var valueIndex = html.IndexOf(valueNeedle, nameIndex, StringComparison.Ordinal);
+        valueIndex.Should().BeGreaterThanOrEqualTo(0, $"Hidden field {fieldName} should include a value.");
+        var valueStart = valueIndex + valueNeedle.Length;
+        var valueEnd = html.IndexOf('"', valueStart);
+        valueEnd.Should().BeGreaterThan(valueStart, $"Hidden field {fieldName} should not be empty.");
+        return WebUtility.HtmlDecode(html[valueStart..valueEnd]);
     }
 }

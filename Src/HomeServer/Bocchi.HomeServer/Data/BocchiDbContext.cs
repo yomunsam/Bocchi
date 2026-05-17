@@ -21,6 +21,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>Dashboard 自身设置。</summary>
     public DbSet<DashboardSettings> DashboardSettings => Set<DashboardSettings>();
 
+    /// <summary>Home Server 权威的站点基础约定。</summary>
+    public DbSet<SiteProfileSettings> SiteProfileSettings => Set<SiteProfileSettings>();
+
     /// <summary>第三方登录 Provider 设置。</summary>
     public DbSet<ExternalLoginProviderSettings> ExternalLoginProviders => Set<ExternalLoginProviderSettings>();
 
@@ -55,9 +58,21 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
         {
             entity.ToTable("DashboardSettings");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.SiteTitle).HasMaxLength(160).IsRequired();
-            entity.Property(x => x.SiteDescription).HasMaxLength(512).IsRequired();
             entity.Property(x => x.AppearanceMode).HasMaxLength(16).IsRequired();
+        });
+
+        builder.Entity<SiteProfileSettings>(entity =>
+        {
+            entity.ToTable("SiteProfileSettings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SiteName).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.DefaultTitle).HasMaxLength(220).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.PublicBaseUrl).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.CopyrightNotice).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.Language).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.TimeZone).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.DefaultThemeId).HasMaxLength(160).IsRequired();
         });
 
         builder.Entity<ExternalLoginProviderSettings>(entity =>

@@ -16,6 +16,7 @@ public sealed class HomeServerSetupService
     private readonly RoleManager<IdentityRole> _roles;
     private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
+    private readonly SiteProfileSettingsService _siteProfile;
 
     /// <summary>构造 Setup 服务。</summary>
     public HomeServerSetupService(
@@ -23,13 +24,15 @@ public sealed class HomeServerSetupService
         UserManager<BocchiUser> users,
         RoleManager<IdentityRole> roles,
         BocchiDataLayout layout,
-        TimeProvider time)
+        TimeProvider time,
+        SiteProfileSettingsService siteProfile)
     {
         _db = db;
         _users = users;
         _roles = roles;
         _layout = layout;
         _time = time;
+        _siteProfile = siteProfile;
     }
 
     /// <summary>应用 EF Core 迁移并确保基础种子数据存在。</summary>
@@ -39,6 +42,7 @@ public sealed class HomeServerSetupService
         await _db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
         await EnsureAdminRoleAsync().ConfigureAwait(false);
         await EnsureDashboardSettingsAsync(cancellationToken).ConfigureAwait(false);
+        await _siteProfile.EnsureAsync(cancellationToken).ConfigureAwait(false);
         await EnsureLocalizationSettingsAsync(cancellationToken).ConfigureAwait(false);
         await EnsureExternalProviderDefaultsAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -65,12 +69,22 @@ public sealed class HomeServerSetupService
 
     /// <summary>创建第一个 Admin 用户并写入 SetupState。</summary>
     public async Task<IdentityResult> CreateFirstAdminAsync(
-        string email,
+        string userName,
         string password,
         string? displayName,
         CancellationToken cancellationToken = default)
+        => await CreateFirstAdminAsync(userName, password, displayName, null, null, cancellationToken).ConfigureAwait(false);
+
+    /// <summary>创建第一个 Admin 用户、写入站点基础约定并完成 SetupState。</summary>
+    public async Task<IdentityResult> CreateFirstAdminAsync(
+        string userName,
+        string password,
+        string? displayName,
+        string? email,
+        SiteProfileSettingsUpdate? siteProfile,
+        CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userName);
         ArgumentException.ThrowIfNullOrWhiteSpace(password);
 
         await EnsureDatabaseAsync(cancellationToken).ConfigureAwait(false);
@@ -83,13 +97,24 @@ public sealed class HomeServerSetupService
             });
         }
 
+        if (siteProfile is not null)
+        {
+            await _siteProfile.SaveAsync(siteProfile, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await _siteProfile.EnsureAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         var now = _time.GetUtcNow();
+        var normalizedEmail = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+        var normalizedUserName = userName.Trim();
         var user = new BocchiUser
         {
-            UserName = email,
-            Email = email,
-            EmailConfirmed = true,
-            DisplayName = string.IsNullOrWhiteSpace(displayName) ? email : displayName.Trim(),
+            UserName = normalizedUserName,
+            Email = normalizedEmail,
+            EmailConfirmed = !string.IsNullOrWhiteSpace(normalizedEmail),
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? normalizedUserName : displayName.Trim(),
             CreatedAt = now,
             LastLoginAt = now,
         };

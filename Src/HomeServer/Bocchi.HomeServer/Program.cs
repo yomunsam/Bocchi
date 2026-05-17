@@ -36,6 +36,7 @@ try
     Log.Information("Starting Bocchi Home Server");
 
     var builder = WebApplication.CreateBuilder(args);
+    ApplyDevelopmentDataRootDefault(builder);
 
     // DataRoot 必须先注册：数据库、日志和内容 workspace 路径都从这里统一解析。
     var dataRootBasePath = ResolveDataRootBase(builder.Environment);
@@ -58,7 +59,7 @@ try
             options.Password.RequireLowercase = false;
             options.Password.RequireUppercase = false;
             options.Password.RequireNonAlphanumeric = false;
-            options.User.RequireUniqueEmail = true;
+            options.User.RequireUniqueEmail = false;
         })
         .AddEntityFrameworkStores<BocchiDbContext>()
         .AddDefaultTokenProviders();
@@ -80,6 +81,7 @@ try
     builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
     builder.Services.AddScoped<HomeServerSetupService>();
     builder.Services.AddScoped<DashboardSettingsService>();
+    builder.Services.AddScoped<SiteProfileSettingsService>();
     builder.Services.AddScoped<ExternalLoginSettingsService>();
     builder.Services.AddScoped<ThemeSettingsService>();
     builder.Services.AddScoped<LocalizationSettingsService>();
@@ -218,7 +220,22 @@ finally
     Log.CloseAndFlush();
 }
 
-/// <summary>解析默认 DataRoot 的基准路径：开发期贴近项目目录，发布后贴近程序目录。</summary>
+/// <summary>开发期默认 DataRoot 避开源码目录，避免 macOS/Windows 大小写不敏感文件系统把 <c>data/</c> 合并进 <c>Data/</c>。</summary>
+static void ApplyDevelopmentDataRootDefault(WebApplicationBuilder builder)
+{
+    var key = $"{BocchiDataOptions.SectionName}:DataRoot";
+    if (!builder.Environment.IsDevelopment() || !string.IsNullOrWhiteSpace(builder.Configuration[key]))
+    {
+        return;
+    }
+
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        [key] = ".bocchi-dev-data",
+    });
+}
+
+/// <summary>解析相对 DataRoot 的基准路径：开发期贴近项目目录，发布后贴近程序目录。</summary>
 static string ResolveDataRootBase(IHostEnvironment environment)
     => environment.IsDevelopment() ? environment.ContentRootPath : AppContext.BaseDirectory;
 

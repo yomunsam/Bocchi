@@ -18,9 +18,10 @@
             <h2 id="users-heading">People</h2>
             @foreach (var user in _users)
             {
-                <BocchiListRow Kicker="@(user.IsAdmin ? "Admin" : "No Dashboard access")" Title="@(user.DisplayName ?? user.Email ?? user.Id)">
+                <BocchiListRow Kicker="@(user.IsAdmin ? "Admin" : "No Dashboard access")" Title="@(user.DisplayName ?? user.UserName ?? user.Id)">
                     <ChildContent>
-                        <p>@user.Email</p>
+                        <p>Username: @user.UserName</p>
+                        <p>Email: @(string.IsNullOrWhiteSpace(user.Email) ? "Not set" : user.Email)</p>
                         @if (user.ExternalLogins.Count == 0)
                         {
                             <p>No external login bound.</p>
@@ -56,8 +57,9 @@
         <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="create-user-heading">
             <h2 id="create-user-heading">Create user</h2>
             <div class="bocchi-form-grid">
-                <label>Email<input type="email" @bind="_newEmail" /></label>
+                <label>Username<input type="text" @bind="_newUserName" /></label>
                 <label>Display name<input type="text" @bind="_newDisplayName" /></label>
+                <label>Email (optional)<input type="email" @bind="_newEmail" /></label>
                 <label>Password<input type="password" @bind="_newPassword" /></label>
                 <label class="bocchi-checkbox"><input type="checkbox" @bind="_newIsAdmin" />Admin</label>
                 <button type="button" @onclick="CreateUserAsync">Create</button>
@@ -74,7 +76,10 @@
     /// <summary>用户列表投影，包含角色信息，避免组件里重复查 Identity。</summary>
     private IReadOnlyList<UserRow> _users = [];
 
-    /// <summary>新用户 email。</summary>
+    /// <summary>新用户 username，作为本地登录主标识。</summary>
+    private string _newUserName = string.Empty;
+
+    /// <summary>新用户可选 email。</summary>
     private string _newEmail = string.Empty;
 
     /// <summary>新用户显示名。</summary>
@@ -102,18 +107,20 @@
     /// <summary>创建本地用户；Admin 角色必须显式勾选。</summary>
     private async Task CreateUserAsync()
     {
-        if (string.IsNullOrWhiteSpace(_newEmail) || string.IsNullOrWhiteSpace(_newPassword))
+        if (string.IsNullOrWhiteSpace(_newUserName) || string.IsNullOrWhiteSpace(_newPassword))
         {
-            _message = "Email and password are required.";
+            _message = "Username and password are required.";
             return;
         }
 
+        var userName = _newUserName.Trim();
+        var email = string.IsNullOrWhiteSpace(_newEmail) ? null : _newEmail.Trim();
         var user = new BocchiUser
         {
-            UserName = _newEmail.Trim(),
-            Email = _newEmail.Trim(),
-            EmailConfirmed = true,
-            DisplayName = string.IsNullOrWhiteSpace(_newDisplayName) ? _newEmail.Trim() : _newDisplayName.Trim(),
+            UserName = userName,
+            Email = email,
+            EmailConfirmed = email is not null,
+            DisplayName = string.IsNullOrWhiteSpace(_newDisplayName) ? userName : _newDisplayName.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
         };
 
@@ -128,6 +135,7 @@
             : string.Join("; ", result.Errors.Select(x => x.Description));
         if (result.Succeeded)
         {
+            _newUserName = string.Empty;
             _newEmail = string.Empty;
             _newDisplayName = string.Empty;
             _newPassword = string.Empty;
@@ -213,12 +221,13 @@
     private async Task RefreshAsync()
     {
         var list = new List<UserRow>();
-        foreach (var user in UsersService.Users.OrderBy(x => x.Email).ToList())
+        foreach (var user in UsersService.Users.OrderBy(x => x.UserName).ToList())
         {
             var roles = await UsersService.GetRolesAsync(user);
             var logins = await UsersService.GetLoginsAsync(user);
             list.Add(new UserRow(
                 user.Id,
+                user.UserName,
                 user.Email,
                 user.DisplayName,
                 user.CreatedAt,
@@ -246,6 +255,7 @@
     /// <summary>用户列表行投影。</summary>
     private sealed record UserRow(
         string Id,
+        string? UserName,
         string? Email,
         string? DisplayName,
         DateTimeOffset CreatedAt,
