@@ -15,7 +15,7 @@ public sealed class SetupState
     public string FirstAdminUserId { get; set; } = string.Empty;
 
     /// <summary>Setup 时确认的工作区根目录。</summary>
-    public string WorkspaceRoot { get; set; } = string.Empty;
+    public string DataRoot { get; set; } = string.Empty;
 
     /// <summary>Setup 写入时使用的应用 schema 版本。</summary>
     public int SchemaVersion { get; set; } = 1;

@@ -739,8 +739,10 @@ h1:focus {
 .bocchi-form-grid input[type="text"],
 .bocchi-form-grid input[type="email"],
 .bocchi-form-grid input[type="password"],
+.bocchi-form-grid input[type="search"],
 .bocchi-form-grid select,
 .bocchi-custom-language-form input[type="text"],
+.bocchi-common-i18n-row input[type="text"],
 .bocchi-auth-card input[type="text"],
 .bocchi-auth-card input[type="email"],
 .bocchi-auth-card input[type="password"],
@@ -884,6 +886,7 @@ h1:focus {
 
 .bocchi-localization-card {
     display: grid;
+    align-content: start;
     gap: 0.65rem;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
@@ -909,10 +912,20 @@ h1:focus {
 .bocchi-language-list {
     display: grid;
     gap: 0.5rem;
+    max-height: 18rem;
+    overflow: auto;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface-soft);
     padding: 0.75rem;
+}
+
+.bocchi-language-search {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
 }
 
 .bocchi-language-option {
@@ -954,6 +967,13 @@ h1:focus {
     gap: 0.55rem;
 }
 
+.bocchi-language-chip-list--selected {
+    border: 1px dashed var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 86%, var(--bocchi-surface-soft));
+    padding: 0.65rem;
+}
+
 .bocchi-language-chip {
     display: inline-flex;
     min-height: 2.4rem;
@@ -971,6 +991,65 @@ h1:focus {
 .bocchi-language-chip button {
     min-height: 1.9rem;
     padding: 0 0.55rem;
+}
+
+.bocchi-localization-message {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-common-i18n-list {
+    display: grid;
+    gap: 0.65rem;
+    max-height: 26rem;
+    overflow: auto;
+}
+
+.bocchi-common-i18n-row {
+    display: grid;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.75rem;
+}
+
+.bocchi-common-i18n-row__inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.65rem;
+}
+
+.bocchi-common-i18n-row label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.bocchi-theme-i18n {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.bocchi-theme-i18n-key {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.bocchi-theme-i18n-key strong {
+    color: var(--bocchi-text);
+}
+
+.bocchi-theme-i18n-key small {
+    color: var(--bocchi-text-muted);
+    line-height: 1.45;
 }
 
 .bocchi-provider-grid {

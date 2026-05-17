@@ -1,7 +1,7 @@
 namespace Bocchi.GeneratorContract;
 
 /// <summary>
-/// 构建上下文，对应 <c>.bocchi/input/build-context.json</c>，参见 <c>Docs/Architecture.md §7.3</c>。
+/// 构建上下文，对应 <c>../../cache/theme-input/build-context.json</c>，参见 <c>Docs/Architecture.md §7.3</c>。
 /// </summary>
 public sealed record BuildContext
 {

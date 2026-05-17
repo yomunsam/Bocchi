@@ -48,7 +48,7 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.ToTable("HomeServerSetupStates");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.FirstAdminUserId).HasMaxLength(450).IsRequired();
-            entity.Property(x => x.WorkspaceRoot).HasMaxLength(2048).IsRequired();
+            entity.Property(x => x.DataRoot).HasMaxLength(2048).IsRequired();
         });
 
         builder.Entity<DashboardSettings>(entity =>
@@ -84,6 +84,7 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.HasIndex(x => x.ThemeId).IsUnique();
             entity.Property(x => x.ThemeId).HasMaxLength(160).IsRequired();
             entity.Property(x => x.ConfigurationJson).IsRequired();
+            entity.Property(x => x.I18nTextOverridesJson).IsRequired();
         });
 
         builder.Entity<LocalizationSettingsRecord>(entity =>
@@ -93,6 +94,7 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.PrimaryLanguage).HasMaxLength(32).IsRequired();
             entity.Property(x => x.EnabledLanguagesJson).IsRequired();
             entity.Property(x => x.CustomLanguagesJson).IsRequired();
+            entity.Property(x => x.CommonTextOverridesJson).IsRequired();
             entity.Property(x => x.UrlPolicy).HasMaxLength(64).IsRequired();
         });
     }

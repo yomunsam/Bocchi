@@ -3,7 +3,7 @@ using Bocchi.Workspace.Scanning;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
-/// <summary>使用 <see cref="ContentScanner"/> 扫描内容空间，填 <see cref="BuildSession.Scan"/>。</summary>
+/// <summary>使用 <see cref="ContentScanner"/> 扫描内容 workspace，填 <see cref="BuildSession.Scan"/>。</summary>
 public sealed class LoadContentStage : IBuildStage
 {
     private readonly ContentScanner _scanner;

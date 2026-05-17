@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace Bocchi.Workspace.Scanning;
 
 /// <summary>
-/// 内容扫描器：枚举内容空间，调用各 Loader，把结果写入 <see cref="IContentStateStore"/>，并产出 <see cref="ScanResult"/>。
+/// 内容扫描器：枚举内容 workspace，调用各 Loader，把结果写入 <see cref="IContentStateStore"/>，并产出 <see cref="ScanResult"/>。
 /// </summary>
 public sealed partial class ContentScanner
 {
@@ -22,7 +22,7 @@ public sealed partial class ContentScanner
         ".webp", ".thumb.jpg", ".thumb.png", ".preview.jpg", ".preview.png",
     ];
 
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
     private readonly IContentStateStore _store;
     private readonly IContentRepository _repository;
     private readonly PostLoader _postLoader;
@@ -33,7 +33,7 @@ public sealed partial class ContentScanner
     private readonly ILogger<ContentScanner> _logger;
 
     public ContentScanner(
-        WorkspaceLayout layout,
+        BocchiDataLayout layout,
         IContentStateStore store,
         IContentRepository repository,
         PostLoader postLoader,
@@ -90,7 +90,7 @@ public sealed partial class ContentScanner
         SiteSettings? siteSettings = null;
         var filesScanned = 0;
 
-        var cs = _layout.ContentSpace;
+        var cs = _layout.Workspace;
 
         try
         {
@@ -242,7 +242,7 @@ public sealed partial class ContentScanner
     }
 
     private async Task<(SiteSettings? Settings, IReadOnlyList<ContentValidationError> Errors, int Files)>
-        LoadSiteSettingsAsync(ContentSpaceLayout cs, CancellationToken ct)
+        LoadSiteSettingsAsync(WorkspaceLayout cs, CancellationToken ct)
     {
         if (!File.Exists(cs.SiteSettingsFile))
         {
@@ -292,7 +292,7 @@ public sealed partial class ContentScanner
             return 0;
         }
 
-        var cs = _layout.ContentSpace;
+        var cs = _layout.Workspace;
         var fileCount = 0;
         foreach (var yearDir in Directory.EnumerateDirectories(root))
         {
@@ -336,7 +336,7 @@ public sealed partial class ContentScanner
             return 0;
         }
 
-        var cs = _layout.ContentSpace;
+        var cs = _layout.Workspace;
         var fileCount = 0;
         foreach (var entryDir in Directory.EnumerateDirectories(root))
         {
@@ -356,7 +356,7 @@ public sealed partial class ContentScanner
     }
 
     private async Task<int> ScanNotesDirectoryAsync(
-        ContentSpaceLayout cs,
+        WorkspaceLayout cs,
         TimeSpan fallbackOffset,
         List<ContentValidationError> errors,
         Func<string, string, ContentLocation, NoteDocument?, IReadOnlyList<ContentValidationError>, Task> handle,
@@ -457,7 +457,7 @@ public sealed partial class ContentScanner
                     warnings.Add(new ContentValidationError(
                         location.RelativePath, null, "assets",
                         ContentErrorSeverity.Warning, "SUSPICIOUS_DERIVATIVE",
-                        $"assets 中疑似派生产物（应由构建系统生成，不入内容空间）：{Path.GetRelativePath(dir, asset)}"));
+                        $"assets 中疑似派生产物（应由构建系统生成，不入内容 workspace）：{Path.GetRelativePath(dir, asset)}"));
                     break;
                 }
             }
@@ -532,6 +532,6 @@ public sealed partial class ContentScanner
     private static partial Regex YearRegex();
 
     [LoggerMessage(EventId = 2001, Level = LogLevel.Warning,
-        Message = "无法读取内容空间 Git 状态，将忽略 Git 信息继续扫描。")]
+        Message = "无法读取内容 workspace Git 状态，将忽略 Git 信息继续扫描。")]
     private static partial void LogGitStatusFailed(ILogger logger, Exception exception);
 }

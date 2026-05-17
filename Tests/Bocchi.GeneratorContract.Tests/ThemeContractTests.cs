@@ -23,7 +23,7 @@ public sealed class ThemeContractTests
 
         manifest.Id.Should().Be("default-svelte");
         manifest.ContractVersion.Should().Be("1.0");
-        manifest.InputDir.Should().Be(".bocchi/input");
+        manifest.InputDir.Should().Be("../../cache/theme-input");
         manifest.OutputDir.Should().Be("build");
         manifest.Features.Posts.Should().BeTrue();
         manifest.Features.Photos.Should().BeFalse();
@@ -49,6 +49,43 @@ public sealed class ThemeContractTests
         manifest.Runner!.Kind.Should().Be("builtin-template");
         manifest.Runner.Entry.Should().Be("fluid");
         manifest.Build.Should().BeNull();
+    }
+
+    [Fact]
+    public void ThemeManifest_SupportsPrivateI18nKeyDeclarations()
+    {
+        var manifest = new ThemeManifest
+        {
+            Id = "default-static",
+            Name = "Bocchi Mono",
+            Version = "0.1.0",
+            ContractVersion = ThemeContractVersion.V1,
+            I18n = new ThemeI18nManifest
+            {
+                SupportedLanguages = ["en-US", "zh-CN"],
+                DefaultLanguage = "en-US",
+                Keys =
+                [
+                    new ThemeI18nKeyManifest
+                    {
+                        Key = "theme.defaultStatic.colophonBuiltWith",
+                        Title = "Colophon built-with text",
+                        Description = "Footer text used by Bocchi Mono.",
+                        DefaultValues = new Dictionary<string, string>
+                        {
+                            ["en-US"] = "Built with Bocchi.",
+                            ["zh-CN"] = "由 Bocchi 构建。",
+                        },
+                    },
+                ],
+            },
+        };
+
+        manifest.I18n.Should().NotBeNull();
+        manifest.I18n!.SupportedLanguages.Should().Contain(["en-US", "zh-CN"]);
+        manifest.I18n.Keys.Should().ContainSingle(key =>
+            key.Key == "theme.defaultStatic.colophonBuiltWith"
+            && key.DefaultValues["zh-CN"] == "由 Bocchi 构建。");
     }
 
     [Fact]

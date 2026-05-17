@@ -103,7 +103,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     CompletedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     FirstAdminUserId = table.Column<string>(type: "TEXT", maxLength: 450, nullable: false),
-                    WorkspaceRoot = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
+                    DataRoot = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
                     SchemaVersion = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>

@@ -7,11 +7,11 @@ public sealed class LibGit2ContentRepositoryTests
     [Fact]
     public async Task Initialize_StatusAndCommit_HappyPath()
     {
-        using var temp = new TempWorkspace();
-        var initializer = new WorkspaceInitializer(temp.Layout);
+        using var temp = new TempDataRoot();
+        var initializer = new BocchiDataInitializer(temp.Layout);
         await initializer.InitializeAsync();
 
-        var repo = new LibGit2ContentRepository(temp.Layout.ContentSpace);
+        var repo = new LibGit2ContentRepository(temp.Layout.Workspace);
         repo.IsRepository.Should().BeFalse();
 
         await repo.InitializeAsync();
@@ -33,9 +33,9 @@ public sealed class LibGit2ContentRepositoryTests
     [Fact]
     public async Task CommitAll_ReturnsNullWhenNothingChanged()
     {
-        using var temp = new TempWorkspace();
-        await new WorkspaceInitializer(temp.Layout).InitializeAsync();
-        var repo = new LibGit2ContentRepository(temp.Layout.ContentSpace);
+        using var temp = new TempDataRoot();
+        await new BocchiDataInitializer(temp.Layout).InitializeAsync();
+        var repo = new LibGit2ContentRepository(temp.Layout.Workspace);
         await repo.InitializeAsync();
         var author = new ContentRepositoryAuthor("test", "t@example.com");
         await repo.CommitAllAsync("init", author);

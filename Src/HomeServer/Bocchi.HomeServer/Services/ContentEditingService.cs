@@ -4,21 +4,21 @@ using Bocchi.Workspace.Content;
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// Admin Markdown 编辑服务。它只读写内容空间文件，不把正文复制进 Home Server 数据库。
+/// Admin Markdown 编辑服务。它只读写内容 workspace 文件，不把正文复制进 Home Server 数据库。
 /// </summary>
 public sealed class ContentEditingService
 {
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
     private readonly MarkdownPipeline _markdown;
 
     /// <summary>构造内容编辑服务。</summary>
-    public ContentEditingService(WorkspaceLayout layout, MarkdownPipeline markdown)
+    public ContentEditingService(BocchiDataLayout layout, MarkdownPipeline markdown)
     {
         _layout = layout;
         _markdown = markdown;
     }
 
-    /// <summary>读取一个内容空间内的 Markdown/YAML 文件。</summary>
+    /// <summary>读取一个内容 workspace 内的 Markdown/YAML 文件。</summary>
     public async Task<EditableContentFile> ReadAsync(string relativePath, CancellationToken cancellationToken = default)
     {
         var fullPath = ResolveContentFile(relativePath);
@@ -57,11 +57,11 @@ public sealed class ContentEditingService
             throw new InvalidOperationException("内容路径不能包含上级目录跳转。");
         }
 
-        var root = Path.GetFullPath(_layout.ContentSpaceRoot);
+        var root = Path.GetFullPath(_layout.WorkspaceRoot);
         var fullPath = Path.GetFullPath(Path.Combine(root, normalized));
         if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("内容路径必须位于内容空间内。");
+            throw new InvalidOperationException("内容路径必须位于 workspace 内。");
         }
 
         if (!File.Exists(fullPath))
@@ -74,7 +74,7 @@ public sealed class ContentEditingService
 }
 
 /// <summary>编辑器页面读取到的文件内容。</summary>
-/// <param name="RelativePath">内容空间相对路径。</param>
+/// <param name="RelativePath">内容 workspace 相对路径。</param>
 /// <param name="Yaml">frontmatter YAML，不含分隔符。</param>
 /// <param name="Markdown">Markdown 正文。</param>
 /// <param name="PreviewHtml">使用统一 Markdig pipeline 渲染的预览 HTML。</param>

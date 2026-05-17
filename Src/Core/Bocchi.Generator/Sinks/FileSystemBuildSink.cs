@@ -6,16 +6,16 @@ namespace Bocchi.Generator.Sinks;
 
 /// <summary>
 /// 写入本地文件系统的 <see cref="IBuildSink"/>：根据 <see cref="ArtifactKind"/> 落到
-/// <see cref="WorkspaceLayout.PublicOutputDirectory"/> 或 <see cref="WorkspaceLayout.ThemeInputDirectory"/>。
+/// <see cref="BocchiDataLayout.PublicOutputDirectory"/> 或 <see cref="BocchiDataLayout.ThemeInputDirectory"/>。
 /// 写入前一律计算绝对路径并断言前缀，杜绝路径穿越。
 /// </summary>
 public sealed class FileSystemBuildSink : IBuildSink
 {
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
     private readonly string _publicRoot;
     private readonly string _inputRoot;
 
-    public FileSystemBuildSink(WorkspaceLayout layout)
+    public FileSystemBuildSink(BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
         _layout = layout;

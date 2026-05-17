@@ -3,11 +3,11 @@ using System.Text.Json;
 
 namespace Bocchi.HomeServer.Tests;
 
-public sealed class PreviewEndpointTests : IClassFixture<IsolatedWorkspaceWebApplicationFactory>
+public sealed class PreviewEndpointTests : IClassFixture<IsolatedDataRootWebApplicationFactory>
 {
-    private readonly IsolatedWorkspaceWebApplicationFactory _factory;
+    private readonly IsolatedDataRootWebApplicationFactory _factory;
 
-    public PreviewEndpointTests(IsolatedWorkspaceWebApplicationFactory factory)
+    public PreviewEndpointTests(IsolatedDataRootWebApplicationFactory factory)
     {
         _factory = factory;
     }

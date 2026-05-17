@@ -84,7 +84,7 @@ public static class FriendLinksLoader
             var tags = YamlAccess.GetStringList(m, "tags");
             var status = PostLoader.ParseStatus(
                 YamlAccess.GetString(m, "status"), errors,
-                new ContentLocation(location.ContentSpaceRoot, $"{location.RelativePath}#[{i}]"),
+                new ContentLocation(location.WorkspaceRoot, $"{location.RelativePath}#[{i}]"),
                 ContentKind.FriendLink);
             // FriendLink 默认 Published；ParseStatus 缺省返回 Draft，这里做覆盖
             if (string.IsNullOrWhiteSpace(YamlAccess.GetString(m, "status")))

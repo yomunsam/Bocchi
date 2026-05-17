@@ -14,6 +14,9 @@ public sealed class LocalizationSettingsView
     /// <summary>用户自定义语言。</summary>
     public required IReadOnlyList<LanguageRecord> CustomLanguages { get; init; }
 
+    /// <summary>Common i18n key 覆盖；只包含用户实际填写的 plain text。</summary>
+    public required IReadOnlyList<CommonI18nTextOverride> CommonTextOverrides { get; init; }
+
     /// <summary>内容本地化 URL policy。M6 固定为 <c>PrimaryUnprefixed</c>。</summary>
     public required string UrlPolicy { get; init; }
 }

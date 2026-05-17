@@ -12,9 +12,9 @@ namespace Bocchi.Generator.Pipeline.Stages;
 public sealed class WriteThemeInputStage : IBuildStage
 {
     private readonly ThemeInputWriter _writer;
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
 
-    public WriteThemeInputStage(ThemeInputWriter writer, WorkspaceLayout layout)
+    public WriteThemeInputStage(ThemeInputWriter writer, BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(layout);
@@ -54,7 +54,8 @@ public sealed class WriteThemeInputStage : IBuildStage
             session.Options.IncludeDrafts,
             bocchiVersion,
             loadedTheme?.Manifest,
-            themeConfig);
+            themeConfig,
+            session.Options.Localization);
         foreach (var (artifact, _) in pairs)
         {
             await ArtifactSinkHelper.WriteAsync(session, artifact).ConfigureAwait(false);

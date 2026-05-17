@@ -17,7 +17,7 @@ public sealed class FileSystemBuildSinkTests
         Directory.CreateDirectory(temp);
         try
         {
-            var layout = new WorkspaceLayout(temp);
+            var layout = new BocchiDataLayout(temp);
             var sink = new FileSystemBuildSink(layout);
 
             var bad = new BuildArtifact
@@ -46,7 +46,7 @@ public sealed class FileSystemBuildSinkTests
         Directory.CreateDirectory(temp);
         try
         {
-            var layout = new WorkspaceLayout(temp);
+            var layout = new BocchiDataLayout(temp);
             var sink = new FileSystemBuildSink(layout);
 
             var themeInput = new BuildArtifact

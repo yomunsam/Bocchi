@@ -4,13 +4,13 @@ namespace Bocchi.Workspace.State;
 
 /// <summary>
 /// SQLite 连接工厂。每次调用 <see cref="OpenConnection"/> 都会打开一个新连接（短连接策略）。
-/// 连接字符串固定到 <see cref="WorkspaceLayout.SqliteDatabasePath"/>。
+/// 连接字符串固定到 <see cref="BocchiDataLayout.SqliteDatabasePath"/>。
 /// </summary>
 public sealed class SqliteConnectionFactory
 {
     private readonly string _databasePath;
 
-    public SqliteConnectionFactory(WorkspaceLayout layout)
+    public SqliteConnectionFactory(BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
         _databasePath = layout.SqliteDatabasePath;

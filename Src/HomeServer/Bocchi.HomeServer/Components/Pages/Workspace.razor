@@ -4,7 +4,7 @@
 @using Bocchi.Workspace.Git
 @using Bocchi.Workspace.Scanning
 @using Bocchi.Workspace.State
-@inject WorkspaceLayout Layout
+@inject BocchiDataLayout Layout
 @inject IContentStateStore Store
 @inject IContentRepository Repository
 @inject ContentScanner Scanner
@@ -41,11 +41,11 @@
             {
                 <BocchiListRow Kicker="Empty" Title="还没有扫描到内容">
                     <ChildContent>
-                        <p>先确认内容空间里有 Markdown、site.yaml 或 friends.yaml，然后点一次 Check now。</p>
+                        <p>先确认 workspace 里有 Markdown、site.yaml 或 friends.yaml，然后点一次 Check now。</p>
                     </ChildContent>
                     <Metadata>
                         <BocchiStatusPill Tone="warning">Needs a quick look</BocchiStatusPill>
-                        <span><code>content/</code></span>
+                        <span><code>workspace/</code></span>
                     </Metadata>
                 </BocchiListRow>
             }
@@ -96,7 +96,7 @@
 
             @if (_gitStatus is not null && !_gitStatus.IsRepository)
             {
-                <p>内容空间还不是 Git 仓库。</p>
+                <p>Workspace 还不是 Git 仓库。</p>
                 <button type="button" @onclick="InitGitAsync" disabled="@_busy">Init Git</button>
             }
         </aside>
@@ -106,12 +106,12 @@
         <summary>Workspace paths</summary>
         <dl class="bocchi-meta-list">
             <div>
-                <dt>工作区根</dt>
-                <dd><code>@Layout.Root</code></dd>
+                <dt>DataRoot</dt>
+                <dd><code>@Layout.DataRoot</code></dd>
             </div>
             <div>
-                <dt>内容空间</dt>
-                <dd><code>@Layout.ContentSpaceRoot</code></dd>
+                <dt>Workspace</dt>
+                <dd><code>@Layout.WorkspaceRoot</code></dd>
             </div>
             <div>
                 <dt>SQLite</dt>
@@ -150,7 +150,7 @@
     /// <summary>页面正在执行扫描或初始化动作时用于禁用按钮。</summary>
     private bool _busy;
 
-    /// <summary>内容空间 Git 状态。</summary>
+    /// <summary>内容 workspace Git 状态。</summary>
     private ContentRepositoryStatus? _gitStatus;
 
     /// <summary>最近一次内容扫描运行。</summary>
@@ -193,7 +193,7 @@
         _summaries = await Store.ListContentSummariesAsync(null);
     }
 
-    /// <summary>把内容空间初始化为独立 Git 仓库。</summary>
+    /// <summary>把内容 workspace 初始化为独立 Git 仓库。</summary>
     private async Task InitGitAsync()
     {
         _busy = true;
@@ -208,7 +208,7 @@
         }
     }
 
-    /// <summary>重新扫描内容空间并刷新页面投影。</summary>
+    /// <summary>重新扫描内容 workspace 并刷新页面投影。</summary>
     private async Task RescanAsync()
     {
         _busy = true;

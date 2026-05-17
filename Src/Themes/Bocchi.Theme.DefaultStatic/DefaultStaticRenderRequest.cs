@@ -8,7 +8,7 @@ public sealed record DefaultStaticRenderRequest
     /// <summary>Theme 实例根目录，通常是 <c>&lt;workspace&gt;/themes/default-static</c>。</summary>
     public required string ThemeRoot { get; init; }
 
-    /// <summary>Theme Contract 输入目录，通常是 <c>&lt;workspace&gt;/.bocchi/input</c>。</summary>
+    /// <summary>Theme Contract 输入目录，通常是 <c>&lt;workspace&gt;/../../cache/theme-input</c>。</summary>
     public required string InputDirectory { get; init; }
 
     /// <summary>Theme 本地输出目录。Generator 会在后续阶段收集这里的文件。</summary>

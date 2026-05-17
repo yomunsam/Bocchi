@@ -8,9 +8,9 @@ namespace Bocchi.Generator.Pipeline.Stages;
 public sealed class BuildContentGraphStage : IBuildStage
 {
     private readonly ContentGraphBuilder _builder;
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
 
-    public BuildContentGraphStage(ContentGraphBuilder builder, WorkspaceLayout layout)
+    public BuildContentGraphStage(ContentGraphBuilder builder, BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(layout);
@@ -32,7 +32,7 @@ public sealed class BuildContentGraphStage : IBuildStage
         {
             IncludeDrafts = session.Options.IncludeDrafts,
             FailOnContentError = session.Options.FailOnContentError,
-            FriendsDirectoryAbsolute = _layout.ContentSpace.FriendsDirectory,
+            FriendsDirectoryAbsolute = _layout.Workspace.FriendsDirectory,
         };
         var graph = _builder.Build(session.Scan, options);
         session.Graph = graph;

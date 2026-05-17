@@ -21,6 +21,13 @@ public sealed class DashboardLocalizationService
     /// <summary>Dashboard JSON 文案使用 Web 默认 JSON 选项，便于后续保持 camelCase 资源结构。</summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>资源文件缺失时的高性能日志委托，避免 Dashboard 每次启动诊断触发 analyzer 失败。</summary>
+    private static readonly Action<ILogger, string, Exception?> LogResourceMissing =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1000, nameof(LogResourceMissing)),
+            "Dashboard localization resource '{ResourcePath}' was not found.");
+
     /// <summary>应用内容根，用于开发期读取 JSON 资源。</summary>
     private readonly IWebHostEnvironment _environment;
 
@@ -78,7 +85,7 @@ public sealed class DashboardLocalizationService
     }
 
     /// <summary>从项目内容根或发布输出目录读取 Dashboard JSON 文案。</summary>
-    private IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> LoadResources()
+    private Dictionary<string, IReadOnlyDictionary<string, string>> LoadResources()
     {
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var language in SupportedDashboardLanguages)
@@ -86,7 +93,7 @@ public sealed class DashboardLocalizationService
             var path = ResolveResourcePath(language.Code);
             if (!File.Exists(path))
             {
-                _logger.LogWarning("Dashboard localization resource '{ResourcePath}' was not found.", path);
+                LogResourceMissing(_logger, path, null);
                 result[language.Code] = new Dictionary<string, string>(StringComparer.Ordinal);
                 continue;
             }

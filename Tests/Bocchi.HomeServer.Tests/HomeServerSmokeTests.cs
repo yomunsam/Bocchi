@@ -3,11 +3,11 @@ using System.Net;
 
 namespace Bocchi.HomeServer.Tests;
 
-public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApplicationFactory>
+public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebApplicationFactory>
 {
-    private readonly IsolatedWorkspaceWebApplicationFactory _factory;
+    private readonly IsolatedDataRootWebApplicationFactory _factory;
 
-    public HomeServerSmokeTests(IsolatedWorkspaceWebApplicationFactory factory)
+    public HomeServerSmokeTests(IsolatedDataRootWebApplicationFactory factory)
     {
         _factory = factory;
     }
@@ -49,13 +49,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("工作区");
-        body.Should().Contain(_factory.WorkspaceRoot);
+        body.Should().Contain(_factory.DataRoot);
     }
 
     [Fact]
     public async Task AdminRoute_RedirectsToSetupBeforeInitialization()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         var response = await client.GetAsync("/Admin");
@@ -67,7 +67,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
     [Fact]
     public async Task AdminRoute_RedirectsToLoginAfterSetupWhenAnonymous()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using (await factory.CreateAdminClientAsync())
         {
         }
@@ -104,7 +104,11 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
         body.Should().Contain("Third-party Login");
         body.Should().Contain("Localization");
         body.Should().Contain("Site primary language");
+        body.Should().Contain("Common theme text");
+        body.Should().Contain("menu.home");
         body.Should().Contain("PrimaryUnprefixed");
+        body.Should().Contain("Theme private text");
+        body.Should().Contain("theme.defaultStatic.colophonBuiltWith");
         body.Should().Contain("Save Theme config");
     }
 
@@ -124,7 +128,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedWorkspaceWebApp
 
         var settings = await client.GetAsync("/Admin/Settings");
         settings.EnsureSuccessStatusCode();
-        var body = await settings.Content.ReadAsStringAsync();
+        // Blazor prerender 会把非 ASCII 文案编码成 HTML entity；这里按浏览器看到的文本断言真实渲染结果。
+        var body = WebUtility.HtmlDecode(await settings.Content.ReadAsStringAsync());
         body.Should().Contain("本地化");
         body.Should().Contain("保持服务器清爽");
         body.Should().Contain("站点主要语言");

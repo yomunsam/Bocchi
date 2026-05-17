@@ -5,13 +5,13 @@ using LibGit2Sharp;
 namespace Bocchi.Workspace.Git;
 
 /// <summary>
-/// <see cref="IContentRepository"/> 的 LibGit2Sharp 实现。作用域严格锁定到内容空间根。
+/// <see cref="IContentRepository"/> 的 LibGit2Sharp 实现。作用域严格锁定到内容 workspace 根。
 /// </summary>
 public sealed class LibGit2ContentRepository : IContentRepository
 {
     private readonly string _root;
 
-    public LibGit2ContentRepository(ContentSpaceLayout layout)
+    public LibGit2ContentRepository(WorkspaceLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
         _root = layout.Root;
@@ -38,7 +38,7 @@ public sealed class LibGit2ContentRepository : IContentRepository
         }
         catch (LibGit2SharpException ex)
         {
-            throw new ContentGitException("初始化内容空间 Git 仓库失败。", ex);
+            throw new ContentGitException("初始化内容 workspace Git 仓库失败。", ex);
         }
     }
 
@@ -67,7 +67,7 @@ public sealed class LibGit2ContentRepository : IContentRepository
         }
         catch (LibGit2SharpException ex)
         {
-            throw new ContentGitException("读取内容空间 Git 状态失败。", ex);
+            throw new ContentGitException("读取内容 workspace Git 状态失败。", ex);
         }
     }
 
@@ -79,7 +79,7 @@ public sealed class LibGit2ContentRepository : IContentRepository
 
         if (!Repository.IsValid(_root))
         {
-            throw new ContentGitException($"内容空间 '{_root}' 尚未初始化为 Git 仓库。");
+            throw new ContentGitException($"内容 workspace '{_root}' 尚未初始化为 Git 仓库。");
         }
 
         try
@@ -98,7 +98,7 @@ public sealed class LibGit2ContentRepository : IContentRepository
         }
         catch (LibGit2SharpException ex)
         {
-            throw new ContentGitException("内容空间 Git 提交失败。", ex);
+            throw new ContentGitException("内容 workspace Git 提交失败。", ex);
         }
     }
 }

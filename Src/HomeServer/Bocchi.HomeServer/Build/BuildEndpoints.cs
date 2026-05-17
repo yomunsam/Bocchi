@@ -51,7 +51,7 @@ public static class BuildEndpoints
 
     private static async Task DownloadPublicZipAsync(
         HttpContext context,
-        WorkspaceLayout layout,
+        BocchiDataLayout layout,
         IBuildStateStore store,
         CancellationToken cancellationToken)
     {

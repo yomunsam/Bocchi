@@ -11,9 +11,9 @@ namespace Bocchi.Generator.Pipeline.Stages;
 public sealed class RunThemeBuildStage : IBuildStage
 {
     private readonly IThemeRunner _runner;
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
 
-    public RunThemeBuildStage(IThemeRunner runner, WorkspaceLayout layout)
+    public RunThemeBuildStage(IThemeRunner runner, BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(runner);
         ArgumentNullException.ThrowIfNull(layout);

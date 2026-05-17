@@ -13,10 +13,10 @@ namespace Bocchi.Generator.ContentGraph;
 /// </summary>
 public sealed class ContentGraphBuilder
 {
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
     private readonly MarkdownPipeline _markdown;
 
-    public ContentGraphBuilder(WorkspaceLayout layout, MarkdownPipeline markdown)
+    public ContentGraphBuilder(BocchiDataLayout layout, MarkdownPipeline markdown)
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(markdown);

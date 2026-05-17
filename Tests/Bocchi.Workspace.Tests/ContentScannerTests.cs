@@ -11,15 +11,15 @@ namespace Bocchi.Workspace.Tests;
 
 public sealed class ContentScannerTests
 {
-    private static async Task<(TempWorkspace temp, ContentScanner scanner, IContentStateStore store)> NewScannerAsync()
+    private static async Task<(TempDataRoot temp, ContentScanner scanner, IContentStateStore store)> NewScannerAsync()
     {
-        var temp = new TempWorkspace();
-        await new WorkspaceInitializer(temp.Layout).InitializeAsync();
+        var temp = new TempDataRoot();
+        await new BocchiDataInitializer(temp.Layout).InitializeAsync();
         var factory = new SqliteConnectionFactory(temp.Layout);
         await new SchemaMigrator(factory).MigrateAsync();
         var store = new ContentStateStore(factory);
         var md = new MarkdownPipeline();
-        var repo = new LibGit2ContentRepository(temp.Layout.ContentSpace);
+        var repo = new LibGit2ContentRepository(temp.Layout.Workspace);
         var scanner = new ContentScanner(
             temp.Layout, store, repo,
             new PostLoader(md), new PageLoader(md), new WorkLoader(md), new NoteLoader(md),
@@ -39,7 +39,7 @@ public sealed class ContentScannerTests
         var (temp, scanner, store) = await NewScannerAsync();
         using (temp)
         {
-            var cs = temp.Layout.ContentSpace;
+            var cs = temp.Layout.Workspace;
 
             // Post
             var postDir = Path.Combine(cs.PostsDirectory, "2025", "hello");
@@ -87,7 +87,7 @@ public sealed class ContentScannerTests
         var (temp, scanner, _) = await NewScannerAsync();
         using (temp)
         {
-            var postDir = Path.Combine(temp.Layout.ContentSpace.PostsDirectory, "2025", "broken");
+            var postDir = Path.Combine(temp.Layout.Workspace.PostsDirectory, "2025", "broken");
             Directory.CreateDirectory(postDir);
             await WriteAsync(Path.Combine(postDir, "index.md"),
                 "---\ntitle: Broken\nslug: broken\n---\n![missing](assets/nope.jpg)\n");
@@ -104,7 +104,7 @@ public sealed class ContentScannerTests
         var (temp, scanner, _) = await NewScannerAsync();
         using (temp)
         {
-            var bad = Path.Combine(temp.Layout.ContentSpace.PostsDirectory, "twentyfive", "x");
+            var bad = Path.Combine(temp.Layout.Workspace.PostsDirectory, "twentyfive", "x");
             Directory.CreateDirectory(bad);
             await WriteAsync(Path.Combine(bad, "index.md"),
                 "---\ntitle: x\nslug: x\n---\nbody\n");
@@ -121,7 +121,7 @@ public sealed class ContentScannerTests
         var (temp, scanner, _) = await NewScannerAsync();
         using (temp)
         {
-            var postDir = Path.Combine(temp.Layout.ContentSpace.PostsDirectory, "2025", "deriv");
+            var postDir = Path.Combine(temp.Layout.Workspace.PostsDirectory, "2025", "deriv");
             Directory.CreateDirectory(Path.Combine(postDir, "assets"));
             await WriteAsync(Path.Combine(postDir, "index.md"),
                 "---\ntitle: D\nslug: d\n---\n![cover](assets/cover.jpg)\n");

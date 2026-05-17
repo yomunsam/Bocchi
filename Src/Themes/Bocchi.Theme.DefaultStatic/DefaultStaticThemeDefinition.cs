@@ -75,7 +75,7 @@ public sealed class DefaultStaticThemeDefinition
           "name": "Bocchi Mono",
           "version": "0.1.0",
           "contractVersion": "1.0",
-          "inputDir": ".bocchi/input",
+          "inputDir": "../../cache/theme-input",
           "outputDir": "build",
           "runner": {
             "kind": "builtin-template",
@@ -89,6 +89,34 @@ public sealed class DefaultStaticThemeDefinition
             "friends": true,
             "photos": false,
             "search": false
+          },
+          "i18n": {
+            "supportedLanguages": ["en-US", "zh-CN", "zh-TW", "ja-JP"],
+            "defaultLanguage": "en-US",
+            "keys": [
+              {
+                "key": "theme.defaultStatic.colophonBuiltWith",
+                "title": "Colophon built-with text",
+                "description": "Footer text used by Bocchi Mono.",
+                "defaultValues": {
+                  "en-US": "Built with Bocchi.",
+                  "zh-CN": "由 Bocchi 构建。",
+                  "zh-TW": "由 Bocchi 構建。",
+                  "ja-JP": "Bocchi で構築。"
+                }
+              },
+              {
+                "key": "theme.defaultStatic.emptyList",
+                "title": "Empty list text",
+                "description": "Message shown when a content section has no published items.",
+                "defaultValues": {
+                  "en-US": "Nothing here yet.",
+                  "zh-CN": "这里还没有内容。",
+                  "zh-TW": "這裡還沒有內容。",
+                  "ja-JP": "まだ何もありません。"
+                }
+              }
+            ]
           }
         }
         """;

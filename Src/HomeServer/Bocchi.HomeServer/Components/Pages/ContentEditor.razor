@@ -12,7 +12,7 @@
     <header class="bocchi-page-heading">
         <span class="bocchi-page-heading__eyebrow">Write / Markdown Editor</span>
         <h1>Write in Markdown, preview softly.</h1>
-        <p>正文仍然写回内容空间文件；预览复用现有 Markdig pipeline，避免编辑体验和生成结果走成两套事实。</p>
+        <p>正文仍然写回内容 workspace 文件；预览复用现有 Markdig pipeline，避免编辑体验和生成结果走成两套事实。</p>
     </header>
 
     @if (string.IsNullOrWhiteSpace(Path))
@@ -23,7 +23,7 @@
             {
                 <BocchiListRow Kicker="Empty" Title="还没有可编辑内容">
                     <ChildContent>
-                        <p>先在 Content 页面扫描工作区，或者在 content/ 下创建 Markdown 文件。</p>
+                        <p>先在 Content 页面扫描工作区，或者在 workspace/ 下创建 Markdown 文件。</p>
                     </ChildContent>
                     <Action>
                         <a class="bocchi-button secondary" href="/Admin/Content">Open Content</a>
@@ -103,7 +103,7 @@
 </article>
 
 @code {
-    /// <summary>查询字符串中的内容空间相对路径。</summary>
+    /// <summary>查询字符串中的内容 workspace 相对路径。</summary>
     [SupplyParameterFromQuery(Name = "path")]
     public string? Path { get; set; }
 

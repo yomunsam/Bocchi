@@ -11,7 +11,7 @@ namespace Bocchi.Workspace.State;
 /// <param name="Year">年份（仅 Post / Work / Note / Photo），可空。</param>
 /// <param name="PublishedAt">发布时间，可空。</param>
 /// <param name="UpdatedAt">更新时间，可空。</param>
-/// <param name="RelativePath">源文件相对内容空间根的路径。</param>
+/// <param name="RelativePath">源文件相对内容 workspace 根的路径。</param>
 public sealed record ContentSummary(
     ContentKind Kind,
     string ContentId,
@@ -30,7 +30,7 @@ public sealed record ContentSummary(
 /// <param name="ItemsLoaded">成功加载的内容项数。</param>
 /// <param name="ErrorCount">错误条数。</param>
 /// <param name="WarningCount">警告条数。</param>
-/// <param name="GitHeadSha">扫描时内容空间 Git HEAD SHA，可空。</param>
+/// <param name="GitHeadSha">扫描时内容 workspace Git HEAD SHA，可空。</param>
 /// <param name="Status">运行状态：<c>running</c> / <c>succeeded</c> / <c>failed</c>。</param>
 public sealed record ScanRunRecord(
     long Id,

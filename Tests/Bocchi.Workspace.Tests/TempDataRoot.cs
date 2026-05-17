@@ -2,20 +2,20 @@ namespace Bocchi.Workspace.Tests;
 
 /// <summary>
 /// 一个临时目录辅助器：构造时创建一个唯一目录，Dispose 时删除。
-/// 用于让每个测试拥有独立的 workspace。
+/// 用于让每个测试拥有独立的 DataRoot。
 /// </summary>
-public sealed class TempWorkspace : IDisposable
+public sealed class TempDataRoot : IDisposable
 {
-    public TempWorkspace()
+    public TempDataRoot()
     {
         Root = Path.Combine(Path.GetTempPath(), "bocchi-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
-        Layout = new WorkspaceLayout(Root);
+        Layout = new BocchiDataLayout(Root);
     }
 
     public string Root { get; }
 
-    public WorkspaceLayout Layout { get; }
+    public BocchiDataLayout Layout { get; }
 
     public void Dispose()
     {

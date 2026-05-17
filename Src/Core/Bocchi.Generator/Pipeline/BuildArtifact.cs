@@ -9,7 +9,7 @@ public sealed record BuildArtifact
     /// <summary>站点根相对路径（以 <c>/</c> 开头、<c>/</c> 归一化）。</summary>
     public required string Path { get; init; }
 
-    /// <summary>归属：决定 Sink 落地到 <c>output/public/</c> 还是 <c>.bocchi/input/</c> 等。</summary>
+    /// <summary>归属：决定 Sink 落地到 <c>output/public/</c> 还是 <c>../../cache/theme-input/</c> 等。</summary>
     public required ArtifactKind Kind { get; init; }
 
     /// <summary>MIME 类型。</summary>
@@ -34,7 +34,7 @@ public sealed record BuildArtifact
 /// <summary>Artifact 类别 → 输出根。</summary>
 public enum ArtifactKind
 {
-    /// <summary>Theme 输入数据 JSON，落到 <c>.bocchi/input/</c>。</summary>
+    /// <summary>Theme 输入数据 JSON，落到 <c>../../cache/theme-input/</c>。</summary>
     ThemeInput,
 
     /// <summary>站点级功能性产物（robots / sitemap / feed / manifest），落到 <c>output/public/</c>。</summary>

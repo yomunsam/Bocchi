@@ -21,7 +21,7 @@ internal sealed class TestWorkspaceFixture : IDisposable
 {
     public string Root { get; }
 
-    public WorkspaceLayout Layout { get; }
+    public BocchiDataLayout Layout { get; }
 
     public ServiceProvider Services { get; }
 
@@ -29,9 +29,9 @@ internal sealed class TestWorkspaceFixture : IDisposable
     {
         Root = Path.Combine(Path.GetTempPath(), "bocchi-gen-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
-        Layout = new WorkspaceLayout(Root);
+        Layout = new BocchiDataLayout(Root);
 
-        var initTask = new WorkspaceInitializer(Layout).InitializeAsync();
+        var initTask = new BocchiDataInitializer(Layout).InitializeAsync();
         initTask.GetAwaiter().GetResult();
 
         // 写一些示例内容
@@ -40,7 +40,7 @@ internal sealed class TestWorkspaceFixture : IDisposable
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Bocchi:WorkspaceRoot"] = Root,
+                ["Bocchi:DataRoot"] = Root,
                 ["Bocchi:AutoInitialize"] = "false",
                 ["Bocchi:AutoMigrateSchema"] = "false",
             })
@@ -48,7 +48,7 @@ internal sealed class TestWorkspaceFixture : IDisposable
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
-        services.AddBocchiWorkspace(configuration, _ => Root);
+        services.AddBocchiData(configuration, _ => Root);
         services.AddBocchiGenerator(configuration);
         configureServices?.Invoke(services);
 
@@ -61,7 +61,7 @@ internal sealed class TestWorkspaceFixture : IDisposable
 
     private void SeedContent()
     {
-        var cs = Layout.ContentSpace;
+        var cs = Layout.Workspace;
         var postDir = Path.Combine(cs.PostsDirectory, "2025", "hello");
         Directory.CreateDirectory(Path.Combine(postDir, "assets"));
         File.WriteAllText(Path.Combine(postDir, "index.md"),

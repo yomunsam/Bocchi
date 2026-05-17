@@ -24,7 +24,7 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer
 
 首次启动：浏览器打开 `http://127.0.0.1:5081/Setup`，创建第一个 Admin 后会自动进入 `http://127.0.0.1:5081/Admin`。之后 `/Setup` 会关闭，Dashboard 与预览都需要登录。
 
-内容面板：浏览器打开 `http://127.0.0.1:5081/Admin/Content` 可看到当前内容空间路径、Git 状态、内容列表以及一键扫描结果。
+内容面板：浏览器打开 `http://127.0.0.1:5081/Admin/Content` 可看到当前 workspace 路径、Git 状态、内容列表以及一键扫描结果。
 
 发布面板：浏览器打开 `http://127.0.0.1:5081/Admin/Publish` 可触发一次 Full Build 并查看 fingerprint、阶段日志、产物列表与历史；点击"下载 zip"即得 `output/public/` 的完整静态目录打包文件。也可以从命令行直接构建：
 
@@ -33,21 +33,21 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer
 dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build [--theme=<id>] [--include-drafts] [--env=<name>]
 ```
 
-构建后的两个关键目录（均位于 Bocchi 系统空间，不会污染内容空间）：
+构建后的两个关键目录（均位于 DataRoot 运行数据，不会污染 workspace）：
 
-- `<workspace>/.bocchi/input/`：Theme 输入数据 JSON（`site.json` / `posts.json` / `pages.json` / `works.json` / `notes.json` / `friends.json` / `photos.json` / `navigation.json` / `theme-config.json` / `build-context.json`）
-- `<workspace>/output/public/`：可部署到任意静态托管的站点目录，含 `robots.txt` / `sitemap.xml` / `feed.xml` / `media/...` / `.bocchi-manifest.json`，M5 起会再加入 Theme 渲染输出
+- `<data>/cache/theme-input/`：Theme 输入数据 JSON（`site.json` / `posts.json` / `pages.json` / `works.json` / `notes.json` / `friends.json` / `photos.json` / `navigation.json` / `theme-config.json` / `build-context.json`）
+- `<data>/output/public/`：可部署到任意静态托管的站点目录，含 `robots.txt` / `sitemap.xml` / `feed.xml` / `media/...` / `.bocchi-manifest.json`，M5 起会再加入 Theme 渲染输出
 
 受保护预览：`GET /` 会从 `output/public/` 返回前台预览页面并注入 Preview Toolbar；`GET /_bocchi/preview/data/{name}.json`、`GET /_bocchi/preview/media/{path}`、`GET /_bocchi/preview/{robots.txt|sitemap.xml|feed.xml|.bocchi-manifest.json}` 会触发一次 Live 模式构建并将命中 artifact 流式吐出，供编辑器实时预览使用。
 
-### 内容空间（Content Space）
+### DataRoot 与 Workspace
 
-Bocchi 把"工作区"严格切分为两部分：
+Bocchi 把持久化数据根与用户内容目录严格切分：
 
-- **内容空间**（默认 `<workspace>/content/`）：纯创作资产（Blog、作品集、短文、友链、`site/site.yaml`），独立可携、可作为独立 Git 仓库迁移。任何时候都能整体打包带走，不依赖 Bocchi 的代码。
-- **Bocchi 系统空间**（`<workspace>/.bocchi/`、`themes/`、`output/`）：Bocchi 程序的状态库（SQLite）、日志、缓存、Theme 输入与构建产物，与 Bocchi 同寿。
+- **workspace**（默认 `<data>/workspace/`）：纯创作资产（Blog、作品集、短文、友链、`site/site.yaml`），独立可携、可作为独立 Git 仓库迁移。任何时候都能整体打包带走，不依赖 Bocchi 的代码。
+- **DataRoot 运行数据**（`<data>/state/`、`<data>/themes/`、`<data>/cache/`、`<data>/output/`、`<data>/logs/`）：Bocchi 程序的状态库（SQLite）、日志、缓存、Theme 输入与构建产物，与 Bocchi 同寿。
 
-通过 `appsettings.json` 中的 `Bocchi:WorkspaceRoot`（或环境变量 `Bocchi__WorkspaceRoot`）指向你已有的工作区目录；留空时回退到 `<ContentRoot>/workspace/`。首次启动会自动创建必需的目录结构（包括 `content/README.md`、`content/.gitignore` 与 `content/site/site.yaml`），完成 `/Setup` 后在 `/Admin/Content` 手动触发一次扫描即可。
+通过 `appsettings.json` 中的 `Bocchi:DataRoot`（或环境变量 `Bocchi__DataRoot`）指向 DataRoot；开发期留空时回退到 Home Server 项目下的 `data/`，发布后裸机运行默认在程序目录旁的 `data/`，Docker 运行建议挂载到容器内 `/app/data`。首次启动会自动创建必需的目录结构（包括 `workspace/README.md`、`workspace/.gitignore` 与 `workspace/site/site.yaml`），完成 `/Setup` 后在 `/Admin/Content` 手动触发一次扫描即可。
 
 更深入的文档：
 

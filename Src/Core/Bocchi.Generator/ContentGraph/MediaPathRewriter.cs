@@ -18,7 +18,7 @@ namespace Bocchi.Generator.ContentGraph;
 ///   <item><description>Post / Work：媒体源 = <c>&lt;ownerDir&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/{kind}/{year}/{slug}/{fileName}</c>。</description></item>
 ///   <item><description>Page：媒体源 = <c>&lt;ownerDir&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/pages/{slug}/{fileName}</c>。</description></item>
 ///   <item><description>Note：媒体源 = <c>&lt;notes/year&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/notes/{year}/{fileName}</c>。</description></item>
-///   <item><description>Friend：友链头像位于内容空间的 <c>friends/assets/...</c>；站点路径 = <c>/media/friends/{fileName}</c>。</description></item>
+///   <item><description>Friend：友链头像位于内容 workspace 的 <c>friends/assets/...</c>；站点路径 = <c>/media/friends/{fileName}</c>。</description></item>
 /// </list>
 /// 已是 <c>http(s)://</c>、协议相对、绝对站点路径（<c>/...</c>）或 <c>data:</c> 的引用不再改写。
 /// </remarks>
@@ -161,7 +161,7 @@ public sealed partial class MediaPathRewriter
     }
 
     // 匹配 Markdown 行内图片：![alt](url "title")。alt / title 可空，title 可省。
-    // 注意：本正则不处理 <img> 标签或引用式图片；M3 内容空间约束为标准 Markdown 写法。
+    // 注意：本正则不处理 <img> 标签或引用式图片；M3 内容 workspace 约束为标准 Markdown 写法。
     [GeneratedRegex(
         @"!\[(?<alt>[^\]]*)\]\((?<url>[^\s\)""]+)(?:\s+""(?<title>[^""]*)"")?\)",
         RegexOptions.CultureInvariant)]

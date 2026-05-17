@@ -9,11 +9,11 @@ namespace Bocchi.HomeServer.Services;
 /// </summary>
 public sealed class PreviewHost
 {
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
     private readonly PreviewRouteMapService _routeMap;
 
     /// <summary>构造预览 Host。</summary>
-    public PreviewHost(WorkspaceLayout layout, PreviewRouteMapService routeMap)
+    public PreviewHost(BocchiDataLayout layout, PreviewRouteMapService routeMap)
     {
         _layout = layout;
         _routeMap = routeMap;

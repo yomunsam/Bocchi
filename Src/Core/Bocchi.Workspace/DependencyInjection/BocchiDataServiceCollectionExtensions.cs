@@ -11,54 +11,53 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Bocchi.Workspace.DependencyInjection;
 
 /// <summary>
-/// 把 Bocchi.Workspace 注册到 DI 容器的扩展。
+/// 把 Bocchi 数据根和内容 workspace 相关服务注册到 DI 容器的扩展。
 /// </summary>
-public static class WorkspaceServiceCollectionExtensions
+public static class BocchiDataServiceCollectionExtensions
 {
     /// <summary>
-    /// 注册工作区相关服务。
+    /// 注册 DataRoot 与内容 workspace 相关服务。
     /// </summary>
     /// <param name="services">DI 容器。</param>
-    /// <param name="configuration">用于绑定 <see cref="WorkspaceOptions"/> 的根配置。</param>
-    /// <param name="workspaceRootResolver">
-    /// 在 <see cref="WorkspaceOptions.WorkspaceRoot"/> 为空时回退使用的根路径提供者；
-    /// 通常 Web 宿主传入 <c>builder.Environment.ContentRootPath</c>。
+    /// <param name="configuration">用于绑定 <see cref="BocchiDataOptions"/> 的根配置。</param>
+    /// <param name="dataRootBaseResolver">
+    /// 在 <see cref="BocchiDataOptions.DataRoot"/> 为空或为相对路径时使用的基准路径提供者。
     /// </param>
-    public static IServiceCollection AddBocchiWorkspace(
+    public static IServiceCollection AddBocchiData(
         this IServiceCollection services,
         IConfiguration configuration,
-        Func<IServiceProvider, string> workspaceRootResolver)
+        Func<IServiceProvider, string> dataRootBaseResolver)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
-        ArgumentNullException.ThrowIfNull(workspaceRootResolver);
+        ArgumentNullException.ThrowIfNull(dataRootBaseResolver);
 
-        services.AddOptions<WorkspaceOptions>()
-            .Bind(configuration.GetSection(WorkspaceOptions.SectionName));
+        services.AddOptions<BocchiDataOptions>()
+            .Bind(configuration.GetSection(BocchiDataOptions.SectionName));
 
         services.TryAddSingleton(TimeProvider.System);
 
         services.TryAddSingleton(sp =>
         {
-            var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<WorkspaceOptions>>().Value;
-            var root = opts.WorkspaceRoot;
+            var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BocchiDataOptions>>().Value;
+            var root = opts.DataRoot;
             if (string.IsNullOrWhiteSpace(root))
             {
-                var fallback = workspaceRootResolver(sp);
-                root = Path.Combine(fallback, "workspace");
+                var fallback = dataRootBaseResolver(sp);
+                root = Path.Combine(fallback, "data");
             }
             else if (!Path.IsPathRooted(root))
             {
-                var basePath = workspaceRootResolver(sp);
+                var basePath = dataRootBaseResolver(sp);
                 root = Path.GetFullPath(Path.Combine(basePath, root));
             }
 
-            return new WorkspaceLayout(root);
+            return new BocchiDataLayout(root);
         });
 
-        services.TryAddSingleton(sp => sp.GetRequiredService<WorkspaceLayout>().ContentSpace);
+        services.TryAddSingleton(sp => sp.GetRequiredService<BocchiDataLayout>().Workspace);
 
-        services.TryAddSingleton<WorkspaceInitializer>();
+        services.TryAddSingleton<BocchiDataInitializer>();
         services.TryAddSingleton<IWorkspace>(sp => new Workspace(sp.GetRequiredService<WorkspaceLayout>()));
         services.TryAddSingleton<IWorkspaceLoader, WorkspaceLoader>();
 

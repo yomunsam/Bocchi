@@ -3,11 +3,11 @@ using System.Text.Json;
 
 namespace Bocchi.HomeServer.Tests;
 
-public sealed class BuildPageTests : IClassFixture<IsolatedWorkspaceWebApplicationFactory>
+public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicationFactory>
 {
-    private readonly IsolatedWorkspaceWebApplicationFactory _factory;
+    private readonly IsolatedDataRootWebApplicationFactory _factory;
 
-    public BuildPageTests(IsolatedWorkspaceWebApplicationFactory factory)
+    public BuildPageTests(IsolatedDataRootWebApplicationFactory factory)
     {
         _factory = factory;
     }
@@ -48,7 +48,7 @@ public sealed class BuildPageTests : IClassFixture<IsolatedWorkspaceWebApplicati
     [Fact]
     public async Task Download_Returns404BeforeFirstBuild()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using var client = await factory.CreateAdminClientAsync();
 
         var response = await client.GetAsync("/Admin/Publish/download");

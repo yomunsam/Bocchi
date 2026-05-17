@@ -14,7 +14,7 @@ public sealed class HomeServerSetupService
     private readonly BocchiDbContext _db;
     private readonly UserManager<BocchiUser> _users;
     private readonly RoleManager<IdentityRole> _roles;
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
 
     /// <summary>构造 Setup 服务。</summary>
@@ -22,7 +22,7 @@ public sealed class HomeServerSetupService
         BocchiDbContext db,
         UserManager<BocchiUser> users,
         RoleManager<IdentityRole> roles,
-        WorkspaceLayout layout,
+        BocchiDataLayout layout,
         TimeProvider time)
     {
         _db = db;
@@ -35,7 +35,7 @@ public sealed class HomeServerSetupService
     /// <summary>应用 EF Core 迁移并确保基础种子数据存在。</summary>
     public async Task EnsureDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(_layout.BocchiDirectory);
+        Directory.CreateDirectory(_layout.StateDirectory);
         await _db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
         await EnsureAdminRoleAsync().ConfigureAwait(false);
         await EnsureDashboardSettingsAsync(cancellationToken).ConfigureAwait(false);
@@ -111,7 +111,7 @@ public sealed class HomeServerSetupService
             Id = 1,
             CompletedAt = now,
             FirstAdminUserId = user.Id,
-            WorkspaceRoot = _layout.Root,
+            DataRoot = _layout.DataRoot,
             SchemaVersion = 1,
         });
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -186,6 +186,7 @@ public sealed class HomeServerSetupService
                 PrimaryLanguage = primaryLanguage.Code,
                 EnabledLanguagesJson = System.Text.Json.JsonSerializer.Serialize(new[] { primaryLanguage }),
                 CustomLanguagesJson = "[]",
+                CommonTextOverridesJson = "{}",
                 UrlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy,
                 UpdatedAt = _time.GetUtcNow(),
             });

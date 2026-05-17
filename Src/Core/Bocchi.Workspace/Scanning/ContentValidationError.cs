@@ -18,7 +18,7 @@ public enum ContentErrorSeverity
 /// <summary>
 /// 扫描期间产生的一条校验错误。错误聚合输出，扫描不会因单条错误而中止。
 /// </summary>
-/// <param name="RelativePath">相对内容空间根的源文件路径，<c>/</c> 分隔。</param>
+/// <param name="RelativePath">相对内容 workspace 根的源文件路径，<c>/</c> 分隔。</param>
 /// <param name="Kind">所属内容类型；如果错误产生于目录布局阶段（无法识别 kind），可能为 <c>null</c>。</param>
 /// <param name="Field">出错字段名（frontmatter 字段或路径字段），可空。</param>
 /// <param name="Severity">严重级别。</param>

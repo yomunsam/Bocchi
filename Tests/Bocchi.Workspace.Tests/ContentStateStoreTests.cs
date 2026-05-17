@@ -6,10 +6,10 @@ namespace Bocchi.Workspace.Tests;
 
 public sealed class ContentStateStoreTests
 {
-    private static (TempWorkspace temp, ContentStateStore store) NewStore()
+    private static (TempDataRoot temp, ContentStateStore store) NewStore()
     {
-        var temp = new TempWorkspace();
-        Directory.CreateDirectory(temp.Layout.BocchiDirectory);
+        var temp = new TempDataRoot();
+        Directory.CreateDirectory(temp.Layout.StateDirectory);
         var factory = new SqliteConnectionFactory(temp.Layout);
         new SchemaMigrator(factory).MigrateAsync().GetAwaiter().GetResult();
         return (temp, new ContentStateStore(factory));
@@ -18,8 +18,8 @@ public sealed class ContentStateStoreTests
     [Fact]
     public async Task SchemaMigrator_IsIdempotent()
     {
-        using var temp = new TempWorkspace();
-        Directory.CreateDirectory(temp.Layout.BocchiDirectory);
+        using var temp = new TempDataRoot();
+        Directory.CreateDirectory(temp.Layout.StateDirectory);
         var factory = new SqliteConnectionFactory(temp.Layout);
         var migrator = new SchemaMigrator(factory);
 

@@ -27,7 +27,7 @@
 
 - 当前包版本：`LibGit2Sharp` 0.31.0。
 - 官方 NuGet 信息：0.31.0 是当前稳定版本；包目标包含 `net8.0`，NuGet 计算兼容 `net10.0`。
-- 当前使用范围：只在内容空间根执行本地 `init` / `status` / `commitAll`，不触碰 Bocchi 系统空间，也不做 remote / push / pull / 凭据。
+- 当前使用范围：只在 workspace 根执行本地 `init` / `status` / `commitAll`，不触碰 DataRoot 运行数据，也不做 remote / push / pull / 凭据。
 - 当前判断：继续使用 LibGit2Sharp 是合适的。真正需要谨慎的是 Windows 测试清理和未来远程凭据设计，而不是库本身。
 
 ## 当前验证
@@ -41,7 +41,7 @@
   - `Bocchi.HomeServer.Tests`：9 / 9
 - `dotnet format Bocchi.slnx --verify-no-changes --no-restore`：通过。
 - `git diff --check`：通过。
-- `dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build`：通过，临时工作区生成 `output/public/.bocchi-manifest.json`。
+- `dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build`：通过，临时 DataRoot 生成 `output/public/.bocchi-manifest.json`。
 
 ## 自检
 

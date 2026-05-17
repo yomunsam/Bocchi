@@ -9,13 +9,13 @@ using Bocchi.HomeServer.Data;
 namespace Bocchi.HomeServer.Tests;
 
 /// <summary>
-/// Custom factory that points the workspace at a per-instance temp directory,
+/// Custom factory that points DataRoot at a per-instance temp directory,
 /// so integration tests don't pollute the source tree or share state.
 /// </summary>
-public sealed class IsolatedWorkspaceWebApplicationFactory
+public sealed class IsolatedDataRootWebApplicationFactory
     : WebApplicationFactory<Program>
 {
-    public string WorkspaceRoot { get; } =
+    public string DataRoot { get; } =
         Path.Combine(Path.GetTempPath(), "bocchi-tests", Guid.NewGuid().ToString("N"));
 
     public const string AdminEmail = "admin@example.test";
@@ -29,7 +29,7 @@ public sealed class IsolatedWorkspaceWebApplicationFactory
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Bocchi:WorkspaceRoot"] = WorkspaceRoot,
+                ["Bocchi:DataRoot"] = DataRoot,
             });
         });
         base.ConfigureWebHost(builder);
@@ -40,13 +40,13 @@ public sealed class IsolatedWorkspaceWebApplicationFactory
         base.Dispose(disposing);
         if (disposing)
         {
-            DeleteBestEffort(WorkspaceRoot);
+            DeleteBestEffort(DataRoot);
         }
     }
 
     public string SeedPublishedPostWithMedia()
     {
-        var postDir = Path.Combine(WorkspaceRoot, "content", "posts", "2026", "hello-preview");
+        var postDir = Path.Combine(DataRoot, "workspace", "posts", "2026", "hello-preview");
         Directory.CreateDirectory(Path.Combine(postDir, "assets"));
         File.WriteAllText(Path.Combine(postDir, "index.md"),
             "---\ntitle: Hello Preview\nslug: hello-preview\nstatus: Published\npublishedAt: 2026-05-14T12:00:00Z\n---\nPreview body ![cover](assets/cover.jpg)\n");

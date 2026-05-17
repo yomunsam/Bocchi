@@ -15,7 +15,7 @@ public sealed class AccountAndSetupTests
     [Fact]
     public async Task SetupPost_CreatesFirstAdminAndClosesSetup()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using var client = await factory.CreateAdminClientAsync();
 
         var admin = await client.GetAsync("/Admin");
@@ -29,7 +29,7 @@ public sealed class AccountAndSetupTests
     [Fact]
     public async Task NonAdminUser_CannotEnterDashboard()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using (await factory.CreateAdminClientAsync())
         {
         }
@@ -51,7 +51,7 @@ public sealed class AccountAndSetupTests
     [Fact]
     public async Task ExternalLoginSettings_ProtectSecretAndControlLoginButtons()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using (await factory.CreateAdminClientAsync())
         {
         }
@@ -82,7 +82,7 @@ public sealed class AccountAndSetupTests
     [Fact]
     public async Task ThemeSettings_SaveDefault_SyncsWorkspaceConfigFile()
     {
-        using var factory = new IsolatedWorkspaceWebApplicationFactory();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
         using (await factory.CreateAdminClientAsync())
         {
         }
@@ -93,9 +93,44 @@ public sealed class AccountAndSetupTests
 
         var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
         db.ThemeConfigurations.Single().ThemeId.Should().Be("default-static");
-        var layout = scope.ServiceProvider.GetRequiredService<WorkspaceLayout>();
+        var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
         var configPath = Path.Combine(layout.ThemeConfigDirectory, "default-static.json");
         File.Exists(configPath).Should().BeTrue();
         (await File.ReadAllTextAsync(configPath)).Should().Contain("#E85D3A");
+    }
+
+    [Fact]
+    public async Task ThemeSettings_SaveI18nTextOverrides_NormalizesAndExportsBuildSnapshot()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
+        var view = await settings.GetI18nAsync("default-static");
+        view.Keys.Should().ContainSingle(key => key.Key == "theme.defaultStatic.colophonBuiltWith");
+
+        await settings.SaveI18nTextOverridesAsync(
+            "default-static",
+            [
+                new ThemeI18nTextOverride
+                {
+                    Key = " theme.defaultStatic.colophonBuiltWith ",
+                    Values = new Dictionary<string, string>
+                    {
+                        [" en-US "] = " Powered quietly ",
+                        ["zh-CN"] = " ",
+                    },
+                },
+            ]);
+
+        var updated = await settings.GetI18nAsync("default-static");
+        updated.TextOverrides.Should().ContainSingle(x =>
+            x.Key == "theme.defaultStatic.colophonBuiltWith"
+            && x.Values["en-US"] == "Powered quietly");
+        var snapshot = await settings.GetBuildI18nTextOverridesAsync("default-static");
+        snapshot["theme.defaultStatic.colophonBuiltWith"]["en-US"].Should().Be("Powered quietly");
     }
 }

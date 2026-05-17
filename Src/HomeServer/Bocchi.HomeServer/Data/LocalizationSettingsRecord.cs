@@ -17,6 +17,9 @@ public sealed class LocalizationSettingsRecord
     /// <summary>用户自定义语言的 JSON 数组。Dashboard 只提示 BCP 47，不强行拒绝未知代码。</summary>
     public string CustomLanguagesJson { get; set; } = "[]";
 
+    /// <summary>Common i18n key 覆盖的 JSON object，形态为 key -> language -> plain text。</summary>
+    public string CommonTextOverridesJson { get; set; } = "{}";
+
     /// <summary>M6 固定的 URL policy；保留字段是为了让后续 Theme Context 有稳定来源。</summary>
     public string UrlPolicy { get; set; } = "PrimaryUnprefixed";
 

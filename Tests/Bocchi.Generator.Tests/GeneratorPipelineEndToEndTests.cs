@@ -146,6 +146,140 @@ public sealed class GeneratorPipelineEndToEndTests
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("id").GetString().Should().Be("default-static");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
             .GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#E85D3A");
+        var themeI18n = contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("i18n");
+        themeI18n.GetProperty("supportedLanguages").EnumerateArray().Should()
+            .Contain(language => language.GetString() == "zh-CN");
+        themeI18n.GetProperty("keys").EnumerateArray().Should().Contain(key =>
+            key.GetProperty("key").GetString() == "theme.defaultStatic.colophonBuiltWith"
+            && key.GetProperty("defaultValues").GetProperty("zh-CN").GetString() == "由 Bocchi 构建。");
+        var localization = contextDoc.RootElement.GetProperty("data").GetProperty("localization");
+        localization.GetProperty("primaryLanguage").GetString().Should().Be("zh-CN");
+        localization.GetProperty("urlPolicy").GetString().Should().Be("PrimaryUnprefixed");
+        localization.GetProperty("enabledLanguages").EnumerateArray().Should().ContainSingle(
+            language => language.GetProperty("code").GetString() == "zh-CN"
+                && language.GetProperty("nativeName").GetString() == "简体中文"
+                && language.GetProperty("englishName").GetString() == "Simplified Chinese");
+        localization.GetProperty("text").ValueKind.Should().Be(JsonValueKind.Object);
+    }
+
+    [Fact]
+    public async Task ThemeInput_IncludesLocalizationSnapshotTextOverrides()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var sink = new FileSystemBuildSink(fixture.Layout);
+        var localizationOptions = CreateLocalizationOptions("Home", "首页");
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = localizationOptions },
+            sink,
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var contextJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
+        using var contextDoc = JsonDocument.Parse(contextJson);
+        var localization = contextDoc.RootElement.GetProperty("data").GetProperty("localization");
+        localization.GetProperty("primaryLanguage").GetString().Should().Be("en-US");
+        localization.GetProperty("urlPolicy").GetString().Should().Be("PrimaryUnprefixed");
+        localization.GetProperty("enabledLanguages").EnumerateArray().Should().Contain(language =>
+            language.GetProperty("code").GetString() == "zh-CN"
+            && language.GetProperty("nativeName").GetString() == "简体中文");
+        var text = localization.GetProperty("text").GetProperty("menu.home");
+        text.GetProperty("en-US").GetString().Should().Be("Home");
+        text.GetProperty("zh-CN").GetString().Should().Be("首页");
+    }
+
+    [Fact]
+    public async Task FullBuild_WhenLocalizationTextChanges_DoesNotShortCircuit()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var first = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = CreateLocalizationOptions("Home", "首页") },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+        first.Status.Should().Be(BuildStatus.Succeeded);
+
+        var second = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = CreateLocalizationOptions("Start", "开始") },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        second.Status.Should().Be(BuildStatus.Succeeded);
+        second.Fingerprint!.Value.Should().NotBe(first.Fingerprint!.Value);
+    }
+
+    [Fact]
+    public async Task ThemeInput_MergesThemePrivateTextOverridesOverCommonText()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var localizationOptions = CreateLocalizationOptions("Home", "首页") with
+        {
+            Text = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["en-US"] = "Common fallback",
+                },
+            },
+            ThemeTextOverrides = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["en-US"] = "Powered quietly",
+                },
+            },
+        };
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = localizationOptions },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var contextJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
+        using var contextDoc = JsonDocument.Parse(contextJson);
+        var text = contextDoc.RootElement
+            .GetProperty("data")
+            .GetProperty("localization")
+            .GetProperty("text")
+            .GetProperty("theme.defaultStatic.colophonBuiltWith");
+        text.GetProperty("en-US").GetString().Should().Be("Powered quietly");
+    }
+
+    [Fact]
+    public async Task FullBuild_WhenThemePrivateLocalizationTextChanges_DoesNotShortCircuit()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var first = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = CreateLocalizationOptionsWithThemeText("Powered quietly") },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+        first.Status.Should().Be(BuildStatus.Succeeded);
+
+        var second = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = CreateLocalizationOptionsWithThemeText("Made with Bocchi") },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        second.Status.Should().Be(BuildStatus.Succeeded);
+        second.Fingerprint!.Value.Should().NotBe(first.Fingerprint!.Value);
     }
 
     [Fact]
@@ -286,6 +420,49 @@ public sealed class GeneratorPipelineEndToEndTests
         html.Should().NotContain("&lt;p&gt;Body");
     }
 
+    /// <summary>创建带 Common i18n 文本覆盖的构建快照，避免测试重复搭建同一组语言。</summary>
+    private static BuildLocalizationOptions CreateLocalizationOptions(string englishHome, string chineseHome)
+        => new()
+        {
+            PrimaryLanguage = "en-US",
+            EnabledLanguages =
+            [
+                new BuildLanguageRecord
+                {
+                    Code = "en-US",
+                    NativeName = "English",
+                    EnglishName = "English",
+                },
+                new BuildLanguageRecord
+                {
+                    Code = "zh-CN",
+                    NativeName = "简体中文",
+                    EnglishName = "Simplified Chinese",
+                },
+            ],
+            Text = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["menu.home"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["en-US"] = englishHome,
+                    ["zh-CN"] = chineseHome,
+                },
+            },
+        };
+
+    /// <summary>创建带 Theme 私有 i18n 覆盖的构建快照，用来验证覆盖优先级与指纹。</summary>
+    private static BuildLocalizationOptions CreateLocalizationOptionsWithThemeText(string englishText)
+        => CreateLocalizationOptions("Home", "首页") with
+        {
+            ThemeTextOverrides = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["en-US"] = englishText,
+                },
+            },
+        };
+
     /// <summary>创建一个只用于测试 Theme 加载边界的 process Theme manifest。</summary>
     private static void CreateProcessTheme(TestWorkspaceFixture fixture, string themeId)
     {
@@ -297,7 +474,7 @@ public sealed class GeneratorPipelineEndToEndTests
               "name": "Test Theme",
               "version": "0.1.0",
               "contractVersion": "1.0",
-              "inputDir": ".bocchi/input",
+              "inputDir": "../../cache/theme-input",
               "outputDir": "build",
               "runner": {
                 "kind": "process",

@@ -4,7 +4,7 @@ using Bocchi.ContentModel;
 
 namespace Bocchi.Generator.ThemeInputs.Models;
 
-/// <summary>对应 <c>.bocchi/input/site.json</c> 的 <c>data</c> 主体。</summary>
+/// <summary>对应 <c>../../cache/theme-input/site.json</c> 的 <c>data</c> 主体。</summary>
 public sealed record SiteInput
 {
     public required string Title { get; init; }
@@ -20,7 +20,7 @@ public sealed record SiteInput
     public required int FeedItemCount { get; init; }
 }
 
-/// <summary>对应 <c>.bocchi/input/navigation.json</c>。</summary>
+/// <summary>对应 <c>../../cache/theme-input/navigation.json</c>。</summary>
 public sealed record NavigationInput
 {
     public required IReadOnlyList<NavigationItem> Items { get; init; }
@@ -112,12 +112,14 @@ public sealed record FriendInput
 /// <summary>媒体引用。<see cref="Path"/> 总是站点根相对（以 <c>/</c> 开头）。</summary>
 public sealed record MediaReferenceInput(string Path, string? Alt = null);
 
-/// <summary>对应 <c>.bocchi/input/theme-context.json</c> 的全局渲染上下文。</summary>
+/// <summary>对应 <c>../../cache/theme-input/theme-context.json</c> 的全局渲染上下文。</summary>
 public sealed record ThemeContextInput
 {
     public required ThemeContextBocchi Bocchi { get; init; }
     public required ThemeContextBuild Build { get; init; }
     public required ThemeContextSite Site { get; init; }
+    /// <summary>前台 Theme 使用的站点本地化上下文；Dashboard UI language 不进入这里。</summary>
+    public required ThemeContextLocalization Localization { get; init; }
     public required ThemeContextAuthor Author { get; init; }
     public required ThemeContextFeatures Features { get; init; }
     public required ThemeContextTheme Theme { get; init; }
@@ -147,6 +149,35 @@ public sealed record ThemeContextSite
     public required string BaseUrl { get; init; }
 }
 
+/// <summary>Theme Contract 的站点本地化节点，表达站点语言、URL policy 与 Common i18n 文本覆盖。</summary>
+public sealed record ThemeContextLocalization
+{
+    /// <summary>站点主要语言；PrimaryUnprefixed 策略下该语言使用无前缀 URL。</summary>
+    public required string PrimaryLanguage { get; init; }
+
+    /// <summary>站点启用语言列表，调用方会保证包含主要语言。</summary>
+    public required IReadOnlyList<ThemeContextLanguageRecord> EnabledLanguages { get; init; }
+
+    /// <summary>M6 固定 URL policy：主语言无前缀，其他启用语言使用语言前缀。</summary>
+    public required string UrlPolicy { get; init; }
+
+    /// <summary>Common i18n key 覆盖；没有用户覆盖时保持为空对象。</summary>
+    public JsonObject Text { get; init; } = new();
+}
+
+/// <summary>传给 Theme 的语言描述，不包含图标或地区视觉符号。</summary>
+public sealed record ThemeContextLanguageRecord
+{
+    /// <summary>BCP 47 风格语言代码，例如 <c>en-US</c> 或 <c>zh-CN</c>。</summary>
+    public required string Code { get; init; }
+
+    /// <summary>该语言自己的显示名称。</summary>
+    public required string NativeName { get; init; }
+
+    /// <summary>该语言的英文显示名称，便于 Theme 做跨语言 fallback 展示。</summary>
+    public required string EnglishName { get; init; }
+}
+
 /// <summary>Theme 渲染所需的作者信息。</summary>
 public sealed record ThemeContextAuthor
 {
@@ -173,4 +204,35 @@ public sealed record ThemeContextTheme
     public required string Name { get; init; }
     public required string Version { get; init; }
     public JsonObject Config { get; init; } = new();
+    /// <summary>当前 Theme manifest 声明的私有 i18n key；Theme 未声明时保留空列表。</summary>
+    public ThemeContextThemeI18n I18n { get; init; } = new();
+}
+
+/// <summary>Theme Context 中的 Theme 私有 i18n 声明快照。</summary>
+public sealed record ThemeContextThemeI18n
+{
+    /// <summary>Theme 原生支持或提供默认值的语言代码列表。</summary>
+    public IReadOnlyList<string> SupportedLanguages { get; init; } = [];
+
+    /// <summary>Theme 默认语言；为空时由 Theme 自行决定 fallback。</summary>
+    public string? DefaultLanguage { get; init; }
+
+    /// <summary>Theme 私有 key 列表。Common key 不会重复出现在这里。</summary>
+    public IReadOnlyList<ThemeContextThemeI18nKey> Keys { get; init; } = [];
+}
+
+/// <summary>Theme Context 中的单个 Theme 私有 i18n key 声明。</summary>
+public sealed record ThemeContextThemeI18nKey
+{
+    /// <summary>Theme 私有 key，通常带 Theme 命名空间。</summary>
+    public required string Key { get; init; }
+
+    /// <summary>Dashboard 可展示的短标题。</summary>
+    public required string Title { get; init; }
+
+    /// <summary>Dashboard 可展示的说明文本。</summary>
+    public string? Description { get; init; }
+
+    /// <summary>Theme manifest 提供的默认 plain text 值。</summary>
+    public JsonObject DefaultValues { get; init; } = new();
 }

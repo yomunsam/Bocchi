@@ -200,6 +200,10 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CommonTextOverridesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EnabledLanguagesJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -239,7 +243,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.Property<int>("SchemaVersion")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("WorkspaceRoot")
+                    b.Property<string>("DataRoot")
                         .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");
@@ -256,6 +260,10 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("ConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("I18nTextOverridesJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

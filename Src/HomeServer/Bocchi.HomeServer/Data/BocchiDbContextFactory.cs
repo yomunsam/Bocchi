@@ -11,7 +11,8 @@ public sealed class BocchiDbContextFactory : IDesignTimeDbContextFactory<BocchiD
     /// <summary>创建用于生成迁移的 DbContext。</summary>
     public BocchiDbContext CreateDbContext(string[] args)
     {
-        var dbPath = Path.GetFullPath(Path.Combine(".bocchi", "bocchi.sqlite"));
+        var dbPath = Path.GetFullPath(Path.Combine("data", "state", "bocchi.sqlite"));
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         var options = new DbContextOptionsBuilder<BocchiDbContext>()
             .UseSqlite($"Data Source={dbPath}")
             .Options;

@@ -14,6 +14,9 @@ public sealed class ThemeConfigurationRecord
     /// <summary>Theme 的 JSON 配置文本。</summary>
     public string ConfigurationJson { get; set; } = "{}";
 
+    /// <summary>Theme 私有 i18n key 覆盖，形态为 key -> language -> plain text。</summary>
+    public string I18nTextOverridesJson { get; set; } = "{}";
+
     /// <summary>最后更新时间。</summary>
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

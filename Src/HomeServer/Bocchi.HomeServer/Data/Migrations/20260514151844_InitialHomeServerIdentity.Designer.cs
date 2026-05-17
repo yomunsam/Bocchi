@@ -210,7 +210,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.Property<int>("SchemaVersion")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("WorkspaceRoot")
+                    b.Property<string>("DataRoot")
                         .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");

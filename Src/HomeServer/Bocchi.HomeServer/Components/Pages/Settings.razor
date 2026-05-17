@@ -6,7 +6,7 @@
 @inject ThemeSettingsService ThemeSettings
 @inject LocalizationSettingsService LocalizationSettings
 @inject DashboardLocalizationService I18n
-@inject WorkspaceLayout Layout
+@inject BocchiDataLayout Layout
 
 <PageTitle>@I18n["settings.page.title"] · Bocchi</PageTitle>
 
@@ -84,9 +84,13 @@
                     <div class="bocchi-localization-card">
                         <h3>@I18n["settings.localization.siteTitle"]</h3>
                         <div class="bocchi-form-grid">
+                            @{
+                                var filteredLanguages = FilteredAvailableLanguages;
+                                var enabledLanguages = EnabledLanguagesForDisplay;
+                            }
                             <label>
                                 @I18n["settings.localization.primaryLanguage"]
-                                <select @bind="_primaryLanguage">
+                                <select @bind="PrimaryLanguage">
                                     @foreach (var language in _availableLanguages)
                                     {
                                         <option value="@language.Code">@language.DisplayName</option>
@@ -94,9 +98,35 @@
                                 </select>
                             </label>
 
+                            <label class="bocchi-language-search">
+                                @I18n["settings.localization.searchLanguages"]
+                                <input
+                                    type="search"
+                                    @bind="_languageSearch"
+                                    @bind:event="oninput"
+                                    placeholder='@I18n["settings.localization.searchLanguagesPlaceholder"]' />
+                            </label>
+
+                            <div class="bocchi-language-chip-list bocchi-language-chip-list--selected" aria-label='@I18n["settings.localization.selectedLanguages"]'>
+                                @foreach (var language in enabledLanguages)
+                                {
+                                    <span class="bocchi-language-chip">
+                                        @language.DisplayName
+                                        @if (!IsPrimaryLanguage(language.Code))
+                                        {
+                                            <button type="button" class="secondary" @onclick="() => DisableLanguage(language.Code)">@I18n["settings.localization.disableLanguage"]</button>
+                                        }
+                                    </span>
+                                }
+                            </div>
+
                             <div class="bocchi-language-list" aria-label='@I18n["settings.localization.enabledLanguages"]'>
                                 <strong>@I18n["settings.localization.enabledLanguages"]</strong>
-                                @foreach (var language in _availableLanguages)
+                                @if (filteredLanguages.Count == 0)
+                                {
+                                    <p>@I18n["settings.localization.noLanguageResults"]</p>
+                                }
+                                @foreach (var language in filteredLanguages)
                                 {
                                     <label class="bocchi-language-option">
                                         <input
@@ -121,9 +151,12 @@
                             </dl>
 
                             <button type="button" @onclick="SaveLocalizationAsync">@I18n["settings.localization.saveSite"]</button>
-                            @if (_localizationSaved)
+                            @if (!string.IsNullOrWhiteSpace(_localizationMessage))
                             {
-                                <p><BocchiStatusPill Tone="success">@I18n["settings.localization.saved"]</BocchiStatusPill> @_localizationMessage</p>
+                                <p class="bocchi-localization-message">
+                                    <BocchiStatusPill Tone="@(_localizationSaved ? "success" : "warning")">@(_localizationSaved ? I18n["settings.localization.saved"] : I18n["settings.localization.needsAttention"])</BocchiStatusPill>
+                                    @_localizationMessage
+                                </p>
                             }
                         </div>
                     </div>
@@ -160,6 +193,57 @@
                             </div>
                         }
                     </div>
+
+                    <div class="bocchi-localization-card bocchi-localization-card--wide">
+                        <h3>@I18n["settings.localization.commonTextTitle"]</h3>
+                        <p>@I18n["settings.localization.commonTextDescription"]</p>
+                        @{
+                            var commonTextLanguages = EnabledLanguagesForDisplay;
+                        }
+                        <label class="bocchi-language-search">
+                            @I18n["settings.localization.commonTextSearch"]
+                            <input
+                                type="search"
+                                @bind="_commonKeySearch"
+                                @bind:event="oninput"
+                                placeholder='@I18n["settings.localization.commonTextSearchPlaceholder"]' />
+                        </label>
+
+                        <div class="bocchi-common-i18n-list">
+                            @if (FilteredCommonI18nKeys.Count == 0)
+                            {
+                                <p>@I18n["settings.localization.commonTextNoResults"]</p>
+                            }
+                            @foreach (var key in FilteredCommonI18nKeys)
+                            {
+                                <div class="bocchi-common-i18n-row">
+                                    <code>@key</code>
+                                    <div class="bocchi-common-i18n-row__inputs">
+                                        @foreach (var language in commonTextLanguages)
+                                        {
+                                            <label>
+                                                @language.Code
+                                                <input
+                                                    type="text"
+                                                    value="@GetCommonTextOverride(key, language.Code)"
+                                                    @oninput="args => SetCommonTextOverride(key, language.Code, args.Value?.ToString())"
+                                                    placeholder="@language.NativeName" />
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <button type="button" class="secondary" @onclick="SaveCommonTextOverridesAsync">@I18n["settings.localization.commonTextSave"]</button>
+                        @if (!string.IsNullOrWhiteSpace(_commonTextMessage))
+                        {
+                            <p class="bocchi-localization-message">
+                                <BocchiStatusPill Tone="@(_commonTextSaved ? "success" : "warning")">@(_commonTextSaved ? I18n["settings.localization.saved"] : I18n["settings.localization.needsAttention"])</BocchiStatusPill>
+                                @_commonTextMessage
+                            </p>
+                        }
+                    </div>
                 </div>
             </section>
 
@@ -172,7 +256,7 @@
                     </div>
                     <div>
                         <dt>Data Protection keys</dt>
-                        <dd><code>@System.IO.Path.Combine(Layout.BocchiDirectory, "data-protection-keys")</code></dd>
+                        <dd><code>@System.IO.Path.Combine(Layout.StateDirectory, "data-protection-keys")</code></dd>
                     </div>
                 </dl>
             </section>
@@ -226,18 +310,83 @@
                         <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
                     }
                 </div>
+
+                <div class="bocchi-theme-i18n">
+                    <div class="bocchi-section-heading">
+                        <h3>@I18n["settings.theme.i18nTitle"]</h3>
+                        <p>@I18n["settings.theme.i18nDescription"]</p>
+                    </div>
+                    @if (_themeI18nKeys.Count == 0)
+                    {
+                        <p>@I18n["settings.theme.i18nEmpty"]</p>
+                    }
+                    else
+                    {
+                        var themeI18nLanguages = EnabledLanguagesForDisplay;
+                        <label class="bocchi-language-search">
+                            @I18n["settings.theme.i18nSearch"]
+                            <input
+                                type="search"
+                                @bind="_themeI18nSearch"
+                                @bind:event="oninput"
+                                placeholder='@I18n["settings.theme.i18nSearchPlaceholder"]' />
+                        </label>
+
+                        <div class="bocchi-common-i18n-list">
+                            @if (FilteredThemeI18nKeys.Count == 0)
+                            {
+                                <p>@I18n["settings.theme.i18nNoResults"]</p>
+                            }
+                            @foreach (var key in FilteredThemeI18nKeys)
+                            {
+                                <div class="bocchi-common-i18n-row">
+                                    <div class="bocchi-theme-i18n-key">
+                                        <code>@key.Key</code>
+                                        <strong>@key.Title</strong>
+                                        @if (!string.IsNullOrWhiteSpace(key.Description))
+                                        {
+                                            <small>@key.Description</small>
+                                        }
+                                    </div>
+                                    <div class="bocchi-common-i18n-row__inputs">
+                                        @foreach (var language in themeI18nLanguages)
+                                        {
+                                            <label>
+                                                @language.Code
+                                                <input
+                                                    type="text"
+                                                    value="@GetThemeI18nTextOverride(key.Key, language.Code)"
+                                                    @oninput="args => SetThemeI18nTextOverride(key.Key, language.Code, args.Value?.ToString())"
+                                                    placeholder="@GetThemeI18nDefaultValue(key, language.Code)" />
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <button type="button" class="secondary" @onclick="SaveThemeI18nTextOverridesAsync">@I18n["settings.theme.i18nSave"]</button>
+                        @if (!string.IsNullOrWhiteSpace(_themeI18nMessage))
+                        {
+                            <p class="bocchi-localization-message">
+                                <BocchiStatusPill Tone="@(_themeI18nSaved ? "success" : "warning")">@(_themeI18nSaved ? I18n["settings.localization.saved"] : I18n["settings.localization.needsAttention"])</BocchiStatusPill>
+                                @_themeI18nMessage
+                            </p>
+                        }
+                    }
+                </div>
             </section>
 
             <section id="workspace" class="bocchi-panel">
-                <h2>Workspace</h2>
+                <h2>Data</h2>
                 <dl class="bocchi-meta-list">
                     <div>
-                        <dt>Root</dt>
-                        <dd><code>@Layout.Root</code></dd>
+                        <dt>DataRoot</dt>
+                        <dd><code>@Layout.DataRoot</code></dd>
                     </div>
                     <div>
-                        <dt>Content</dt>
-                        <dd><code>@Layout.ContentSpaceRoot</code></dd>
+                        <dt>Workspace</dt>
+                        <dd><code>@Layout.WorkspaceRoot</code></dd>
                     </div>
                     <div>
                         <dt>Output</dt>
@@ -262,6 +411,20 @@
     /// <summary>站点主要语言编辑缓冲区。</summary>
     private string _primaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
 
+    /// <summary>站点主要语言双向绑定入口；变更时立即保证主要语言处于启用集合中。</summary>
+    private string PrimaryLanguage
+    {
+        get => _primaryLanguage;
+        set
+        {
+            _primaryLanguage = string.IsNullOrWhiteSpace(value)
+                ? LocalizationSettingsService.DefaultPrimaryLanguage
+                : value.Trim();
+            _enabledLanguageCodes.Add(_primaryLanguage);
+            _localizationSaved = false;
+        }
+    }
+
     /// <summary>站点启用语言编辑缓冲区。</summary>
     private HashSet<string> _enabledLanguageCodes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -270,6 +433,15 @@
 
     /// <summary>Picklist 可用语言，内置语言在前，自定义语言在后。</summary>
     private IReadOnlyList<LanguageRecord> _availableLanguages = LocalizationSettingsService.BuiltInLanguages;
+
+    /// <summary>Language Picklist 搜索词，匹配 code、nativeName 和 englishName。</summary>
+    private string _languageSearch = string.Empty;
+
+    /// <summary>Common i18n key 搜索词，用来让覆盖列表保持低密度。</summary>
+    private string _commonKeySearch = string.Empty;
+
+    /// <summary>Common i18n 覆盖编辑缓冲区，形态为 key -> language -> plain text。</summary>
+    private Dictionary<string, Dictionary<string, string>> _commonTextOverrides = new(StringComparer.Ordinal);
 
     /// <summary>URL policy 显示缓冲区；M6 固定为 PrimaryUnprefixed。</summary>
     private string _urlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy;
@@ -295,6 +467,15 @@
     /// <summary>前台 Theme JSON 配置编辑缓冲区。</summary>
     private string _themeJson = "{}";
 
+    /// <summary>Theme 私有 i18n key 搜索词。</summary>
+    private string _themeI18nSearch = string.Empty;
+
+    /// <summary>当前 Theme manifest 声明的私有 i18n key。</summary>
+    private List<ThemeI18nKeyView> _themeI18nKeys = [];
+
+    /// <summary>Theme 私有 i18n 覆盖编辑缓冲区，形态为 key -> language -> plain text。</summary>
+    private Dictionary<string, Dictionary<string, string>> _themeI18nTextOverrides = new(StringComparer.Ordinal);
+
     /// <summary>Basic Info 保存反馈。</summary>
     private bool _basicSaved;
 
@@ -310,6 +491,18 @@
     /// <summary>Theme 配置保存反馈。</summary>
     private bool _themeSaved;
 
+    /// <summary>Theme 私有 i18n 覆盖保存反馈。</summary>
+    private bool _themeI18nSaved;
+
+    /// <summary>Theme 私有 i18n 覆盖保存后的说明文本。</summary>
+    private string? _themeI18nMessage;
+
+    /// <summary>Common i18n 覆盖保存反馈。</summary>
+    private bool _commonTextSaved;
+
+    /// <summary>Common i18n 覆盖保存后的说明文本。</summary>
+    private string? _commonTextMessage;
+
     protected override async Task OnInitializedAsync()
     {
         var settings = await DashboardSettings.GetAsync();
@@ -317,9 +510,7 @@
         _description = settings.SiteDescription;
         _appearance = settings.AppearanceMode;
         await LoadLocalizationAsync();
-        var theme = await ThemeSettings.GetDefaultAsync();
-        _themeId = theme.ThemeId;
-        _themeJson = theme.ConfigurationJson;
+        await LoadThemeAsync();
 
         foreach (var provider in await ExternalLogins.ListAsync())
         {
@@ -359,6 +550,20 @@
         _localizationMessage = I18n["settings.localization.primaryIncluded"];
     }
 
+    /// <summary>保存 Common i18n 覆盖；空输入会在服务层被丢弃。</summary>
+    private async Task SaveCommonTextOverridesAsync()
+    {
+        var overrides = _commonTextOverrides.Select(x => new CommonI18nTextOverride
+        {
+            Key = x.Key,
+            Values = x.Value,
+        });
+        await LocalizationSettings.SaveCommonTextOverridesAsync(overrides);
+        await LoadLocalizationAsync();
+        _commonTextSaved = true;
+        _commonTextMessage = I18n["settings.localization.commonTextSaved"];
+    }
+
     /// <summary>保存 GitHub Provider 设置。</summary>
     private async Task SaveGitHubAsync()
     {
@@ -379,7 +584,31 @@
     private async Task SaveThemeAsync()
     {
         await ThemeSettings.SaveDefaultAsync(_themeId, _themeJson);
+        await LoadThemeI18nAsync();
         _themeSaved = true;
+    }
+
+    /// <summary>保存当前 Theme 私有 i18n 覆盖；空输入会在服务层被丢弃。</summary>
+    private async Task SaveThemeI18nTextOverridesAsync()
+    {
+        var overrides = _themeI18nTextOverrides.Select(x => new ThemeI18nTextOverride
+        {
+            Key = x.Key,
+            Values = x.Value,
+        });
+        await ThemeSettings.SaveI18nTextOverridesAsync(_themeId, overrides);
+        await LoadThemeI18nAsync();
+        _themeI18nSaved = true;
+        _themeI18nMessage = I18n["settings.theme.i18nSaved"];
+    }
+
+    /// <summary>读取当前 Theme 设置和私有 i18n 覆盖。</summary>
+    private async Task LoadThemeAsync()
+    {
+        var theme = await ThemeSettings.GetDefaultAsync();
+        _themeId = theme.ThemeId;
+        _themeJson = theme.ConfigurationJson;
+        await LoadThemeI18nAsync();
     }
 
     /// <summary>读取站点本地化设置并刷新 Settings 页缓冲区。</summary>
@@ -389,8 +618,149 @@
         _primaryLanguage = localization.PrimaryLanguage.Code;
         _enabledLanguageCodes = new HashSet<string>(localization.EnabledLanguages.Select(x => x.Code), StringComparer.OrdinalIgnoreCase);
         _customLanguages = [.. localization.CustomLanguages];
+        _commonTextOverrides = localization.CommonTextOverrides.ToDictionary(
+            x => x.Key,
+            x => new Dictionary<string, string>(x.Values, StringComparer.OrdinalIgnoreCase),
+            StringComparer.Ordinal);
         _urlPolicy = localization.UrlPolicy;
         RefreshAvailableLanguages();
+    }
+
+    /// <summary>读取 Theme manifest 声明和用户填写的 Theme 私有 i18n 覆盖。</summary>
+    private async Task LoadThemeI18nAsync()
+    {
+        var themeI18n = await ThemeSettings.GetI18nAsync(_themeId);
+        _themeI18nKeys = [.. themeI18n.Keys];
+        _themeI18nTextOverrides = themeI18n.TextOverrides.ToDictionary(
+            x => x.Key,
+            x => new Dictionary<string, string>(x.Values, StringComparer.OrdinalIgnoreCase),
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>搜索后的 Picklist 语言列表；保持小范围内联计算，避免为当前页面拆出过早组件。</summary>
+    private List<LanguageRecord> FilteredAvailableLanguages
+    {
+        get
+        {
+            var query = _languageSearch.Trim();
+            if (query.Length == 0)
+            {
+                return [.. _availableLanguages];
+            }
+
+            return _availableLanguages
+                .Where(language => LanguageMatchesSearch(language, query))
+                .ToList();
+        }
+    }
+
+    /// <summary>当前已启用语言的展示列表，按 Picklist 顺序显示，主语言由 setter 和服务层双重兜底。</summary>
+    private List<LanguageRecord> EnabledLanguagesForDisplay
+        => _availableLanguages
+            .Where(language => IsLanguageEnabled(language.Code))
+            .ToList();
+
+    /// <summary>当前可编辑的 Common i18n key；包含内置 key 和已经保存过的自定义 key。</summary>
+    private List<string> FilteredCommonI18nKeys
+    {
+        get
+        {
+            var query = _commonKeySearch.Trim();
+            return LocalizationSettingsService.CommonI18nKeys
+                .Concat(_commonTextOverrides.Keys)
+                .Distinct(StringComparer.Ordinal)
+                .Where(key => query.Length == 0 || key.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToList();
+        }
+    }
+
+    /// <summary>当前可编辑的 Theme 私有 i18n key；仅来自 Theme manifest 声明。</summary>
+    private List<ThemeI18nKeyView> FilteredThemeI18nKeys
+    {
+        get
+        {
+            var query = _themeI18nSearch.Trim();
+            return _themeI18nKeys
+                .Where(key => query.Length == 0
+                    || key.Key.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || key.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || (key.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+                .OrderBy(key => key.Key, StringComparer.Ordinal)
+                .ToList();
+        }
+    }
+
+    /// <summary>读取某个 Common key 在某个语言下的编辑值。</summary>
+    private string GetCommonTextOverride(string key, string languageCode)
+        => _commonTextOverrides.TryGetValue(key, out var values)
+            && values.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    /// <summary>更新 Common i18n 覆盖编辑缓冲区；空值会移除对应语言覆盖。</summary>
+    private void SetCommonTextOverride(string key, string languageCode, string? value)
+    {
+        if (!_commonTextOverrides.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _commonTextOverrides[key] = values;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            values.Remove(languageCode);
+            if (values.Count == 0)
+            {
+                _commonTextOverrides.Remove(key);
+            }
+        }
+        else
+        {
+            values[languageCode] = value.Trim();
+        }
+
+        _commonTextSaved = false;
+        _commonTextMessage = null;
+    }
+
+    /// <summary>读取某个 Theme 私有 key 在某个语言下的覆盖值。</summary>
+    private string GetThemeI18nTextOverride(string key, string languageCode)
+        => _themeI18nTextOverrides.TryGetValue(key, out var values)
+            && values.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    /// <summary>读取 Theme manifest 默认文案，用作输入框 placeholder。</summary>
+    private static string GetThemeI18nDefaultValue(ThemeI18nKeyView key, string languageCode)
+        => key.DefaultValues.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    /// <summary>更新 Theme 私有 i18n 覆盖编辑缓冲区；空值会移除对应语言覆盖。</summary>
+    private void SetThemeI18nTextOverride(string key, string languageCode, string? value)
+    {
+        if (!_themeI18nTextOverrides.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _themeI18nTextOverrides[key] = values;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            values.Remove(languageCode);
+            if (values.Count == 0)
+            {
+                _themeI18nTextOverrides.Remove(key);
+            }
+        }
+        else
+        {
+            values[languageCode] = value.Trim();
+        }
+
+        _themeI18nSaved = false;
+        _themeI18nMessage = null;
     }
 
     /// <summary>把自定义语言加入当前编辑缓冲区。</summary>
@@ -426,6 +796,20 @@
         _localizationSaved = false;
         _localizationMessage = null;
         RefreshAvailableLanguages();
+    }
+
+    /// <summary>从启用集合中关闭语言；主语言不能被关闭。</summary>
+    private void DisableLanguage(string code)
+    {
+        if (IsPrimaryLanguage(code))
+        {
+            _enabledLanguageCodes.Add(code);
+            return;
+        }
+
+        _enabledLanguageCodes.Remove(code);
+        _localizationSaved = false;
+        _localizationMessage = null;
     }
 
     /// <summary>从编辑缓冲区移除一个自定义语言。</summary>
@@ -482,6 +866,12 @@
         _availableLanguages = [.. LocalizationSettingsService.BuiltInLanguages, .. _customLanguages];
         _enabledLanguageCodes.Add(_primaryLanguage);
     }
+
+    /// <summary>按 code、nativeName 和 englishName 搜索语言，覆盖中英文后台下的常见查找方式。</summary>
+    private static bool LanguageMatchesSearch(LanguageRecord language, string query)
+        => language.Code.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || language.NativeName.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || language.EnglishName.Contains(query, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Provider 表单缓冲区，不直接暴露受保护 secret。</summary>
     private sealed class ProviderForm

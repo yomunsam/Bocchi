@@ -14,9 +14,9 @@ namespace Bocchi.Generator.Pipeline.Stages;
 /// </summary>
 public sealed class ComputeFingerprintStage : IBuildStage
 {
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
 
-    public ComputeFingerprintStage(WorkspaceLayout layout)
+    public ComputeFingerprintStage(BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
         _layout = layout;
@@ -44,6 +44,7 @@ public sealed class ComputeFingerprintStage : IBuildStage
         AppendThemeConfigHash(sha, _layout.ThemeConfigDirectory, themeId);
         AppendThemeFileHashes(sha, session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme));
         AppendLine(sha, $"bocchiVersion={session.GetItem<string>(BuildSessionKeys.BocchiVersion) ?? string.Empty}");
+        AppendLocalizationOptions(sha, session.Options.Localization);
 
         // 站点设置 / 导航：用全字段 toString 模拟稳定快照
         AppendLine(sha, $"site={session.Graph.Site.Settings}");
@@ -106,6 +107,39 @@ public sealed class ComputeFingerprintStage : IBuildStage
         Span<byte> bodyHash = stackalloc byte[32];
         SHA256.HashData(Encoding.UTF8.GetBytes(body), bodyHash);
         sha.AppendData(bodyHash);
+    }
+
+    /// <summary>把 HomeServer 注入的本地化设置纳入指纹，避免文案覆盖变更后被 up-to-date 短路。</summary>
+    private static void AppendLocalizationOptions(IncrementalHash sha, BuildLocalizationOptions? localization)
+    {
+        if (localization is null)
+        {
+            AppendLine(sha, "localization=site-language-fallback");
+            return;
+        }
+
+        AppendLine(sha, $"localization.primary={localization.PrimaryLanguage}");
+        AppendLine(sha, $"localization.urlPolicy={localization.UrlPolicy}");
+        foreach (var language in localization.EnabledLanguages.OrderBy(x => x.Code, StringComparer.OrdinalIgnoreCase))
+        {
+            AppendLine(sha, $"localization.language={language.Code}|{language.NativeName}|{language.EnglishName}");
+        }
+
+        foreach (var (key, values) in localization.Text.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            foreach (var (language, value) in values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                AppendLine(sha, $"localization.text={key}|{language}|{value}");
+            }
+        }
+
+        foreach (var (key, values) in localization.ThemeTextOverrides.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            foreach (var (language, value) in values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                AppendLine(sha, $"localization.themeText={key}|{language}|{value}");
+            }
+        }
     }
 
     private static void AppendThemeConfigHash(IncrementalHash sha, string themeConfigDirectory, string themeId)

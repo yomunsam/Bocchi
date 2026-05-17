@@ -11,10 +11,10 @@ namespace Bocchi.Generator.Pipeline.Stages;
 public sealed class LoadThemeStage : IBuildStage
 {
     /// <summary>当前工作区路径约定。</summary>
-    private readonly WorkspaceLayout _layout;
+    private readonly BocchiDataLayout _layout;
 
     /// <summary>构造 Theme 加载阶段。</summary>
-    public LoadThemeStage(WorkspaceLayout layout)
+    public LoadThemeStage(BocchiDataLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
         _layout = layout;

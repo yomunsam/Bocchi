@@ -1,80 +1,80 @@
 namespace Bocchi.Workspace;
 
 /// <summary>
-/// Bocchi 工作区目录约定。对应 <c>Docs/Architecture.md §3</c>。
+/// 用户内容 workspace 目录约定。对应 <c>Docs/Architecture.md §3</c> 与
+/// <c>Docs/Milestones/M2/M2.md §3.2</c>。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 工作区在物理上严格切分为两部分：
+/// Workspace 是用户的纯创作资产；它必须满足"独立可携、可作为独立 Git 仓库、不含构建产物、
+/// 不含 Theme 专有配置或 Theme 实现"。
+/// </para>
+/// <para>
+/// 强约束：
 /// </para>
 /// <list type="bullet">
-///   <item>
-///     <term>内容空间（Content Space）</term>
-///     <description>
-///       默认位于 <see cref="ContentSpaceRoot"/>（即 <c>&lt;Root&gt;/content/</c>），承载用户的纯创作资产，
-///       可独立打包、迁移、可作为独立 Git 仓库。其内部布局由 <see cref="ContentSpaceLayout"/> 决定。
-///     </description>
-///   </item>
-///   <item>
-///     <term>Bocchi 系统空间</term>
-///     <description>
-///       <see cref="ThemesDirectory"/>、<see cref="BocchiDirectory"/>、<see cref="OutputDirectory"/>，
-///       与 Bocchi 程序同寿，可被替换；不会被内容空间的 Git 仓库索引（位于内容空间根之外）。
-///     </description>
-///   </item>
+///   <item><description>Post / Work / Note / Photo 一律使用 <b>年份目录</b> 作为一级分类（年份正则 <c>^\d{4}$</c>）。</description></item>
+///   <item><description>Post / Work 单篇为目录形式：<c>&lt;kind&gt;/&lt;year&gt;/&lt;slug&gt;/index.md</c> + <c>assets/</c>。</description></item>
+///   <item><description>Page 不按年份分类：<c>pages/&lt;slug&gt;/index.md</c>。</description></item>
+///   <item><description>Note 为单文件：<c>notes/&lt;year&gt;/&lt;filename&gt;.md</c>。</description></item>
+///   <item><description>frontmatter 一律 YAML，使用 <c>---</c> 边界。</description></item>
+///   <item><description>媒体路径在 frontmatter 中以"相对当前文件"写。</description></item>
 /// </list>
-/// <para>
-/// 任何模块都应当通过 <see cref="WorkspaceLayout"/> / <see cref="ContentSpaceLayout"/> 取路径，
-/// 禁止直接拼接，以免破坏切分。
-/// </para>
 /// </remarks>
 public sealed record WorkspaceLayout
 {
-    /// <summary>构造一个标准布局（内容空间在 <c>&lt;Root&gt;/content/</c>）。</summary>
-    /// <param name="root">工作区根目录的绝对路径。</param>
+    /// <summary>构造一个内容 workspace 布局。</summary>
+    /// <param name="root">内容 workspace 根目录的绝对路径。</param>
     public WorkspaceLayout(string root)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         Root = Path.GetFullPath(root);
-        ContentSpace = new ContentSpaceLayout(Path.Combine(Root, "content"));
     }
 
-    /// <summary>工作区根目录的绝对路径。</summary>
+    /// <summary>内容 workspace 根目录。</summary>
     public string Root { get; }
 
-    /// <summary>内容空间布局。位于 <see cref="Root"/> 之下的 <c>content/</c>，可独立 Git 化。</summary>
-    public ContentSpaceLayout ContentSpace { get; }
+    /// <summary>文章根目录（按年份分类）。</summary>
+    public string PostsDirectory => Path.Combine(Root, "posts");
 
-    /// <summary>内容空间根目录（便捷访问，等价于 <see cref="ContentSpace"/>.<see cref="ContentSpaceLayout.Root"/>）。</summary>
-    public string ContentSpaceRoot => ContentSpace.Root;
+    /// <summary>独立页面根目录（不按年份分类）。</summary>
+    public string PagesDirectory => Path.Combine(Root, "pages");
 
-    /// <summary>仓库内置/副本 Theme 目录。</summary>
-    public string ThemesDirectory => Path.Combine(Root, "themes");
+    /// <summary>作品根目录（按年份分类）。</summary>
+    public string WorksDirectory => Path.Combine(Root, "works");
 
-    /// <summary>Bocchi 管理状态目录（SQLite、构建 manifest、Theme 配置、日志等）。</summary>
-    public string BocchiDirectory => Path.Combine(Root, ".bocchi");
+    /// <summary>短文根目录（按年份分类，单文件即一条）。</summary>
+    public string NotesDirectory => Path.Combine(Root, "notes");
 
-    /// <summary>SQLite 状态数据库路径。</summary>
-    public string SqliteDatabasePath => Path.Combine(BocchiDirectory, "bocchi.sqlite");
+    /// <summary>友链根目录。</summary>
+    public string FriendsDirectory => Path.Combine(Root, "friends");
 
-    /// <summary>Bocchi 日志目录（M2 起 Serilog 文件 sink 落到这里）。</summary>
-    public string LogsDirectory => Path.Combine(BocchiDirectory, "logs");
+    /// <summary>友链 YAML 文件路径。</summary>
+    public string FriendsFile => Path.Combine(FriendsDirectory, "friends.yaml");
 
-    /// <summary>Bocchi 缓存目录。</summary>
-    public string CacheDirectory => Path.Combine(BocchiDirectory, "cache");
+    /// <summary>照片墙根目录（M2 仅占位）。</summary>
+    public string PhotosDirectory => Path.Combine(Root, "photos");
 
-    /// <summary>派生媒体（webp、缩略图等构建产物）目录。M3 起使用，M2 仅约定路径。</summary>
-    public string DerivativesDirectory => Path.Combine(CacheDirectory, "derivatives");
+    /// <summary>站点级配置目录。</summary>
+    public string SiteDirectory => Path.Combine(Root, "site");
 
-    /// <summary>Theme 输入数据目录，对应 Theme Contract 中的 <c>inputDir</c>。</summary>
-    public string ThemeInputDirectory => Path.Combine(BocchiDirectory, "input");
+    /// <summary>站点设置 YAML 文件路径。</summary>
+    public string SiteSettingsFile => Path.Combine(SiteDirectory, "site.yaml");
 
-    /// <summary>Theme 实例配置目录（每个 Theme 一份 JSON）。</summary>
-    public string ThemeConfigDirectory => Path.Combine(BocchiDirectory, "theme-config");
+    /// <summary>导航 YAML 文件路径。</summary>
+    public string NavigationFile => Path.Combine(SiteDirectory, "navigation.yaml");
 
-    /// <summary>构建产物输出根目录。</summary>
-    public string OutputDirectory => Path.Combine(Root, "output");
+    /// <summary>内容 workspace 根 README（自动生成，说明本目录是源工程）。</summary>
+    public string ReadmeFile => Path.Combine(Root, "README.md");
 
-    /// <summary>静态站点输出目录。</summary>
-    public string PublicOutputDirectory => Path.Combine(OutputDirectory, "public");
+    /// <summary>内容 workspace 根 .gitignore（自动生成）。</summary>
+    public string GitIgnoreFile => Path.Combine(Root, ".gitignore");
+
+    /// <summary>把绝对路径转换为相对内容 workspace 根的、以 <c>/</c> 归一化的路径。</summary>
+    public string ToRelative(string absolutePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(absolutePath);
+        var rel = Path.GetRelativePath(Root, absolutePath);
+        return rel.Replace(Path.DirectorySeparatorChar, '/');
+    }
 }

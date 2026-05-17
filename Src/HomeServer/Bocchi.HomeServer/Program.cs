@@ -37,16 +37,17 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // Workspace 必须先注册：日志的文件 sink 也要落到 <workspace>/.bocchi/logs。
-    builder.Services.AddBocchiWorkspace(
+    // DataRoot 必须先注册：数据库、日志和内容 workspace 路径都从这里统一解析。
+    var dataRootBasePath = ResolveDataRootBase(builder.Environment);
+    builder.Services.AddBocchiData(
         builder.Configuration,
-        sp => builder.Environment.ContentRootPath);
+        _ => dataRootBasePath);
     builder.Services.AddBocchiGenerator(builder.Configuration);
     builder.Services.AddSingleton<BuildOrchestrator>();
     builder.Services.AddDbContext<BocchiDbContext>((sp, options) =>
     {
-        var layout = sp.GetRequiredService<WorkspaceLayout>();
-        Directory.CreateDirectory(layout.BocchiDirectory);
+        var layout = sp.GetRequiredService<BocchiDataLayout>();
+        Directory.CreateDirectory(layout.StateDirectory);
         options.UseSqlite($"Data Source={layout.SqliteDatabasePath}");
     });
     builder.Services.AddIdentity<BocchiUser, IdentityRole>(options =>
@@ -97,15 +98,15 @@ try
         options.SupportedUICultures = cultures;
     });
 
-    var workspaceRootForKeys = ResolveWorkspaceRoot(builder.Configuration, builder.Environment.ContentRootPath);
+    var dataRootForKeys = ResolveDataRoot(builder.Configuration, dataRootBasePath);
     builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(workspaceRootForKeys, ".bocchi", "data-protection-keys")));
+        .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataRootForKeys, "state", "data-protection-keys")));
 
     if (!builder.Environment.IsEnvironment("Testing"))
     {
         builder.Host.UseSerilog((context, services, configuration) =>
         {
-            var layout = services.GetRequiredService<WorkspaceLayout>();
+            var layout = services.GetRequiredService<BocchiDataLayout>();
             Directory.CreateDirectory(layout.LogsDirectory);
             configuration
                 .ReadFrom.Configuration(context.Configuration)
@@ -131,10 +132,10 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var sp = scope.ServiceProvider;
-        var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<WorkspaceOptions>>().Value;
+        var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BocchiDataOptions>>().Value;
         if (options.AutoInitialize)
         {
-            await sp.GetRequiredService<WorkspaceInitializer>().InitializeAsync();
+            await sp.GetRequiredService<BocchiDataInitializer>().InitializeAsync();
         }
 
         if (options.AutoMigrateSchema)
@@ -217,18 +218,22 @@ finally
     Log.CloseAndFlush();
 }
 
-/// <summary>根据配置解析 Data Protection key 所在工作区根目录。</summary>
-static string ResolveWorkspaceRoot(IConfiguration configuration, string contentRootPath)
+/// <summary>解析默认 DataRoot 的基准路径：开发期贴近项目目录，发布后贴近程序目录。</summary>
+static string ResolveDataRootBase(IHostEnvironment environment)
+    => environment.IsDevelopment() ? environment.ContentRootPath : AppContext.BaseDirectory;
+
+/// <summary>根据配置解析 DataRoot 绝对路径，供 Data Protection 在 DI 完成前落盘。</summary>
+static string ResolveDataRoot(IConfiguration configuration, string dataRootBasePath)
 {
-    var configured = configuration[$"{WorkspaceOptions.SectionName}:WorkspaceRoot"];
+    var configured = configuration[$"{BocchiDataOptions.SectionName}:DataRoot"];
     if (string.IsNullOrWhiteSpace(configured))
     {
-        return Path.Combine(contentRootPath, "workspace");
+        return Path.GetFullPath(Path.Combine(dataRootBasePath, "data"));
     }
 
     return Path.IsPathRooted(configured)
         ? Path.GetFullPath(configured)
-        : Path.GetFullPath(Path.Combine(contentRootPath, configured));
+        : Path.GetFullPath(Path.Combine(dataRootBasePath, configured));
 }
 
 /// <summary>

@@ -49,7 +49,7 @@ public static partial class BuildCli
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
 
-        var layout = services.GetRequiredService<WorkspaceLayout>();
+        var layout = services.GetRequiredService<BocchiDataLayout>();
         var pipeline = services.GetRequiredService<GeneratorPipeline>();
         var logger = services.GetRequiredService<ILogger<BuildOrchestrator>>();
         var sink = new FileSystemBuildSink(layout);

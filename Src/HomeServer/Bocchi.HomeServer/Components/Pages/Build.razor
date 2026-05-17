@@ -3,7 +3,7 @@
 @using Bocchi.Generator.State
 @using Bocchi.HomeServer.Build
 @using Bocchi.Workspace
-@inject WorkspaceLayout Layout
+@inject BocchiDataLayout Layout
 @inject BuildOrchestrator Orchestrator
 @inject IBuildStateStore Store
 
@@ -13,7 +13,7 @@
     <header class="bocchi-page-heading">
         <span class="bocchi-page-heading__eyebrow">Publish / 构建</span>
         <h1>Publish looks gentle.</h1>
-        <p>把内容空间生成为静态站点，写入 <code>output/public/</code>。普通入口先显示发布检查状态，高级日志和产物清单仍然保留给排错。</p>
+        <p>把内容 workspace 生成为静态站点，写入 <code>output/public/</code>。普通入口先显示发布检查状态，高级日志和产物清单仍然保留给排错。</p>
     </header>
 
     <div class="bocchi-two-column">

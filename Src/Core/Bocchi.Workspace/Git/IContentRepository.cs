@@ -5,7 +5,7 @@ namespace Bocchi.Workspace.Git;
 /// <param name="Email">作者邮箱。</param>
 public sealed record ContentRepositoryAuthor(string Name, string Email);
 
-/// <summary>内容空间 Git 仓库的当前状态。</summary>
+/// <summary>内容 workspace Git 仓库的当前状态。</summary>
 /// <param name="IsRepository">是否已初始化为 Git 仓库。</param>
 /// <param name="HeadCommitSha">HEAD 提交 SHA（截断），未初始化或无提交时为 <c>null</c>。</param>
 /// <param name="HeadCommitSummary">HEAD 提交首行摘要。</param>
@@ -21,14 +21,14 @@ public sealed record ContentRepositoryStatus(
     int DirtyFileCount);
 
 /// <summary>
-/// 内容空间 Git 仓库的对外契约。M2 仅提供本地能力（init / status / commit）；远程能力延后到 M6。
+/// 内容 workspace Git 仓库的对外契约。M2 仅提供本地能力（init / status / commit）；远程能力延后到 M6。
 /// </summary>
 public interface IContentRepository
 {
-    /// <summary>当前内容空间是否为 Git 仓库。</summary>
+    /// <summary>当前内容 workspace 是否为 Git 仓库。</summary>
     bool IsRepository { get; }
 
-    /// <summary>把当前内容空间初始化为 Git 仓库（不做首次提交）。</summary>
+    /// <summary>把当前内容 workspace 初始化为 Git 仓库（不做首次提交）。</summary>
     Task InitializeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>读取当前状态。</summary>
