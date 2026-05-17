@@ -36,8 +36,8 @@ public sealed class DefaultStaticThemeDefinition
         await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "standalone-page.liquid"), StandalonePageTemplate, cancellationToken, LegacyStandalonePageTemplate).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "templates", "pages", "404.liquid"), NotFoundTemplate, cancellationToken, LegacyNotFoundTemplate).ConfigureAwait(false);
         await EnsureFileAsync(Path.Combine(themeRoot, "assets", "favicon.svg"), DefaultStaticThemeAssets.FaviconSvg, cancellationToken).ConfigureAwait(false);
-        await EnsureFileAsync(Path.Combine(themeRoot, "assets", "app.css"), DefaultStaticThemeAssets.Css, cancellationToken).ConfigureAwait(false);
-        await EnsureFileAsync(Path.Combine(themeRoot, "assets", "app.js"), DefaultStaticThemeAssets.Js, cancellationToken).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "assets", "app.css"), DefaultStaticThemeAssets.Css, cancellationToken, DefaultStaticThemeAssets.LegacyCss).ConfigureAwait(false);
+        await EnsureFileAsync(Path.Combine(themeRoot, "assets", "app.js"), DefaultStaticThemeAssets.Js, cancellationToken, DefaultStaticThemeAssets.LegacyJs).ConfigureAwait(false);
     }
 
     /// <summary>读取内置默认模板，供旧工作区缺少新增模板文件时回退。</summary>
@@ -301,6 +301,61 @@ public sealed class DefaultStaticThemeDefinition
                   "zh-TW": "開啟選單",
                   "ja-JP": "メニューを開く"
                 }
+              },
+              {
+                "key": "theme.defaultStatic.languageLabel",
+                "title": "Language menu label",
+                "description": "Accessible label for the frontend language menu.",
+                "defaultValues": {
+                  "en-US": "Language",
+                  "zh-CN": "语言",
+                  "zh-TW": "語言",
+                  "ja-JP": "言語"
+                }
+              },
+              {
+                "key": "theme.defaultStatic.appearanceLabel",
+                "title": "Appearance menu label",
+                "description": "Accessible label for the frontend appearance menu.",
+                "defaultValues": {
+                  "en-US": "Appearance",
+                  "zh-CN": "外观",
+                  "zh-TW": "外觀",
+                  "ja-JP": "外観"
+                }
+              },
+              {
+                "key": "theme.defaultStatic.appearanceAuto",
+                "title": "Auto appearance option",
+                "description": "Label for the automatic appearance option.",
+                "defaultValues": {
+                  "en-US": "Auto",
+                  "zh-CN": "自动",
+                  "zh-TW": "自動",
+                  "ja-JP": "自動"
+                }
+              },
+              {
+                "key": "theme.defaultStatic.appearanceLight",
+                "title": "Light appearance option",
+                "description": "Label for the light appearance option.",
+                "defaultValues": {
+                  "en-US": "Light",
+                  "zh-CN": "浅色",
+                  "zh-TW": "淺色",
+                  "ja-JP": "ライト"
+                }
+              },
+              {
+                "key": "theme.defaultStatic.appearanceDark",
+                "title": "Dark appearance option",
+                "description": "Label for the dark appearance option.",
+                "defaultValues": {
+                  "en-US": "Dark",
+                  "zh-CN": "深色",
+                  "zh-TW": "深色",
+                  "ja-JP": "ダーク"
+                }
               }
             ]
           }
@@ -441,25 +496,53 @@ public sealed class DefaultStaticThemeDefinition
             <div class="topbar__inner">
               <a class="wordmark" href="/">{{ site.title }}</a>
               <nav class="nav" aria-label="Primary">
-                {% for item in navigation %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
+                {% for item in navigation %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %} data-bocchi-i18n="{{ item.i18nKey }}">{{ item.label }}</a>{% endfor %}
               </nav>
               <div class="toolbar">
-                <button class="icon-button" type="button" data-theme-toggle aria-label="{{ text.toggleAppearance }}">◐</button>
+                <details class="theme-menu" data-bocchi-language-control>
+                  <summary aria-label="{{ text.languageLabel }}" title="{{ text.languageLabel }}">
+                    <span class="theme-menu__icon" aria-hidden="true">文</span>
+                    <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguage }}</span>
+                    <span class="theme-menu__chevron" aria-hidden="true">⌄</span>
+                  </summary>
+                  <div class="theme-menu__menu" role="menu" aria-label="{{ text.languageLabel }}">
+                    {% for language in localization.languages %}
+                    <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-language-option="{{ language.code }}" aria-current="{% if language.code == localization.currentLanguage %}true{% else %}false{% endif %}">
+                      <span>{{ language.nativeName }}</span>
+                      <small>{{ language.code }}</small>
+                    </button>
+                    {% endfor %}
+                  </div>
+                </details>
+                <details class="theme-menu" data-bocchi-appearance-control>
+                  <summary aria-label="{{ text.appearanceLabel }}" title="{{ text.appearanceLabel }}">
+                    <span class="theme-menu__appearance-icon theme-menu__appearance-icon--auto" aria-hidden="true">◐</span>
+                    <span class="theme-menu__appearance-icon theme-menu__appearance-icon--light" aria-hidden="true">☀</span>
+                    <span class="theme-menu__appearance-icon theme-menu__appearance-icon--dark" aria-hidden="true">☾</span>
+                    <span class="theme-menu__chevron" aria-hidden="true">⌄</span>
+                  </summary>
+                  <div class="theme-menu__menu" role="menu" aria-label="{{ text.appearanceLabel }}">
+                    <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="auto" aria-current="true"><span data-bocchi-i18n="theme.defaultStatic.appearanceAuto">{{ text.appearanceAuto }}</span></button>
+                    <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="light" aria-current="false"><span data-bocchi-i18n="theme.defaultStatic.appearanceLight">{{ text.appearanceLight }}</span></button>
+                    <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="dark" aria-current="false"><span data-bocchi-i18n="theme.defaultStatic.appearanceDark">{{ text.appearanceDark }}</span></button>
+                  </div>
+                </details>
                 <button class="icon-button mobile-toggle" type="button" data-mobile-toggle aria-expanded="false" aria-label="{{ text.openMenu }}">☰</button>
               </div>
             </div>
             <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
-              {% for item in navigation %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
+              {% for item in navigation %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %} data-bocchi-i18n="{{ item.i18nKey }}">{{ item.label }}</a>{% endfor %}
             </nav>
           </header>
           <main>{{ content | html }}</main>
           <footer class="footer">
             <div class="footer__inner">
               <span>{{ site.copyrightNotice }}</span>
-              <span>{{ text.colophonBuiltWith }}</span>
+              <span data-bocchi-i18n="theme.defaultStatic.colophonBuiltWith">{{ text.colophonBuiltWith }}</span>
               <span><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span>
             </div>
           </footer>
+          <script type="application/json" id="bocchi-i18n-data">{{ localization.textJson | html }}</script>
           <script type="module" src="/assets/app.js"></script>
         </body>
         </html>
@@ -468,21 +551,21 @@ public sealed class DefaultStaticThemeDefinition
     /// <summary>默认首页模板。</summary>
     private const string IndexTemplate = """
         <section class="hero container">
-          <p class="eyebrow">Index · {{ site.authorTimeZone }}</p>
-          <h1>{{ site.title }} <em>{{ text.homeHeroAccent }}</em>{{ text.homeHeroRest }}</h1>
+          <p class="eyebrow"><span data-bocchi-i18n="menu.home">{{ page.title }}</span> · {{ site.authorTimeZone }}</p>
+          <h1>{{ site.title }} <em data-bocchi-i18n="theme.defaultStatic.homeHeroAccent">{{ text.homeHeroAccent }}</em><span data-bocchi-i18n="theme.defaultStatic.homeHeroRest">{{ text.homeHeroRest }}</span></h1>
           <p class="lead">{{ site.description }}</p>
-          <div class="meta-row"><span>{{ site.authorName }}</span><span>{{ localization.currentLanguage }}</span><span>{{ site.baseUrl }}</span></div>
+          <div class="meta-row"><span>{{ site.authorName }}</span><span data-bocchi-current-language>{{ localization.currentLanguage }}</span><span>{{ site.baseUrl }}</span></div>
         </section>
         <section class="content section">
-          <div class="section-head"><h2>{{ text.homeSelectedWriting }}</h2><a class="arrow-link" href="/posts/">{{ text.all }}</a></div>
+          <div class="section-head"><h2 data-bocchi-i18n="theme.defaultStatic.homeSelectedWriting">{{ text.homeSelectedWriting }}</h2><a class="arrow-link" href="/posts/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
           {% if hasFeaturedPosts %}
           <div class="list">
             {% for item in featuredPosts %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ item.yearMonth }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.meta }}</span></a>{% endfor %}
           </div>
-          {% else %}<div class="empty">{{ text.emptyList }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
         </section>
         <section class="content section">
-          <div class="section-head"><h2>{{ text.homeSelectedWork }}</h2><a class="arrow-link" href="/works/">{{ text.all }}</a></div>
+          <div class="section-head"><h2 data-bocchi-i18n="theme.defaultStatic.homeSelectedWork">{{ text.homeSelectedWork }}</h2><a class="arrow-link" href="/works/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
           {% if hasFeaturedWorks %}
           <div class="grid">
             {% for item in featuredWorks %}
@@ -494,22 +577,22 @@ public sealed class DefaultStaticThemeDefinition
             </article>
             {% endfor %}
           </div>
-          {% else %}<div class="empty">{{ text.emptyList }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
         </section>
         <section class="content section">
-          <div class="section-head"><h2>{{ text.homeRecentNotes }}</h2><a class="arrow-link" href="/notes/">{{ text.all }}</a></div>
+          <div class="section-head"><h2 data-bocchi-i18n="theme.defaultStatic.homeRecentNotes">{{ text.homeRecentNotes }}</h2><a class="arrow-link" href="/notes/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
           {% if hasRecentNotes %}
             {% for item in recentNotes %}<article class="note"><bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time>{{ item.displayDateTime }}</time></bocchi-time><div class="note__body">{{ item.html | html }}</div></article>{% endfor %}
-          {% else %}<div class="empty">{{ text.emptyList }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
         </section>
         {% if showFriends %}
         <section class="content section">
-          <div class="section-head"><h2>{{ text.homeFriends }}</h2><a class="arrow-link" href="/friends/">{{ text.all }}</a></div>
+          <div class="section-head"><h2 data-bocchi-i18n="menu.friends">{{ text.homeFriends }}</h2><a class="arrow-link" href="/friends/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
           {% if hasFriends %}
           <div class="list">
-            {% for item in friends %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ text.linkLabel }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.summary }}</span></a>{% endfor %}
+            {% for item in friends %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date" data-bocchi-i18n="theme.defaultStatic.linkLabel">{{ text.linkLabel }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.summary }}</span></a>{% endfor %}
           </div>
-          {% else %}<div class="empty">{{ text.emptyList }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
         </section>
         {% endif %}
         """;
@@ -518,15 +601,15 @@ public sealed class DefaultStaticThemeDefinition
     private const string PostsTemplate = """
         <section class="content section">
           <p class="eyebrow">{{ hero.number }}</p>
-          <h1>{{ hero.title }}</h1>
-          <p class="lead">{{ hero.description }}</p>
+          <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+          <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
         </section>
         <section class="content section">
           {% if hasItems %}
           <div class="list">
             {% for item in items %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ item.yearMonth }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.meta }}</span></a>{% endfor %}
           </div>
-          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
         </section>
         """;
 
@@ -534,8 +617,8 @@ public sealed class DefaultStaticThemeDefinition
     private const string WorksTemplate = """
         <section class="content section">
           <p class="eyebrow">{{ hero.number }}</p>
-          <h1>{{ hero.title }}</h1>
-          <p class="lead">{{ hero.description }}</p>
+          <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+          <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
         </section>
         <section class="content section">
           {% if hasItems %}
@@ -550,7 +633,7 @@ public sealed class DefaultStaticThemeDefinition
             </article>
             {% endfor %}
           </div>
-          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
         </section>
         """;
 
@@ -558,8 +641,8 @@ public sealed class DefaultStaticThemeDefinition
     private const string NotesTemplate = """
         <section class="content section">
           <p class="eyebrow">{{ hero.number }}</p>
-          <h1>{{ hero.title }}</h1>
-          <p class="lead">{{ hero.description }}</p>
+          <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+          <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
         </section>
         <section class="content section">
           {% if hasItems %}
@@ -570,7 +653,7 @@ public sealed class DefaultStaticThemeDefinition
               {% if item.hasMedia %}<div class="media-grid note__media">{% for media in item.media %}<img src="{{ media.path }}" alt="{{ media.alt }}">{% endfor %}</div>{% endif %}
             </article>
             {% endfor %}
-          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
         </section>
         """;
 
@@ -578,43 +661,43 @@ public sealed class DefaultStaticThemeDefinition
     private const string FriendsTemplate = """
         <section class="content section">
           <p class="eyebrow">{{ hero.number }}</p>
-          <h1>{{ hero.title }}</h1>
-          <p class="lead">{{ hero.description }}</p>
+          <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+          <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
         </section>
         <section class="content section">
           {% if hasItems %}
           <div class="list">
             {% for item in items %}
             <a class="list-row friend-row" href="{{ item.url }}">
-              <span class="list-row__date">{% if item.hasAvatar %}<img class="friend-avatar" src="{{ item.avatar.path }}" alt="{{ item.avatar.alt }}">{% else %}{{ text.linkLabel }}{% endif %}</span>
+              <span class="list-row__date">{% if item.hasAvatar %}<img class="friend-avatar" src="{{ item.avatar.path }}" alt="{{ item.avatar.alt }}">{% else %}<span data-bocchi-i18n="theme.defaultStatic.linkLabel">{{ text.linkLabel }}</span>{% endif %}</span>
               <span class="list-row__title">{{ item.title }}</span>
               <span class="list-row__meta">{{ item.summary }}</span>
             </a>
             {% endfor %}
           </div>
-          {% else %}<div class="empty">{{ emptyText }}</div>{% endif %}
+          {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
         </section>
         """;
 
     /// <summary>默认文章和作品详情模板。</summary>
     private const string ArticleTemplate = """
         <article class="prose article-header">
-          <p><a class="arrow-link" href="{{ section.url }}">{{ text.articleBackPrefix }} {{ section.name }}</a></p>
+          <p><a class="arrow-link" href="{{ section.url }}"><span data-bocchi-i18n="theme.defaultStatic.articleBackPrefix">{{ text.articleBackPrefix }}</span> {{ section.name }}</a></p>
           <p class="article-meta">{{ section.name }}{% if item.date %} · {{ item.date }}{% endif %}</p>
           <h1>{{ item.title }}</h1>
         </article>
         {% if item.hasCover %}<figure class="prose media-cover"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></figure>{% endif %}
         <article class="prose prose-body">{{ item.html | html }}</article>
         <nav class="prose section" aria-label="Adjacent content">
-          {% if hasPrevious %}<a class="arrow-link" href="{{ previous.url }}">{{ text.previous }}: {{ previous.title }}</a>{% endif %}
-          {% if hasNext %}<a class="arrow-link" href="{{ next.url }}">{{ text.next }}: {{ next.title }}</a>{% endif %}
+          {% if hasPrevious %}<a class="arrow-link" href="{{ previous.url }}"><span data-bocchi-i18n="common.previous">{{ text.previous }}</span>: {{ previous.title }}</a>{% endif %}
+          {% if hasNext %}<a class="arrow-link" href="{{ next.url }}"><span data-bocchi-i18n="common.next">{{ text.next }}</span>: {{ next.title }}</a>{% endif %}
         </nav>
         """;
 
     /// <summary>默认独立页面模板。</summary>
     private const string StandalonePageTemplate = """
         <article class="prose article-header">
-          <p class="eyebrow">{{ text.pageLabel }}</p>
+          <p class="eyebrow" data-bocchi-i18n="theme.defaultStatic.pageLabel">{{ text.pageLabel }}</p>
           <h1>{{ item.title }}</h1>
         </article>
         <article class="prose prose-body">{{ item.html | html }}</article>
@@ -625,9 +708,9 @@ public sealed class DefaultStaticThemeDefinition
         <section class="content section">
           <p class="eyebrow">{{ hero.number }}</p>
           <h1>{{ hero.title }}</h1>
-          <p class="lead">{{ hero.description }}</p>
+          <p class="lead" data-bocchi-i18n="{{ hero.descriptionKey }}">{{ hero.description }}</p>
         </section>
-        <section class="content section"><a class="arrow-link" href="/">{{ text.backHome }}</a></section>
+        <section class="content section"><a class="arrow-link" href="/" data-bocchi-i18n="common.backHome">{{ text.backHome }}</a></section>
         """;
 
     /// <summary>M6 前的全局布局模板；仅用于刷新未被用户修改过的旧物化文件。</summary>

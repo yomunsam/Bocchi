@@ -293,10 +293,17 @@ public sealed class GeneratorPipelineEndToEndTests
         visibleHtml.Should().Contain("""<html lang="zh-CN">""");
         visibleHtml.Should().Contain(">首页</a>");
         visibleHtml.Should().Contain(">写作</a>");
-        visibleHtml.Should().Contain("<em>写作</em>、作品与札记。");
-        visibleHtml.Should().Contain("<h2>精选写作</h2>");
+        visibleHtml.Should().Contain("theme.defaultStatic.homeHeroAccent\">写作</em>");
+        visibleHtml.Should().Contain("theme.defaultStatic.homeHeroRest\">、作品与札记。</span>");
+        visibleHtml.Should().Contain("theme.defaultStatic.homeSelectedWriting\">精选写作</h2>");
         visibleHtml.Should().Contain("由测试构建。");
-        visibleHtml.Should().NotContain("Built with Bocchi.");
+        visibleHtml.Should().Contain("""data-bocchi-language-control""");
+        visibleHtml.Should().Contain("data-bocchi-language-option=\"zh-CN\" aria-current=\"true\"");
+        visibleHtml.Should().Contain("""data-bocchi-appearance-control""");
+        visibleHtml.Should().Contain("data-bocchi-appearance-option=\"auto\" aria-current=\"true\"");
+        visibleHtml.Should().Contain(">自动</span></button>");
+        html.Should().Contain("<script type=\"application/json\" id=\"bocchi-i18n-data\">{\"currentLanguage\":\"zh-CN\"");
+        visibleHtml.Should().NotContain(">Built with Bocchi.</span>");
     }
 
     [Fact]
@@ -305,9 +312,14 @@ public sealed class GeneratorPipelineEndToEndTests
         using var fixture = new TestWorkspaceFixture();
         var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "default-static");
         var indexTemplate = Path.Combine(themeRoot, "templates", "pages", "index.liquid");
+        var appCss = Path.Combine(themeRoot, "assets", "app.css");
+        var appJs = Path.Combine(themeRoot, "assets", "app.js");
         Directory.CreateDirectory(Path.GetDirectoryName(indexTemplate)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(appCss)!);
         await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.json"), GetDefaultStaticPrivateConstant("LegacyThemeJson"));
         await File.WriteAllTextAsync(indexTemplate, GetDefaultStaticPrivateConstant("LegacyIndexTemplate"));
+        await File.WriteAllTextAsync(appCss, GetDefaultStaticAssetsPrivateConstant("LegacyCss"));
+        await File.WriteAllTextAsync(appJs, GetDefaultStaticAssetsPrivateConstant("LegacyJs"));
 
         var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
         var result = await pipeline.RunAsync(
@@ -320,8 +332,12 @@ public sealed class GeneratorPipelineEndToEndTests
         result.Status.Should().Be(BuildStatus.Succeeded);
         var refreshedManifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"));
         var refreshedIndex = await File.ReadAllTextAsync(indexTemplate);
+        var refreshedCss = await File.ReadAllTextAsync(appCss);
+        var refreshedJs = await File.ReadAllTextAsync(appJs);
         refreshedManifest.Should().Contain("theme.defaultStatic.homeHeroAccent");
         refreshedIndex.Should().Contain("text.homeHeroAccent");
+        refreshedCss.Should().Contain(".theme-menu");
+        refreshedJs.Should().Contain("bocchi-theme-language");
     }
 
     [Fact]
@@ -538,6 +554,18 @@ public sealed class GeneratorPipelineEndToEndTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         return field?.GetRawConstantValue() as string
             ?? throw new InvalidOperationException($"DefaultStaticThemeDefinition 缺少私有常量 '{name}'。");
+    }
+
+    /// <summary>读取默认 Theme asset 定义里的私有常量，供旧物化资产刷新测试复用。</summary>
+    private static string GetDefaultStaticAssetsPrivateConstant(string name)
+    {
+        var type = typeof(DefaultStaticThemeDefinition).Assembly.GetType("Bocchi.Theme.DefaultStatic.DefaultStaticThemeAssets")
+            ?? throw new InvalidOperationException("DefaultStaticThemeAssets 类型不存在。");
+        var field = type.GetField(
+            name,
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        return field?.GetRawConstantValue() as string
+            ?? throw new InvalidOperationException($"DefaultStaticThemeAssets 缺少私有常量 '{name}'。");
     }
 
     /// <summary>创建一个只用于测试 Theme 加载边界的 process Theme manifest。</summary>

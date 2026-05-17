@@ -12,6 +12,42 @@ public sealed class DefaultStaticTemplateRenderer
     /// <summary>默认 accent，配置值不合法时使用它避免 CSS 注入。</summary>
     private const string DefaultAccentColor = "#E85D3A";
 
+    /// <summary>浏览器端语言切换需要同步的 Theme chrome 文案 key。</summary>
+    private static readonly string[] ClientI18nKeys =
+    [
+        "menu.home",
+        "menu.posts",
+        "menu.works",
+        "menu.notes",
+        "menu.friends",
+        "theme.defaultStatic.homeHeroAccent",
+        "theme.defaultStatic.homeHeroRest",
+        "theme.defaultStatic.homeSelectedWriting",
+        "theme.defaultStatic.homeSelectedWork",
+        "theme.defaultStatic.homeRecentNotes",
+        "theme.defaultStatic.all",
+        "theme.defaultStatic.postsDescription",
+        "theme.defaultStatic.worksDescription",
+        "theme.defaultStatic.notesDescription",
+        "theme.defaultStatic.friendsDescription",
+        "theme.defaultStatic.emptyList",
+        "theme.defaultStatic.colophonBuiltWith",
+        "theme.defaultStatic.linkLabel",
+        "theme.defaultStatic.pageLabel",
+        "theme.defaultStatic.articleBackPrefix",
+        "theme.defaultStatic.notFoundDescription",
+        "theme.defaultStatic.toggleAppearance",
+        "theme.defaultStatic.openMenu",
+        "theme.defaultStatic.languageLabel",
+        "theme.defaultStatic.appearanceLabel",
+        "theme.defaultStatic.appearanceAuto",
+        "theme.defaultStatic.appearanceLight",
+        "theme.defaultStatic.appearanceDark",
+        "common.previous",
+        "common.next",
+        "common.backHome",
+    ];
+
     /// <summary>执行一次默认 Theme 渲染。</summary>
     public static async Task RenderAsync(DefaultStaticRenderRequest request, CancellationToken cancellationToken = default)
     {
@@ -171,7 +207,7 @@ public sealed class DefaultStaticTemplateRenderer
         CancellationToken cancellationToken)
     {
         var items = MapContentItems(posts, site);
-        var model = CreateListingModel(site, text, text.Get("menu.posts"), "/posts/", text.Get("theme.defaultStatic.postsDescription"), "02", items, text.Get("theme.defaultStatic.emptyList"));
+        var model = CreateListingModel(site, text, text.Get("menu.posts"), "menu.posts", "/posts/", text.Get("theme.defaultStatic.postsDescription"), "theme.defaultStatic.postsDescription", "02", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "posts", model, cancellationToken);
     }
 
@@ -184,7 +220,7 @@ public sealed class DefaultStaticTemplateRenderer
         CancellationToken cancellationToken)
     {
         var items = MapContentItems(works, site);
-        var model = CreateListingModel(site, text, text.Get("menu.works"), "/works/", text.Get("theme.defaultStatic.worksDescription"), "03", items, text.Get("theme.defaultStatic.emptyList"));
+        var model = CreateListingModel(site, text, text.Get("menu.works"), "menu.works", "/works/", text.Get("theme.defaultStatic.worksDescription"), "theme.defaultStatic.worksDescription", "03", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "works", model, cancellationToken);
     }
 
@@ -200,7 +236,8 @@ public sealed class DefaultStaticTemplateRenderer
         var notesTitle = text.Get("menu.notes");
         var title = year is null ? notesTitle : $"{notesTitle} {year}";
         var currentPath = year is null ? "/notes/" : $"/notes/{year}/";
-        var model = CreateListingModel(site, text, title, currentPath, text.Get("theme.defaultStatic.notesDescription"), "04", MapContentItems(notes, site), text.Get("theme.defaultStatic.emptyList"));
+        var titleKey = year is null ? "menu.notes" : string.Empty;
+        var model = CreateListingModel(site, text, title, titleKey, currentPath, text.Get("theme.defaultStatic.notesDescription"), "theme.defaultStatic.notesDescription", "04", MapContentItems(notes, site), text.Get("theme.defaultStatic.emptyList"));
         model["year"] = year;
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "notes", model, cancellationToken);
     }
@@ -214,7 +251,7 @@ public sealed class DefaultStaticTemplateRenderer
         CancellationToken cancellationToken)
     {
         var items = MapFriendItems(friends);
-        var model = CreateListingModel(site, text, text.Get("menu.friends"), "/friends/", text.Get("theme.defaultStatic.friendsDescription"), "05", items, text.Get("theme.defaultStatic.emptyList"));
+        var model = CreateListingModel(site, text, text.Get("menu.friends"), "menu.friends", "/friends/", text.Get("theme.defaultStatic.friendsDescription"), "theme.defaultStatic.friendsDescription", "05", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "friends", model, cancellationToken);
     }
 
@@ -226,7 +263,7 @@ public sealed class DefaultStaticTemplateRenderer
         CancellationToken cancellationToken)
     {
         var model = CreatePageModel(site, text, "404", string.Empty);
-        model["hero"] = CreateHeroModel("404", text.Get("theme.defaultStatic.notFoundDescription"), "404");
+        model["hero"] = CreateHeroModel("404", text.Get("theme.defaultStatic.notFoundDescription"), "404", string.Empty, "theme.defaultStatic.notFoundDescription");
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "404", model, cancellationToken);
     }
 
@@ -310,17 +347,20 @@ public sealed class DefaultStaticTemplateRenderer
         SiteInfo site,
         DefaultStaticThemeText text,
         string title,
+        string titleKey,
         string currentPath,
         string description,
+        string descriptionKey,
         string number,
         Dictionary<string, object?>[] items,
         string emptyText)
     {
         var model = CreatePageModel(site, text, title, currentPath);
-        model["hero"] = CreateHeroModel(title, description, number);
+        model["hero"] = CreateHeroModel(title, description, number, titleKey, descriptionKey);
         model["items"] = items;
         model["hasItems"] = items.Length > 0;
         model["emptyText"] = emptyText;
+        model["emptyTextKey"] = "theme.defaultStatic.emptyList";
         return model;
     }
 
@@ -366,34 +406,37 @@ public sealed class DefaultStaticTemplateRenderer
     {
         return new[]
         {
-            CreateNavigationItem("/", text.Get("menu.home"), currentPath),
-            CreateNavigationItem("/posts/", text.Get("menu.posts"), currentPath),
-            CreateNavigationItem("/works/", text.Get("menu.works"), currentPath),
-            CreateNavigationItem("/notes/", text.Get("menu.notes"), currentPath),
-            CreateNavigationItem("/friends/", text.Get("menu.friends"), currentPath),
+            CreateNavigationItem("/", "menu.home", text.Get("menu.home"), currentPath),
+            CreateNavigationItem("/posts/", "menu.posts", text.Get("menu.posts"), currentPath),
+            CreateNavigationItem("/works/", "menu.works", text.Get("menu.works"), currentPath),
+            CreateNavigationItem("/notes/", "menu.notes", text.Get("menu.notes"), currentPath),
+            CreateNavigationItem("/friends/", "menu.friends", text.Get("menu.friends"), currentPath),
         };
     }
 
     /// <summary>创建单个导航链接模型并标记当前页。</summary>
-    private static Dictionary<string, object?> CreateNavigationItem(string href, string label, string currentPath)
+    private static Dictionary<string, object?> CreateNavigationItem(string href, string i18nKey, string label, string currentPath)
     {
         var current = string.Equals(href, currentPath, StringComparison.Ordinal) ||
             href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal);
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["href"] = href,
+            ["i18nKey"] = i18nKey,
             ["label"] = label,
             ["current"] = current,
         };
     }
 
     /// <summary>创建页面 Hero 模型。</summary>
-    private static Dictionary<string, object?> CreateHeroModel(string title, string description, string number)
+    private static Dictionary<string, object?> CreateHeroModel(string title, string description, string number, string? titleKey = null, string? descriptionKey = null)
     {
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["title"] = title,
+            ["titleKey"] = titleKey ?? string.Empty,
             ["description"] = description,
+            ["descriptionKey"] = descriptionKey ?? string.Empty,
             ["number"] = number,
         };
     }
@@ -417,6 +460,11 @@ public sealed class DefaultStaticTemplateRenderer
             ["articleBackPrefix"] = text.Get("theme.defaultStatic.articleBackPrefix"),
             ["toggleAppearance"] = text.Get("theme.defaultStatic.toggleAppearance"),
             ["openMenu"] = text.Get("theme.defaultStatic.openMenu"),
+            ["languageLabel"] = text.Get("theme.defaultStatic.languageLabel"),
+            ["appearanceLabel"] = text.Get("theme.defaultStatic.appearanceLabel"),
+            ["appearanceAuto"] = text.Get("theme.defaultStatic.appearanceAuto"),
+            ["appearanceLight"] = text.Get("theme.defaultStatic.appearanceLight"),
+            ["appearanceDark"] = text.Get("theme.defaultStatic.appearanceDark"),
             ["previous"] = text.Get("common.previous"),
             ["next"] = text.Get("common.next"),
             ["backHome"] = text.Get("common.backHome"),
@@ -430,6 +478,7 @@ public sealed class DefaultStaticTemplateRenderer
         {
             ["currentLanguage"] = text.CurrentLanguage,
             ["primaryLanguage"] = text.PrimaryLanguage,
+            ["textJson"] = text.BuildClientJson(ClientI18nKeys),
             ["languages"] = text.EnabledLanguages
                 .Select(language => new Dictionary<string, object?>(StringComparer.Ordinal)
                 {

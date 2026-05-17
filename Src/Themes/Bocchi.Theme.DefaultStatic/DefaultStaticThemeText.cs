@@ -24,6 +24,9 @@ internal sealed class DefaultStaticThemeText
     /// <summary>默认 Theme 私有文案的 renderer 兜底值，用于兼容工作区里尚未更新的 default-static manifest。</summary>
     private static readonly Dictionary<string, Dictionary<string, string>> BuiltInThemeTextDefaults = CreateBuiltInThemeTextDefaults();
 
+    /// <summary>浏览器端 i18n 数据使用 camelCase，便于 JS 直接读取。</summary>
+    private static readonly JsonSerializerOptions ClientJsonOptions = new(JsonSerializerDefaults.Web);
+
     /// <summary>用户在 Settings / Localization 或 Settings / Theme 中保存的覆盖文案。</summary>
     private readonly Dictionary<string, Dictionary<string, string>> _overrides;
 
@@ -81,31 +84,59 @@ internal sealed class DefaultStaticThemeText
 
     /// <summary>读取某个 i18n key 的最佳文案。</summary>
     public string Get(string key)
+        => Get(key, CurrentLanguage);
+
+    /// <summary>按指定语言读取某个 i18n key 的最佳文案，用于生成浏览器端可切换的文案表。</summary>
+    public string Get(string key, string? language)
     {
-        foreach (var language in CreateLanguageFallbacks())
+        foreach (var fallback in CreateLanguageFallbacks(language))
         {
-            if (TryGetLocalizedValue(_overrides, key, language, out var overrideValue))
+            if (TryGetLocalizedValue(_overrides, key, fallback, out var overrideValue))
             {
                 return overrideValue;
             }
 
-            if (TryGetLocalizedValue(_themeDefaults, key, language, out var manifestValue))
+            if (TryGetLocalizedValue(_themeDefaults, key, fallback, out var manifestValue))
             {
                 return manifestValue;
             }
 
-            if (TryGetLocalizedValue(BuiltInThemeTextDefaults, key, language, out var builtInValue))
+            if (TryGetLocalizedValue(BuiltInThemeTextDefaults, key, fallback, out var builtInValue))
             {
                 return builtInValue;
             }
 
-            if (TryGetLocalizedValue(CommonTextDefaults, key, language, out var commonValue))
+            if (TryGetLocalizedValue(CommonTextDefaults, key, fallback, out var commonValue))
             {
                 return commonValue;
             }
         }
 
         return key;
+    }
+
+    /// <summary>生成浏览器端语言切换需要的 JSON；文案全部按 plain text 输出。</summary>
+    public string BuildClientJson(IEnumerable<string> keys)
+    {
+        ArgumentNullException.ThrowIfNull(keys);
+
+        var text = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var key in keys.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.Ordinal))
+        {
+            text[key] = EnabledLanguages.ToDictionary(
+                language => language.Code,
+                language => Get(key, language.Code),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        var data = new
+        {
+            currentLanguage = CurrentLanguage,
+            primaryLanguage = PrimaryLanguage,
+            languages = EnabledLanguages,
+            text,
+        };
+        return JsonSerializer.Serialize(data, ClientJsonOptions);
     }
 
     /// <summary>创建 Bocchi 约定的 Common i18n 默认文案，供默认 Theme 在无用户覆盖时直接使用。</summary>
@@ -151,6 +182,11 @@ internal sealed class DefaultStaticThemeText
             ["theme.defaultStatic.notFoundDescription"] = CreateLanguageValues("This page is not in the static output.", "这个页面不在静态输出中。", "這個頁面不在靜態輸出中。", "このページは静的出力にありません。"),
             ["theme.defaultStatic.toggleAppearance"] = CreateLanguageValues("Toggle appearance", "切换外观", "切換外觀", "外観を切り替える"),
             ["theme.defaultStatic.openMenu"] = CreateLanguageValues("Open menu", "打开菜单", "開啟選單", "メニューを開く"),
+            ["theme.defaultStatic.languageLabel"] = CreateLanguageValues("Language", "语言", "語言", "言語"),
+            ["theme.defaultStatic.appearanceLabel"] = CreateLanguageValues("Appearance", "外观", "外觀", "外観"),
+            ["theme.defaultStatic.appearanceAuto"] = CreateLanguageValues("Auto", "自动", "自動", "自動"),
+            ["theme.defaultStatic.appearanceLight"] = CreateLanguageValues("Light", "浅色", "淺色", "ライト"),
+            ["theme.defaultStatic.appearanceDark"] = CreateLanguageValues("Dark", "深色", "深色", "ダーク"),
         };
     }
 
@@ -167,11 +203,11 @@ internal sealed class DefaultStaticThemeText
     }
 
     /// <summary>创建语言回退顺序：当前页面语言、站点主要语言、Theme 默认语言。</summary>
-    private List<string> CreateLanguageFallbacks()
+    private List<string> CreateLanguageFallbacks(string? language)
     {
         var result = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        Add(CurrentLanguage);
+        Add(language);
         Add(PrimaryLanguage);
         Add(_themeDefaultLanguage);
         return result;
