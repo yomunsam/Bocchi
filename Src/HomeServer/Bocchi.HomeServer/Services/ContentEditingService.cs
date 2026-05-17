@@ -44,6 +44,16 @@ public sealed class ContentEditingService
         await File.WriteAllTextAsync(fullPath, content, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>删除一个内容 workspace 内的源文件，并清理它产生的空目录。</summary>
+    public Task DeleteAsync(string relativePath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var fullPath = ResolveContentFile(relativePath);
+        File.Delete(fullPath);
+        PruneEmptyDirectories(Path.GetDirectoryName(fullPath));
+        return Task.CompletedTask;
+    }
+
     /// <summary>把内容相对路径转成编辑页 URL。</summary>
     public static string EditUrl(string relativePath)
         => "/Admin/Content/Edit?path=" + Uri.EscapeDataString(relativePath.Replace('\\', '/'));
@@ -70,6 +80,25 @@ public sealed class ContentEditingService
         }
 
         return fullPath;
+    }
+
+    private void PruneEmptyDirectories(string? start)
+    {
+        var root = Path.GetFullPath(_layout.WorkspaceRoot).TrimEnd(Path.DirectorySeparatorChar);
+        var current = start;
+        while (!string.IsNullOrWhiteSpace(current))
+        {
+            var full = Path.GetFullPath(current).TrimEnd(Path.DirectorySeparatorChar);
+            if (string.Equals(full, root, StringComparison.OrdinalIgnoreCase)
+                || !full.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                || Directory.EnumerateFileSystemEntries(full).Any())
+            {
+                return;
+            }
+
+            Directory.Delete(full);
+            current = Path.GetDirectoryName(full);
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
@@ -199,6 +200,48 @@ public sealed class AccountAndSetupTests
         var configPath = Path.Combine(layout.ThemeConfigDirectory, "default-static.json");
         File.Exists(configPath).Should().BeTrue();
         (await File.ReadAllTextAsync(configPath)).Should().Contain("#E85D3A");
+    }
+
+    [Fact]
+    public async Task ThemeSettings_SaveCustomization_PreservesUnknownJsonAndWritesTypedValues()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
+        await settings.SaveDefaultAsync("default-static", """{"manual":{"keep":"yes"},"visual":{"accentColor":"#111111"}}""");
+
+        await settings.SaveCustomizationAsync(
+            "default-static",
+            [
+                new ThemeConfigValueInput
+                {
+                    Key = "visual.accentColor",
+                    Value = "#123456",
+                },
+                new ThemeConfigValueInput
+                {
+                    Key = "home.featuredPosts",
+                    Value = "7",
+                },
+                new ThemeConfigValueInput
+                {
+                    Key = "home.showFriends",
+                    Value = "false",
+                },
+            ]);
+
+        var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
+        var configPath = Path.Combine(layout.ThemeConfigDirectory, "default-static.json");
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(configPath));
+        var root = document.RootElement;
+        root.GetProperty("manual").GetProperty("keep").GetString().Should().Be("yes");
+        root.GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#123456");
+        root.GetProperty("home").GetProperty("featuredPosts").GetDecimal().Should().Be(7);
+        root.GetProperty("home").GetProperty("showFriends").GetBoolean().Should().BeFalse();
     }
 
     [Fact]

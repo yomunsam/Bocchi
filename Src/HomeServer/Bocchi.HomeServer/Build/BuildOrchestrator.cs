@@ -67,11 +67,17 @@ public sealed class BuildOrchestrator : IDisposable
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var localizationSettings = scope.ServiceProvider.GetRequiredService<LocalizationSettingsService>();
+        var siteProfileSettings = scope.ServiceProvider.GetRequiredService<SiteProfileSettingsService>();
         var themeSettings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
         var localization = await localizationSettings.GetBuildLocalizationOptionsAsync(cancellationToken).ConfigureAwait(false);
         var normalizedThemeId = string.IsNullOrWhiteSpace(themeId)
-            ? (await themeSettings.GetDefaultAsync(cancellationToken).ConfigureAwait(false)).ThemeId
+            ? (await siteProfileSettings.GetAsync(cancellationToken).ConfigureAwait(false)).DefaultThemeId
             : themeId.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedThemeId))
+        {
+            normalizedThemeId = (await themeSettings.GetDefaultAsync(cancellationToken).ConfigureAwait(false)).ThemeId;
+        }
+
         var themeTextOverrides = await themeSettings
             .GetBuildI18nTextOverridesAsync(normalizedThemeId, cancellationToken)
             .ConfigureAwait(false);

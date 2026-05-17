@@ -86,6 +86,7 @@ try
     builder.Services.AddScoped<ExternalLoginSettingsService>();
     builder.Services.AddScoped<ThemeSettingsService>();
     builder.Services.AddScoped<LocalizationSettingsService>();
+    builder.Services.AddScoped<CategoryTreeService>();
     builder.Services.AddSingleton<DashboardLocalizationService>();
     builder.Services.AddScoped<ContentEditingService>();
     builder.Services.AddScoped<NoteCreationService>();

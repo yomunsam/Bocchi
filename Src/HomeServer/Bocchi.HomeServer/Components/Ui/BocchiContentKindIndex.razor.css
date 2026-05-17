@@ -1,0 +1,4 @@
+.bocchi-kind-action--active {
+    background: color-mix(in srgb, var(--bocchi-action) 12%, var(--bocchi-surface));
+    color: var(--bocchi-action);
+}

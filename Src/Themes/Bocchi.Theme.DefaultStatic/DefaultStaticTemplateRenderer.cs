@@ -24,7 +24,8 @@ public sealed class DefaultStaticTemplateRenderer
         var input = await ReadInputAsync(request.InputDirectory, cancellationToken).ConfigureAwait(false);
         Directory.CreateDirectory(request.OutputDirectory);
 
-        var site = SiteInfo.From(input.ThemeContext);
+        var text = DefaultStaticThemeText.From(input.ThemeContext);
+        var site = SiteInfo.From(input.ThemeContext, text.CurrentLanguage);
         var visiblePosts = FilterVisible(input.Posts, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
         var visiblePages = FilterVisible(input.Pages, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
         var visibleWorks = FilterVisible(input.Works, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
@@ -32,16 +33,16 @@ public sealed class DefaultStaticTemplateRenderer
         var visibleFriends = FilterVisible(input.Friends, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
 
         await WriteAssetsAsync(request, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, input, visiblePosts, visibleWorks, visibleNotes, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-        await WritePostDetailsAsync(request, site, visiblePosts, cancellationToken).ConfigureAwait(false);
-        await WriteStandalonePagesAsync(request, site, visiblePages, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "works/index.html", await RenderWorkListAsync(request, site, visibleWorks, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-        await WriteWorkDetailsAsync(request, site, visibleWorks, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "notes/index.html", await RenderNotesAsync(request, site, visibleNotes, null, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-        await WriteNoteYearPagesAsync(request, site, visibleNotes, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "friends/index.html", await RenderFriendsAsync(request, site, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "404.html", await RenderNotFoundAsync(request, site, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, visiblePosts, visibleWorks, visibleNotes, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePostDetailsAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false);
+        await WriteStandalonePagesAsync(request, site, text, visiblePages, cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "works/index.html", await RenderWorkListAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WriteWorkDetailsAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "notes/index.html", await RenderNotesAsync(request, site, text, visibleNotes, null, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WriteNoteYearPagesAsync(request, site, text, visibleNotes, cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "friends/index.html", await RenderFriendsAsync(request, site, text, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "404.html", await RenderNotFoundAsync(request, site, text, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>读取所有 M5 默认 Theme 需要的 Theme Contract 输入。</summary>
@@ -135,6 +136,7 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderHomeAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         ThemeInputSet input,
         JsonElement[] posts,
         JsonElement[] works,
@@ -147,7 +149,7 @@ public sealed class DefaultStaticTemplateRenderer
         var recentNotes = MapContentItems(Limit(notes, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "recentNotes"], 3)), site);
         var friendLinks = MapFriendItems(Limit(friends, 6));
 
-        var model = CreatePageModel(site, "Index", "/");
+        var model = CreatePageModel(site, text, text.Get("menu.home"), "/");
         model["featuredPosts"] = featuredPosts;
         model["hasFeaturedPosts"] = featuredPosts.Length > 0;
         model["featuredWorks"] = featuredWorks;
@@ -164,11 +166,12 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderPostListAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         JsonElement[] posts,
         CancellationToken cancellationToken)
     {
         var items = MapContentItems(posts, site);
-        var model = CreateListingModel(site, "Writing", "/posts/", "Long-form notes and essays.", "02", items, "No writing yet.");
+        var model = CreateListingModel(site, text, text.Get("menu.posts"), "/posts/", text.Get("theme.defaultStatic.postsDescription"), "02", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "posts", model, cancellationToken);
     }
 
@@ -176,11 +179,12 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderWorkListAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         JsonElement[] works,
         CancellationToken cancellationToken)
     {
         var items = MapContentItems(works, site);
-        var model = CreateListingModel(site, "Work", "/works/", "Selected projects and experiments.", "03", items, "No work entries yet.");
+        var model = CreateListingModel(site, text, text.Get("menu.works"), "/works/", text.Get("theme.defaultStatic.worksDescription"), "03", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "works", model, cancellationToken);
     }
 
@@ -188,13 +192,15 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderNotesAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         JsonElement[] notes,
         string? year,
         CancellationToken cancellationToken)
     {
-        var title = year is null ? "Notes" : $"Notes {year}";
+        var notesTitle = text.Get("menu.notes");
+        var title = year is null ? notesTitle : $"{notesTitle} {year}";
         var currentPath = year is null ? "/notes/" : $"/notes/{year}/";
-        var model = CreateListingModel(site, title, currentPath, "Short updates in plain text.", "04", MapContentItems(notes, site), "No notes yet.");
+        var model = CreateListingModel(site, text, title, currentPath, text.Get("theme.defaultStatic.notesDescription"), "04", MapContentItems(notes, site), text.Get("theme.defaultStatic.emptyList"));
         model["year"] = year;
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "notes", model, cancellationToken);
     }
@@ -203,11 +209,12 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderFriendsAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         JsonElement[] friends,
         CancellationToken cancellationToken)
     {
         var items = MapFriendItems(friends);
-        var model = CreateListingModel(site, "Friends", "/friends/", "People and sites worth visiting.", "05", items, "No friend links yet.");
+        var model = CreateListingModel(site, text, text.Get("menu.friends"), "/friends/", text.Get("theme.defaultStatic.friendsDescription"), "05", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "friends", model, cancellationToken);
     }
 
@@ -215,31 +222,32 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderNotFoundAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         CancellationToken cancellationToken)
     {
-        var model = CreatePageModel(site, "Not Found", string.Empty);
-        model["hero"] = CreateHeroModel("404", "This page is not in the static output.", "404");
+        var model = CreatePageModel(site, text, "404", string.Empty);
+        model["hero"] = CreateHeroModel("404", text.Get("theme.defaultStatic.notFoundDescription"), "404");
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "404", model, cancellationToken);
     }
 
     /// <summary>渲染文章详情页。</summary>
-    private static async Task WritePostDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] posts, CancellationToken cancellationToken)
+    private static async Task WritePostDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, DefaultStaticThemeText text, JsonElement[] posts, CancellationToken cancellationToken)
     {
         for (var i = 0; i < posts.Length; i++)
         {
             var post = posts[i];
-            var body = await RenderArticleAsync(request, site, "Writing", "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
+            var body = await RenderArticleAsync(request, site, text, text.Get("menu.posts"), "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(post, "url")), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>渲染独立页面。</summary>
-    private static async Task WriteStandalonePagesAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] pages, CancellationToken cancellationToken)
+    private static async Task WriteStandalonePagesAsync(DefaultStaticRenderRequest request, SiteInfo site, DefaultStaticThemeText text, JsonElement[] pages, CancellationToken cancellationToken)
     {
         foreach (var page in pages)
         {
             var title = GetTitle(page);
-            var model = CreatePageModel(site, title, GetString(page, "url"));
+            var model = CreatePageModel(site, text, title, GetString(page, "url"));
             model["item"] = MapContentItem(page, site);
             var body = await DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "standalone-page", model, cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(page, "url")), body, cancellationToken).ConfigureAwait(false);
@@ -247,25 +255,25 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>渲染作品详情页。</summary>
-    private static async Task WriteWorkDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] works, CancellationToken cancellationToken)
+    private static async Task WriteWorkDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, DefaultStaticThemeText text, JsonElement[] works, CancellationToken cancellationToken)
     {
         for (var i = 0; i < works.Length; i++)
         {
             var work = works[i];
-            var body = await RenderArticleAsync(request, site, "Work", "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
+            var body = await RenderArticleAsync(request, site, text, text.Get("menu.works"), "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(work, "url")), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>按年份渲染短文页。</summary>
-    private static async Task WriteNoteYearPagesAsync(DefaultStaticRenderRequest request, SiteInfo site, JsonElement[] notes, CancellationToken cancellationToken)
+    private static async Task WriteNoteYearPagesAsync(DefaultStaticRenderRequest request, SiteInfo site, DefaultStaticThemeText text, JsonElement[] notes, CancellationToken cancellationToken)
     {
         foreach (var group in notes.GroupBy(note => GetString(note, "year")).Where(group => !string.IsNullOrWhiteSpace(group.Key)))
         {
             await WritePageAsync(
                 request.OutputDirectory,
                 $"notes/{group.Key}/index.html",
-                await RenderNotesAsync(request, site, group.ToArray(), group.Key, cancellationToken).ConfigureAwait(false),
+                await RenderNotesAsync(request, site, text, group.ToArray(), group.Key, cancellationToken).ConfigureAwait(false),
                 cancellationToken).ConfigureAwait(false);
         }
     }
@@ -274,6 +282,7 @@ public sealed class DefaultStaticTemplateRenderer
     private static Task<string> RenderArticleAsync(
         DefaultStaticRenderRequest request,
         SiteInfo site,
+        DefaultStaticThemeText text,
         string sectionName,
         string sectionUrl,
         JsonElement item,
@@ -282,7 +291,7 @@ public sealed class DefaultStaticTemplateRenderer
         CancellationToken cancellationToken)
     {
         var title = GetTitle(item);
-        var model = CreatePageModel(site, title, GetString(item, "url"));
+        var model = CreatePageModel(site, text, title, GetString(item, "url"));
         model["section"] = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["name"] = sectionName,
@@ -299,6 +308,7 @@ public sealed class DefaultStaticTemplateRenderer
     /// <summary>创建列表页通用模板模型。</summary>
     private static Dictionary<string, object?> CreateListingModel(
         SiteInfo site,
+        DefaultStaticThemeText text,
         string title,
         string currentPath,
         string description,
@@ -306,7 +316,7 @@ public sealed class DefaultStaticTemplateRenderer
         Dictionary<string, object?>[] items,
         string emptyText)
     {
-        var model = CreatePageModel(site, title, currentPath);
+        var model = CreatePageModel(site, text, title, currentPath);
         model["hero"] = CreateHeroModel(title, description, number);
         model["items"] = items;
         model["hasItems"] = items.Length > 0;
@@ -315,19 +325,21 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>创建所有页面共享的模板模型。</summary>
-    private static Dictionary<string, object?> CreatePageModel(SiteInfo site, string title, string currentPath)
+    private static Dictionary<string, object?> CreatePageModel(SiteInfo site, DefaultStaticThemeText text, string title, string currentPath)
     {
-        var fullTitle = string.Equals(title, "Index", StringComparison.Ordinal) ? site.DefaultTitle : $"{title} · {site.Title}";
+        var fullTitle = string.Equals(title, text.Get("menu.home"), StringComparison.Ordinal) ? site.DefaultTitle : $"{title} · {site.Title}";
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["site"] = CreateSiteModel(site),
+            ["text"] = CreateTextModel(text),
+            ["localization"] = CreateLocalizationModel(text),
             ["page"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["title"] = title,
                 ["fullTitle"] = fullTitle,
                 ["currentPath"] = currentPath,
             },
-            ["navigation"] = CreateNavigationModel(currentPath),
+            ["navigation"] = CreateNavigationModel(currentPath, text),
         };
     }
 
@@ -350,15 +362,15 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>创建顶栏和移动端导航使用的链接模型。</summary>
-    private static Dictionary<string, object?>[] CreateNavigationModel(string currentPath)
+    private static Dictionary<string, object?>[] CreateNavigationModel(string currentPath, DefaultStaticThemeText text)
     {
         return new[]
         {
-            CreateNavigationItem("/", "Index", currentPath),
-            CreateNavigationItem("/posts/", "Writing", currentPath),
-            CreateNavigationItem("/works/", "Work", currentPath),
-            CreateNavigationItem("/notes/", "Notes", currentPath),
-            CreateNavigationItem("/friends/", "Friends", currentPath),
+            CreateNavigationItem("/", text.Get("menu.home"), currentPath),
+            CreateNavigationItem("/posts/", text.Get("menu.posts"), currentPath),
+            CreateNavigationItem("/works/", text.Get("menu.works"), currentPath),
+            CreateNavigationItem("/notes/", text.Get("menu.notes"), currentPath),
+            CreateNavigationItem("/friends/", text.Get("menu.friends"), currentPath),
         };
     }
 
@@ -383,6 +395,50 @@ public sealed class DefaultStaticTemplateRenderer
             ["title"] = title,
             ["description"] = description,
             ["number"] = number,
+        };
+    }
+
+    /// <summary>创建模板中用短属性名访问的前台文案模型，避免 Fluid 解析带点号的 i18n key。</summary>
+    private static Dictionary<string, object?> CreateTextModel(DefaultStaticThemeText text)
+    {
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["homeHeroAccent"] = text.Get("theme.defaultStatic.homeHeroAccent"),
+            ["homeHeroRest"] = text.Get("theme.defaultStatic.homeHeroRest"),
+            ["homeSelectedWriting"] = text.Get("theme.defaultStatic.homeSelectedWriting"),
+            ["homeSelectedWork"] = text.Get("theme.defaultStatic.homeSelectedWork"),
+            ["homeRecentNotes"] = text.Get("theme.defaultStatic.homeRecentNotes"),
+            ["homeFriends"] = text.Get("menu.friends"),
+            ["all"] = text.Get("theme.defaultStatic.all"),
+            ["emptyList"] = text.Get("theme.defaultStatic.emptyList"),
+            ["colophonBuiltWith"] = text.Get("theme.defaultStatic.colophonBuiltWith"),
+            ["linkLabel"] = text.Get("theme.defaultStatic.linkLabel"),
+            ["pageLabel"] = text.Get("theme.defaultStatic.pageLabel"),
+            ["articleBackPrefix"] = text.Get("theme.defaultStatic.articleBackPrefix"),
+            ["toggleAppearance"] = text.Get("theme.defaultStatic.toggleAppearance"),
+            ["openMenu"] = text.Get("theme.defaultStatic.openMenu"),
+            ["previous"] = text.Get("common.previous"),
+            ["next"] = text.Get("common.next"),
+            ["backHome"] = text.Get("common.backHome"),
+        };
+    }
+
+    /// <summary>创建模板可访问的站点本地化模型；默认 Theme 目前只展示当前语言，路径切换留给内容多语言页生成。</summary>
+    private static Dictionary<string, object?> CreateLocalizationModel(DefaultStaticThemeText text)
+    {
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["currentLanguage"] = text.CurrentLanguage,
+            ["primaryLanguage"] = text.PrimaryLanguage,
+            ["languages"] = text.EnabledLanguages
+                .Select(language => new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["code"] = language.Code,
+                    ["nativeName"] = language.NativeName,
+                    ["englishName"] = language.EnglishName,
+                })
+                .ToArray(),
+            ["hasMultipleLanguages"] = text.EnabledLanguages.Length > 1,
         };
     }
 
@@ -668,12 +724,11 @@ public sealed class DefaultStaticTemplateRenderer
         public required int GeneratedYear { get; init; }
 
         /// <summary>从 theme-context.json 的 data 节点创建站点信息。</summary>
-        public static SiteInfo From(JsonElement context)
+        public static SiteInfo From(JsonElement context, string currentLanguage)
         {
             var title = TryGetPath(context, ["site", "title"])?.GetString() ?? "My Site";
             var defaultTitle = TryGetPath(context, ["site", "defaultTitle"])?.GetString();
             var description = TryGetPath(context, ["site", "description"])?.GetString();
-            var language = TryGetPath(context, ["site", "language"])?.GetString() ?? "zh-CN";
             var baseUrl = TryGetPath(context, ["site", "baseUrl"])?.GetString() ?? "/";
             var copyright = TryGetPath(context, ["site", "copyrightNotice"])?.GetString();
             var author = TryGetPath(context, ["author", "displayName"])?.GetString()
@@ -693,7 +748,7 @@ public sealed class DefaultStaticTemplateRenderer
                 Title = title,
                 DefaultTitle = string.IsNullOrWhiteSpace(defaultTitle) ? title : defaultTitle!,
                 DescriptionOrFallback = string.IsNullOrWhiteSpace(description) ? $"A personal site by {author}." : description!,
-                Language = language,
+                Language = string.IsNullOrWhiteSpace(currentLanguage) ? "zh-CN" : currentLanguage,
                 BaseUrl = baseUrl,
                 CopyrightNotice = string.IsNullOrWhiteSpace(copyright) ? $"{title} · {generatedYear}" : copyright!,
                 AuthorName = author,

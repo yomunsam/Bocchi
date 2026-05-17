@@ -1,0 +1,87 @@
+using Bocchi.GeneratorContract;
+
+namespace Bocchi.HomeServer.Services;
+
+/// <summary>
+/// Dashboard 主题定制页的完整视图模型，聚合当前前台 Theme、schema 字段和已保存配置值。
+/// </summary>
+public sealed class ThemeCustomizationView
+{
+    /// <summary>当前正在使用的前台 Theme id。</summary>
+    public required string ThemeId { get; init; }
+
+    /// <summary>当前前台 Theme 的展示名称；manifest 不可用时回退到 Theme id。</summary>
+    public required string ThemeName { get; init; }
+
+    /// <summary>当前 Theme 原始配置 JSON，主要用于调试和后续高级视图。</summary>
+    public required string ConfigurationJson { get; init; }
+
+    /// <summary>Theme <c>config-schema.json</c> 声明的配置分组。</summary>
+    public required IReadOnlyList<ThemeConfigGroupView> Groups { get; init; }
+}
+
+/// <summary>Theme 配置 schema 的 Dashboard 分组视图。</summary>
+public sealed class ThemeConfigGroupView
+{
+    /// <summary>分组标识，来自 <c>config-schema.json</c>。</summary>
+    public required string Id { get; init; }
+
+    /// <summary>分组标题，直接展示给 Admin 用户。</summary>
+    public required string Title { get; init; }
+
+    /// <summary>分组内可编辑的 Theme 配置字段。</summary>
+    public required IReadOnlyList<ThemeConfigFieldView> Fields { get; init; }
+}
+
+/// <summary>Theme 配置 schema 的单字段 Dashboard 视图。</summary>
+public sealed class ThemeConfigFieldView
+{
+    /// <summary>字段 key，支持点分路径，例如 <c>home.featuredPosts</c>。</summary>
+    public required string Key { get; init; }
+
+    /// <summary>字段类型，决定 Dashboard 使用的输入控件。</summary>
+    public required ThemeConfigFieldType Type { get; init; }
+
+    /// <summary>字段标题，来自 Theme schema。</summary>
+    public required string Title { get; init; }
+
+    /// <summary>字段说明，来自 Theme schema。</summary>
+    public string? Description { get; init; }
+
+    /// <summary>输入框占位提示，来自 Theme schema。</summary>
+    public string? Placeholder { get; init; }
+
+    /// <summary>字段帮助文本，来自 Theme schema。</summary>
+    public string? HelpText { get; init; }
+
+    /// <summary>字段是否必填，当前用于展示语义，保存逻辑仍保持 Theme 默认值可回退。</summary>
+    public bool Required { get; init; }
+
+    /// <summary>Select 和 MultiSelect 可用选项；当前 schema 只支持字符串选项。</summary>
+    public required IReadOnlyList<string> Options { get; init; }
+
+    /// <summary>当前有效文本值；没有用户配置时使用 schema 默认值。</summary>
+    public required string TextValue { get; init; }
+
+    /// <summary>当前有效布尔值；仅 Boolean 字段使用。</summary>
+    public bool BooleanValue { get; init; }
+
+    /// <summary>当前有效多选值；仅 MultiSelect 字段使用。</summary>
+    public required IReadOnlyList<string> SelectedValues { get; init; }
+
+    /// <summary>schema 默认值的文本表示，用于占位提示和只读辅助信息。</summary>
+    public string? DefaultText { get; init; }
+}
+
+/// <summary>主题定制页提交给服务层的单个字段值。</summary>
+public sealed class ThemeConfigValueInput
+{
+    /// <summary>字段 key，必须来自当前 Theme schema。</summary>
+    public required string Key { get; init; }
+
+    /// <summary>单值字段的输入值；Boolean 和 Number 也使用字符串承载。</summary>
+    public string? Value { get; init; }
+
+    /// <summary>MultiSelect 字段的输入值集合。</summary>
+    public IReadOnlyList<string> Values { get; init; } = [];
+}

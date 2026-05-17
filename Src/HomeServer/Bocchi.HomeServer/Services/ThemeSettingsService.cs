@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Bocchi.Generator.Theme;
 using Bocchi.GeneratorContract;
@@ -46,26 +48,105 @@ public sealed class ThemeSettingsService
         };
     }
 
+    /// <summary>读取指定 Theme 的配置；缺失时返回空配置投影，不产生数据库写入。</summary>
+    public async Task<ThemeConfigurationRecord> GetConfigurationAsync(
+        string themeId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedThemeId = NormalizeThemeId(themeId);
+        var record = await _db.ThemeConfigurations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.ThemeId == normalizedThemeId, cancellationToken)
+            .ConfigureAwait(false);
+        return record ?? new ThemeConfigurationRecord
+        {
+            ThemeId = normalizedThemeId,
+            ConfigurationJson = "{}",
+            I18nTextOverridesJson = "{}",
+            UpdatedAt = _time.GetUtcNow(),
+        };
+    }
+
     /// <summary>保存当前默认 Theme 配置。</summary>
     public async Task SaveDefaultAsync(string themeId, string configurationJson, CancellationToken cancellationToken = default)
+        => await SaveConfigurationAsync(themeId, configurationJson, cancellationToken).ConfigureAwait(false);
+
+    /// <summary>保存指定 Theme 的 JSON 配置，并同步写入 DataRoot 中的 Theme 配置文件。</summary>
+    public async Task SaveConfigurationAsync(
+        string themeId,
+        string configurationJson,
+        CancellationToken cancellationToken = default)
     {
         var normalizedThemeId = string.IsNullOrWhiteSpace(themeId) ? "default-static" : themeId.Trim();
         var normalizedJson = NormalizeConfigurationJson(configurationJson);
-        var record = await _db.ThemeConfigurations
-            .OrderBy(x => x.Id)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-        if (record is null)
-        {
-            record = new ThemeConfigurationRecord();
-            _db.ThemeConfigurations.Add(record);
-        }
+        var record = await GetOrCreateThemeRecordAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
 
         record.ThemeId = normalizedThemeId;
         record.ConfigurationJson = normalizedJson;
         record.UpdatedAt = _time.GetUtcNow();
         await WriteThemeConfigFileAsync(normalizedThemeId, normalizedJson, cancellationToken).ConfigureAwait(false);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>读取当前 Theme 的 schema 定制视图，供 Dashboard 根据声明字段生成表单。</summary>
+    public async Task<ThemeCustomizationView> GetCustomizationAsync(
+        string themeId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedThemeId = NormalizeThemeId(themeId);
+        var loadedTheme = await LoadThemeAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
+        var record = await GetConfigurationAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
+        var configuration = ParseConfigurationObject(record.ConfigurationJson);
+        var groups = loadedTheme is null
+            ? []
+            : await LoadConfigGroupsAsync(loadedTheme.Value.ThemeRoot, configuration, cancellationToken).ConfigureAwait(false);
+
+        return new ThemeCustomizationView
+        {
+            ThemeId = normalizedThemeId,
+            ThemeName = loadedTheme is null ? normalizedThemeId : loadedTheme.Value.Manifest.Name,
+            ConfigurationJson = record.ConfigurationJson,
+            Groups = groups,
+        };
+    }
+
+    /// <summary>保存主题定制页提交的 schema 字段值；未声明字段会被忽略，已有未知 JSON 键会保留。</summary>
+    public async Task SaveCustomizationAsync(
+        string themeId,
+        IEnumerable<ThemeConfigValueInput> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        var normalizedThemeId = NormalizeThemeId(themeId);
+        var loadedTheme = await LoadThemeAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
+        if (loadedTheme is null)
+        {
+            return;
+        }
+
+        var record = await GetConfigurationAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
+        var configuration = ParseConfigurationObject(record.ConfigurationJson);
+        var fields = (await LoadConfigGroupsAsync(loadedTheme.Value.ThemeRoot, new JsonObject(), cancellationToken).ConfigureAwait(false))
+            .SelectMany(group => group.Fields)
+            .ToDictionary(field => field.Key, StringComparer.Ordinal);
+        var inputs = values
+            .Where(value => !string.IsNullOrWhiteSpace(value.Key))
+            .GroupBy(value => value.Key.Trim(), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Last(), StringComparer.Ordinal);
+
+        foreach (var (key, field) in fields)
+        {
+            if (inputs.TryGetValue(key, out var input))
+            {
+                ApplySubmittedFieldValue(configuration, field, input);
+            }
+        }
+
+        await SaveConfigurationAsync(
+            normalizedThemeId,
+            configuration.ToJsonString(JsonOptions),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>列出当前可选择的前台 Theme；内置默认 Theme 始终会被物化并排在第一位。</summary>
@@ -203,13 +284,18 @@ public sealed class ThemeSettingsService
 
     private async Task<ThemeManifest?> LoadThemeManifestAsync(string themeId, CancellationToken cancellationToken)
     {
+        var loaded = await LoadThemeAsync(themeId, cancellationToken).ConfigureAwait(false);
+        return loaded is null ? null : loaded.Value.Manifest;
+    }
+
+    private async Task<(ThemeManifest Manifest, string ThemeRoot)?> LoadThemeAsync(string themeId, CancellationToken cancellationToken)
+    {
         if (string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
         {
             await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
         }
 
-        var loaded = await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, cancellationToken).ConfigureAwait(false);
-        return loaded?.Manifest;
+        return await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, cancellationToken).ConfigureAwait(false);
     }
 
     private static string NormalizeThemeId(string themeId)
@@ -257,6 +343,374 @@ public sealed class ThemeSettingsService
 
         return document.RootElement.GetRawText();
     }
+
+    private static JsonObject ParseConfigurationObject(string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return new JsonObject();
+        }
+
+        try
+        {
+            return JsonNode.Parse(configurationJson) as JsonObject ?? new JsonObject();
+        }
+        catch (JsonException)
+        {
+            return new JsonObject();
+        }
+    }
+
+    private static async Task<List<ThemeConfigGroupView>> LoadConfigGroupsAsync(
+        string themeRoot,
+        JsonObject configuration,
+        CancellationToken cancellationToken)
+    {
+        var schemaPath = Path.Combine(themeRoot, "config-schema.json");
+        if (!File.Exists(schemaPath))
+        {
+            return [];
+        }
+
+        await using var stream = new FileStream(
+            schemaPath,
+            new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.Read,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+            });
+        JsonNode? node;
+        try
+        {
+            node = await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+
+        if (node?["groups"] is not JsonArray groups)
+        {
+            return [];
+        }
+
+        var result = new List<ThemeConfigGroupView>();
+        foreach (var groupNode in groups.OfType<JsonObject>())
+        {
+            var id = ReadString(groupNode["id"]);
+            var title = ReadString(groupNode["title"]);
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(title))
+            {
+                continue;
+            }
+
+            var fields = groupNode["fields"] is JsonArray fieldArray
+                ? fieldArray.OfType<JsonObject>()
+                    .Select(field => MapConfigField(field, configuration))
+                    .Where(field => field is not null)
+                    .Cast<ThemeConfigFieldView>()
+                    .ToList()
+                : [];
+            result.Add(new ThemeConfigGroupView
+            {
+                Id = id.Trim(),
+                Title = title.Trim(),
+                Fields = fields,
+            });
+        }
+
+        return result;
+    }
+
+    private static ThemeConfigFieldView? MapConfigField(JsonObject field, JsonObject configuration)
+    {
+        var key = ReadString(field["key"]);
+        var title = ReadString(field["title"]);
+        var typeName = ReadString(field["type"]);
+        if (string.IsNullOrWhiteSpace(key) ||
+            string.IsNullOrWhiteSpace(title) ||
+            !TryMapFieldType(typeName, out var type))
+        {
+            return null;
+        }
+
+        var defaultValue = field["default"];
+        var currentValue = TryGetNestedValue(configuration, key) ?? defaultValue;
+        return new ThemeConfigFieldView
+        {
+            Key = key.Trim(),
+            Type = type,
+            Title = title.Trim(),
+            Description = TrimOrNull(ReadString(field["description"])),
+            Placeholder = TrimOrNull(ReadString(field["placeholder"])),
+            HelpText = TrimOrNull(ReadString(field["helpText"])),
+            Required = ReadBool(field["required"]),
+            Options = ReadStringOptions(field["options"]),
+            TextValue = JsonNodeToText(currentValue),
+            BooleanValue = JsonNodeToBool(currentValue),
+            SelectedValues = JsonNodeToStringList(currentValue),
+            DefaultText = TrimOrNull(JsonNodeToText(defaultValue)),
+        };
+    }
+
+    private static void ApplySubmittedFieldValue(
+        JsonObject configuration,
+        ThemeConfigFieldView field,
+        ThemeConfigValueInput input)
+    {
+        switch (field.Type)
+        {
+            case ThemeConfigFieldType.Boolean:
+                SetNestedValue(configuration, field.Key, JsonValue.Create(ParseBoolean(input.Value)));
+                break;
+            case ThemeConfigFieldType.Number:
+                ApplyNumberValue(configuration, field.Key, input.Value);
+                break;
+            case ThemeConfigFieldType.MultiSelect:
+                ApplyMultiSelectValue(configuration, field, input.Values);
+                break;
+            case ThemeConfigFieldType.Select:
+                ApplyStringValue(configuration, field, input.Value, validateOptions: true);
+                break;
+            case ThemeConfigFieldType.Group:
+                break;
+            default:
+                ApplyStringValue(configuration, field, input.Value, validateOptions: false);
+                break;
+        }
+    }
+
+    private static void ApplyNumberValue(JsonObject configuration, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            RemoveNestedValue(configuration, key);
+            return;
+        }
+
+        if (!decimal.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+        {
+            throw new InvalidOperationException($"Theme 配置字段 '{key}' 需要数字。");
+        }
+
+        SetNestedValue(configuration, key, JsonValue.Create(number));
+    }
+
+    private static void ApplyStringValue(
+        JsonObject configuration,
+        ThemeConfigFieldView field,
+        string? value,
+        bool validateOptions)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            RemoveNestedValue(configuration, field.Key);
+            return;
+        }
+
+        var normalized = value.Trim();
+        if (validateOptions &&
+            field.Options.Count > 0 &&
+            !field.Options.Contains(normalized, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"Theme 配置字段 '{field.Key}' 的选项无效。");
+        }
+
+        SetNestedValue(configuration, field.Key, JsonValue.Create(normalized));
+    }
+
+    private static void ApplyMultiSelectValue(
+        JsonObject configuration,
+        ThemeConfigFieldView field,
+        IEnumerable<string> values)
+    {
+        var normalized = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Where(value => field.Options.Count == 0 || field.Options.Contains(value, StringComparer.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (normalized.Count == 0)
+        {
+            RemoveNestedValue(configuration, field.Key);
+            return;
+        }
+
+        var array = new JsonArray();
+        foreach (var value in normalized)
+        {
+            array.Add(value);
+        }
+
+        SetNestedValue(configuration, field.Key, array);
+    }
+
+    private static JsonNode? TryGetNestedValue(JsonObject root, string dottedKey)
+    {
+        var segments = SplitDottedKey(dottedKey);
+        if (segments.Length == 0)
+        {
+            return null;
+        }
+
+        JsonNode? current = root;
+        foreach (var segment in segments)
+        {
+            if (current is not JsonObject obj || !obj.TryGetPropertyValue(segment, out current))
+            {
+                return null;
+            }
+        }
+
+        return current;
+    }
+
+    private static void SetNestedValue(JsonObject root, string dottedKey, JsonNode? value)
+    {
+        var segments = SplitDottedKey(dottedKey);
+        if (segments.Length == 0)
+        {
+            return;
+        }
+
+        var current = root;
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            if (current[segments[i]] is not JsonObject child)
+            {
+                child = new JsonObject();
+                current[segments[i]] = child;
+            }
+
+            current = child;
+        }
+
+        current[segments[^1]] = value;
+    }
+
+    private static void RemoveNestedValue(JsonObject root, string dottedKey)
+    {
+        var segments = SplitDottedKey(dottedKey);
+        if (segments.Length == 0)
+        {
+            return;
+        }
+
+        var current = root;
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            if (current[segments[i]] is not JsonObject child)
+            {
+                return;
+            }
+
+            current = child;
+        }
+
+        current.Remove(segments[^1]);
+    }
+
+    private static string[] SplitDottedKey(string dottedKey)
+        => dottedKey.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static bool TryMapFieldType(string? value, out ThemeConfigFieldType type)
+    {
+        type = ThemeConfigFieldType.String;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Trim() switch
+        {
+            "string" => SetType(ThemeConfigFieldType.String, out type),
+            "number" => SetType(ThemeConfigFieldType.Number, out type),
+            "boolean" => SetType(ThemeConfigFieldType.Boolean, out type),
+            "select" => SetType(ThemeConfigFieldType.Select, out type),
+            "multiSelect" => SetType(ThemeConfigFieldType.MultiSelect, out type),
+            "color" => SetType(ThemeConfigFieldType.Color, out type),
+            "image" => SetType(ThemeConfigFieldType.Image, out type),
+            "url" => SetType(ThemeConfigFieldType.Url, out type),
+            "group" => SetType(ThemeConfigFieldType.Group, out type),
+            _ => Enum.TryParse(value, ignoreCase: true, out type),
+        };
+    }
+
+    private static bool SetType(ThemeConfigFieldType value, out ThemeConfigFieldType type)
+    {
+        type = value;
+        return true;
+    }
+
+    private static string? ReadString(JsonNode? node)
+        => node is JsonValue value && value.TryGetValue<string>(out var result) ? result : null;
+
+    private static bool ReadBool(JsonNode? node)
+        => node is JsonValue value && value.TryGetValue<bool>(out var result) && result;
+
+    private static bool ParseBoolean(string? value)
+        => bool.TryParse(value, out var result) && result;
+
+    private static List<string> ReadStringOptions(JsonNode? node)
+    {
+        if (node is not JsonArray array)
+        {
+            return [];
+        }
+
+        return array
+            .Select(ReadString)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static string JsonNodeToText(JsonNode? node)
+    {
+        if (node is null)
+        {
+            return string.Empty;
+        }
+
+        return node is JsonValue value && value.TryGetValue<string>(out var text)
+            ? text
+            : node.ToJsonString(JsonOptions);
+    }
+
+    private static bool JsonNodeToBool(JsonNode? node)
+    {
+        if (node is not JsonValue value)
+        {
+            return false;
+        }
+
+        if (value.TryGetValue<bool>(out var boolean))
+        {
+            return boolean;
+        }
+
+        return value.TryGetValue<string>(out var text) && bool.TryParse(text, out boolean) && boolean;
+    }
+
+    private static List<string> JsonNodeToStringList(JsonNode? node)
+    {
+        if (node is JsonArray array)
+        {
+            return array
+                .Select(JsonNodeToText)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .ToList();
+        }
+
+        var single = JsonNodeToText(node);
+        return string.IsNullOrWhiteSpace(single) ? [] : [single];
+    }
+
+    private static string? TrimOrNull(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static List<ThemeI18nTextOverride> DeserializeTextOverrides(string json)
     {

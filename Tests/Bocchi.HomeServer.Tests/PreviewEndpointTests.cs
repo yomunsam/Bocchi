@@ -37,8 +37,8 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
-        var html = await response.Content.ReadAsStringAsync();
-        html.Should().Contain("Selected Writing");
+        var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        html.Should().Contain("精选写作");
         html.Should().Contain("bocchi-preview-toolbar");
         File.Exists(publicIndex).Should().BeFalse("实时预览不能物化静态发布目录");
     }

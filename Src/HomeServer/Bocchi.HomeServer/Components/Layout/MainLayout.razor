@@ -76,6 +76,14 @@
                             <Blazicon Svg="Lucide.Link" />
                             <span>@I18n["nav.friends"]</span>
                         </a>
+                        <a href="/Admin/Site/Navigation" class="@SecondaryNavLinkClass(IsSiteNavigationActive())" aria-current="@AriaCurrent(IsSiteNavigationActive())">
+                            <Blazicon Svg="Lucide.Menu" />
+                            <span>@I18n["nav.siteNavigation"]</span>
+                        </a>
+                        <a href="/Admin/Site/Theme" class="@SecondaryNavLinkClass(IsThemeCustomizationActive())" aria-current="@AriaCurrent(IsThemeCustomizationActive())">
+                            <Blazicon Svg="Lucide.SunMoon" />
+                            <span>@I18n["nav.themeCustomization"]</span>
+                        </a>
                     </div>
                 }
             </div>
@@ -89,6 +97,17 @@
                 <span>@I18n["nav.settings"]</span>
             </a>
         </nav>
+
+        <section class="bocchi-sidebar-preview" aria-label='@I18n["sidebar.preview.title"]'>
+            <div class="bocchi-sidebar-preview__title">
+                <Blazicon Svg="Lucide.Monitor" />
+                <span>@I18n["sidebar.preview.title"]</span>
+            </div>
+            <a class="bocchi-sidebar-preview__button" href="/" target="_blank" rel="noopener">
+                <span>@I18n["sidebar.preview.open"]</span>
+                <Blazicon Svg="Lucide.ExternalLink" />
+            </a>
+        </section>
     </aside>
 
     <div class="bocchi-workbench">
@@ -321,7 +340,8 @@
     private bool IsContentSectionActive() => IsPostsActive() || IsNotesActive() || IsWorksActive();
 
     /// <summary>站点分组是否包含当前页面。</summary>
-    private bool IsSiteSectionActive() => IsPagesActive() || IsFriendLinksActive();
+    private bool IsSiteSectionActive()
+        => IsPagesActive() || IsFriendLinksActive() || IsSiteNavigationActive() || IsThemeCustomizationActive();
 
     /// <summary>文章导航项是否为当前页面。</summary>
     private bool IsPostsActive() => IsCurrentPath("/Admin/Posts") || IsEditorFor("post", "posts%2F");
@@ -339,6 +359,12 @@
     private bool IsFriendLinksActive()
         => (IsCurrentPath("/Admin/Content") && CurrentQueryContains("kind=FriendLink")) ||
            (IsCurrentPath("/Admin/Content/Edit") && CurrentQueryContains("friends.yaml"));
+
+    /// <summary>导航栏设置入口是否为当前页面。</summary>
+    private bool IsSiteNavigationActive() => IsCurrentPath("/Admin/Site/Navigation");
+
+    /// <summary>主题定制入口是否为当前页面。</summary>
+    private bool IsThemeCustomizationActive() => IsCurrentPath("/Admin/Site/Theme");
 
     /// <summary>判断编辑页是否正在处理指定内容类型。</summary>
     private bool IsEditorFor(string kind, string encodedPathPrefix)

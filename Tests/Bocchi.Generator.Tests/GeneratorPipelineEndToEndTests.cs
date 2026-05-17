@@ -4,6 +4,7 @@ using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.Generator.State;
 using Bocchi.Generator.Theme;
+using Bocchi.Theme.DefaultStatic;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -263,6 +264,67 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
+    public async Task DefaultStaticTheme_LocalizesChromeFromThemeContext()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var localizationOptions = CreateLocalizationOptions("Index", "首页") with
+        {
+            PrimaryLanguage = "zh-CN",
+            ThemeTextOverrides = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["zh-CN"] = "由测试构建。",
+                },
+            },
+        };
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = localizationOptions },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        var visibleHtml = System.Net.WebUtility.HtmlDecode(html);
+        visibleHtml.Should().Contain("""<html lang="zh-CN">""");
+        visibleHtml.Should().Contain(">首页</a>");
+        visibleHtml.Should().Contain(">写作</a>");
+        visibleHtml.Should().Contain("<em>写作</em>、作品与札记。");
+        visibleHtml.Should().Contain("<h2>精选写作</h2>");
+        visibleHtml.Should().Contain("由测试构建。");
+        visibleHtml.Should().NotContain("Built with Bocchi.");
+    }
+
+    [Fact]
+    public async Task DefaultStaticTheme_RefreshesUnmodifiedLegacyMaterializedFiles()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "default-static");
+        var indexTemplate = Path.Combine(themeRoot, "templates", "pages", "index.liquid");
+        Directory.CreateDirectory(Path.GetDirectoryName(indexTemplate)!);
+        await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.json"), GetDefaultStaticPrivateConstant("LegacyThemeJson"));
+        await File.WriteAllTextAsync(indexTemplate, GetDefaultStaticPrivateConstant("LegacyIndexTemplate"));
+
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild, Localization = CreateLocalizationOptions("Index", "首页") with { PrimaryLanguage = "zh-CN" } },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var refreshedManifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"));
+        var refreshedIndex = await File.ReadAllTextAsync(indexTemplate);
+        refreshedManifest.Should().Contain("theme.defaultStatic.homeHeroAccent");
+        refreshedIndex.Should().Contain("text.homeHeroAccent");
+    }
+
+    [Fact]
     public async Task FullBuild_WhenThemePrivateLocalizationTextChanges_DoesNotShortCircuit()
     {
         using var fixture = new TestWorkspaceFixture();
@@ -467,6 +529,16 @@ public sealed class GeneratorPipelineEndToEndTests
                 },
             },
         };
+
+    /// <summary>读取默认 Theme 定义里的私有常量，供升级测试复用旧内置模板而不在测试中复制大段文本。</summary>
+    private static string GetDefaultStaticPrivateConstant(string name)
+    {
+        var field = typeof(DefaultStaticThemeDefinition).GetField(
+            name,
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        return field?.GetRawConstantValue() as string
+            ?? throw new InvalidOperationException($"DefaultStaticThemeDefinition 缺少私有常量 '{name}'。");
+    }
 
     /// <summary>创建一个只用于测试 Theme 加载边界的 process Theme manifest。</summary>
     private static void CreateProcessTheme(TestWorkspaceFixture fixture, string themeId)

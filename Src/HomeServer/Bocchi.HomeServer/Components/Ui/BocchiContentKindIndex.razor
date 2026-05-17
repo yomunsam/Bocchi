@@ -4,6 +4,7 @@
 @using Bocchi.Workspace.State
 @inject DashboardLocalizationService I18n
 @inject IContentStateStore Store
+@inject ContentEditingService Editor
 
 <article class="bocchi-shell bocchi-shell--dashboard">
     <header class="bocchi-page-intro">
@@ -12,39 +13,100 @@
         <p>@I18n[$"kind.{KindSlug}.description"]</p>
     </header>
 
+    @if (Kind == ContentKind.Note)
+    {
+        <BocchiNoteComposer ReturnUrl="/Admin/Notes" />
+    }
+    else
+    {
+        <section class="bocchi-kind-actions" aria-label='@I18n["kind.index.actions.aria"]'>
+            <a class="bocchi-kind-action bocchi-kind-action--primary" href="@CreateUrl">
+                <Blazicon Svg="Lucide.Plus" />
+                <span>@I18n["kind.index.actions.create"]</span>
+            </a>
+            @if (HasTaxonomy)
+            {
+                <div class="bocchi-kind-action-group" role="group" aria-label='@I18n["kind.index.taxonomy.aria"]'>
+                    <button type="button"
+                            class="@CategoryActionClass"
+                            aria-expanded="@_showCategoryEditor"
+                            aria-controls="@CategoryEditorId"
+                            @onclick="ToggleCategoryEditor">
+                        @I18n["kind.index.actions.categories"]
+                    </button>
+                    <button type="button" class="bocchi-kind-action bocchi-kind-action--grouped">@I18n["kind.index.actions.tags"]</button>
+                </div>
+            }
+        </section>
+
+        @if (HasTaxonomy && _showCategoryEditor)
+        {
+            <div id="@CategoryEditorId">
+                <BocchiCategoryTreeEditor Kind="Kind" />
+            </div>
+        }
+    }
+
     @if (_items.Count == 0)
     {
-        <div class="bocchi-home-empty">
-            <span class="bocchi-home-empty__icon">
-                <Blazicon Svg="@KindIcon" />
-            </span>
-            <div>
-                <strong>@I18n["kind.index.empty.title"]</strong>
+        <div class="bocchi-kind-empty">
+            <div class="bocchi-kind-empty__body">
+                <strong>@string.Format(CultureInfo.CurrentCulture, I18n["kind.index.empty.titleFormat"], I18n[$"kind.{KindSlug}.title"])</strong>
                 <p>@I18n["kind.index.empty.description"]</p>
-            </div>
-            <div class="bocchi-home-empty__actions">
-                <a class="bocchi-button" href="/Admin/Content/Edit">@I18n["kind.index.empty.action"]</a>
+                @if (Kind != ContentKind.Note)
+                {
+                    <a class="bocchi-kind-action bocchi-kind-action--primary" href="@CreateUrl">
+                        <Blazicon Svg="Lucide.Plus" />
+                        <span>@I18n["kind.index.empty.action"]</span>
+                    </a>
+                }
             </div>
         </div>
     }
     else
     {
         <section aria-label='@I18n["kind.index.aria.list"]'>
-            <div class="bocchi-content-list">
+            <div class="bocchi-content-list bocchi-content-list--actions">
                 @foreach (var item in _items)
                 {
-                    <a class="bocchi-content-item" href="@ContentEditingService.EditUrl(item.RelativePath)">
+                    <div class="bocchi-content-item">
                         <span class="bocchi-content-item__icon @KindIconClass">
                             <Blazicon Svg="@KindIcon" />
                         </span>
-                        <span class="bocchi-content-item__main">
+                        <a class="bocchi-content-item__main" href="@ContentEditingService.EditUrl(item.RelativePath)">
                             <strong>@(string.IsNullOrWhiteSpace(item.Title) ? item.ContentId : item.Title)</strong>
                             <small>@item.RelativePath</small>
-                        </span>
+                        </a>
                         <BocchiStatusPill Tone="@StatusTone(item.Status)">@StatusLabel(item.Status)</BocchiStatusPill>
                         <span class="bocchi-content-item__date">@TimeLabel(item)</span>
-                        <span class="bocchi-content-item__action">@ActionLabel(item.Status)</span>
-                    </a>
+                        <span class="bocchi-content-item__actions">
+                            <a class="bocchi-row-icon-button"
+                               href="@ContentEditingService.EditUrl(item.RelativePath)"
+                               aria-label='@I18n["home.action.edit"]'
+                               title='@I18n["home.action.edit"]'>
+                                <Blazicon Svg="Lucide.Pencil" />
+                            </a>
+                            <details class="bocchi-row-delete">
+                                <summary class="bocchi-row-icon-button"
+                                         aria-label='@I18n["kind.index.delete"]'
+                                         title='@I18n["kind.index.delete"]'>
+                                    <Blazicon Svg="Lucide.Trash2" />
+                                </summary>
+                                <div class="bocchi-row-delete__popup" role="dialog" aria-label='@I18n["kind.index.delete.confirm"]'>
+                                    <strong>@I18n["kind.index.delete.confirm"]</strong>
+                                    <div class="bocchi-row-delete__actions">
+                                        <button type="button" data-bocchi-close-delete>@I18n["kind.index.delete.cancel"]</button>
+                                        <button type="button"
+                                                class="bocchi-row-delete__danger"
+                                                disabled="@IsDeleting(item.RelativePath)"
+                                                @onclick="() => DeleteAsync(item.RelativePath)">
+                                            @I18n["kind.index.delete.confirmAction"]
+                                        </button>
+                                    </div>
+                                </div>
+                            </details>
+                        </span>
+                    </div>
                 }
             </div>
         </section>
@@ -65,6 +127,12 @@
     [Parameter, EditorRequired] public string KindIconClass { get; set; } = "bocchi-content-item__icon--pink";
 
     private IReadOnlyList<ContentSummary> _items = [];
+
+    /// <summary>正在删除的源文件路径，用于防止重复点击确认按钮。</summary>
+    private string? _deletingPath;
+
+    /// <summary>类别编辑器是否展开；它是独立管理面板，不影响文章列表本身。</summary>
+    private bool _showCategoryEditor;
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,9 +157,57 @@
         _ => "warning",
     };
 
-    private string ActionLabel(ContentStatus status)
-        => status == ContentStatus.Draft ? I18n["home.action.continue"] : I18n["home.action.edit"];
-
     private static string TimeLabel(ContentSummary item)
         => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
+
+    /// <summary>删除源文件和状态索引，然后从当前列表移除该行。</summary>
+    private async Task DeleteAsync(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath) || _deletingPath is not null)
+        {
+            return;
+        }
+
+        _deletingPath = relativePath;
+        try
+        {
+            await Editor.DeleteAsync(relativePath);
+            await Store.DeleteContentBySourcePathAsync(relativePath);
+            _items = _items
+                .Where(x => !string.Equals(x.RelativePath, relativePath, StringComparison.Ordinal))
+                .ToList();
+        }
+        finally
+        {
+            _deletingPath = null;
+        }
+    }
+
+    private bool IsDeleting(string relativePath)
+        => string.Equals(_deletingPath, relativePath, StringComparison.Ordinal);
+
+    private void ToggleCategoryEditor()
+    {
+        _showCategoryEditor = !_showCategoryEditor;
+    }
+
+    /// <summary>新建入口需要带上 kind，避免从分类型列表进入编辑器时丢失上下文。</summary>
+    private string CreateUrl => $"/Admin/Content/Edit?kind={CreateKindValue}";
+
+    private string CreateKindValue => Kind switch
+    {
+        ContentKind.Note => "note",
+        ContentKind.Work => "work",
+        ContentKind.Page => "page",
+        _ => "post",
+    };
+
+    /// <summary>只有文章和作品有类别、标签管理；短文保持轻量发布模型。</summary>
+    private bool HasTaxonomy => Kind is ContentKind.Post or ContentKind.Work;
+
+    private string CategoryEditorId => $"bocchi-category-editor-host-{KindSlug}";
+
+    private string CategoryActionClass => _showCategoryEditor
+        ? "bocchi-kind-action bocchi-kind-action--grouped bocchi-kind-action--active"
+        : "bocchi-kind-action bocchi-kind-action--grouped";
 }

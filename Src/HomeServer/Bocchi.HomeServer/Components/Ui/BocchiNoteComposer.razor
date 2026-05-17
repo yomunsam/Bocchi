@@ -1,0 +1,65 @@
+@using System.Globalization
+@using Bocchi.HomeServer.Services
+@inject DashboardLocalizationService I18n
+
+<section class="bocchi-composer" aria-label='@I18n["home.composer.aria"]'>
+    <form class="bocchi-composer__form" method="post" action="/Admin/Home/Notes">
+        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+        <textarea name="body"
+                  class="bocchi-composer__textarea"
+                  maxlength="@NoteCreationService.MaxBodyLength"
+                  placeholder='@I18n["home.composer.placeholder"]'
+                  oninput="window.bocchiComposer?.updateCounter(this)"
+                  required></textarea>
+
+        <div class="bocchi-composer__footer">
+            <div class="bocchi-composer__toolbar" aria-label='@I18n["home.composer.toolbar.disabledHint"]'>
+                @foreach (var icon in ComposerToolbarIcons)
+                {
+                    <button type="button" class="bocchi-icon-button" disabled aria-label='@I18n[icon.LabelKey]' title='@I18n[icon.LabelKey]'>
+                        <Blazicon Svg="@icon.Icon" />
+                    </button>
+                }
+            </div>
+            <div class="bocchi-composer__publish">
+                <span class="bocchi-composer__counter" data-counter-max="@NoteCreationService.MaxBodyLength">
+                    @string.Format(CultureInfo.CurrentCulture, I18n["home.composer.counterFormat"], 0, NoteCreationService.MaxBodyLength)
+                </span>
+                <button type="submit" class="bocchi-button bocchi-button--primary bocchi-composer__submit">
+                    <Blazicon Svg="Lucide.Send" />
+                    <span>@I18n["home.composer.publishNote"]</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</section>
+
+<script>
+    // Composer 字符计数：纯客户端，textarea 已开启 maxlength 兜底。
+    window.bocchiComposer = window.bocchiComposer || {
+        updateCounter(textarea) {
+            const counter = textarea.closest('.bocchi-composer')?.querySelector('.bocchi-composer__counter');
+            if (!counter) return;
+            const max = Number(counter.dataset.counterMax || 500);
+            counter.textContent = textarea.value.length + ' / ' + max;
+        }
+    };
+</script>
+
+@code {
+    /// <summary>发布后返回的 Dashboard 内部路径。</summary>
+    [Parameter] public string ReturnUrl { get; set; } = "/Admin";
+
+    /// <summary>Composer 底部图标条；当前全部禁用，作为后续富文本能力的视觉占位。</summary>
+    private static readonly ComposerIcon[] ComposerToolbarIcons =
+    [
+        new(Lucide.Image, "home.composer.toolbar.image"),
+        new(Lucide.Link, "home.composer.toolbar.link"),
+        new(Lucide.Tag, "home.composer.toolbar.tag"),
+        new(Lucide.Hash, "home.composer.toolbar.hash"),
+        new(Lucide.Smile, "home.composer.toolbar.emoji"),
+    ];
+
+    /// <summary>Composer 顶部图标条的占位描述。</summary>
+    private sealed record ComposerIcon(SvgIcon Icon, string LabelKey);
+}

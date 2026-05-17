@@ -103,7 +103,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
-    public async Task SettingsPage_RendersThemeAndExternalLoginSections()
+    public async Task SettingsPage_RendersLocalizationAndExternalLoginSections()
     {
         using var client = await _factory.CreateAdminClientAsync();
 
@@ -117,9 +117,38 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Common theme text");
         body.Should().Contain("menu.home");
         body.Should().Contain("PrimaryUnprefixed");
+        body.Should().NotContain("Save Theme config");
+    }
+
+    [Fact]
+    public async Task SiteNavigationPage_RendersPlaceholderAndSiteSidebarLinks()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Site/Navigation");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("Entry ready");
+        body.Should().Contain("Navigation");
+        body.Should().Contain("Theme customization");
+    }
+
+    [Fact]
+    public async Task ThemeCustomizationPage_RendersSchemaEditorAndThemePrivateText()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Site/Theme");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("Theme customization");
+        body.Should().Contain("Bocchi Mono");
+        body.Should().Contain("visual.accentColor");
+        body.Should().Contain("Save settings");
         body.Should().Contain("Theme private text");
         body.Should().Contain("theme.defaultStatic.colophonBuiltWith");
-        body.Should().Contain("Save Theme config");
     }
 
     [Fact]

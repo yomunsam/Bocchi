@@ -1,0 +1,74 @@
+@using System.Globalization
+@inject DashboardLocalizationService I18n
+
+<article class="bocchi-category-node">
+    <div class="bocchi-category-node__row">
+        <span class="bocchi-category-node__level">@string.Format(CultureInfo.CurrentCulture, I18n["category.editor.levelFormat"], Level)</span>
+        <input value="@Node.Name"
+               @oninput="OnNameInputAsync"
+               placeholder='@I18n["category.editor.namePlaceholder"]'
+               aria-label='@I18n["category.editor.namePlaceholder"]' />
+        <button type="button"
+                class="bocchi-category-node__icon"
+                disabled="@(!CanAddChild)"
+                title="@AddChildTitle"
+                aria-label="@AddChildTitle"
+                @onclick="() => AddChild.InvokeAsync(Node)">
+            <Blazicon Svg="Lucide.Plus" />
+        </button>
+        <button type="button"
+                class="bocchi-category-node__icon bocchi-category-node__icon--danger"
+                title='@I18n["category.editor.remove"]'
+                aria-label='@I18n["category.editor.remove"]'
+                @onclick="() => Remove.InvokeAsync(Node)">
+            <Blazicon Svg="Lucide.Trash2" />
+        </button>
+    </div>
+
+    @if (Node.Children.Count > 0)
+    {
+        <div class="bocchi-category-node__children">
+            @foreach (var child in Node.Children)
+            {
+                <BocchiCategoryTreeNodeEditor Node="child"
+                                              Level="@(Level + 1)"
+                                              MaxDepth="MaxDepth"
+                                              AddChild="AddChild"
+                                              Remove="Remove"
+                                              Changed="Changed" />
+            }
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>当前正在编辑的节点。</summary>
+    [Parameter, EditorRequired] public CategoryTreeEditorNode Node { get; set; } = default!;
+
+    /// <summary>当前节点层级；根节点为 0 层。</summary>
+    [Parameter] public int Level { get; set; }
+
+    /// <summary>允许保存的最大层数。</summary>
+    [Parameter] public int MaxDepth { get; set; } = CategoryTreeService.MaxDepth;
+
+    /// <summary>添加子节点的回调，由根编辑器集中处理 dirty 状态。</summary>
+    [Parameter] public EventCallback<CategoryTreeEditorNode> AddChild { get; set; }
+
+    /// <summary>删除当前节点的回调。</summary>
+    [Parameter] public EventCallback<CategoryTreeEditorNode> Remove { get; set; }
+
+    /// <summary>节点名称变化回调。</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private bool CanAddChild => Level + 1 < MaxDepth;
+
+    private string AddChildTitle => CanAddChild
+        ? I18n["category.editor.addChild"]
+        : I18n["category.editor.depthLimit"];
+
+    private async Task OnNameInputAsync(ChangeEventArgs args)
+    {
+        Node.Name = args.Value?.ToString() ?? string.Empty;
+        await Changed.InvokeAsync();
+    }
+}

@@ -36,6 +36,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>Dashboard 首页 Guide 堆栈状态。</summary>
     public DbSet<DashboardGuideCardRecord> DashboardGuideCards => Set<DashboardGuideCardRecord>();
 
+    /// <summary>后台维护的分类树；当前不参与前台 Menu。</summary>
+    public DbSet<CategoryTreeRecord> CategoryTrees => Set<CategoryTreeRecord>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -124,6 +127,16 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.Key).HasMaxLength(128).IsRequired();
             entity.Property(x => x.SortOrder).IsRequired();
             entity.Property(x => x.CreatedAt).IsRequired();
+        });
+
+        builder.Entity<CategoryTreeRecord>(entity =>
+        {
+            entity.ToTable("CategoryTrees");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Scope).IsUnique();
+            entity.Property(x => x.Scope).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.TreeJson).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
         });
     }
 }

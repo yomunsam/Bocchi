@@ -1,0 +1,18 @@
+@page "/Admin/Site/Navigation"
+@inject DashboardLocalizationService I18n
+
+<PageTitle>@I18n["siteNavigation.page.title"] · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">@I18n["siteNavigation.page.eyebrow"]</span>
+        <h1>@I18n["siteNavigation.page.heading"]</h1>
+        <p>@I18n["siteNavigation.page.description"]</p>
+    </header>
+
+    <section class="bocchi-panel bocchi-panel--soft">
+        <h2>@I18n["siteNavigation.placeholder.title"]</h2>
+        <p>@I18n["siteNavigation.placeholder.description"]</p>
+        <BocchiStatusPill Tone="info">@I18n["siteNavigation.placeholder.status"]</BocchiStatusPill>
+    </section>
+</article>

@@ -79,50 +79,7 @@
 
     @* 主体两栏：左侧 Composer，右侧站点预览卡。 *@
     <div class="bocchi-home-grid">
-        <section class="bocchi-composer" aria-label='@I18n["home.composer.aria"]'>
-            <div class="bocchi-composer__tabs" role="tablist">
-                <button type="button"
-                        role="tab"
-                        class="@TabClass(true)"
-                        aria-selected="true">
-                    @I18n["home.composer.tabs.note"]
-                </button>
-                <button type="button"
-                        role="tab"
-                        class="@TabClass(false)"
-                        aria-selected="false"
-                        disabled>
-                    @I18n["home.composer.tabs.post"]
-                </button>
-            </div>
-
-            <form class="bocchi-composer__form" method="post" action="/Admin/Home/Notes">
-                <input type="hidden" name="returnUrl" value="/Admin" />
-                <textarea name="body"
-                          class="bocchi-composer__textarea"
-                          maxlength="@NoteCreationService.MaxBodyLength"
-                          placeholder='@I18n["home.composer.placeholder"]'
-                          oninput="window.bocchiComposer?.updateCounter(this)"
-                          required></textarea>
-
-                <div class="bocchi-composer__footer">
-                    <div class="bocchi-composer__toolbar" aria-label='@I18n["home.composer.toolbar.disabledHint"]'>
-                        @foreach (var icon in ComposerToolbarIcons)
-                        {
-                            <button type="button" class="bocchi-icon-button" disabled aria-label='@I18n[icon.LabelKey]' title='@I18n[icon.LabelKey]'>
-                                <Blazicon Svg="@icon.Icon" />
-                            </button>
-                        }
-                    </div>
-                    <div class="bocchi-composer__publish">
-                        <span class="bocchi-composer__counter" data-counter-max="@NoteCreationService.MaxBodyLength">
-                            @string.Format(CultureInfo.CurrentCulture, I18n["home.composer.counterFormat"], 0, NoteCreationService.MaxBodyLength)
-                        </span>
-                        <button type="submit" class="bocchi-button bocchi-button--primary">@I18n["home.composer.publishNote"]</button>
-                    </div>
-                </div>
-            </form>
-        </section>
+        <BocchiNoteComposer ReturnUrl="/Admin" />
 
         <aside class="bocchi-preview-card bocchi-preview-card--home">
             <div class="bocchi-card-heading">
@@ -182,18 +139,6 @@
     </section>
 </article>
 
-<script>
-    // Composer 字符计数：纯客户端，textarea 已开启 maxlength 兜底。
-    window.bocchiComposer = window.bocchiComposer || {
-        updateCounter(textarea) {
-            const counter = textarea.closest('.bocchi-composer')?.querySelector('.bocchi-composer__counter');
-            if (!counter) return;
-            const max = Number(counter.dataset.counterMax || 500);
-            counter.textContent = textarea.value.length + ' / ' + max;
-        }
-    };
-</script>
-
 @code {
     /// <summary>Note 发布失败时由查询参数传入的错误文案。</summary>
     [SupplyParameterFromQuery(Name = "noteError")] public string? NoteError { get; set; }
@@ -216,16 +161,6 @@
         new("home.quick.publish.title", "home.quick.publish.subtitle", "/Admin/Publish", Lucide.Send, "green"),
     ];
 
-    /// <summary>Composer 顶部图标条；当前全部禁用，作为视觉占位。</summary>
-    private static readonly ComposerIcon[] ComposerToolbarIcons =
-    [
-        new(Lucide.Image, "home.composer.toolbar.image"),
-        new(Lucide.Link, "home.composer.toolbar.link"),
-        new(Lucide.Tag, "home.composer.toolbar.tag"),
-        new(Lucide.Hash, "home.composer.toolbar.hash"),
-        new(Lucide.Smile, "home.composer.toolbar.emoji"),
-    ];
-
     protected override async Task OnInitializedAsync()
     {
         var summaries = await Store.ListContentSummariesAsync(null);
@@ -238,16 +173,12 @@
         _guides = [.. await Guides.ListActiveAsync()];
     }
 
-    /// <summary>Composer Tab 状态 class。当前仅支持短文，Posts Tab 暂时禁用。</summary>
-    private static string TabClass(bool active)
-        => active ? "bocchi-composer__tab bocchi-composer__tab--active" : "bocchi-composer__tab";
-
     /// <summary>把 Guide 卡映射到具体的跳转目标；缺省时不渲染 action。</summary>
     private static (string Url, string Hint)? GuideAction(string key)
         => key switch
         {
             DashboardGuideService.SiteLanguageKey => ("/Admin/Settings#localization", "settings"),
-            DashboardGuideService.SiteThemeKey => ("/Admin/Settings#theme", "settings"),
+            DashboardGuideService.SiteThemeKey => ("/Admin/Site/Theme", "settings"),
             DashboardGuideService.EditPageKey => ("/Admin/Pages", "pages"),
             DashboardGuideService.WelcomeKey => ("/Admin/Settings", "settings"),
             _ => null,
@@ -334,6 +265,4 @@
     /// <summary>首页快捷动作卡片的不可变描述。</summary>
     private sealed record QuickAction(string TitleKey, string SubtitleKey, string Url, SvgIcon Icon, string Tone);
 
-    /// <summary>Composer 顶部图标条的占位描述。</summary>
-    private sealed record ComposerIcon(SvgIcon Icon, string LabelKey);
 }

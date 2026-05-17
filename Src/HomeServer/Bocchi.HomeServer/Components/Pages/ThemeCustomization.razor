@@ -1,0 +1,536 @@
+@page "/Admin/Site/Theme"
+@using Bocchi.GeneratorContract
+@inject SiteProfileSettingsService SiteProfileSettings
+@inject ThemeSettingsService ThemeSettings
+@inject LocalizationSettingsService LocalizationSettings
+@inject DashboardLocalizationService I18n
+
+<PageTitle>@I18n["themeCustomization.page.title"] · Bocchi</PageTitle>
+
+<article class="bocchi-shell">
+    <header class="bocchi-page-heading">
+        <span class="bocchi-page-heading__eyebrow">@I18n["themeCustomization.page.eyebrow"]</span>
+        <h1>@I18n["themeCustomization.page.heading"]</h1>
+        <p>@I18n["themeCustomization.page.description"]</p>
+    </header>
+
+    @if (_customization is null)
+    {
+        <section class="bocchi-panel">
+            <p>@I18n["themeCustomization.loading"]</p>
+        </section>
+    }
+    else
+    {
+        <div class="bocchi-two-column bocchi-theme-customization-layout">
+            <section class="bocchi-panel" aria-labelledby="theme-config-heading">
+                <div class="bocchi-section-heading">
+                    <h2 id="theme-config-heading">@I18n["themeCustomization.config.title"]</h2>
+                    <p>@_customization.ThemeName · <code>@_customization.ThemeId</code></p>
+                </div>
+
+                @if (_customization.Groups.Count == 0)
+                {
+                    <p>@I18n["themeCustomization.config.empty"]</p>
+                }
+                else
+                {
+                    <form class="bocchi-theme-config-form" @onsubmit="SaveConfigAsync" @onsubmit:preventDefault>
+                        @foreach (var group in _customization.Groups)
+                        {
+                            <section class="bocchi-theme-config-group" aria-labelledby="@($"theme-config-group-{group.Id}")">
+                                <h3 id="@($"theme-config-group-{group.Id}")">@group.Title</h3>
+                                <div class="bocchi-theme-field-list">
+                                    @foreach (var field in group.Fields)
+                                    {
+                                        <div class="bocchi-theme-field">
+                                            <div class="bocchi-theme-field__label">
+                                                <strong>@field.Title</strong>
+                                                <code>@field.Key</code>
+                                                @if (!string.IsNullOrWhiteSpace(field.Description))
+                                                {
+                                                    <small>@field.Description</small>
+                                                }
+                                            </div>
+                                            <div class="bocchi-theme-field__control">
+                                                @switch (field.Type)
+                                                {
+                                                    case ThemeConfigFieldType.Boolean:
+                                                        <label class="bocchi-checkbox">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked="@GetBooleanValue(field.Key)"
+                                                                @onchange="args => SetBooleanValue(field.Key, args)" />
+                                                            @I18n["themeCustomization.field.enabled"]
+                                                        </label>
+                                                        break;
+                                                    case ThemeConfigFieldType.Number:
+                                                        <input
+                                                            type="number"
+                                                            step="any"
+                                                            value="@GetTextValue(field.Key)"
+                                                            @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
+                                                    case ThemeConfigFieldType.Select:
+                                                        <select value="@GetTextValue(field.Key)" @onchange="args => SetTextValue(field.Key, args.Value?.ToString())">
+                                                            <option value="">@I18n["themeCustomization.field.defaultOption"]</option>
+                                                            @foreach (var option in field.Options)
+                                                            {
+                                                                <option value="@option">@option</option>
+                                                            }
+                                                        </select>
+                                                        break;
+                                                    case ThemeConfigFieldType.MultiSelect:
+                                                        <div class="bocchi-theme-option-list">
+                                                            @foreach (var option in field.Options)
+                                                            {
+                                                                <label class="bocchi-language-option">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked="@IsMultiSelectValueSelected(field.Key, option)"
+                                                                        @onchange="args => ToggleMultiSelectValue(field.Key, option, args)" />
+                                                                    <span>@option</span>
+                                                                </label>
+                                                            }
+                                                        </div>
+                                                        break;
+                                                    case ThemeConfigFieldType.Color:
+                                                        <div class="bocchi-color-field">
+                                                            <input
+                                                                type="color"
+                                                                value="@InputColorValue(GetTextValue(field.Key))"
+                                                                @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                            <input
+                                                                type="text"
+                                                                value="@GetTextValue(field.Key)"
+                                                                placeholder="@FieldPlaceholder(field)"
+                                                                @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        </div>
+                                                        break;
+                                                    case ThemeConfigFieldType.Url:
+                                                        <input
+                                                            type="url"
+                                                            value="@GetTextValue(field.Key)"
+                                                            placeholder="@FieldPlaceholder(field)"
+                                                            @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
+                                                    case ThemeConfigFieldType.Image:
+                                                    case ThemeConfigFieldType.String:
+                                                        <input
+                                                            type="text"
+                                                            value="@GetTextValue(field.Key)"
+                                                            placeholder="@FieldPlaceholder(field)"
+                                                            @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
+                                                    default:
+                                                        <input
+                                                            type="text"
+                                                            value="@GetTextValue(field.Key)"
+                                                            placeholder="@FieldPlaceholder(field)"
+                                                            @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(field.HelpText))
+                                                {
+                                                    <small>@field.HelpText</small>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </section>
+                        }
+
+                        <div class="bocchi-inline-actions">
+                            <button type="submit" disabled="@_configBusy">
+                                <Blazicon Svg="Lucide.Save" />
+                                <span>@(_configBusy ? I18n["themeCustomization.config.saving"] : I18n["themeCustomization.config.save"])</span>
+                            </button>
+                            @if (!string.IsNullOrWhiteSpace(_configMessage))
+                            {
+                                <BocchiStatusPill Tone="@(_configSaved ? "success" : "warning")">@_configMessage</BocchiStatusPill>
+                            }
+                        </div>
+                    </form>
+                }
+            </section>
+
+            <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="theme-meta-heading">
+                <h2 id="theme-meta-heading">@I18n["themeCustomization.meta.title"]</h2>
+                <dl class="bocchi-meta-list">
+                    <div>
+                        <dt>@I18n["themeCustomization.meta.themeName"]</dt>
+                        <dd>@_customization.ThemeName</dd>
+                    </div>
+                    <div>
+                        <dt>@I18n["themeCustomization.meta.themeId"]</dt>
+                        <dd><code>@_customization.ThemeId</code></dd>
+                    </div>
+                    <div>
+                        <dt>@I18n["themeCustomization.meta.schemaGroups"]</dt>
+                        <dd>@_customization.Groups.Count</dd>
+                    </div>
+                </dl>
+            </aside>
+        </div>
+
+        <section class="bocchi-panel bocchi-theme-i18n" aria-labelledby="theme-i18n-heading">
+            <div class="bocchi-section-heading">
+                <h2 id="theme-i18n-heading">@I18n["settings.theme.i18nTitle"]</h2>
+                <p>@I18n["settings.theme.i18nDescription"]</p>
+            </div>
+            @if (_themeI18nKeys.Count == 0)
+            {
+                <p>@I18n["settings.theme.i18nEmpty"]</p>
+            }
+            else
+            {
+                var themeI18nLanguages = EnabledLanguagesForDisplay;
+                <label class="bocchi-language-search">
+                    @I18n["settings.theme.i18nSearch"]
+                    <input
+                        type="search"
+                        @bind="_themeI18nSearch"
+                        @bind:event="oninput"
+                        placeholder='@I18n["settings.theme.i18nSearchPlaceholder"]' />
+                </label>
+
+                <div class="bocchi-common-i18n-list">
+                    @if (FilteredThemeI18nKeys.Count == 0)
+                    {
+                        <p>@I18n["settings.theme.i18nNoResults"]</p>
+                    }
+                    @foreach (var key in FilteredThemeI18nKeys)
+                    {
+                        <div class="bocchi-common-i18n-row">
+                            <div class="bocchi-theme-i18n-key">
+                                <code>@key.Key</code>
+                                <strong>@key.Title</strong>
+                                @if (!string.IsNullOrWhiteSpace(key.Description))
+                                {
+                                    <small>@key.Description</small>
+                                }
+                            </div>
+                            <div class="bocchi-common-i18n-row__inputs">
+                                @foreach (var language in themeI18nLanguages)
+                                {
+                                    <label>
+                                        @language.Code
+                                        <input
+                                            type="text"
+                                            value="@GetThemeI18nTextOverride(key.Key, language.Code)"
+                                            @oninput="args => SetThemeI18nTextOverride(key.Key, language.Code, args.Value?.ToString())"
+                                            placeholder="@GetThemeI18nDefaultValue(key, language.Code)" />
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="bocchi-inline-actions">
+                    <button type="button" class="secondary" @onclick="SaveThemeI18nTextOverridesAsync">
+                        <Blazicon Svg="Lucide.Save" />
+                        <span>@I18n["settings.theme.i18nSave"]</span>
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(_themeI18nMessage))
+                    {
+                        <BocchiStatusPill Tone="@(_themeI18nSaved ? "success" : "warning")">@_themeI18nMessage</BocchiStatusPill>
+                    }
+                </div>
+            }
+        </section>
+    }
+</article>
+
+@code {
+    /// <summary>当前站点正在使用的前台 Theme id，来自站点基础约定。</summary>
+    private string _activeThemeId = "default-static";
+
+    /// <summary>Theme schema 定制页视图。</summary>
+    private ThemeCustomizationView? _customization;
+
+    /// <summary>普通单值字段编辑缓冲区，key 与 Theme schema 字段 key 对齐。</summary>
+    private Dictionary<string, string> _textValues = new(StringComparer.Ordinal);
+
+    /// <summary>Boolean 字段编辑缓冲区。</summary>
+    private Dictionary<string, bool> _booleanValues = new(StringComparer.Ordinal);
+
+    /// <summary>MultiSelect 字段编辑缓冲区。</summary>
+    private Dictionary<string, HashSet<string>> _multiSelectValues = new(StringComparer.Ordinal);
+
+    /// <summary>站点启用语言集合，用于 Theme 私有文本输入。</summary>
+    private HashSet<string> _enabledLanguageCodes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>可展示语言列表，内置语言在前，自定义语言在后。</summary>
+    private IReadOnlyList<LanguageRecord> _availableLanguages = LocalizationSettingsService.BuiltInLanguages;
+
+    /// <summary>Theme 私有 i18n key 搜索词。</summary>
+    private string _themeI18nSearch = string.Empty;
+
+    /// <summary>当前 Theme manifest 声明的私有 i18n key。</summary>
+    private List<ThemeI18nKeyView> _themeI18nKeys = [];
+
+    /// <summary>Theme 私有 i18n 覆盖编辑缓冲区，形态为 key -> language -> plain text。</summary>
+    private Dictionary<string, Dictionary<string, string>> _themeI18nTextOverrides = new(StringComparer.Ordinal);
+
+    /// <summary>Theme 配置保存中标记。</summary>
+    private bool _configBusy;
+
+    /// <summary>Theme 配置保存反馈状态。</summary>
+    private bool _configSaved;
+
+    /// <summary>Theme 配置保存反馈文案。</summary>
+    private string? _configMessage;
+
+    /// <summary>Theme 私有 i18n 覆盖保存反馈。</summary>
+    private bool _themeI18nSaved;
+
+    /// <summary>Theme 私有 i18n 覆盖保存后的说明文本。</summary>
+    private string? _themeI18nMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var site = await SiteProfileSettings.GetAsync();
+        _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "default-static" : site.DefaultThemeId;
+        await LoadCustomizationAsync();
+        await LoadLocalizationAsync();
+        await LoadThemeI18nAsync();
+    }
+
+    /// <summary>读取当前 Theme schema 和配置值，并刷新页面编辑缓冲区。</summary>
+    private async Task LoadCustomizationAsync()
+    {
+        _customization = await ThemeSettings.GetCustomizationAsync(_activeThemeId);
+        _textValues = new Dictionary<string, string>(StringComparer.Ordinal);
+        _booleanValues = new Dictionary<string, bool>(StringComparer.Ordinal);
+        _multiSelectValues = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+        foreach (var field in _customization.Groups.SelectMany(group => group.Fields))
+        {
+            if (field.Type == ThemeConfigFieldType.Boolean)
+            {
+                _booleanValues[field.Key] = field.BooleanValue;
+            }
+            else if (field.Type == ThemeConfigFieldType.MultiSelect)
+            {
+                _multiSelectValues[field.Key] = new HashSet<string>(field.SelectedValues, StringComparer.Ordinal);
+            }
+            else
+            {
+                _textValues[field.Key] = field.TextValue;
+            }
+        }
+    }
+
+    /// <summary>读取站点启用语言，Theme 私有文本只按这些语言展示输入框。</summary>
+    private async Task LoadLocalizationAsync()
+    {
+        var localization = await LocalizationSettings.GetAsync();
+        _enabledLanguageCodes = new HashSet<string>(
+            localization.EnabledLanguages.Select(language => language.Code),
+            StringComparer.OrdinalIgnoreCase);
+        _availableLanguages = [.. LocalizationSettingsService.BuiltInLanguages, .. localization.CustomLanguages];
+    }
+
+    /// <summary>读取 Theme manifest 声明和用户填写的 Theme 私有 i18n 覆盖。</summary>
+    private async Task LoadThemeI18nAsync()
+    {
+        var themeI18n = await ThemeSettings.GetI18nAsync(_activeThemeId);
+        _themeI18nKeys = [.. themeI18n.Keys];
+        _themeI18nTextOverrides = themeI18n.TextOverrides.ToDictionary(
+            x => x.Key,
+            x => new Dictionary<string, string>(x.Values, StringComparer.OrdinalIgnoreCase),
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>保存 schema 字段值；服务层负责按字段类型写回 nested JSON。</summary>
+    private async Task SaveConfigAsync()
+    {
+        if (_customization is null)
+        {
+            return;
+        }
+
+        _configBusy = true;
+        try
+        {
+            var values = _customization.Groups
+                .SelectMany(group => group.Fields)
+                .Where(field => field.Type != ThemeConfigFieldType.Group)
+                .Select(BuildValueInput)
+                .ToList();
+            await ThemeSettings.SaveCustomizationAsync(_activeThemeId, values);
+            await LoadCustomizationAsync();
+            _configSaved = true;
+            _configMessage = I18n["themeCustomization.config.saved"];
+        }
+        catch (InvalidOperationException ex)
+        {
+            _configSaved = false;
+            _configMessage = ex.Message;
+        }
+        finally
+        {
+            _configBusy = false;
+        }
+    }
+
+    /// <summary>把页面缓冲区中的字段值转换成服务层提交模型。</summary>
+    private ThemeConfigValueInput BuildValueInput(ThemeConfigFieldView field)
+        => field.Type switch
+        {
+            ThemeConfigFieldType.Boolean => new ThemeConfigValueInput
+            {
+                Key = field.Key,
+                Value = GetBooleanValue(field.Key).ToString(),
+            },
+            ThemeConfigFieldType.MultiSelect => new ThemeConfigValueInput
+            {
+                Key = field.Key,
+                Values = _multiSelectValues.TryGetValue(field.Key, out var values) ? values.ToList() : [],
+            },
+            _ => new ThemeConfigValueInput
+            {
+                Key = field.Key,
+                Value = GetTextValue(field.Key),
+            },
+        };
+
+    /// <summary>保存当前 Theme 私有 i18n 覆盖；空输入会在服务层被丢弃。</summary>
+    private async Task SaveThemeI18nTextOverridesAsync()
+    {
+        var overrides = _themeI18nTextOverrides.Select(x => new ThemeI18nTextOverride
+        {
+            Key = x.Key,
+            Values = x.Value,
+        });
+        await ThemeSettings.SaveI18nTextOverridesAsync(_activeThemeId, overrides);
+        await LoadThemeI18nAsync();
+        _themeI18nSaved = true;
+        _themeI18nMessage = I18n["settings.theme.i18nSaved"];
+    }
+
+    /// <summary>当前已启用语言的展示列表，按 Picklist 顺序显示。</summary>
+    private List<LanguageRecord> EnabledLanguagesForDisplay
+        => _availableLanguages
+            .Where(language => _enabledLanguageCodes.Contains(language.Code))
+            .ToList();
+
+    /// <summary>当前可编辑的 Theme 私有 i18n key；仅来自 Theme manifest 声明。</summary>
+    private List<ThemeI18nKeyView> FilteredThemeI18nKeys
+    {
+        get
+        {
+            var query = _themeI18nSearch.Trim();
+            return _themeI18nKeys
+                .Where(key => query.Length == 0
+                    || key.Key.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || key.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || (key.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+                .OrderBy(key => key.Key, StringComparer.Ordinal)
+                .ToList();
+        }
+    }
+
+    /// <summary>读取单值字段编辑值。</summary>
+    private string GetTextValue(string key)
+        => _textValues.TryGetValue(key, out var value) ? value : string.Empty;
+
+    /// <summary>更新单值字段编辑缓冲区。</summary>
+    private void SetTextValue(string key, string? value)
+    {
+        _textValues[key] = value ?? string.Empty;
+        _configSaved = false;
+        _configMessage = null;
+    }
+
+    /// <summary>读取 Boolean 字段编辑值。</summary>
+    private bool GetBooleanValue(string key)
+        => _booleanValues.TryGetValue(key, out var value) && value;
+
+    /// <summary>更新 Boolean 字段编辑缓冲区。</summary>
+    private void SetBooleanValue(string key, ChangeEventArgs args)
+    {
+        _booleanValues[key] = args.Value is bool value && value;
+        _configSaved = false;
+        _configMessage = null;
+    }
+
+    /// <summary>判断 MultiSelect 字段是否包含某个选项。</summary>
+    private bool IsMultiSelectValueSelected(string key, string value)
+        => _multiSelectValues.TryGetValue(key, out var values) && values.Contains(value);
+
+    /// <summary>切换 MultiSelect 字段中的某个选项。</summary>
+    private void ToggleMultiSelectValue(string key, string value, ChangeEventArgs args)
+    {
+        if (!_multiSelectValues.TryGetValue(key, out var values))
+        {
+            values = new HashSet<string>(StringComparer.Ordinal);
+            _multiSelectValues[key] = values;
+        }
+
+        if (args.Value is bool selected && selected)
+        {
+            values.Add(value);
+        }
+        else
+        {
+            values.Remove(value);
+        }
+
+        _configSaved = false;
+        _configMessage = null;
+    }
+
+    /// <summary>读取某个 Theme 私有 key 在某个语言下的覆盖值。</summary>
+    private string GetThemeI18nTextOverride(string key, string languageCode)
+        => _themeI18nTextOverrides.TryGetValue(key, out var values)
+            && values.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    /// <summary>读取 Theme manifest 默认文案，用作输入框 placeholder。</summary>
+    private static string GetThemeI18nDefaultValue(ThemeI18nKeyView key, string languageCode)
+        => key.DefaultValues.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    /// <summary>更新 Theme 私有 i18n 覆盖编辑缓冲区；空值会移除对应语言覆盖。</summary>
+    private void SetThemeI18nTextOverride(string key, string languageCode, string? value)
+    {
+        if (!_themeI18nTextOverrides.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _themeI18nTextOverrides[key] = values;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            values.Remove(languageCode);
+            if (values.Count == 0)
+            {
+                _themeI18nTextOverrides.Remove(key);
+            }
+        }
+        else
+        {
+            values[languageCode] = value.Trim();
+        }
+
+        _themeI18nSaved = false;
+        _themeI18nMessage = null;
+    }
+
+    /// <summary>生成字段 placeholder；优先使用 schema placeholder，其次用默认值提示。</summary>
+    private static string? FieldPlaceholder(ThemeConfigFieldView field)
+        => string.IsNullOrWhiteSpace(field.Placeholder) ? field.DefaultText : field.Placeholder;
+
+    /// <summary>把色值输入收束成 HTML color input 可以接受的 <c>#rrggbb</c>。</summary>
+    private static string InputColorValue(string value)
+        => value.Length == 7 &&
+           value[0] == '#' &&
+           value.Skip(1).All(Uri.IsHexDigit)
+            ? value
+            : "#000000";
+}

@@ -4,7 +4,6 @@
 @inject DashboardSettingsService DashboardSettings
 @inject SiteProfileSettingsService SiteProfileSettings
 @inject ExternalLoginSettingsService ExternalLogins
-@inject ThemeSettingsService ThemeSettings
 @inject LocalizationSettingsService LocalizationSettings
 @inject DashboardLocalizationService I18n
 @inject BocchiDataLayout Layout
@@ -24,7 +23,6 @@
             <a href="#localization">@I18n["settings.nav.localization"]</a>
             <a href="#database">@I18n["settings.nav.database"]</a>
             <a href="#login">@I18n["settings.nav.login"]</a>
-            <a href="#theme">@I18n["settings.nav.theme"]</a>
             <a href="/Admin/Users">@I18n["settings.nav.users"]</a>
             <a href="#workspace">@I18n["settings.nav.workspace"]</a>
         </nav>
@@ -313,91 +311,6 @@
                 }
             </section>
 
-            <section id="theme" class="bocchi-panel">
-                <h2>Theme</h2>
-                <p>这里管理前台业务 Theme Contract，不是右上角 Dashboard 明暗外观。M5 默认 Theme 为 <code>default-static</code> / Bocchi Mono，保存后会同步写入工作区 Theme 配置文件。</p>
-                <div class="bocchi-form-grid">
-                    <label>
-                        Theme id
-                        <input type="text" @bind="_themeId" />
-                    </label>
-                    <label>
-                        Configuration JSON
-                        <textarea class="bocchi-editor-textarea bocchi-editor-textarea--frontmatter" @bind="_themeJson"></textarea>
-                    </label>
-                    <button type="button" class="secondary" @onclick="SaveThemeAsync">Save Theme config</button>
-                    @if (_themeSaved)
-                    {
-                        <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
-                    }
-                </div>
-
-                <div class="bocchi-theme-i18n">
-                    <div class="bocchi-section-heading">
-                        <h3>@I18n["settings.theme.i18nTitle"]</h3>
-                        <p>@I18n["settings.theme.i18nDescription"]</p>
-                    </div>
-                    @if (_themeI18nKeys.Count == 0)
-                    {
-                        <p>@I18n["settings.theme.i18nEmpty"]</p>
-                    }
-                    else
-                    {
-                        var themeI18nLanguages = EnabledLanguagesForDisplay;
-                        <label class="bocchi-language-search">
-                            @I18n["settings.theme.i18nSearch"]
-                            <input
-                                type="search"
-                                @bind="_themeI18nSearch"
-                                @bind:event="oninput"
-                                placeholder='@I18n["settings.theme.i18nSearchPlaceholder"]' />
-                        </label>
-
-                        <div class="bocchi-common-i18n-list">
-                            @if (FilteredThemeI18nKeys.Count == 0)
-                            {
-                                <p>@I18n["settings.theme.i18nNoResults"]</p>
-                            }
-                            @foreach (var key in FilteredThemeI18nKeys)
-                            {
-                                <div class="bocchi-common-i18n-row">
-                                    <div class="bocchi-theme-i18n-key">
-                                        <code>@key.Key</code>
-                                        <strong>@key.Title</strong>
-                                        @if (!string.IsNullOrWhiteSpace(key.Description))
-                                        {
-                                            <small>@key.Description</small>
-                                        }
-                                    </div>
-                                    <div class="bocchi-common-i18n-row__inputs">
-                                        @foreach (var language in themeI18nLanguages)
-                                        {
-                                            <label>
-                                                @language.Code
-                                                <input
-                                                    type="text"
-                                                    value="@GetThemeI18nTextOverride(key.Key, language.Code)"
-                                                    @oninput="args => SetThemeI18nTextOverride(key.Key, language.Code, args.Value?.ToString())"
-                                                    placeholder="@GetThemeI18nDefaultValue(key, language.Code)" />
-                                            </label>
-                                        }
-                                    </div>
-                                </div>
-                            }
-                        </div>
-
-                        <button type="button" class="secondary" @onclick="SaveThemeI18nTextOverridesAsync">@I18n["settings.theme.i18nSave"]</button>
-                        @if (!string.IsNullOrWhiteSpace(_themeI18nMessage))
-                        {
-                            <p class="bocchi-localization-message">
-                                <BocchiStatusPill Tone="@(_themeI18nSaved ? "success" : "warning")">@(_themeI18nSaved ? I18n["settings.localization.saved"] : I18n["settings.localization.needsAttention"])</BocchiStatusPill>
-                                @_themeI18nMessage
-                            </p>
-                        }
-                    }
-                </div>
-            </section>
-
             <section id="workspace" class="bocchi-panel">
                 <h2>Data</h2>
                 <dl class="bocchi-meta-list">
@@ -497,21 +410,6 @@
     /// <summary>OIDC Provider 表单状态。</summary>
     private ProviderForm _oidc = new();
 
-    /// <summary>前台 Theme id 编辑缓冲区。</summary>
-    private string _themeId = "default-static";
-
-    /// <summary>前台 Theme JSON 配置编辑缓冲区。</summary>
-    private string _themeJson = "{}";
-
-    /// <summary>Theme 私有 i18n key 搜索词。</summary>
-    private string _themeI18nSearch = string.Empty;
-
-    /// <summary>当前 Theme manifest 声明的私有 i18n key。</summary>
-    private List<ThemeI18nKeyView> _themeI18nKeys = [];
-
-    /// <summary>Theme 私有 i18n 覆盖编辑缓冲区，形态为 key -> language -> plain text。</summary>
-    private Dictionary<string, Dictionary<string, string>> _themeI18nTextOverrides = new(StringComparer.Ordinal);
-
     /// <summary>Basic Info 保存反馈。</summary>
     private bool _basicSaved;
 
@@ -523,15 +421,6 @@
 
     /// <summary>第三方登录保存反馈。</summary>
     private bool _loginSaved;
-
-    /// <summary>Theme 配置保存反馈。</summary>
-    private bool _themeSaved;
-
-    /// <summary>Theme 私有 i18n 覆盖保存反馈。</summary>
-    private bool _themeI18nSaved;
-
-    /// <summary>Theme 私有 i18n 覆盖保存后的说明文本。</summary>
-    private string? _themeI18nMessage;
 
     /// <summary>Common i18n 覆盖保存反馈。</summary>
     private bool _commonTextSaved;
@@ -552,7 +441,6 @@
         _siteDefaultThemeId = site.DefaultThemeId;
         _siteTimeZone = site.TimeZone;
         await LoadLocalizationAsync();
-        await LoadThemeAsync();
 
         foreach (var provider in await ExternalLogins.ListAsync())
         {
@@ -638,39 +526,6 @@
         _oidc.ClientSecret = string.Empty;
     }
 
-    /// <summary>保存前台 Theme Contract 配置。</summary>
-    private async Task SaveThemeAsync()
-    {
-        await ThemeSettings.SaveDefaultAsync(_themeId, _themeJson);
-        _siteDefaultThemeId = _themeId;
-        await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
-        await LoadThemeI18nAsync();
-        _themeSaved = true;
-    }
-
-    /// <summary>保存当前 Theme 私有 i18n 覆盖；空输入会在服务层被丢弃。</summary>
-    private async Task SaveThemeI18nTextOverridesAsync()
-    {
-        var overrides = _themeI18nTextOverrides.Select(x => new ThemeI18nTextOverride
-        {
-            Key = x.Key,
-            Values = x.Value,
-        });
-        await ThemeSettings.SaveI18nTextOverridesAsync(_themeId, overrides);
-        await LoadThemeI18nAsync();
-        _themeI18nSaved = true;
-        _themeI18nMessage = I18n["settings.theme.i18nSaved"];
-    }
-
-    /// <summary>读取当前 Theme 设置和私有 i18n 覆盖。</summary>
-    private async Task LoadThemeAsync()
-    {
-        var theme = await ThemeSettings.GetDefaultAsync();
-        _themeId = theme.ThemeId;
-        _themeJson = theme.ConfigurationJson;
-        await LoadThemeI18nAsync();
-    }
-
     /// <summary>读取站点本地化设置并刷新 Settings 页缓冲区。</summary>
     private async Task LoadLocalizationAsync()
     {
@@ -684,17 +539,6 @@
             StringComparer.Ordinal);
         _urlPolicy = localization.UrlPolicy;
         RefreshAvailableLanguages();
-    }
-
-    /// <summary>读取 Theme manifest 声明和用户填写的 Theme 私有 i18n 覆盖。</summary>
-    private async Task LoadThemeI18nAsync()
-    {
-        var themeI18n = await ThemeSettings.GetI18nAsync(_themeId);
-        _themeI18nKeys = [.. themeI18n.Keys];
-        _themeI18nTextOverrides = themeI18n.TextOverrides.ToDictionary(
-            x => x.Key,
-            x => new Dictionary<string, string>(x.Values, StringComparer.OrdinalIgnoreCase),
-            StringComparer.Ordinal);
     }
 
     /// <summary>搜索后的 Picklist 语言列表；保持小范围内联计算，避免为当前页面拆出过早组件。</summary>
@@ -735,22 +579,6 @@
         }
     }
 
-    /// <summary>当前可编辑的 Theme 私有 i18n key；仅来自 Theme manifest 声明。</summary>
-    private List<ThemeI18nKeyView> FilteredThemeI18nKeys
-    {
-        get
-        {
-            var query = _themeI18nSearch.Trim();
-            return _themeI18nKeys
-                .Where(key => query.Length == 0
-                    || key.Key.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || key.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || (key.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
-                .OrderBy(key => key.Key, StringComparer.Ordinal)
-                .ToList();
-        }
-    }
-
     /// <summary>读取某个 Common key 在某个语言下的编辑值。</summary>
     private string GetCommonTextOverride(string key, string languageCode)
         => _commonTextOverrides.TryGetValue(key, out var values)
@@ -782,45 +610,6 @@
 
         _commonTextSaved = false;
         _commonTextMessage = null;
-    }
-
-    /// <summary>读取某个 Theme 私有 key 在某个语言下的覆盖值。</summary>
-    private string GetThemeI18nTextOverride(string key, string languageCode)
-        => _themeI18nTextOverrides.TryGetValue(key, out var values)
-            && values.TryGetValue(languageCode, out var value)
-            ? value
-            : string.Empty;
-
-    /// <summary>读取 Theme manifest 默认文案，用作输入框 placeholder。</summary>
-    private static string GetThemeI18nDefaultValue(ThemeI18nKeyView key, string languageCode)
-        => key.DefaultValues.TryGetValue(languageCode, out var value)
-            ? value
-            : string.Empty;
-
-    /// <summary>更新 Theme 私有 i18n 覆盖编辑缓冲区；空值会移除对应语言覆盖。</summary>
-    private void SetThemeI18nTextOverride(string key, string languageCode, string? value)
-    {
-        if (!_themeI18nTextOverrides.TryGetValue(key, out var values))
-        {
-            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            _themeI18nTextOverrides[key] = values;
-        }
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            values.Remove(languageCode);
-            if (values.Count == 0)
-            {
-                _themeI18nTextOverrides.Remove(key);
-            }
-        }
-        else
-        {
-            values[languageCode] = value.Trim();
-        }
-
-        _themeI18nSaved = false;
-        _themeI18nMessage = null;
     }
 
     /// <summary>把自定义语言加入当前编辑缓冲区。</summary>

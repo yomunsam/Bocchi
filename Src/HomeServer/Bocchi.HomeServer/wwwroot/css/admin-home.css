@@ -225,35 +225,6 @@
     padding: 1rem;
 }
 
-.bocchi-composer__tabs {
-    display: inline-flex;
-    gap: 0.25rem;
-    align-self: start;
-    border-bottom: 1px solid var(--bocchi-border);
-    padding-bottom: 0.55rem;
-}
-
-.bocchi-composer__tab {
-    /* 覆盖全局 button 样式：tab 是 ghost，激活态走下划线变色而非填充。 */
-    min-height: 2rem;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--bocchi-text-muted);
-    font-size: 0.88rem;
-    font-weight: 620;
-    padding: 0 0.85rem;
-}
-
-.bocchi-composer__tab--active {
-    background: var(--bocchi-surface-pink);
-    color: var(--bocchi-action);
-}
-
-.bocchi-composer__tab:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-}
-
 .bocchi-composer__form {
     display: grid;
     gap: 0.6rem;
@@ -327,6 +298,15 @@
     color: var(--bocchi-text-subtle);
     font-size: 0.8rem;
     font-variant-numeric: tabular-nums;
+}
+
+.bocchi-composer__submit {
+    gap: 0.5rem;
+}
+
+.bocchi-composer__submit svg {
+    width: 0.95rem;
+    height: 0.95rem;
 }
 
 .bocchi-button--primary {

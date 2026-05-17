@@ -97,4 +97,7 @@ public interface IContentStateStore
 
     /// <summary>列举指定 kind 的内容摘要。<paramref name="kind"/> 为 <c>null</c> 表示全部。</summary>
     Task<IReadOnlyList<ContentSummary>> ListContentSummariesAsync(ContentKind? kind, CancellationToken cancellationToken = default);
+
+    /// <summary>删除一个源文件对应的内容索引记录；源文件本身由调用方负责删除。</summary>
+    Task DeleteContentBySourcePathAsync(string relativePath, CancellationToken cancellationToken = default);
 }

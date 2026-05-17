@@ -122,6 +122,32 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.ToTable("DashboardGuideCards", (string)null);
                 });
 
+            modelBuilder.Entity("Bocchi.HomeServer.Data.CategoryTreeRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TreeJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope")
+                        .IsUnique();
+
+                    b.ToTable("CategoryTrees", (string)null);
+                });
+
             modelBuilder.Entity("Bocchi.HomeServer.Data.DashboardSettings", b =>
                 {
                     b.Property<int>("Id")

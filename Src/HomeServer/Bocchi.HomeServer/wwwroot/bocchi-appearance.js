@@ -96,6 +96,12 @@
                 menu.open = false;
             }
         }
+
+        for (const menu of document.querySelectorAll(".bocchi-row-delete[open]")) {
+            if (menu instanceof HTMLDetailsElement && (!target || !menu.contains(target))) {
+                menu.open = false;
+            }
+        }
     }
 
     function syncSoon() {
@@ -136,6 +142,13 @@
                 event.preventDefault();
                 const effective = root.dataset.bocchiEffectiveAppearance || effectiveMode(root.dataset.bocchiAppearance || "auto");
                 window.bocchiAppearance.set(effective === "dark" ? "light" : "dark");
+                return;
+            }
+
+            const closeDelete = target.closest("[data-bocchi-close-delete]");
+            if (closeDelete instanceof HTMLElement) {
+                event.preventDefault();
+                closeMenuFrom(closeDelete);
                 return;
             }
 

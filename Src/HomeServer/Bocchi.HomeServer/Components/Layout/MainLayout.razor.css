@@ -153,6 +153,55 @@
     color: currentColor;
 }
 
+.bocchi-sidebar-preview {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: auto;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface-soft) 52%, transparent);
+    padding: 0.65rem;
+}
+
+.bocchi-sidebar-preview__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 680;
+}
+
+.bocchi-sidebar-preview__title ::deep svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    color: currentColor;
+}
+
+.bocchi-sidebar-preview__button {
+    display: inline-flex;
+    min-height: 1.9rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.32rem;
+    border-radius: 7px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-size: 0.78rem;
+    font-weight: 680;
+    text-decoration: none;
+}
+
+.bocchi-sidebar-preview__button:hover {
+    background: color-mix(in srgb, var(--bocchi-nav-active) 10%, var(--bocchi-surface));
+    color: var(--bocchi-text);
+}
+
+.bocchi-sidebar-preview__button ::deep svg {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
 /* ============ Topbar ============ */
 .bocchi-workbench {
     min-width: 0;

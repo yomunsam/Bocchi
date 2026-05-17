@@ -312,6 +312,34 @@ public sealed class ContentStateStore : IContentStateStore
         }
     }
 
+    public Task DeleteContentBySourcePathAsync(string relativePath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            using var conn = _factory.OpenConnection();
+            using var tx = conn.BeginTransaction();
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = """
+                DELETE FROM ContentItems
+                WHERE FileId IN (SELECT Id FROM Files WHERE RelativePath = $path);
+
+                DELETE FROM Files
+                WHERE RelativePath = $path;
+                """;
+            cmd.Parameters.AddWithValue("$path", relativePath.Replace('\\', '/'));
+            cmd.ExecuteNonQuery();
+            tx.Commit();
+            return Task.CompletedTask;
+        }
+        catch (SqliteException ex)
+        {
+            throw new ContentStateException($"无法删除内容索引 '{relativePath}'。", ex);
+        }
+    }
+
     private static string FormatUtc(DateTimeOffset value)
         => value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffK", CultureInfo.InvariantCulture);
 
