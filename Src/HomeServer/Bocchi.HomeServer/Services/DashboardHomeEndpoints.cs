@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// Dashboard 首页 SSR 表单端点：关闭 Guide 卡片、发布首页 composer 的短文。
+/// Dashboard 首页 SSR 表单端点：发布首页 composer 的短文。
 /// 它们都走传统 HTTP form post，与现有 Settings / Logout 风格保持一致。
 /// </summary>
 public static class DashboardHomeEndpoints
@@ -13,29 +13,11 @@ public static class DashboardHomeEndpoints
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        endpoints.MapPost("/Admin/Home/Guide/Dismiss", DismissGuideAsync)
-            .RequireAuthorization("Admin")
-            .DisableAntiforgery();
-
         endpoints.MapPost("/Admin/Home/Notes", PublishNoteAsync)
             .RequireAuthorization("Admin")
             .DisableAntiforgery();
 
         return endpoints;
-    }
-
-    /// <summary>关闭一张 Guide 卡片后跳回原页面（默认 <c>/Admin</c>）。</summary>
-    private static async Task<IResult> DismissGuideAsync(
-        [FromForm] string key,
-        [FromForm] string? returnUrl,
-        DashboardGuideService guides,
-        CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrWhiteSpace(key))
-        {
-            await guides.DismissAsync(key, cancellationToken).ConfigureAwait(false);
-        }
-        return LocalRedirectOrFallback(returnUrl, "/Admin");
     }
 
     /// <summary>发布一条短文；成功后跳回 <c>/Admin</c>，失败时把错误以查询参数回传。</summary>
@@ -64,9 +46,6 @@ public static class DashboardHomeEndpoints
             && !returnUrl.StartsWith("//", StringComparison.Ordinal)
             ? returnUrl
             : null;
-
-    private static IResult LocalRedirectOrFallback(string? returnUrl, string fallback)
-        => Results.LocalRedirect(LocalReturnUrl(returnUrl) ?? fallback);
 
     /// <summary>在已有 URL 上安全地追加一个查询参数。</summary>
     private static string AppendQuery(string url, string key, string value)

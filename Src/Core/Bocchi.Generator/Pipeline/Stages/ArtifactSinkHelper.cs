@@ -34,6 +34,14 @@ internal static class ArtifactSinkHelper
             return true;
         }
 
+        if (session.Options.Mode == BuildMode.Live &&
+            artifact.Kind == ArtifactKind.ThemeInput &&
+            !string.IsNullOrWhiteSpace(session.Options.LiveThemeInputDirectory))
+        {
+            // Live HTML 预览需要把 Theme Contract 输入写进一次性目录，最终 HTTP 响应仍只返回 OnlyArtifactPath。
+            return true;
+        }
+
         return string.Equals(session.Options.OnlyArtifactPath, artifact.Path, StringComparison.Ordinal);
     }
 

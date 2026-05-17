@@ -6,7 +6,7 @@ namespace Bocchi.Generator.Pipeline.Stages;
 
 /// <summary>
 /// 调用 Theme 构建命令。前提：<see cref="BuildSession.GetItem{T}(string)"/>(<see cref="BuildSessionKeys.LoadedTheme"/>) 非空。
-/// 若 Theme 未加载或运行模式为 <see cref="BuildMode.Live"/>（不渲染 HTML），此阶段直接跳过。
+/// Live 模式只有在调用方提供一次性 input / output 目录时才渲染 Theme，避免依赖或污染静态发布产物。
 /// </summary>
 public sealed class RunThemeBuildStage : IBuildStage
 {
@@ -27,12 +27,6 @@ public sealed class RunThemeBuildStage : IBuildStage
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        if (session.Options.Mode == BuildMode.Live)
-        {
-            session.Log(Name, BuildLogLevel.Info, "Live 模式：跳过 Theme 构建。");
-            return true;
-        }
-
         var loaded = session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme);
         if (loaded is null)
         {
@@ -42,14 +36,20 @@ public sealed class RunThemeBuildStage : IBuildStage
 
         var manifest = loaded.Manifest;
         var themeRoot = loaded.ThemeRoot;
-        var outputDirectory = ThemeOutputPathResolver.ResolveLocalOutputDirectory(themeRoot, manifest.OutputDir);
+        if (!TryResolveThemeDirectories(session, themeRoot, manifest.OutputDir, out var inputDirectory, out var outputDirectory))
+        {
+            session.Log(Name, BuildLogLevel.Info, "Live 模式未提供 Theme 预览目录：跳过 Theme 构建。");
+            return true;
+        }
+
+        Directory.CreateDirectory(inputDirectory);
         ThemeOutputPathResolver.ResetLocalOutputDirectory(outputDirectory);
 
         var invocation = new ThemeRunInvocation
         {
             ThemeRoot = themeRoot,
             Manifest = manifest,
-            InputDirectoryAbsolute = _layout.ThemeInputDirectory,
+            InputDirectoryAbsolute = inputDirectory,
             OutputDirectoryAbsolute = outputDirectory,
             BaseUrl = session.Graph?.Site.NormalizedBaseUrl.AbsoluteUri ?? "/",
             Environment = session.Options.Environment,
@@ -57,6 +57,35 @@ public sealed class RunThemeBuildStage : IBuildStage
         };
         await _runner.RunAsync(invocation, (lvl, msg) => session.Log(Name, lvl, msg), session.CancellationToken).ConfigureAwait(false);
         session.Log(Name, BuildLogLevel.Info, $"Theme '{manifest.Id}' 构建完成。");
+        return true;
+    }
+
+    /// <summary>解析 Theme runner 的输入/输出目录；Live 预览必须使用调用方提供的一次性目录。</summary>
+    private bool TryResolveThemeDirectories(
+        BuildSession session,
+        string themeRoot,
+        string outputDir,
+        out string inputDirectory,
+        out string outputDirectory)
+    {
+        if (session.Options.Mode != BuildMode.Live)
+        {
+            inputDirectory = _layout.ThemeInputDirectory;
+            outputDirectory = ThemeOutputPathResolver.ResolveLocalOutputDirectory(themeRoot, outputDir);
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(session.Options.LiveThemeInputDirectory) ||
+            string.IsNullOrWhiteSpace(session.Options.LiveThemeOutputDirectory))
+        {
+            inputDirectory = string.Empty;
+            outputDirectory = string.Empty;
+            return false;
+        }
+
+        // Live 预览使用 DataRoot/cache 下的一次性目录，不复用 Theme 的发布输出目录，避免与 Full Build 互相踩写。
+        inputDirectory = Path.GetFullPath(session.Options.LiveThemeInputDirectory);
+        outputDirectory = Path.GetFullPath(session.Options.LiveThemeOutputDirectory);
         return true;
     }
 }

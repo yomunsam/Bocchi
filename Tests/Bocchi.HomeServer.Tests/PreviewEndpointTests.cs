@@ -27,12 +27,11 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
-    public async Task PreviewRoot_ReturnsDefaultThemeHomeAfterFullBuild()
+    public async Task PreviewRoot_ReturnsDefaultThemeHomeWithoutFullBuild()
     {
         using var client = await _factory.CreateAdminClientAsync();
-
-        var build = await client.PostAsync("/Admin/Publish/run", content: null);
-        build.EnsureSuccessStatusCode();
+        var publicIndex = Path.Combine(_factory.DataRoot, "output", "public", "index.html");
+        File.Exists(publicIndex).Should().BeFalse();
 
         var response = await client.GetAsync("/");
 
@@ -41,6 +40,23 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedDataRootWebAppl
         var html = await response.Content.ReadAsStringAsync();
         html.Should().Contain("Selected Writing");
         html.Should().Contain("bocchi-preview-toolbar");
+        File.Exists(publicIndex).Should().BeFalse("实时预览不能物化静态发布目录");
+    }
+
+    [Fact]
+    public async Task PreviewThemeAsset_ReturnsDefaultThemeAssetWithoutFullBuild()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+        var publicAsset = Path.Combine(_factory.DataRoot, "output", "public", "assets", "app.css");
+        File.Exists(publicAsset).Should().BeFalse();
+
+        var response = await client.GetAsync("/assets/app.css");
+
+        response.EnsureSuccessStatusCode();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/css");
+        var css = await response.Content.ReadAsStringAsync();
+        css.Should().Contain(".topbar");
+        File.Exists(publicAsset).Should().BeFalse("实时预览资源不能写入静态发布目录");
     }
 
     [Fact]

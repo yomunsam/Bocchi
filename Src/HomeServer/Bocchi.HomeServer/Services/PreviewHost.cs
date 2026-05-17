@@ -1,79 +1,118 @@
 using System.Net;
+using System.Text;
 
+using Bocchi.Generator.Pipeline;
+using Bocchi.HomeServer.Build;
 using Bocchi.Workspace;
 
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// Home Server 内置前台预览 Host。它从 output/public 读取构建产物，并给 HTML 注入轻量 Preview Toolbar。
+/// Home Server 内置前台预览 Host。它通过 Live build 生成当前请求的前台 artifact，并给 HTML 注入轻量 Preview Toolbar。
 /// </summary>
 public sealed class PreviewHost
 {
     private readonly BocchiDataLayout _layout;
+    private readonly BuildOrchestrator _orchestrator;
     private readonly PreviewRouteMapService _routeMap;
 
     /// <summary>构造预览 Host。</summary>
-    public PreviewHost(BocchiDataLayout layout, PreviewRouteMapService routeMap)
+    public PreviewHost(BocchiDataLayout layout, BuildOrchestrator orchestrator, PreviewRouteMapService routeMap)
     {
         _layout = layout;
+        _orchestrator = orchestrator;
         _routeMap = routeMap;
     }
 
-    /// <summary>渲染受保护预览页面或静态资源。</summary>
+    /// <summary>渲染受保护实时预览页面或前台资源。</summary>
     public async Task<IResult> RenderAsync(string? previewPath, CancellationToken cancellationToken = default)
     {
         var route = "/" + (previewPath ?? string.Empty).TrimStart('/');
-        if (!TryResolvePublicFile(route, out var filePath))
+        if (!TryMapPreviewRoute(route, out var artifactPath))
         {
-            return Results.Content(await RenderMissingPreviewAsync(route, cancellationToken).ConfigureAwait(false), "text/html; charset=utf-8");
+            return Results.NotFound();
         }
 
-        var contentType = GuessContentType(filePath);
-        if (!contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+        var liveRoot = Path.Combine(_layout.CacheDirectory, "live-preview", Guid.NewGuid().ToString("N"));
+        var themeInputDirectory = Path.Combine(liveRoot, "input");
+        var themeOutputDirectory = Path.Combine(liveRoot, "output");
+        var sink = new LivePreviewBuildSink(themeInputDirectory, artifactPath);
+        try
         {
-            return Results.File(filePath, contentType);
-        }
+            var result = await _orchestrator.RunLiveAsync(
+                new BuildOptions
+                {
+                    Mode = BuildMode.Live,
+                    Environment = "development",
+                    OnlyArtifactPath = artifactPath,
+                    LiveThemeInputDirectory = themeInputDirectory,
+                    LiveThemeOutputDirectory = themeOutputDirectory,
+                },
+                themeId: null,
+                sink,
+                cancellationToken).ConfigureAwait(false);
 
-        var html = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-        var injected = await InjectToolbarAsync(html, route, cancellationToken).ConfigureAwait(false);
-        return Results.Content(injected, "text/html; charset=utf-8");
+            if (!sink.Matched)
+            {
+                var statusCode = result.Status == BuildStatus.Failed
+                    ? StatusCodes.Status500InternalServerError
+                    : StatusCodes.Status404NotFound;
+                return Results.Content(
+                    await RenderMissingPreviewAsync(route, result.Reason, cancellationToken).ConfigureAwait(false),
+                    "text/html; charset=utf-8",
+                    statusCode: statusCode);
+            }
+
+            var artifact = sink.MatchedArtifact!;
+            var bytes = sink.GetMatchedBytes();
+            if (!artifact.ContentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.Bytes(bytes, artifact.ContentType);
+            }
+
+            var html = Encoding.UTF8.GetString(bytes);
+            var injected = await InjectToolbarAsync(html, route, cancellationToken).ConfigureAwait(false);
+            return Results.Content(injected, "text/html; charset=utf-8");
+        }
+        finally
+        {
+            DeleteLiveWorkingDirectory(liveRoot);
+        }
     }
 
-    private bool TryResolvePublicFile(string route, out string filePath)
+    /// <summary>把前台路由映射到 Live build 的 artifact 路径。</summary>
+    private static bool TryMapPreviewRoute(string route, out string artifactPath)
     {
-        filePath = string.Empty;
+        artifactPath = string.Empty;
         var normalized = route.Replace('\\', '/').TrimStart('/');
         if (normalized.Contains("..", StringComparison.Ordinal))
         {
             return false;
         }
 
-        var root = Path.GetFullPath(_layout.PublicOutputDirectory);
-        var candidates = new List<string>();
         if (string.IsNullOrEmpty(normalized))
         {
-            candidates.Add(Path.Combine(root, "index.html"));
-        }
-        else if (Path.HasExtension(normalized))
-        {
-            candidates.Add(Path.Combine(root, normalized));
-        }
-        else
-        {
-            candidates.Add(Path.Combine(root, normalized, "index.html"));
-            candidates.Add(Path.Combine(root, normalized + ".html"));
+            artifactPath = "/index.html";
+            return true;
         }
 
-        filePath = candidates
-            .Select(Path.GetFullPath)
-            .FirstOrDefault(path => path.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(path))
-            ?? string.Empty;
-        return filePath.Length > 0;
+        if (Path.HasExtension(normalized))
+        {
+            artifactPath = "/" + normalized;
+            return true;
+        }
+
+        artifactPath = "/" + normalized.TrimEnd('/') + "/index.html";
+        return true;
     }
 
-    private async Task<string> RenderMissingPreviewAsync(string route, CancellationToken cancellationToken)
+    /// <summary>渲染 Live build 未命中或失败时的受保护状态页。</summary>
+    private async Task<string> RenderMissingPreviewAsync(string route, string? reason, CancellationToken cancellationToken)
     {
         var toolbar = await RenderToolbarAsync(route, cancellationToken).ConfigureAwait(false);
+        var detail = string.IsNullOrWhiteSpace(reason)
+            ? "当前路由没有对应的 Theme 输出。可以回到 Admin 选择内容继续编辑，或确认当前 Theme 是否提供这个页面。"
+            : "实时预览生成失败：" + WebUtility.HtmlEncode(reason);
         return $$"""
             <!doctype html>
             <html lang="zh-CN">
@@ -86,9 +125,9 @@ public sealed class PreviewHost
             <body>
                 <main class="bocchi-preview-empty">
                     <p class="bocchi-page-heading__eyebrow">Preview</p>
-                    <h1>还没有可预览的前台页面</h1>
-                    <p>先在 Publish 页面跑一次构建；如果当前还没有可用 Theme，M4 会保持这个受保护状态页，而不临时发明一套前台主题。</p>
-                    <p><a class="bocchi-button secondary" href="/Admin/Publish">Open Publish</a></p>
+                    <h1>暂时没有这个预览页面</h1>
+                    <p>{{detail}}</p>
+                    <p><a class="bocchi-button secondary" href="/Admin">Back to Admin</a></p>
                 </main>
                 {{toolbar}}
             </body>
@@ -96,6 +135,7 @@ public sealed class PreviewHost
             """;
     }
 
+    /// <summary>向 HTML 响应末尾注入 Home Server 控制的 Preview Toolbar。</summary>
     private async Task<string> InjectToolbarAsync(string html, string route, CancellationToken cancellationToken)
     {
         var toolbar = await RenderToolbarAsync(route, cancellationToken).ConfigureAwait(false);
@@ -105,6 +145,7 @@ public sealed class PreviewHost
             : html.Insert(bodyEnd, toolbar);
     }
 
+    /// <summary>渲染轻量浮动工具栏；编辑入口只在 route map 能明确匹配时出现。</summary>
     private async Task<string> RenderToolbarAsync(string route, CancellationToken cancellationToken)
     {
         var map = await _routeMap.FindAsync(route, cancellationToken).ConfigureAwait(false);
@@ -125,27 +166,26 @@ public sealed class PreviewHost
                 <span class="bocchi-preview-toolbar__status">Preview</span>
                 <span class="bocchi-preview-toolbar__route">{{{safeRoute}}}</span>
                 <a class="bocchi-preview-toolbar__button" href="/Admin">Admin</a>
-                <a class="bocchi-preview-toolbar__button" href="/Admin/Publish">Rebuild</a>
                 {{{edit}}}
             </nav>
             """;
     }
 
-    private static string GuessContentType(string path)
-        => Path.GetExtension(path).ToLowerInvariant() switch
+    /// <summary>清理本次 Live 预览的临时工作目录。</summary>
+    private static void DeleteLiveWorkingDirectory(string path)
+    {
+        if (!Directory.Exists(path))
         {
-            ".html" or ".htm" => "text/html; charset=utf-8",
-            ".css" => "text/css; charset=utf-8",
-            ".js" => "text/javascript; charset=utf-8",
-            ".json" => "application/json; charset=utf-8",
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".gif" => "image/gif",
-            ".svg" => "image/svg+xml",
-            ".webp" => "image/webp",
-            ".ico" => "image/x-icon",
-            ".xml" => "application/xml; charset=utf-8",
-            ".txt" => "text/plain; charset=utf-8",
-            _ => "application/octet-stream",
-        };
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 临时预览目录清理失败不应影响本次响应；后续预览会使用新的目录。
+        }
+    }
 }

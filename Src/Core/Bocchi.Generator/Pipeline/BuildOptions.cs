@@ -21,6 +21,12 @@ public sealed record BuildOptions
     /// <summary>在 Live 模式下：仅吐这一个 artifact（如 <c>posts.json</c>）；为空则吐全部。</summary>
     public string? OnlyArtifactPath { get; init; }
 
+    /// <summary>Live Theme 预览专用的临时输入目录；为空时 Live 模式不运行 Theme 渲染。</summary>
+    public string? LiveThemeInputDirectory { get; init; }
+
+    /// <summary>Live Theme 预览专用的临时输出目录；为空时 Live 模式不收集 Theme HTML / assets。</summary>
+    public string? LiveThemeOutputDirectory { get; init; }
+
     /// <summary>实时模式专用：是否禁用"up-to-date 短路"（默认 Live 下禁用、Full 下启用）。</summary>
     public bool DisableUpToDateShortCircuit { get; init; }
 

@@ -9,7 +9,7 @@
 .bocchi-admin-shell {
     display: grid;
     min-height: 100vh;
-    grid-template-columns: 15.25rem minmax(0, 1fr);
+    grid-template-columns: 13.75rem minmax(0, 1fr);
     background: var(--bocchi-bg);
     color: var(--bocchi-text);
 }
@@ -21,10 +21,18 @@
     display: flex;
     height: 100vh;
     flex-direction: column;
-    gap: 1.4rem;
+    gap: 1rem;
     border-right: 1px solid var(--bocchi-border);
     background: color-mix(in srgb, var(--bocchi-surface) 92%, var(--bocchi-bg));
-    padding: 1.4rem 0.9rem;
+    padding: 1.2rem 0.85rem;
+}
+
+.bocchi-sidebar__header {
+    display: flex;
+    min-height: 2.35rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
 }
 
 .bocchi-logo {
@@ -36,37 +44,109 @@
     text-decoration: none;
 }
 
-.bocchi-primary-nav {
-    display: grid;
-    gap: 0.3rem;
+.bocchi-sidebar__close,
+.bocchi-mobile-nav-toggle {
+    display: none;
+    width: 2.25rem;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    padding: 0;
 }
 
-/* Sidebar 导航项：使用 ::deep 进入 NavLink 渲染出的 <a>。 */
-.bocchi-primary-nav ::deep a {
+.bocchi-sidebar__close:hover:not(:disabled),
+.bocchi-mobile-nav-toggle:hover:not(:disabled) {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    transform: none;
+}
+
+.bocchi-primary-nav {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.bocchi-nav-group {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.bocchi-nav-link,
+.bocchi-nav-group__button,
+.bocchi-nav-child {
     display: flex;
-    min-height: 2.5rem;
+    width: 100%;
+    min-height: 2.4rem;
     align-items: center;
+    justify-content: flex-start;
     gap: 0.7rem;
-    border-radius: 9px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
     color: var(--bocchi-text-muted);
     font-size: 0.92rem;
     font-weight: 620;
     padding: 0 0.75rem;
+    text-align: left;
     text-decoration: none;
     transition: background 140ms ease, color 140ms ease;
 }
 
-.bocchi-primary-nav ::deep a:hover {
-    background: color-mix(in srgb, var(--bocchi-nav-active) 70%, transparent);
+.bocchi-nav-link:hover,
+.bocchi-nav-group__button:hover,
+.bocchi-nav-child:hover {
+    background: color-mix(in srgb, var(--bocchi-nav-active) 12%, transparent);
     color: var(--bocchi-text);
+    transform: none;
 }
 
-.bocchi-primary-nav ::deep a.active {
+.bocchi-nav-link.active,
+.bocchi-nav-child.active {
     background: var(--bocchi-nav-active);
+    color: var(--bocchi-nav-text-active);
+}
+
+.bocchi-nav-group__button--active {
     color: var(--bocchi-text);
 }
 
-.bocchi-primary-nav ::deep svg {
+.bocchi-nav-group__button--open {
+    background: color-mix(in srgb, var(--bocchi-nav-active) 16%, transparent);
+    color: var(--bocchi-text);
+}
+
+.bocchi-nav-chevron {
+    display: inline-flex;
+    margin-left: auto;
+    transition: transform 140ms ease;
+}
+
+.bocchi-nav-group__button--open .bocchi-nav-chevron {
+    transform: rotate(180deg);
+}
+
+.bocchi-nav-children {
+    display: grid;
+    gap: 0.18rem;
+    padding: 0.12rem 0 0.25rem 1.1rem;
+}
+
+.bocchi-nav-child {
+    min-height: 2.15rem;
+    gap: 0.55rem;
+    font-size: 0.86rem;
+    padding: 0 0.65rem;
+}
+
+.bocchi-nav-link ::deep svg,
+.bocchi-nav-group__button ::deep svg,
+.bocchi-nav-child ::deep svg,
+.bocchi-sidebar__close ::deep svg,
+.bocchi-mobile-nav-toggle ::deep svg {
     width: 1.05rem;
     height: 1.05rem;
     flex: 0 0 auto;
@@ -76,6 +156,14 @@
 /* ============ Topbar ============ */
 .bocchi-workbench {
     min-width: 0;
+}
+
+.bocchi-topbar__left {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.6rem;
 }
 
 .bocchi-topbar {
@@ -165,9 +253,9 @@
     display: inline-flex;
     min-height: 2.1rem;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.25rem;
     border-radius: 999px;
-    padding: 0 0.55rem;
+    padding: 0 0.45rem;
     cursor: pointer;
     list-style: none;
 }
@@ -197,7 +285,28 @@
     flex: 0 0 auto;
 }
 
-.bocchi-menu-control[open] summary ::deep svg:last-child {
+.bocchi-appearance-summary-icon {
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.bocchi-menu-control--appearance[data-bocchi-appearance-mode="auto"] .bocchi-appearance-summary-icon--auto,
+.bocchi-menu-control--appearance[data-bocchi-appearance-mode="light"] .bocchi-appearance-summary-icon--light,
+.bocchi-menu-control--appearance[data-bocchi-appearance-mode="dark"] .bocchi-appearance-summary-icon--dark {
+    display: inline-flex;
+}
+
+.bocchi-menu-control--appearance:not([data-bocchi-appearance-mode]) .bocchi-appearance-summary-icon--auto {
+    display: inline-flex;
+}
+
+.bocchi-menu-control__chevron {
+    display: inline-flex;
+    transition: transform 140ms ease;
+}
+
+.bocchi-menu-control[open] .bocchi-menu-control__chevron {
     transform: rotate(180deg);
 }
 
@@ -224,7 +333,7 @@
 
 .bocchi-menu-control__option {
     display: grid;
-    grid-template-columns: 1rem minmax(0, 1fr);
+    grid-template-columns: 1.1rem minmax(0, 1fr);
     width: 100%;
     min-height: 2rem;
     align-items: center;
@@ -241,6 +350,12 @@
     text-align: left;
 }
 
+.bocchi-menu-control__option ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    color: currentColor;
+}
+
 .bocchi-menu-control__option:hover:not(:disabled),
 .bocchi-menu-control__option:focus-visible {
     background: var(--bocchi-surface-muted);
@@ -248,29 +363,10 @@
     transform: none;
 }
 
-.bocchi-menu-control__check {
-    display: inline-flex;
-    width: 1rem;
-    height: 1rem;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-}
-
-.bocchi-menu-control__check ::deep svg {
-    width: 0.9rem;
-    height: 0.9rem;
-    color: var(--bocchi-action);
-}
-
 .bocchi-menu-control__option--active,
 .bocchi-menu-control__option[aria-current="true"] {
-    color: var(--bocchi-text);
-}
-
-.bocchi-menu-control__option--active .bocchi-menu-control__check,
-.bocchi-menu-control__option[aria-current="true"] .bocchi-menu-control__check {
-    opacity: 1;
+    background: color-mix(in srgb, var(--bocchi-action) 14%, var(--bocchi-surface));
+    color: var(--bocchi-action);
 }
 
 .bocchi-menu-control__option span {
@@ -327,53 +423,77 @@
     }
 
     .bocchi-sidebar {
-        position: static;
-        height: auto;
-        gap: 0.6rem;
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        width: 100%;
+        height: 100dvh;
+        gap: 1rem;
         border-right: 0;
-        border-bottom: 1px solid var(--bocchi-border);
-        padding: 0.85rem 1rem;
+        border-bottom: 0;
+        opacity: 0;
+        overflow-y: auto;
+        padding: 1.05rem;
+        pointer-events: none;
+        transform: translateX(-100%);
+        transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .bocchi-sidebar--open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
+    }
+
+    .bocchi-sidebar__close,
+    .bocchi-mobile-nav-toggle {
+        display: inline-flex;
     }
 
     .bocchi-primary-nav {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.3rem;
+        gap: 0.32rem;
     }
 
-    .bocchi-primary-nav ::deep a {
-        flex-direction: column;
-        gap: 0.2rem;
-        min-height: 2.4rem;
-        justify-content: center;
-        padding: 0.3rem 0.5rem;
-        font-size: 0.78rem;
+    .bocchi-nav-link,
+    .bocchi-nav-group__button {
+        min-height: 2.8rem;
+        font-size: 1rem;
+        padding: 0 0.85rem;
     }
 
-    .bocchi-primary-nav ::deep svg {
-        width: 1rem;
-        height: 1rem;
+    .bocchi-nav-children {
+        border-left: 1px solid var(--bocchi-border);
+        margin-left: 0.9rem;
+        padding: 0.2rem 0 0.35rem 0.65rem;
+    }
+
+    .bocchi-nav-child {
+        min-height: 2.45rem;
+        font-size: 0.95rem;
     }
 
     .bocchi-topbar {
-        position: static;
-        align-items: stretch;
-        flex-direction: column;
+        position: sticky;
+        align-items: center;
+        flex-direction: row;
     }
 
     .bocchi-topbar__actions {
-        width: 100%;
+        width: auto;
+        flex: 0 0 auto;
     }
 
     .bocchi-command-search {
         width: 2.25rem;
         justify-content: center;
+        gap: 0;
         padding: 0;
     }
 
     .bocchi-command-search:focus-within {
         width: 100%;
         justify-content: flex-start;
+        gap: 0.55rem;
         padding: 0 0.7rem;
     }
 
@@ -390,6 +510,6 @@
     }
 
     .bocchi-topbar__actions {
-        justify-content: space-between;
+        justify-content: flex-end;
     }
 }

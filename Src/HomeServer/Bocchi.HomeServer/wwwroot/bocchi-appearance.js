@@ -2,6 +2,8 @@
     const storageKey = "bocchi.dashboard.appearance";
     const root = document.documentElement;
     const query = window.matchMedia("(prefers-color-scheme: dark)");
+    let controlsInitialized = false;
+    let syncQueued = false;
 
     function normalize(value) {
         return value === "light" || value === "dark" ? value : "auto";
@@ -11,8 +13,29 @@
         return mode === "auto" ? (query.matches ? "dark" : "light") : mode;
     }
 
+    function readStoredMode() {
+        try {
+            return localStorage.getItem(storageKey) || "auto";
+        } catch {
+            return "auto";
+        }
+    }
+
+    function writeStoredMode(mode) {
+        try {
+            localStorage.setItem(storageKey, mode);
+        } catch {
+            // 浏览器禁用 localStorage 时仍保持本次页面内外观切换可用。
+        }
+    }
+
     function syncAppearanceControl(mode) {
-        const label = document.querySelector("[data-bocchi-appearance-label]");
+        for (const control of document.querySelectorAll("[data-bocchi-appearance-control]")) {
+            if (control instanceof HTMLElement) {
+                control.dataset.bocchiAppearanceMode = mode;
+            }
+        }
+
         for (const option of document.querySelectorAll("[data-bocchi-appearance-option]")) {
             if (!(option instanceof HTMLButtonElement)) {
                 continue;
@@ -20,9 +43,6 @@
 
             const active = option.dataset.bocchiAppearanceOption === mode;
             option.setAttribute("aria-current", active ? "true" : "false");
-            if (active && label instanceof HTMLElement) {
-                label.textContent = option.dataset.bocchiAppearanceLabelText || (option.textContent || "").trim();
-            }
         }
     }
 
@@ -57,55 +77,88 @@
     window.bocchiAppearance = {
         set(value) {
             const normalized = normalize(value);
-            localStorage.setItem(storageKey, normalized);
+            writeStoredMode(normalized);
             apply(normalized);
         },
         apply,
     };
 
-    apply(localStorage.getItem(storageKey) || "auto");
-    query.addEventListener("change", () => apply(root.dataset.bocchiAppearance || "auto"));
-    document.addEventListener("DOMContentLoaded", () => {
-        syncAppearanceControl(root.dataset.bocchiAppearance || "auto");
-        syncToggle(root.dataset.bocchiEffectiveAppearance || effectiveMode(root.dataset.bocchiAppearance || "auto"));
-        for (const option of document.querySelectorAll("[data-bocchi-appearance-option]")) {
-            option.addEventListener("click", () => {
-                const menu = option.closest("details");
-                if (menu instanceof HTMLDetailsElement) {
-                    menu.open = false;
-                }
-            });
+    function closeMenuFrom(element) {
+        const menu = element.closest("details");
+        if (menu instanceof HTMLDetailsElement) {
+            menu.open = false;
+        }
+    }
+
+    function closeOpenMenusExcept(target) {
+        for (const menu of document.querySelectorAll(".bocchi-menu-control[open]")) {
+            if (menu instanceof HTMLDetailsElement && (!target || !menu.contains(target))) {
+                menu.open = false;
+            }
+        }
+    }
+
+    function syncSoon() {
+        if (syncQueued) {
+            return;
         }
 
-        document.addEventListener("click", (event) => {
-            if (!(event.target instanceof Node)) {
+        syncQueued = true;
+        queueMicrotask(() => {
+            syncQueued = false;
+            apply(root.dataset.bocchiAppearance || "auto");
+        });
+    }
+
+    function setupAppearanceControls() {
+        if (controlsInitialized) {
+            syncSoon();
+            return;
+        }
+
+        controlsInitialized = true;
+        document.addEventListener("click", event => {
+            const target = event.target instanceof Element ? event.target : null;
+            if (!target) {
                 return;
             }
 
-            for (const menu of document.querySelectorAll(".bocchi-menu-control[open]")) {
-                if (menu instanceof HTMLDetailsElement && !menu.contains(event.target)) {
-                    menu.open = false;
-                }
-            }
-        });
-        document.addEventListener("keydown", (event) => {
-            if (event.key !== "Escape") {
+            const option = target.closest("[data-bocchi-appearance-option]");
+            if (option instanceof HTMLElement) {
+                event.preventDefault();
+                window.bocchiAppearance.set(option.dataset.bocchiAppearanceOption || "auto");
+                closeMenuFrom(option);
                 return;
             }
 
-            for (const menu of document.querySelectorAll(".bocchi-menu-control[open]")) {
-                if (menu instanceof HTMLDetailsElement) {
-                    menu.open = false;
-                }
-            }
-        });
-        for (const button of document.querySelectorAll("[data-bocchi-appearance-toggle]")) {
-            button.addEventListener("click", () => {
+            const toggle = target.closest("[data-bocchi-appearance-toggle]");
+            if (toggle instanceof HTMLButtonElement) {
+                event.preventDefault();
                 const effective = root.dataset.bocchiEffectiveAppearance || effectiveMode(root.dataset.bocchiAppearance || "auto");
                 window.bocchiAppearance.set(effective === "dark" ? "light" : "dark");
-            });
-        }
-    });
+                return;
+            }
+
+            closeOpenMenusExcept(target);
+        });
+
+        document.addEventListener("keydown", event => {
+            if (event.key === "Escape") {
+                closeOpenMenusExcept(null);
+            }
+        });
+
+        new MutationObserver(syncSoon).observe(document.body, { childList: true, subtree: true });
+        syncSoon();
+    }
+
+    apply(readStoredMode());
+    query.addEventListener("change", () => apply(root.dataset.bocchiAppearance || "auto"));
+    document.addEventListener("DOMContentLoaded", setupAppearanceControls);
+    document.addEventListener("enhancedload", syncSoon);
+    if (document.readyState !== "loading") {
+        setupAppearanceControls();
+    }
 
     function setupPasswordControls() {
         const password = document.querySelector("[data-bocchi-password-source]");

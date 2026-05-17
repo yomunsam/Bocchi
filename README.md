@@ -38,7 +38,7 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build [--theme=<id>] [-
 - `<data>/cache/theme-input/`：Theme 输入数据 JSON（`site.json` / `posts.json` / `pages.json` / `works.json` / `notes.json` / `friends.json` / `photos.json` / `navigation.json` / `theme-config.json` / `build-context.json`）
 - `<data>/output/public/`：可部署到任意静态托管的站点目录，含 `robots.txt` / `sitemap.xml` / `feed.xml` / `media/...` / `.bocchi-manifest.json`，M5 起会再加入 Theme 渲染输出
 
-受保护预览：`GET /` 会从 `output/public/` 返回前台预览页面并注入 Preview Toolbar；`GET /_bocchi/preview/data/{name}.json`、`GET /_bocchi/preview/media/{path}`、`GET /_bocchi/preview/{robots.txt|sitemap.xml|feed.xml|.bocchi-manifest.json}` 会触发一次 Live 模式构建并将命中 artifact 流式吐出，供编辑器实时预览使用。
+受保护预览：`GET /` 与前台资源路由会触发一次 Live 模式构建，返回当前命中的 Theme HTML / CSS / JS / media artifact，并由 Preview Host 给 HTML 注入 Preview Toolbar；这条实时预览线路不依赖 `output/public/`。`GET /_bocchi/preview/data/{name}.json`、`GET /_bocchi/preview/media/{path}`、`GET /_bocchi/preview/{robots.txt|sitemap.xml|feed.xml|.bocchi-manifest.json}` 继续作为低层 artifact 预览端点使用。
 
 ### DataRoot 与 Workspace
 

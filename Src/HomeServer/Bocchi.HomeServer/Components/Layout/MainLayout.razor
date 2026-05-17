@@ -1,56 +1,120 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@using Microsoft.AspNetCore.Components.Routing
 @inject DashboardLocalizationService I18n
 @inject NavigationManager Navigation
 
 <div class="bocchi-admin-shell">
-    <aside class="bocchi-sidebar" aria-label="Dashboard navigation">
-        <a class="bocchi-logo" href="/Admin" aria-label="Bocchi Admin">Bocchi</a>
+    <aside id="bocchi-admin-sidebar" class="@SidebarClass" aria-label="Dashboard navigation">
+        <div class="bocchi-sidebar__header">
+            <a class="bocchi-logo" href="/Admin" aria-label="Bocchi Admin">Bocchi</a>
+            <button type="button"
+                    class="bocchi-sidebar__close"
+                    aria-label='@I18n["nav.close"]'
+                    @onclick="CloseMobileSidebar">
+                <Blazicon Svg="Lucide.X" />
+            </button>
+        </div>
 
         <nav class="bocchi-primary-nav">
-            <NavLink href="/Admin" Match="NavLinkMatch.All">
+            <a href="/Admin" class="@PrimaryNavLinkClass(IsCurrentPath("/Admin"))" aria-current="@AriaCurrent(IsCurrentPath("/Admin"))">
                 <Blazicon Svg="Lucide.House" />
                 <span>@I18n["nav.overview"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Posts">
-                <Blazicon Svg="Lucide.FileText" />
-                <span>@I18n["nav.posts"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Notes">
-                <Blazicon Svg="Lucide.PenLine" />
-                <span>@I18n["nav.notes"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Works">
-                <Blazicon Svg="Lucide.FolderOpen" />
-                <span>@I18n["nav.works"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Pages">
-                <Blazicon Svg="Lucide.BookOpen" />
-                <span>@I18n["nav.pages"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Publish">
+            </a>
+
+            <div class="bocchi-nav-group">
+                <button type="button"
+                        class="@NavGroupButtonClass(_contentOpen, IsContentSectionActive())"
+                        aria-expanded="@AriaExpanded(_contentOpen)"
+                        aria-controls="bocchi-nav-content"
+                        @onclick="ToggleContentMenu">
+                    <Blazicon Svg="Lucide.FileText" />
+                    <span>@I18n["nav.content"]</span>
+                    <span class="bocchi-nav-chevron" aria-hidden="true">
+                        <Blazicon Svg="Lucide.ChevronDown" />
+                    </span>
+                </button>
+                @if (_contentOpen)
+                {
+                    <div id="bocchi-nav-content" class="bocchi-nav-children">
+                        <a href="/Admin/Posts" class="@SecondaryNavLinkClass(IsPostsActive())" aria-current="@AriaCurrent(IsPostsActive())">
+                            <Blazicon Svg="Lucide.FileText" />
+                            <span>@I18n["nav.posts"]</span>
+                        </a>
+                        <a href="/Admin/Notes" class="@SecondaryNavLinkClass(IsNotesActive())" aria-current="@AriaCurrent(IsNotesActive())">
+                            <Blazicon Svg="Lucide.PenLine" />
+                            <span>@I18n["nav.notes"]</span>
+                        </a>
+                        <a href="/Admin/Works" class="@SecondaryNavLinkClass(IsWorksActive())" aria-current="@AriaCurrent(IsWorksActive())">
+                            <Blazicon Svg="Lucide.FolderOpen" />
+                            <span>@I18n["nav.works"]</span>
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <div class="bocchi-nav-group">
+                <button type="button"
+                        class="@NavGroupButtonClass(_siteOpen, IsSiteSectionActive())"
+                        aria-expanded="@AriaExpanded(_siteOpen)"
+                        aria-controls="bocchi-nav-site"
+                        @onclick="ToggleSiteMenu">
+                    <Blazicon Svg="Lucide.BookOpen" />
+                    <span>@I18n["nav.site"]</span>
+                    <span class="bocchi-nav-chevron" aria-hidden="true">
+                        <Blazicon Svg="Lucide.ChevronDown" />
+                    </span>
+                </button>
+                @if (_siteOpen)
+                {
+                    <div id="bocchi-nav-site" class="bocchi-nav-children">
+                        <a href="/Admin/Pages" class="@SecondaryNavLinkClass(IsPagesActive())" aria-current="@AriaCurrent(IsPagesActive())">
+                            <Blazicon Svg="Lucide.BookOpen" />
+                            <span>@I18n["nav.pages"]</span>
+                        </a>
+                        <a href="/Admin/Content?kind=FriendLink" class="@SecondaryNavLinkClass(IsFriendLinksActive())" aria-current="@AriaCurrent(IsFriendLinksActive())">
+                            <Blazicon Svg="Lucide.Link" />
+                            <span>@I18n["nav.friends"]</span>
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <a href="/Admin/Publish" class="@PrimaryNavLinkClass(IsCurrentPath("/Admin/Publish"))" aria-current="@AriaCurrent(IsCurrentPath("/Admin/Publish"))">
                 <Blazicon Svg="Lucide.Send" />
                 <span>@I18n["nav.publish"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Settings">
+            </a>
+            <a href="/Admin/Settings" class="@PrimaryNavLinkClass(IsCurrentPath("/Admin/Settings"))" aria-current="@AriaCurrent(IsCurrentPath("/Admin/Settings"))">
                 <Blazicon Svg="Lucide.Settings" />
                 <span>@I18n["nav.settings"]</span>
-            </NavLink>
+            </a>
         </nav>
     </aside>
 
     <div class="bocchi-workbench">
         <header class="bocchi-topbar">
-            <form class="bocchi-command-search" method="get" action="/Admin/Content" role="search" onclick="this.querySelector('input')?.focus()">
-                <Blazicon Svg="Lucide.Search" />
-                <input name="q" type="search" placeholder='@I18n["topbar.search.placeholder"]' aria-label='@I18n["topbar.search.aria"]' />
-            </form>
+            <div class="bocchi-topbar__left">
+                <button type="button"
+                        class="bocchi-mobile-nav-toggle"
+                        aria-controls="bocchi-admin-sidebar"
+                        aria-expanded="@AriaExpanded(_mobileSidebarOpen)"
+                        aria-label='@I18n["nav.open"]'
+                        @onclick="ToggleMobileSidebar">
+                    <Blazicon Svg="Lucide.Menu" />
+                </button>
+                <form class="bocchi-command-search" method="get" action="/Admin/Content" role="search" onclick="this.querySelector('input')?.focus()">
+                    <Blazicon Svg="Lucide.Search" />
+                    <input name="q" type="search" placeholder='@I18n["topbar.search.placeholder"]' aria-label='@I18n["topbar.search.aria"]' />
+                </form>
+            </div>
 
             <div class="bocchi-topbar__actions">
                 <details class="bocchi-menu-control bocchi-menu-control--language">
-                    <summary aria-label='@I18n["topbar.language.aria"]'>
+                    <summary aria-label='@I18n["topbar.language.aria"]' title='@I18n["topbar.language.aria"]'>
                         <Blazicon Svg="Lucide.Languages" />
-                        <span>@I18n.CurrentLanguage.NativeName</span>
-                        <Blazicon Svg="Lucide.ChevronDown" />
+                        <span class="bocchi-menu-control__chevron" aria-hidden="true">
+                            <Blazicon Svg="Lucide.ChevronDown" />
+                        </span>
                     </summary>
                     <form class="bocchi-menu-control__menu" method="post" action="/Admin/Settings/Localization/UiLanguage">
                         <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
@@ -61,55 +125,51 @@
                                 <button type="submit"
                                         name="uiLanguage"
                                         value="@language.Code"
-                                        class="@LanguageOptionClass(language.Code)">
-                                    <span class="bocchi-menu-control__check" aria-hidden="true">
-                                        <Blazicon Svg="Lucide.Check" />
-                                    </span>
+                                        class="@LanguageOptionClass(language.Code)"
+                                        aria-current="@AriaCurrent(IsCurrentDashboardLanguage(language.Code))">
+                                    <Blazicon Svg="Lucide.Languages" />
                                     <span>@language.NativeName</span>
                                 </button>
                             }
                         </div>
                     </form>
                 </details>
-                <details class="bocchi-menu-control bocchi-menu-control--appearance" id="bocchi-appearance-control">
-                    <summary aria-label='@I18n["topbar.appearance.aria"]'>
-                        <Blazicon Svg="Lucide.SunMoon" />
-                        <span data-bocchi-appearance-label>@I18n["topbar.appearance.auto"]</span>
-                        <Blazicon Svg="Lucide.ChevronDown" />
+                <details class="bocchi-menu-control bocchi-menu-control--appearance" id="bocchi-appearance-control" data-bocchi-appearance-control>
+                    <summary aria-label='@I18n["topbar.appearance.aria"]' title='@I18n["topbar.appearance.aria"]'>
+                        <span class="bocchi-appearance-summary-icon bocchi-appearance-summary-icon--auto" aria-hidden="true">
+                            <Blazicon Svg="Lucide.SunMoon" />
+                        </span>
+                        <span class="bocchi-appearance-summary-icon bocchi-appearance-summary-icon--light" aria-hidden="true">
+                            <Blazicon Svg="Lucide.Sun" />
+                        </span>
+                        <span class="bocchi-appearance-summary-icon bocchi-appearance-summary-icon--dark" aria-hidden="true">
+                            <Blazicon Svg="Lucide.Moon" />
+                        </span>
+                        <span class="bocchi-menu-control__chevron" aria-hidden="true">
+                            <Blazicon Svg="Lucide.ChevronDown" />
+                        </span>
                     </summary>
                     <div class="bocchi-menu-control__menu" role="menu" aria-label='@I18n["topbar.appearance.aria"]'>
                         @* Dashboard 外观是纯客户端偏好；按钮由 bocchi-appearance.js 同步选中态。 *@
                         <button type="button"
                                 class="bocchi-menu-control__option"
                                 data-bocchi-appearance-option="auto"
-                                data-bocchi-appearance-label-text='@I18n["topbar.appearance.auto"]'
-                                aria-current="true"
-                                onclick="window.bocchiAppearance?.set('auto')">
-                            <span class="bocchi-menu-control__check" aria-hidden="true">
-                                <Blazicon Svg="Lucide.Check" />
-                            </span>
+                                aria-current="true">
+                            <Blazicon Svg="Lucide.SunMoon" />
                             <span>@I18n["topbar.appearance.auto"]</span>
                         </button>
                         <button type="button"
                                 class="bocchi-menu-control__option"
                                 data-bocchi-appearance-option="light"
-                                data-bocchi-appearance-label-text='@I18n["topbar.appearance.light"]'
-                                aria-current="false"
-                                onclick="window.bocchiAppearance?.set('light')">
-                            <span class="bocchi-menu-control__check" aria-hidden="true">
-                                <Blazicon Svg="Lucide.Check" />
-                            </span>
+                                aria-current="false">
+                            <Blazicon Svg="Lucide.Sun" />
                             <span>@I18n["topbar.appearance.light"]</span>
                         </button>
                         <button type="button"
                                 class="bocchi-menu-control__option"
                                 data-bocchi-appearance-option="dark"
-                                data-bocchi-appearance-label-text='@I18n["topbar.appearance.dark"]'
-                                aria-current="false"
-                                onclick="window.bocchiAppearance?.set('dark')">
-                            <span class="bocchi-menu-control__check" aria-hidden="true">
-                                <Blazicon Svg="Lucide.Check" />
-                            </span>
+                                aria-current="false">
+                            <Blazicon Svg="Lucide.Moon" />
                             <span>@I18n["topbar.appearance.dark"]</span>
                         </button>
                     </div>
@@ -138,6 +198,27 @@
 </div>
 
 @code {
+    /// <summary>当前 Dashboard 路径缓存，用于自定义 active 判断。</summary>
+    private string _currentPath = "/Admin";
+
+    /// <summary>当前 query string 缓存；友情链接和编辑页需要用它判断二级菜单 active。</summary>
+    private string _currentQuery = string.Empty;
+
+    /// <summary>内容分组是否展开。</summary>
+    private bool _contentOpen;
+
+    /// <summary>站点分组是否展开。</summary>
+    private bool _siteOpen;
+
+    /// <summary>移动端 Sidebar 覆盖层是否显示。</summary>
+    private bool _mobileSidebarOpen;
+
+    protected override void OnInitialized()
+    {
+        RefreshCurrentRoute();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
     /// <summary>语言切换后返回当前 Dashboard 路由，避免用户从编辑页被带离。</summary>
     private string CurrentReturnUrl
     {
@@ -157,4 +238,123 @@
         => IsCurrentDashboardLanguage(code)
             ? "bocchi-menu-control__option bocchi-menu-control__option--active"
             : "bocchi-menu-control__option";
+
+    /// <summary>侧栏在移动端是否以覆盖层方式显示。</summary>
+    private string SidebarClass => _mobileSidebarOpen ? "bocchi-sidebar bocchi-sidebar--open" : "bocchi-sidebar";
+
+    /// <summary>导航位置改变时同步 active 状态，并收起移动端覆盖层。</summary>
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        RefreshCurrentRoute();
+        _mobileSidebarOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>刷新当前路由缓存；命中二级菜单时自动展开对应一级菜单。</summary>
+    private void RefreshCurrentRoute()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var parts = relative.Split('?', 2);
+        var path = "/" + parts[0].Trim('/').TrimEnd('/');
+        _currentPath = string.Equals(path, "/", StringComparison.Ordinal) ? "/Admin" : path;
+        _currentQuery = parts.Length == 2 ? parts[1] : string.Empty;
+
+        if (IsContentSectionActive())
+        {
+            _contentOpen = true;
+        }
+
+        if (IsSiteSectionActive())
+        {
+            _siteOpen = true;
+        }
+    }
+
+    /// <summary>切换内容二级菜单展开状态。</summary>
+    private void ToggleContentMenu() => _contentOpen = !_contentOpen;
+
+    /// <summary>切换站点二级菜单展开状态。</summary>
+    private void ToggleSiteMenu() => _siteOpen = !_siteOpen;
+
+    /// <summary>打开或关闭移动端侧栏覆盖层。</summary>
+    private void ToggleMobileSidebar() => _mobileSidebarOpen = !_mobileSidebarOpen;
+
+    /// <summary>关闭移动端侧栏覆盖层。</summary>
+    private void CloseMobileSidebar() => _mobileSidebarOpen = false;
+
+    /// <summary>生成一级导航链接的 class。</summary>
+    private static string PrimaryNavLinkClass(bool active)
+        => active ? "bocchi-nav-link active" : "bocchi-nav-link";
+
+    /// <summary>生成二级导航链接的 class。</summary>
+    private static string SecondaryNavLinkClass(bool active)
+        => active ? "bocchi-nav-child active" : "bocchi-nav-child";
+
+    /// <summary>生成含二级菜单的一级按钮 class。</summary>
+    private static string NavGroupButtonClass(bool open, bool active)
+    {
+        var classes = "bocchi-nav-group__button";
+        if (open)
+        {
+            classes += " bocchi-nav-group__button--open";
+        }
+
+        if (active)
+        {
+            classes += " bocchi-nav-group__button--active";
+        }
+
+        return classes;
+    }
+
+    /// <summary>当前项 active 时输出 aria-current。</summary>
+    private static string? AriaCurrent(bool active) => active ? "page" : null;
+
+    /// <summary>输出 aria-expanded 的规范字符串，避免 Razor 把 bool 渲染成布尔属性。</summary>
+    private static string AriaExpanded(bool expanded) => expanded ? "true" : "false";
+
+    /// <summary>判断当前路径是否精确命中指定 Dashboard 路由。</summary>
+    private bool IsCurrentPath(string path)
+        => string.Equals(_currentPath, NormalizePath(path), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>内容分组是否包含当前页面。</summary>
+    private bool IsContentSectionActive() => IsPostsActive() || IsNotesActive() || IsWorksActive();
+
+    /// <summary>站点分组是否包含当前页面。</summary>
+    private bool IsSiteSectionActive() => IsPagesActive() || IsFriendLinksActive();
+
+    /// <summary>文章导航项是否为当前页面。</summary>
+    private bool IsPostsActive() => IsCurrentPath("/Admin/Posts") || IsEditorFor("post", "posts%2F");
+
+    /// <summary>短文导航项是否为当前页面。</summary>
+    private bool IsNotesActive() => IsCurrentPath("/Admin/Notes") || IsEditorFor("note", "notes%2F");
+
+    /// <summary>作品导航项是否为当前页面。</summary>
+    private bool IsWorksActive() => IsCurrentPath("/Admin/Works") || IsEditorFor("work", "works%2F");
+
+    /// <summary>页面导航项是否为当前页面。</summary>
+    private bool IsPagesActive() => IsCurrentPath("/Admin/Pages") || IsEditorFor("page", "pages%2F");
+
+    /// <summary>友情链接导航项是否为当前页面。</summary>
+    private bool IsFriendLinksActive()
+        => (IsCurrentPath("/Admin/Content") && CurrentQueryContains("kind=FriendLink")) ||
+           (IsCurrentPath("/Admin/Content/Edit") && CurrentQueryContains("friends.yaml"));
+
+    /// <summary>判断编辑页是否正在处理指定内容类型。</summary>
+    private bool IsEditorFor(string kind, string encodedPathPrefix)
+        => IsCurrentPath("/Admin/Content/Edit") &&
+           (CurrentQueryContains("kind=" + kind) || CurrentQueryContains("path=" + encodedPathPrefix));
+
+    /// <summary>判断当前 query string 是否包含指定片段。</summary>
+    private bool CurrentQueryContains(string value)
+        => _currentQuery.Contains(value, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>把 Dashboard 路径统一成无尾斜杠格式。</summary>
+    private static string NormalizePath(string path)
+    {
+        var normalized = "/" + path.Trim('/');
+        return string.Equals(normalized, "/", StringComparison.Ordinal) ? "/Admin" : normalized;
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= HandleLocationChanged;
 }

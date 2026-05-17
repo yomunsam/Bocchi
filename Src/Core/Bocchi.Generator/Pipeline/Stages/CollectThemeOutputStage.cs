@@ -15,12 +15,6 @@ public sealed class CollectThemeOutputStage : IBuildStage
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        if (session.Options.Mode == BuildMode.Live)
-        {
-            session.Log(Name, BuildLogLevel.Info, "Live 模式：跳过 Theme 输出收集。");
-            return true;
-        }
-
         var loaded = session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme);
         if (loaded is null)
         {
@@ -28,7 +22,12 @@ public sealed class CollectThemeOutputStage : IBuildStage
             return true;
         }
 
-        var outputRoot = ThemeOutputPathResolver.ResolveLocalOutputDirectory(loaded.ThemeRoot, loaded.Manifest.OutputDir);
+        if (!TryResolveOutputRoot(session, loaded, out var outputRoot))
+        {
+            session.Log(Name, BuildLogLevel.Info, "Live 模式未提供 Theme 输出目录：跳过 Theme 输出收集。");
+            return true;
+        }
+
         if (!Directory.Exists(outputRoot))
         {
             session.Log(Name, BuildLogLevel.Warning, $"Theme '{loaded.Manifest.Id}' 未生成输出目录：{outputRoot}");
@@ -68,6 +67,26 @@ public sealed class CollectThemeOutputStage : IBuildStage
         }
 
         session.Log(Name, BuildLogLevel.Info, $"已收集 Theme 输出 {files.Length} 个文件。");
+        return true;
+    }
+
+    /// <summary>解析 Theme 输出收集目录；Live 预览只收集一次性输出目录。</summary>
+    private static bool TryResolveOutputRoot(BuildSession session, LoadedTheme loaded, out string outputRoot)
+    {
+        if (session.Options.Mode != BuildMode.Live)
+        {
+            outputRoot = ThemeOutputPathResolver.ResolveLocalOutputDirectory(loaded.ThemeRoot, loaded.Manifest.OutputDir);
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(session.Options.LiveThemeOutputDirectory))
+        {
+            outputRoot = string.Empty;
+            return false;
+        }
+
+        // Live 预览收集的是一次性 Theme 输出目录，不能回读 Full Build 的 output/public。
+        outputRoot = Path.GetFullPath(session.Options.LiveThemeOutputDirectory);
         return true;
     }
 

@@ -22,7 +22,8 @@
     --bocchi-shadow-soft: 0 18px 40px rgba(77, 67, 107, 0.08);
     --bocchi-focus-ring: 0 0 0 3px rgba(124, 183, 248, 0.28);
     --bocchi-action: #d94c7f;
-    --bocchi-nav-active: #fff0f6;
+    --bocchi-nav-active: #d94c7f;
+    --bocchi-nav-text-active: #f8f7fd;
     --bocchi-avatar-bg: #e7ddff;
 }
 
@@ -50,7 +51,8 @@
     --bocchi-shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.22);
     --bocchi-focus-ring: 0 0 0 3px rgba(134, 189, 245, 0.34);
     --bocchi-action: #ff99bf;
-    --bocchi-nav-active: #2b354a;
+    --bocchi-nav-active: #6e1b56;
+    --bocchi-nav-text-active: #f8f7fd;
     --bocchi-avatar-bg: #4d4166;
 }
 
@@ -870,6 +872,7 @@ h1:focus {
 .bocchi-home-empty p {
     margin: 0.2rem 0 0;
     color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
     line-height: 1.55;
 }
 

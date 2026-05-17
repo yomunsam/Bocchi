@@ -20,10 +20,10 @@
             {
                 <BocchiListRow Kicker="Empty" Title="还没有可定位的预览 route">
                     <ChildContent>
-                        <p>先扫描内容 workspace 并跑一次 Publish；M4 不会为了空状态发明临时前台主题。</p>
+                        <p>先添加或扫描内容 workspace；实时预览会直接走 Live build，不需要先跑 Publish。</p>
                     </ChildContent>
                     <Action>
-                        <a class="bocchi-button secondary" href="/Admin/Publish">Publish</a>
+                        <a class="bocchi-button secondary" href="/Admin/Content">Open Content</a>
                     </Action>
                 </BocchiListRow>
             }
@@ -45,7 +45,7 @@
 
         <aside class="bocchi-panel bocchi-panel--soft">
             <h2>Toolbar rules</h2>
-            <p>工具栏默认轻量固定在边缘，显示 Preview、当前 route、返回 Admin、Rebuild；只有 route 能唯一定位内容时才显示 Edit。</p>
+            <p>工具栏默认轻量固定在边缘，显示 Preview、当前 route 和返回 Admin；只有 route 能唯一定位内容时才显示 Edit。</p>
         </aside>
     </div>
 </article>

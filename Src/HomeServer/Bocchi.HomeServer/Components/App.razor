@@ -5,6 +5,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        (() => {
+            const storageKey = "bocchi.dashboard.appearance";
+            const root = document.documentElement;
+            let mode = "auto";
+            try {
+                const stored = localStorage.getItem(storageKey);
+                mode = stored === "light" || stored === "dark" ? stored : "auto";
+            } catch {
+                mode = "auto";
+            }
+
+            const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches === true;
+            const effective = mode === "auto" ? (prefersDark ? "dark" : "light") : mode;
+            root.dataset.bocchiAppearance = mode;
+            root.dataset.bocchiEffectiveAppearance = effective;
+            root.style.colorScheme = effective;
+        })();
+    </script>
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["css/admin-home.css"]" />

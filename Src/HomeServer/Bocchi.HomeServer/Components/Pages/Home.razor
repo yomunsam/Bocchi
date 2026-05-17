@@ -29,7 +29,7 @@
     @if (_guides.Count > 0)
     {
         <section class="bocchi-guide-stack" aria-label="@I18n[$"home.guide.{_guides[0].Key}.title"]">
-            <article class="bocchi-guide-stack__top">
+            <article @key="_guides[0].Key" class="bocchi-guide-stack__top">
                 <div class="bocchi-guide-stack__body">
                     <strong>@I18n[$"home.guide.{_guides[0].Key}.title"]</strong>
                     <p>@I18n[$"home.guide.{_guides[0].Key}.body"]</p>
@@ -41,13 +41,13 @@
                         </a>
                     }
                 </div>
-                <form method="post" action="/Admin/Home/Guide/Dismiss" class="bocchi-guide-stack__dismiss">
-                    <input type="hidden" name="key" value="@_guides[0].Key" />
-                    <input type="hidden" name="returnUrl" value="/Admin" />
-                    <button type="submit" class="bocchi-icon-button" aria-label='@I18n["home.guide.dismiss.aria"]'>
-                        <Blazicon Svg="Lucide.X" />
-                    </button>
-                </form>
+                <button type="button"
+                        class="bocchi-icon-button bocchi-guide-stack__dismiss"
+                        aria-label='@I18n["home.guide.dismiss.aria"]'
+                        disabled="@_guideDismissInFlight"
+                        @onclick="DismissCurrentGuideAsync">
+                    <Blazicon Svg="Lucide.X" />
+                </button>
             </article>
             @if (_guides.Count > 1)
             {
@@ -130,10 +130,6 @@
                 <h2>@I18n["home.preview.title"]</h2>
             </div>
             <p class="bocchi-card-copy">@I18n["home.preview.description"]</p>
-            <div class="bocchi-preview-ready">
-                <span class="bocchi-preview-ready__dot" aria-hidden="true"></span>
-                <span>@I18n["home.preview.ready"]</span>
-            </div>
             <a class="bocchi-button" href="/" target="_blank" rel="noopener">
                 <span>@I18n["home.preview.open"]</span>
                 <Blazicon Svg="Lucide.ExternalLink" />
@@ -141,7 +137,7 @@
         </aside>
     </div>
 
-    @* 最近更新：覆盖所有 kind 的合并视图。 *@
+    @* 最近内容：只放文章、短文、作品，避免站点配置和固定页面混入创作流。 *@
     <section class="bocchi-recent" aria-labelledby="recent-heading">
         <header class="bocchi-recent__head">
             <h2 id="recent-heading">@I18n["home.recent.title"]</h2>
@@ -206,7 +202,10 @@
     private IReadOnlyList<ContentSummary> _recentContent = [];
 
     /// <summary>当前激活的 Guide 卡片。</summary>
-    private IReadOnlyList<DashboardGuideCardRecord> _guides = [];
+    private List<DashboardGuideCardRecord> _guides = [];
+
+    /// <summary>防止连续点击关闭按钮时重复提交同一张 Guide 卡。</summary>
+    private bool _guideDismissInFlight;
 
     /// <summary>首页 4 张快捷动作的元数据。Tone 对应 quick-card 配色变体。</summary>
     private static readonly QuickAction[] QuickActions =
@@ -231,11 +230,12 @@
     {
         var summaries = await Store.ListContentSummariesAsync(null);
         _recentContent = summaries
+            .Where(x => IsRecentContentKind(x.Kind))
             .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
             .ThenBy(x => x.Title ?? x.ContentId)
             .Take(6)
             .ToList();
-        _guides = await Guides.ListActiveAsync();
+        _guides = [.. await Guides.ListActiveAsync()];
     }
 
     /// <summary>Composer Tab 状态 class。当前仅支持短文，Posts Tab 暂时禁用。</summary>
@@ -252,6 +252,28 @@
             DashboardGuideService.WelcomeKey => ("/Admin/Settings", "settings"),
             _ => null,
         };
+
+    /// <summary>关闭当前 Guide 卡并直接切到下一张，避免传统 form post 带来的整页刷新。</summary>
+    private async Task DismissCurrentGuideAsync()
+    {
+        if (_guideDismissInFlight || _guides.Count == 0)
+        {
+            return;
+        }
+
+        var dismissed = _guides[0];
+        _guides.RemoveAt(0);
+        _guideDismissInFlight = true;
+
+        try
+        {
+            await Guides.DismissAsync(dismissed.Key);
+        }
+        finally
+        {
+            _guideDismissInFlight = false;
+        }
+    }
 
     private static string ContentTitle(ContentSummary item)
         => string.IsNullOrWhiteSpace(item.Title) ? item.ContentId : item.Title;
@@ -277,6 +299,10 @@
 
     private static string ContentTimeLabel(ContentSummary item)
         => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
+
+    /// <summary>首页最近内容只展示面向读者的创作内容，不展示页面、友链和站点配置。</summary>
+    private static bool IsRecentContentKind(ContentKind kind)
+        => kind is ContentKind.Post or ContentKind.Note or ContentKind.Work;
 
     private string KindLabel(ContentKind kind)
         => kind switch
