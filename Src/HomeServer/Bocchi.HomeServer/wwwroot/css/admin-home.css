@@ -1,0 +1,426 @@
+
+/* =========================================================================
+   Dashboard 首页（M1 重做） 与共享元件
+   - 全部位于 `.bocchi-shell--dashboard` 内，可单独抽离到 admin-home.css。
+   - 命名约定：组件根 `.bocchi-<name>`，元素 `__elem`，状态/变体 `--mod`。
+   ========================================================================= */
+
+/* 页头：eyebrow + h1 + description，比通用 page-heading 更紧凑。 */
+.bocchi-page-intro {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.bocchi-page-intro h1 {
+    margin: 0;
+    font-size: clamp(1.7rem, 2.4vw, 2.1rem);
+    line-height: 1.1;
+}
+
+.bocchi-page-intro p {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    max-width: 48rem;
+    line-height: 1.6;
+}
+
+.bocchi-eyebrow {
+    color: var(--bocchi-text-subtle);
+    font-size: 0.78rem;
+    font-weight: 720;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+/* 通用横幅，目前仅用于 composer 出错。 */
+.bocchi-banner {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 9px;
+    padding: 0.7rem 0.9rem;
+    color: var(--bocchi-text);
+    background: var(--bocchi-surface);
+    font-size: 0.9rem;
+}
+
+.bocchi-banner--warning {
+    border-color: color-mix(in srgb, var(--bocchi-warning-strong) 30%, var(--bocchi-border));
+    background: var(--bocchi-warning-soft);
+    color: var(--bocchi-warning-strong);
+}
+
+/* Guide 卡堆栈：单卡 + 底部圆点。 */
+.bocchi-guide-stack {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.bocchi-guide-stack__top {
+    position: relative;
+    display: grid;
+    gap: 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--bocchi-pink) 55%, var(--bocchi-border));
+    border-radius: 14px;
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--bocchi-surface-pink) 90%, var(--bocchi-surface)) 0%,
+        color-mix(in srgb, var(--bocchi-lavender) 35%, var(--bocchi-surface)) 100%);
+    box-shadow: var(--bocchi-shadow-soft);
+    padding: 1.1rem 1.3rem;
+}
+
+.bocchi-guide-stack__body {
+    display: grid;
+    gap: 0.45rem;
+    padding-right: 2.5rem; /* 给右上角的关闭按钮让位 */
+}
+
+.bocchi-guide-stack__body strong {
+    font-size: 1.05rem;
+    color: var(--bocchi-text);
+}
+
+.bocchi-guide-stack__body p {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    line-height: 1.55;
+}
+
+.bocchi-guide-stack__body .bocchi-link-pill {
+    justify-self: start;
+}
+
+.bocchi-guide-stack__dismiss {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.7rem;
+    margin: 0;
+}
+
+.bocchi-guide-stack__dismiss button {
+    /* 覆盖全局 button 的深色填充：让 dismiss 按钮在浅色卡上隐身。 */
+    min-height: 2rem;
+    width: 2rem;
+    padding: 0;
+    background: transparent;
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-guide-stack__dismiss button:hover {
+    background: color-mix(in srgb, var(--bocchi-surface) 75%, transparent);
+    color: var(--bocchi-text);
+    transform: none;
+}
+
+.bocchi-guide-stack__dots {
+    display: flex;
+    gap: 0.3rem;
+    justify-content: center;
+}
+
+.bocchi-guide-stack__dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bocchi-text-subtle) 50%, transparent);
+}
+
+.bocchi-guide-stack__dot--active {
+    background: var(--bocchi-action);
+    width: 1.1rem;
+}
+
+/* 快捷动作 4 卡。 */
+.bocchi-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.bocchi-quick-card {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 14px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+    color: var(--bocchi-text);
+    padding: 1rem 1.1rem;
+    text-decoration: none;
+    transition: transform 150ms ease, border-color 150ms ease;
+}
+
+.bocchi-quick-card:hover {
+    border-color: color-mix(in srgb, var(--bocchi-action) 35%, var(--bocchi-border));
+    transform: translateY(-1px);
+}
+
+.bocchi-quick-card__icon {
+    display: inline-flex;
+    width: 2.6rem;
+    height: 2.6rem;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-radius: 12px;
+}
+
+.bocchi-quick-card__icon svg {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.bocchi-quick-card__icon--pink {
+    background: var(--bocchi-surface-pink);
+    color: var(--bocchi-action);
+}
+
+.bocchi-quick-card__icon--lavender {
+    background: color-mix(in srgb, var(--bocchi-lavender) 45%, var(--bocchi-surface));
+    color: #7c5fe0;
+}
+
+.bocchi-quick-card__icon--blue {
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-blue-strong);
+}
+
+.bocchi-quick-card__icon--green {
+    background: var(--bocchi-success-soft);
+    color: var(--bocchi-success-strong);
+}
+
+.bocchi-quick-card__body {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+.bocchi-quick-card__body strong {
+    font-size: 0.98rem;
+}
+
+.bocchi-quick-card__body span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.83rem;
+    line-height: 1.4;
+}
+
+/* Composer + Preview 双栏。 */
+.bocchi-home-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 32rem);
+    gap: 1rem;
+    align-items: start;
+}
+
+.bocchi-home-grid > * {
+    min-width: 0;
+}
+
+/* Composer */
+.bocchi-composer {
+    display: grid;
+    gap: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 14px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+    padding: 1rem;
+}
+
+.bocchi-composer__tabs {
+    display: inline-flex;
+    gap: 0.25rem;
+    align-self: start;
+    border-bottom: 1px solid var(--bocchi-border);
+    padding-bottom: 0.55rem;
+}
+
+.bocchi-composer__tab {
+    /* 覆盖全局 button 样式：tab 是 ghost，激活态走下划线变色而非填充。 */
+    min-height: 2rem;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    font-size: 0.88rem;
+    font-weight: 620;
+    padding: 0 0.85rem;
+}
+
+.bocchi-composer__tab--active {
+    background: var(--bocchi-surface-pink);
+    color: var(--bocchi-action);
+}
+
+.bocchi-composer__tab:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.bocchi-composer__form {
+    display: grid;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.bocchi-composer__textarea {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 6.5rem;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    font: inherit;
+    line-height: 1.55;
+    padding: 0.75rem 0.85rem;
+    resize: vertical;
+}
+
+.bocchi-composer__textarea:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--bocchi-action) 35%, var(--bocchi-border));
+    background: var(--bocchi-surface);
+}
+
+.bocchi-composer__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bocchi-composer__toolbar {
+    display: flex;
+    gap: 0.2rem;
+}
+
+.bocchi-composer__toolbar .bocchi-icon-button {
+    /* 顶栏共享 icon-button 在 composer 里：尺寸缩小，禁用态保持灰度。 */
+    width: 1.95rem;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--bocchi-text-subtle);
+    padding: 0;
+}
+
+.bocchi-composer__toolbar .bocchi-icon-button:hover:not(:disabled) {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    transform: none;
+}
+
+.bocchi-composer__toolbar .bocchi-icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.bocchi-composer__publish {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.bocchi-composer__counter {
+    color: var(--bocchi-text-subtle);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.bocchi-button--primary {
+    background: var(--bocchi-action);
+    color: #fff;
+    padding: 0 1.15rem;
+}
+
+.bocchi-button--primary:hover {
+    background: color-mix(in srgb, var(--bocchi-action) 85%, #000);
+}
+
+/* 站点预览卡 */
+.bocchi-preview-card--home {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.bocchi-preview-ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bocchi-success-strong);
+    font-size: 0.85rem;
+    font-weight: 620;
+}
+
+.bocchi-preview-ready__dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--bocchi-success-strong);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bocchi-success-strong) 18%, transparent);
+}
+
+/* Recent updates 区块 */
+.bocchi-recent {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.bocchi-recent__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+}
+
+.bocchi-recent__head h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+/* 通用 link-pill：用于"查看全部"、"去设置"这类弱 CTA。 */
+.bocchi-link-pill {
+    display: inline-flex;
+    min-height: 1.95rem;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    font-size: 0.83rem;
+    font-weight: 620;
+    padding: 0 0.7rem;
+    text-decoration: none;
+}
+
+.bocchi-link-pill svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.bocchi-link-pill:hover {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+}
+
+@media (max-width: 1100px) {
+    .bocchi-quick-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .bocchi-home-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .bocchi-quick-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

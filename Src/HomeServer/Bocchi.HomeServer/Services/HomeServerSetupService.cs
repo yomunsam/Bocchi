@@ -17,6 +17,7 @@ public sealed class HomeServerSetupService
     private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
     private readonly SiteProfileSettingsService _siteProfile;
+    private readonly DashboardGuideService _guides;
 
     /// <summary>构造 Setup 服务。</summary>
     public HomeServerSetupService(
@@ -25,7 +26,8 @@ public sealed class HomeServerSetupService
         RoleManager<IdentityRole> roles,
         BocchiDataLayout layout,
         TimeProvider time,
-        SiteProfileSettingsService siteProfile)
+        SiteProfileSettingsService siteProfile,
+        DashboardGuideService guides)
     {
         _db = db;
         _users = users;
@@ -33,6 +35,7 @@ public sealed class HomeServerSetupService
         _layout = layout;
         _time = time;
         _siteProfile = siteProfile;
+        _guides = guides;
     }
 
     /// <summary>应用 EF Core 迁移并确保基础种子数据存在。</summary>
@@ -45,6 +48,7 @@ public sealed class HomeServerSetupService
         await _siteProfile.EnsureAsync(cancellationToken).ConfigureAwait(false);
         await EnsureLocalizationSettingsAsync(cancellationToken).ConfigureAwait(false);
         await EnsureExternalProviderDefaultsAsync(cancellationToken).ConfigureAwait(false);
+        await _guides.EnsureBuiltInAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>判断 Setup 是否已经完成，并且至少存在一个 Admin 用户。</summary>

@@ -1,0 +1,97 @@
+@using System.Globalization
+@using Bocchi.ContentModel
+@using Bocchi.HomeServer.Services
+@using Bocchi.Workspace.State
+@inject DashboardLocalizationService I18n
+@inject IContentStateStore Store
+
+<article class="bocchi-shell bocchi-shell--dashboard">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["nav." + KindSlug]</span>
+        <h1>@I18n[$"kind.{KindSlug}.title"]</h1>
+        <p>@I18n[$"kind.{KindSlug}.description"]</p>
+    </header>
+
+    @if (_items.Count == 0)
+    {
+        <div class="bocchi-home-empty">
+            <span class="bocchi-home-empty__icon">
+                <Blazicon Svg="@KindIcon" />
+            </span>
+            <div>
+                <strong>@I18n["kind.index.empty.title"]</strong>
+                <p>@I18n["kind.index.empty.description"]</p>
+            </div>
+            <div class="bocchi-home-empty__actions">
+                <a class="bocchi-button" href="/Admin/Content/Edit">@I18n["kind.index.empty.action"]</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <section aria-label='@I18n["kind.index.aria.list"]'>
+            <div class="bocchi-content-list">
+                @foreach (var item in _items)
+                {
+                    <a class="bocchi-content-item" href="@ContentEditingService.EditUrl(item.RelativePath)">
+                        <span class="bocchi-content-item__icon @KindIconClass">
+                            <Blazicon Svg="@KindIcon" />
+                        </span>
+                        <span class="bocchi-content-item__main">
+                            <strong>@(string.IsNullOrWhiteSpace(item.Title) ? item.ContentId : item.Title)</strong>
+                            <small>@item.RelativePath</small>
+                        </span>
+                        <BocchiStatusPill Tone="@StatusTone(item.Status)">@StatusLabel(item.Status)</BocchiStatusPill>
+                        <span class="bocchi-content-item__date">@TimeLabel(item)</span>
+                        <span class="bocchi-content-item__action">@ActionLabel(item.Status)</span>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+</article>
+
+@code {
+    /// <summary>当前页面对应的内容类型，决定列表过滤与图标配色。</summary>
+    [Parameter, EditorRequired] public ContentKind Kind { get; set; }
+
+    /// <summary>i18n key 用的复数 slug（posts/notes/works/pages），由调用方传入避免运行期映射。</summary>
+    [Parameter, EditorRequired] public string KindSlug { get; set; } = "posts";
+
+    /// <summary>列表图标。</summary>
+    [Parameter, EditorRequired] public SvgIcon KindIcon { get; set; } = default!;
+
+    /// <summary>列表图标的颜色 modifier，例如 <c>bocchi-content-item__icon--pink</c>。</summary>
+    [Parameter, EditorRequired] public string KindIconClass { get; set; } = "bocchi-content-item__icon--pink";
+
+    private IReadOnlyList<ContentSummary> _items = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var summaries = await Store.ListContentSummariesAsync(Kind);
+        _items = summaries
+            .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
+            .ThenBy(x => x.Title ?? x.ContentId)
+            .ToList();
+    }
+
+    private string StatusLabel(ContentStatus status) => status switch
+    {
+        ContentStatus.Published => I18n["home.status.ready"],
+        ContentStatus.Archived => I18n["home.status.archived"],
+        _ => I18n["home.status.draft"],
+    };
+
+    private static string StatusTone(ContentStatus status) => status switch
+    {
+        ContentStatus.Published => "success",
+        ContentStatus.Archived => "neutral",
+        _ => "warning",
+    };
+
+    private string ActionLabel(ContentStatus status)
+        => status == ContentStatus.Draft ? I18n["home.action.continue"] : I18n["home.action.edit"];
+
+    private static string TimeLabel(ContentSummary item)
+        => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
+}

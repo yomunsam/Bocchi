@@ -830,6 +830,8 @@ h1:focus {
     display: grid;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
     overflow: hidden;
 }
 
@@ -885,6 +887,7 @@ h1:focus {
     align-items: center;
     min-height: 4.6rem;
     border-bottom: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
     color: var(--bocchi-text);
     padding: 0.75rem 0.9rem;
     text-decoration: none;

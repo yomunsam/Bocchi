@@ -33,6 +33,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>站点本地化设置。</summary>
     public DbSet<LocalizationSettingsRecord> LocalizationSettings => Set<LocalizationSettingsRecord>();
 
+    /// <summary>Dashboard 首页 Guide 堆栈状态。</summary>
+    public DbSet<DashboardGuideCardRecord> DashboardGuideCards => Set<DashboardGuideCardRecord>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -111,6 +114,16 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.CustomLanguagesJson).IsRequired();
             entity.Property(x => x.CommonTextOverridesJson).IsRequired();
             entity.Property(x => x.UrlPolicy).HasMaxLength(64).IsRequired();
+        });
+
+        builder.Entity<DashboardGuideCardRecord>(entity =>
+        {
+            entity.ToTable("DashboardGuideCards");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Key).IsUnique();
+            entity.Property(x => x.Key).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.SortOrder).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
         });
     }
 }

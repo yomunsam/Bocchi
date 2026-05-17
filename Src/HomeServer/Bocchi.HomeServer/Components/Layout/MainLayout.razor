@@ -9,19 +9,23 @@
         <nav class="bocchi-primary-nav">
             <NavLink href="/Admin" Match="NavLinkMatch.All">
                 <Blazicon Svg="Lucide.House" />
-                <span>@I18n["nav.home"]</span>
+                <span>@I18n["nav.overview"]</span>
             </NavLink>
-            <NavLink href="/Admin/Content/Edit">
-                <Blazicon Svg="Lucide.PenLine" />
-                <span>@I18n["nav.write"]</span>
-            </NavLink>
-            <NavLink href="/Admin/Content">
+            <NavLink href="/Admin/Posts">
                 <Blazicon Svg="Lucide.FileText" />
-                <span>@I18n["nav.content"]</span>
+                <span>@I18n["nav.posts"]</span>
             </NavLink>
-            <NavLink href="/Admin/Preview">
-                <Blazicon Svg="Lucide.Eye" />
-                <span>@I18n["nav.preview"]</span>
+            <NavLink href="/Admin/Notes">
+                <Blazicon Svg="Lucide.PenLine" />
+                <span>@I18n["nav.notes"]</span>
+            </NavLink>
+            <NavLink href="/Admin/Works">
+                <Blazicon Svg="Lucide.FolderOpen" />
+                <span>@I18n["nav.works"]</span>
+            </NavLink>
+            <NavLink href="/Admin/Pages">
+                <Blazicon Svg="Lucide.BookOpen" />
+                <span>@I18n["nav.pages"]</span>
             </NavLink>
             <NavLink href="/Admin/Publish">
                 <Blazicon Svg="Lucide.Send" />
@@ -32,50 +36,86 @@
                 <span>@I18n["nav.settings"]</span>
             </NavLink>
         </nav>
-
-        <div class="bocchi-sidebar-card" aria-label='@I18n["sidebar.summary.label"]'>
-            <span class="bocchi-sidebar-card__dot" aria-hidden="true"></span>
-            <strong>@I18n["sidebar.summary.version"]</strong>
-            <p>@I18n["sidebar.summary.running"]</p>
-            <a href="/healthz">@I18n["sidebar.summary.systemInfo"]</a>
-        </div>
     </aside>
 
     <div class="bocchi-workbench">
         <header class="bocchi-topbar">
-            <form class="bocchi-command-search" method="get" action="/Admin/Content" role="search">
+            <form class="bocchi-command-search" method="get" action="/Admin/Content" role="search" onclick="this.querySelector('input')?.focus()">
                 <Blazicon Svg="Lucide.Search" />
                 <input name="q" type="search" placeholder='@I18n["topbar.search.placeholder"]' aria-label='@I18n["topbar.search.aria"]' />
-                <kbd>Ctrl K</kbd>
             </form>
 
             <div class="bocchi-topbar__actions">
-                <a class="bocchi-soft-link bocchi-soft-link--primary" href="/Admin/Content/Edit">
-                    <Blazicon Svg="Lucide.Plus" />
-                    <span>@I18n["topbar.new"]</span>
-                </a>
-                <form class="bocchi-language-control" method="post" action="/Admin/Settings/Localization/UiLanguage">
-                    <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
-                    <label>
-                        <span>@I18n["topbar.language.label"]</span>
-                        <select name="uiLanguage" aria-label='@I18n["topbar.language.aria"]' onchange="this.form.submit()">
+                <details class="bocchi-menu-control bocchi-menu-control--language">
+                    <summary aria-label='@I18n["topbar.language.aria"]'>
+                        <Blazicon Svg="Lucide.Languages" />
+                        <span>@I18n.CurrentLanguage.NativeName</span>
+                        <Blazicon Svg="Lucide.ChevronDown" />
+                    </summary>
+                    <form class="bocchi-menu-control__menu" method="post" action="/Admin/Settings/Localization/UiLanguage">
+                        <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
+                        @* 语言切换需要走 HTTP 端点写 culture cookie，所以每个选项直接提交表单。 *@
+                        <div class="bocchi-menu-control__option-list">
                             @foreach (var language in DashboardLocalizationService.SupportedDashboardLanguages)
                             {
-                                <option value="@language.Code" selected="@IsCurrentDashboardLanguage(language.Code)">@language.NativeName</option>
+                                <button type="submit"
+                                        name="uiLanguage"
+                                        value="@language.Code"
+                                        class="@LanguageOptionClass(language.Code)">
+                                    <span class="bocchi-menu-control__check" aria-hidden="true">
+                                        <Blazicon Svg="Lucide.Check" />
+                                    </span>
+                                    <span>@language.NativeName</span>
+                                </button>
                             }
-                        </select>
-                    </label>
-                </form>
-                <label class="bocchi-appearance-control">
-                    <span>@I18n["topbar.appearance.label"]</span>
-                    <select id="bocchi-appearance-select" aria-label='@I18n["topbar.appearance.aria"]' onchange="window.bocchiAppearance?.set(this.value)">
-                        <option value="auto">Auto</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select>
-                </label>
-                <a class="bocchi-account-link" href="/Admin/Users" aria-label='@I18n["topbar.account.aria"]'>
-                    <span>me</span>
+                        </div>
+                    </form>
+                </details>
+                <details class="bocchi-menu-control bocchi-menu-control--appearance" id="bocchi-appearance-control">
+                    <summary aria-label='@I18n["topbar.appearance.aria"]'>
+                        <Blazicon Svg="Lucide.SunMoon" />
+                        <span data-bocchi-appearance-label>@I18n["topbar.appearance.auto"]</span>
+                        <Blazicon Svg="Lucide.ChevronDown" />
+                    </summary>
+                    <div class="bocchi-menu-control__menu" role="menu" aria-label='@I18n["topbar.appearance.aria"]'>
+                        @* Dashboard 外观是纯客户端偏好；按钮由 bocchi-appearance.js 同步选中态。 *@
+                        <button type="button"
+                                class="bocchi-menu-control__option"
+                                data-bocchi-appearance-option="auto"
+                                data-bocchi-appearance-label-text='@I18n["topbar.appearance.auto"]'
+                                aria-current="true"
+                                onclick="window.bocchiAppearance?.set('auto')">
+                            <span class="bocchi-menu-control__check" aria-hidden="true">
+                                <Blazicon Svg="Lucide.Check" />
+                            </span>
+                            <span>@I18n["topbar.appearance.auto"]</span>
+                        </button>
+                        <button type="button"
+                                class="bocchi-menu-control__option"
+                                data-bocchi-appearance-option="light"
+                                data-bocchi-appearance-label-text='@I18n["topbar.appearance.light"]'
+                                aria-current="false"
+                                onclick="window.bocchiAppearance?.set('light')">
+                            <span class="bocchi-menu-control__check" aria-hidden="true">
+                                <Blazicon Svg="Lucide.Check" />
+                            </span>
+                            <span>@I18n["topbar.appearance.light"]</span>
+                        </button>
+                        <button type="button"
+                                class="bocchi-menu-control__option"
+                                data-bocchi-appearance-option="dark"
+                                data-bocchi-appearance-label-text='@I18n["topbar.appearance.dark"]'
+                                aria-current="false"
+                                onclick="window.bocchiAppearance?.set('dark')">
+                            <span class="bocchi-menu-control__check" aria-hidden="true">
+                                <Blazicon Svg="Lucide.Check" />
+                            </span>
+                            <span>@I18n["topbar.appearance.dark"]</span>
+                        </button>
+                    </div>
+                </details>
+                <a class="bocchi-account-avatar" href="/Admin/Users" aria-label='@I18n["topbar.account.aria"]'>
+                    <Blazicon Svg="Lucide.CircleUserRound" />
                 </a>
                 <form method="post" action="/Account/Logout">
                     <button type="submit" class="bocchi-icon-button" aria-label='@I18n["topbar.logout.aria"]'>
@@ -111,4 +151,10 @@
     /// <summary>判断语言选项是否为当前 culture cookie 解析出的 UI 语言。</summary>
     private bool IsCurrentDashboardLanguage(string code)
         => string.Equals(I18n.CurrentLanguage.Code, code, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>生成语言菜单选项 class，当前语言需要显示 check 图标。</summary>
+    private string LanguageOptionClass(string code)
+        => IsCurrentDashboardLanguage(code)
+            ? "bocchi-menu-control__option bocchi-menu-control__option--active"
+            : "bocchi-menu-control__option";
 }

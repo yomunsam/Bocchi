@@ -1,200 +1,261 @@
 @page "/Admin"
 @using System.Globalization
 @using Bocchi.ContentModel
+@using Bocchi.HomeServer.Data
+@using Bocchi.HomeServer.Services
 @using Bocchi.Workspace.State
 @inject DashboardLocalizationService I18n
 @inject IContentStateStore Store
+@inject DashboardGuideService Guides
 
 <PageTitle>@I18n["home.page.title"] · Bocchi</PageTitle>
 
 <article class="bocchi-shell bocchi-shell--dashboard">
-    <section class="bocchi-home-hero" aria-labelledby="home-heading">
-        <div>
-            <span class="bocchi-page-heading__eyebrow">@I18n["home.page.eyebrow"]</span>
-            <h1 id="home-heading">@I18n["home.page.heading"]</h1>
-            <p>@I18n["home.page.description"]</p>
-        </div>
-        <div class="bocchi-home-summary" aria-label='@I18n["home.summary.aria"]'>
-            <div>
-                <span>@I18n["home.summary.server"]</span>
-                <strong>@I18n["home.summary.serverRunning"]</strong>
-            </div>
-            <div>
-                <span>@I18n["home.summary.content"]</span>
-                <strong>@ContentCountLabel</strong>
-            </div>
-            <div>
-                <span>@I18n["home.summary.lastCheck"]</span>
-                <strong>@LastCheckLabel</strong>
-            </div>
-        </div>
-    </section>
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["home.page.eyebrow"]</span>
+        <h1>@I18n["home.page.heading"]</h1>
+        <p>@I18n["home.page.description"]</p>
+    </header>
 
-    <div class="bocchi-dashboard-board">
-        <section class="bocchi-content-feed" aria-labelledby="feed-heading">
-            <div class="bocchi-feed-toolbar">
-                <div class="bocchi-feed-title">
-                    <span>@I18n["home.feed.eyebrow"]</span>
-                    <h2 id="feed-heading">@I18n["home.feed.title"]</h2>
-                </div>
-                <a class="bocchi-sort-button" href="/Admin/Content">
-                    <Blazicon Svg="Lucide.ListFilter" />
-                    <span>@I18n["home.feed.openContent"]</span>
-                </a>
-            </div>
+    @* Note 发布的全局提示：错误用警告色，成功不抢戏。 *@
+    @if (!string.IsNullOrEmpty(NoteError))
+    {
+        <div class="bocchi-banner bocchi-banner--warning" role="alert">
+            @string.Format(CultureInfo.CurrentCulture, I18n["home.composer.publishFailed"], NoteError)
+        </div>
+    }
 
-            @if (_recentContent.Count == 0)
-            {
-                <div class="bocchi-home-empty">
-                    <span class="bocchi-home-empty__icon">
-                        <Blazicon Svg="Lucide.FileText" />
-                    </span>
-                    <div>
-                        <strong>@I18n["home.feed.emptyTitle"]</strong>
-                        <p>@I18n["home.feed.emptyDescription"]</p>
-                    </div>
-                    <div class="bocchi-home-empty__actions">
-                        <a class="bocchi-button" href="/Admin/Content/Edit">@I18n["home.feed.createFirst"]</a>
-                        <a class="bocchi-button secondary" href="/Admin/Content">@I18n["home.feed.checkContent"]</a>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="bocchi-content-list">
-                    @foreach (var item in _recentContent)
+    @* Guide 卡堆栈：当前仅显示顶层卡片，底部用圆点提示总数。 *@
+    @if (_guides.Count > 0)
+    {
+        <section class="bocchi-guide-stack" aria-label="@I18n[$"home.guide.{_guides[0].Key}.title"]">
+            <article class="bocchi-guide-stack__top">
+                <div class="bocchi-guide-stack__body">
+                    <strong>@I18n[$"home.guide.{_guides[0].Key}.title"]</strong>
+                    <p>@I18n[$"home.guide.{_guides[0].Key}.body"]</p>
+                    @if (GuideAction(_guides[0].Key) is { } act)
                     {
-                        <a class="bocchi-content-item" href="@ContentEditingService.EditUrl(item.RelativePath)">
-                            <span class="bocchi-content-item__icon @ContentIconClass(item.Kind)">
-                                <Blazicon Svg="@ContentIcon(item.Kind)" />
-                            </span>
-                            <span class="bocchi-content-item__main">
-                                <strong>@ContentTitle(item)</strong>
-                                <small>@item.RelativePath</small>
-                            </span>
-                            <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
-                            <span class="bocchi-content-item__date">@ContentTimeLabel(item)</span>
-                            <span class="bocchi-content-item__action">@ContentActionLabel(item.Status)</span>
+                        <a class="bocchi-link-pill" href="@act.Url">
+                            <span>@I18n[$"home.guide.{_guides[0].Key}.action"]</span>
+                            <Blazicon Svg="Lucide.ArrowRight" />
                         </a>
+                    }
+                </div>
+                <form method="post" action="/Admin/Home/Guide/Dismiss" class="bocchi-guide-stack__dismiss">
+                    <input type="hidden" name="key" value="@_guides[0].Key" />
+                    <input type="hidden" name="returnUrl" value="/Admin" />
+                    <button type="submit" class="bocchi-icon-button" aria-label='@I18n["home.guide.dismiss.aria"]'>
+                        <Blazicon Svg="Lucide.X" />
+                    </button>
+                </form>
+            </article>
+            @if (_guides.Count > 1)
+            {
+                <div class="bocchi-guide-stack__dots" aria-hidden="true">
+                    @for (var i = 0; i < _guides.Count; i++)
+                    {
+                        <span class="@(i == 0 ? "bocchi-guide-stack__dot bocchi-guide-stack__dot--active" : "bocchi-guide-stack__dot")"></span>
                     }
                 </div>
             }
         </section>
-
-        <aside class="bocchi-home-side" aria-label='@I18n["home.side.aria"]'>
-            <section class="bocchi-preview-card">
-                <div class="bocchi-card-heading">
-                    <Blazicon Svg="Lucide.Monitor" />
-                    <h2>@I18n["home.preview.title"]</h2>
-                    <a href="/" target="_blank" rel="noopener">@I18n["home.preview.open"]</a>
-                </div>
-                <p class="bocchi-card-copy">@I18n["home.preview.description"]</p>
-                <dl class="bocchi-meta-list bocchi-home-meta">
-                    <div>
-                        <dt>@I18n["home.preview.access"]</dt>
-                        <dd>@I18n["home.preview.protected"]</dd>
-                    </div>
-                    <div>
-                        <dt>@I18n["home.preview.entry"]</dt>
-                        <dd><code>/</code></dd>
-                    </div>
-                </dl>
-            </section>
-
-            <section class="bocchi-readiness-card">
-                <div class="bocchi-card-heading">
-                    <Blazicon Svg="Lucide.CircleCheck" />
-                    <h2>@I18n["home.publish.title"]</h2>
-                </div>
-                <ul>
-                    <li class="@ReadinessItemClass">
-                        <Blazicon Svg="@ReadinessIcon" />
-                        <span>@ReadinessLabel</span>
-                    </li>
-                    <li>
-                        <Blazicon Svg="Lucide.CircleCheck" />
-                        <span>@ContentInventoryLabel</span>
-                    </li>
-                    <li>
-                        <Blazicon Svg="Lucide.CircleCheck" />
-                        <span>@I18n["home.publish.settingsReady"]</span>
-                    </li>
-                </ul>
-                <a class="bocchi-readiness-card__action" href="/Admin/Publish">@I18n["home.publish.action"]</a>
-            </section>
-        </aside>
-    </div>
-</article>
-
-@code {
-    /// <summary>首页只读取轻量投影，避免首次进入 Dashboard 时扫描或读取正文。</summary>
-    private IReadOnlyList<ContentSummary> _recentContent = [];
-
-    /// <summary>最近一次内容检查运行，用于把发布准备状态翻译成可读摘要。</summary>
-    private ScanRunRecord? _lastRun;
-
-    /// <summary>内容投影总数，用于首页概览数字。</summary>
-    private int _contentCount;
-
-    /// <summary>内容总数的本地化文案。</summary>
-    private string ContentCountLabel => string.Format(CultureInfo.CurrentCulture, I18n["home.summary.contentFormat"], _contentCount);
-
-    /// <summary>最近一次内容检查的本地化文案；未检查时不伪造成功状态。</summary>
-    private string LastCheckLabel => _lastRun is null
-        ? I18n["home.summary.notChecked"]
-        : string.Format(CultureInfo.CurrentCulture, I18n["home.summary.lastCheckFormat"], _lastRun.Id, ScanStatusLabel(_lastRun.Status));
-
-    /// <summary>发布准备第一行图标；存在错误或警告时用提醒图标。</summary>
-    private SvgIcon ReadinessIcon => _lastRun is null || _lastRun.ErrorCount > 0 || _lastRun.WarningCount > 0
-        ? Lucide.TriangleAlert
-        : Lucide.CircleCheck;
-
-    /// <summary>发布准备第一行的语义 class；未检查或有问题时显示为提醒色。</summary>
-    private string ReadinessItemClass => _lastRun is null || _lastRun.ErrorCount > 0 || _lastRun.WarningCount > 0
-        ? "bocchi-readiness-card__item--warning"
-        : string.Empty;
-
-    /// <summary>发布准备第一行文案，表达真实检查状态，不再展示静态“looks good”。</summary>
-    private string ReadinessLabel
-    {
-        get
-        {
-            if (_lastRun is null)
-            {
-                return I18n["home.publish.noCheck"];
-            }
-
-            if (_lastRun.ErrorCount == 0 && _lastRun.WarningCount == 0)
-            {
-                return I18n["home.publish.noIssues"];
-            }
-
-            return string.Format(CultureInfo.CurrentCulture, I18n["home.publish.issueFormat"], _lastRun.ErrorCount, _lastRun.WarningCount);
-        }
     }
 
-    /// <summary>内容清单状态文案；空 workspace 要明确提示，而不是展示示例内容。</summary>
-    private string ContentInventoryLabel => _contentCount == 0
-        ? I18n["home.publish.noContent"]
-        : string.Format(CultureInfo.CurrentCulture, I18n["home.publish.contentFormat"], _contentCount);
+    @* 快捷动作：4 张大色块卡。 *@
+    <section class="bocchi-quick-actions" aria-label="@I18n["home.page.heading"]">
+        @foreach (var q in QuickActions)
+        {
+            <a class="bocchi-quick-card" href="@q.Url">
+                <span class="bocchi-quick-card__icon bocchi-quick-card__icon--@q.Tone">
+                    <Blazicon Svg="@q.Icon" />
+                </span>
+                <span class="bocchi-quick-card__body">
+                    <strong>@I18n[q.TitleKey]</strong>
+                    <span>@I18n[q.SubtitleKey]</span>
+                </span>
+            </a>
+        }
+    </section>
+
+    @* 主体两栏：左侧 Composer，右侧站点预览卡。 *@
+    <div class="bocchi-home-grid">
+        <section class="bocchi-composer" aria-label='@I18n["home.composer.aria"]'>
+            <div class="bocchi-composer__tabs" role="tablist">
+                <button type="button"
+                        role="tab"
+                        class="@TabClass(true)"
+                        aria-selected="true">
+                    @I18n["home.composer.tabs.note"]
+                </button>
+                <button type="button"
+                        role="tab"
+                        class="@TabClass(false)"
+                        aria-selected="false"
+                        disabled>
+                    @I18n["home.composer.tabs.post"]
+                </button>
+            </div>
+
+            <form class="bocchi-composer__form" method="post" action="/Admin/Home/Notes">
+                <input type="hidden" name="returnUrl" value="/Admin" />
+                <textarea name="body"
+                          class="bocchi-composer__textarea"
+                          maxlength="@NoteCreationService.MaxBodyLength"
+                          placeholder='@I18n["home.composer.placeholder"]'
+                          oninput="window.bocchiComposer?.updateCounter(this)"
+                          required></textarea>
+
+                <div class="bocchi-composer__footer">
+                    <div class="bocchi-composer__toolbar" aria-label='@I18n["home.composer.toolbar.disabledHint"]'>
+                        @foreach (var icon in ComposerToolbarIcons)
+                        {
+                            <button type="button" class="bocchi-icon-button" disabled aria-label='@I18n[icon.LabelKey]' title='@I18n[icon.LabelKey]'>
+                                <Blazicon Svg="@icon.Icon" />
+                            </button>
+                        }
+                    </div>
+                    <div class="bocchi-composer__publish">
+                        <span class="bocchi-composer__counter" data-counter-max="@NoteCreationService.MaxBodyLength">
+                            @string.Format(CultureInfo.CurrentCulture, I18n["home.composer.counterFormat"], 0, NoteCreationService.MaxBodyLength)
+                        </span>
+                        <button type="submit" class="bocchi-button bocchi-button--primary">@I18n["home.composer.publishNote"]</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <aside class="bocchi-preview-card bocchi-preview-card--home">
+            <div class="bocchi-card-heading">
+                <Blazicon Svg="Lucide.Monitor" />
+                <h2>@I18n["home.preview.title"]</h2>
+            </div>
+            <p class="bocchi-card-copy">@I18n["home.preview.description"]</p>
+            <div class="bocchi-preview-ready">
+                <span class="bocchi-preview-ready__dot" aria-hidden="true"></span>
+                <span>@I18n["home.preview.ready"]</span>
+            </div>
+            <a class="bocchi-button" href="/" target="_blank" rel="noopener">
+                <span>@I18n["home.preview.open"]</span>
+                <Blazicon Svg="Lucide.ExternalLink" />
+            </a>
+        </aside>
+    </div>
+
+    @* 最近更新：覆盖所有 kind 的合并视图。 *@
+    <section class="bocchi-recent" aria-labelledby="recent-heading">
+        <header class="bocchi-recent__head">
+            <h2 id="recent-heading">@I18n["home.recent.title"]</h2>
+            <a class="bocchi-link-pill" href="/Admin/Content">
+                <span>@I18n["home.recent.viewAll"]</span>
+                <Blazicon Svg="Lucide.ArrowRight" />
+            </a>
+        </header>
+
+        @if (_recentContent.Count == 0)
+        {
+            <div class="bocchi-home-empty">
+                <span class="bocchi-home-empty__icon">
+                    <Blazicon Svg="Lucide.FileText" />
+                </span>
+                <div>
+                    <strong>@I18n["home.recent.emptyTitle"]</strong>
+                    <p>@I18n["home.recent.emptyDescription"]</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="bocchi-content-list">
+                @foreach (var item in _recentContent)
+                {
+                    <a class="bocchi-content-item" href="@ContentEditingService.EditUrl(item.RelativePath)">
+                        <span class="bocchi-content-item__icon @ContentIconClass(item.Kind)">
+                            <Blazicon Svg="@ContentIcon(item.Kind)" />
+                        </span>
+                        <span class="bocchi-content-item__main">
+                            <strong>@ContentTitle(item)</strong>
+                            <small>@KindLabel(item.Kind) · @item.RelativePath</small>
+                        </span>
+                        <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
+                        <span class="bocchi-content-item__date">@ContentTimeLabel(item)</span>
+                        <span class="bocchi-content-item__action">@ContentActionLabel(item.Status)</span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+</article>
+
+<script>
+    // Composer 字符计数：纯客户端，textarea 已开启 maxlength 兜底。
+    window.bocchiComposer = window.bocchiComposer || {
+        updateCounter(textarea) {
+            const counter = textarea.closest('.bocchi-composer')?.querySelector('.bocchi-composer__counter');
+            if (!counter) return;
+            const max = Number(counter.dataset.counterMax || 500);
+            counter.textContent = textarea.value.length + ' / ' + max;
+        }
+    };
+</script>
+
+@code {
+    /// <summary>Note 发布失败时由查询参数传入的错误文案。</summary>
+    [SupplyParameterFromQuery(Name = "noteError")] public string? NoteError { get; set; }
+
+    /// <summary>最近内容投影。</summary>
+    private IReadOnlyList<ContentSummary> _recentContent = [];
+
+    /// <summary>当前激活的 Guide 卡片。</summary>
+    private IReadOnlyList<DashboardGuideCardRecord> _guides = [];
+
+    /// <summary>首页 4 张快捷动作的元数据。Tone 对应 quick-card 配色变体。</summary>
+    private static readonly QuickAction[] QuickActions =
+    [
+        new("home.quick.writePost.title", "home.quick.writePost.subtitle", "/Admin/Content/Edit?kind=post", Lucide.FileText, "pink"),
+        new("home.quick.writeNote.title", "home.quick.writeNote.subtitle", "#bocchi-composer", Lucide.PenLine, "lavender"),
+        new("home.quick.editPage.title", "home.quick.editPage.subtitle", "/Admin/Pages", Lucide.BookOpen, "blue"),
+        new("home.quick.publish.title", "home.quick.publish.subtitle", "/Admin/Publish", Lucide.Send, "green"),
+    ];
+
+    /// <summary>Composer 顶部图标条；当前全部禁用，作为视觉占位。</summary>
+    private static readonly ComposerIcon[] ComposerToolbarIcons =
+    [
+        new(Lucide.Image, "home.composer.toolbar.image"),
+        new(Lucide.Link, "home.composer.toolbar.link"),
+        new(Lucide.Tag, "home.composer.toolbar.tag"),
+        new(Lucide.Hash, "home.composer.toolbar.hash"),
+        new(Lucide.Smile, "home.composer.toolbar.emoji"),
+    ];
 
     protected override async Task OnInitializedAsync()
     {
         var summaries = await Store.ListContentSummariesAsync(null);
-        _contentCount = summaries.Count;
         _recentContent = summaries
             .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
             .ThenBy(x => x.Title ?? x.ContentId)
-            .Take(4)
+            .Take(6)
             .ToList();
-        _lastRun = await Store.GetLatestScanRunAsync();
+        _guides = await Guides.ListActiveAsync();
     }
 
-    /// <summary>内容标题为空时退回业务 id，避免首页出现空白主标题。</summary>
+    /// <summary>Composer Tab 状态 class。当前仅支持短文，Posts Tab 暂时禁用。</summary>
+    private static string TabClass(bool active)
+        => active ? "bocchi-composer__tab bocchi-composer__tab--active" : "bocchi-composer__tab";
+
+    /// <summary>把 Guide 卡映射到具体的跳转目标；缺省时不渲染 action。</summary>
+    private static (string Url, string Hint)? GuideAction(string key)
+        => key switch
+        {
+            DashboardGuideService.SiteLanguageKey => ("/Admin/Settings#localization", "settings"),
+            DashboardGuideService.SiteThemeKey => ("/Admin/Settings#theme", "settings"),
+            DashboardGuideService.EditPageKey => ("/Admin/Pages", "pages"),
+            DashboardGuideService.WelcomeKey => ("/Admin/Settings", "settings"),
+            _ => null,
+        };
+
     private static string ContentTitle(ContentSummary item)
         => string.IsNullOrWhiteSpace(item.Title) ? item.ContentId : item.Title;
 
-    /// <summary>把内容状态转成普通用户可读文案。</summary>
     private string ContentStatusLabel(ContentStatus status)
         => status switch
         {
@@ -203,7 +264,6 @@
             _ => I18n["home.status.draft"],
         };
 
-    /// <summary>把内容状态映射到柔和状态色。</summary>
     private static string ContentStatusTone(ContentStatus status)
         => status switch
         {
@@ -212,15 +272,21 @@
             _ => "warning",
         };
 
-    /// <summary>根据内容状态选择首页主动作文案。</summary>
     private string ContentActionLabel(ContentStatus status)
         => status == ContentStatus.Draft ? I18n["home.action.continue"] : I18n["home.action.edit"];
 
-    /// <summary>优先显示更新时间，其次显示发布时间。</summary>
     private static string ContentTimeLabel(ContentSummary item)
         => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
 
-    /// <summary>按内容类型选择稳定的 Lucide 图标。</summary>
+    private string KindLabel(ContentKind kind)
+        => kind switch
+        {
+            ContentKind.Page => I18n["home.kind.page"],
+            ContentKind.Work => I18n["home.kind.work"],
+            ContentKind.Note => I18n["home.kind.note"],
+            _ => I18n["home.kind.post"],
+        };
+
     private static SvgIcon ContentIcon(ContentKind kind)
         => kind switch
         {
@@ -230,7 +296,6 @@
             _ => Lucide.FileText,
         };
 
-    /// <summary>按内容类型选择图标背景色；保持与已有首页 token 对齐。</summary>
     private static string ContentIconClass(ContentKind kind)
         => kind switch
         {
@@ -240,13 +305,9 @@
             _ => "bocchi-content-item__icon--pink",
         };
 
-    /// <summary>把扫描状态映射成短文案，避免把内部 status 字符串直接暴露在 Overview。</summary>
-    private string ScanStatusLabel(string status)
-        => status switch
-        {
-            "succeeded" => I18n["home.scan.succeeded"],
-            "failed" => I18n["home.scan.failed"],
-            "running" => I18n["home.scan.running"],
-            _ => status,
-        };
+    /// <summary>首页快捷动作卡片的不可变描述。</summary>
+    private sealed record QuickAction(string TitleKey, string SubtitleKey, string Url, SvgIcon Icon, string Tone);
+
+    /// <summary>Composer 顶部图标条的占位描述。</summary>
+    private sealed record ComposerIcon(SvgIcon Icon, string LabelKey);
 }

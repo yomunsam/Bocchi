@@ -32,15 +32,21 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var response = await client.GetAsync("/Admin");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Site overview");
-        body.Should().Contain("Home Server");
-        body.Should().Contain("bocchi-content-feed");
-        body.Should().Contain("Protected preview");
-        body.Should().Contain("Publishing status");
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        // 新版首页的关键骨架：页头 + 快捷动作 + composer + 预览卡 + 最近更新。
+        body.Should().Contain("bocchi-page-intro");
+        body.Should().Contain("bocchi-quick-actions");
+        body.Should().Contain("bocchi-composer");
+        body.Should().Contain("bocchi-preview-card");
+        body.Should().Contain("bocchi-recent");
+        body.Should().Contain("bocchi-menu-control--appearance");
+        body.Should().Contain("data-bocchi-appearance-option=\"auto\"");
+        body.Should().NotContain("bocchi-appearance-select");
+        body.Should().NotContain("Ctrl K");
+        body.Should().Contain("Open the editor and shape a longer piece.");
+        body.Should().NotContain("No fact-checking required.");
         body.Should().NotContain("Good to see you.");
         body.Should().NotContain("Setup complete");
-        body.Should().Contain("/healthz");
     }
 
     [Fact]
@@ -141,8 +147,11 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var home = await client.GetAsync("/Admin");
         home.EnsureSuccessStatusCode();
         body = WebUtility.HtmlDecode(await home.Content.ReadAsStringAsync());
-        body.Should().Contain("站点概览");
-        body.Should().Contain("受保护预览");
+        // 新版首页改用 Dashboard 主标题与站点预览卡作为中文渲染锚点。
+        body.Should().Contain("下午好");
+        body.Should().Contain("站点预览");
+        body.Should().Contain("打开编辑器，慢慢写一篇长文。");
+        body.Should().NotContain("没有事实核对。");
         body.Should().NotContain("Setup 已完成");
     }
 

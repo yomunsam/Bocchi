@@ -1,3 +1,5 @@
+/* MainLayout 专用：Admin 外壳布局、侧栏、顶栏。所有可在多处复用的 token 与组件类放在 wwwroot/app.css。 */
+
 .bocchi-admin-shell,
 .bocchi-admin-shell *,
 #blazor-error-ui {
@@ -7,55 +9,61 @@
 .bocchi-admin-shell {
     display: grid;
     min-height: 100vh;
-    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-columns: 15.25rem minmax(0, 1fr);
     background: var(--bocchi-bg);
     color: var(--bocchi-text);
 }
 
+/* ============ Sidebar ============ */
 .bocchi-sidebar {
     position: sticky;
     top: 0;
     display: flex;
     height: 100vh;
     flex-direction: column;
-    gap: 1.65rem;
+    gap: 1.4rem;
     border-right: 1px solid var(--bocchi-border);
     background: color-mix(in srgb, var(--bocchi-surface) 92%, var(--bocchi-bg));
-    padding: 1.4rem 1rem;
+    padding: 1.4rem 0.9rem;
 }
 
 .bocchi-logo {
     color: var(--bocchi-text);
-    font-size: 1.45rem;
+    font-size: 1.4rem;
     font-weight: 760;
     letter-spacing: 0;
+    padding: 0 0.4rem;
     text-decoration: none;
 }
 
 .bocchi-primary-nav {
     display: grid;
-    gap: 0.45rem;
+    gap: 0.3rem;
 }
 
-.bocchi-primary-nav ::deep a,
-.bocchi-primary-nav span {
+/* Sidebar 导航项：使用 ::deep 进入 NavLink 渲染出的 <a>。 */
+.bocchi-primary-nav ::deep a {
     display: flex;
-    min-height: 3rem;
+    min-height: 2.5rem;
     align-items: center;
-    gap: 0.75rem;
-    border-radius: 8px;
+    gap: 0.7rem;
+    border-radius: 9px;
     color: var(--bocchi-text-muted);
-    font-weight: 720;
-    padding: 0 0.85rem;
+    font-size: 0.92rem;
+    font-weight: 620;
+    padding: 0 0.75rem;
     text-decoration: none;
-    transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+    transition: background 140ms ease, color 140ms ease;
 }
 
-.bocchi-primary-nav ::deep a:hover,
+.bocchi-primary-nav ::deep a:hover {
+    background: color-mix(in srgb, var(--bocchi-nav-active) 70%, transparent);
+    color: var(--bocchi-text);
+}
+
 .bocchi-primary-nav ::deep a.active {
     background: var(--bocchi-nav-active);
     color: var(--bocchi-text);
-    transform: translateX(2px);
 }
 
 .bocchi-primary-nav ::deep svg {
@@ -65,10 +73,7 @@
     color: currentColor;
 }
 
-.bocchi-primary-nav span {
-    opacity: 0.58;
-}
-
+/* ============ Topbar ============ */
 .bocchi-workbench {
     min-width: 0;
 }
@@ -78,179 +83,214 @@
     top: 0;
     z-index: 20;
     display: flex;
-    min-height: 4.6rem;
+    min-height: 3.5rem;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
     border-bottom: 1px solid var(--bocchi-border);
     background: color-mix(in srgb, var(--bocchi-bg) 88%, transparent);
-    padding: 0.8rem clamp(1rem, 3vw, 2rem);
+    padding: 0.55rem clamp(1rem, 3vw, 1.75rem);
     backdrop-filter: blur(16px);
 }
 
+/* 顶栏搜索框：体积更小、视觉权重更轻。 */
 .bocchi-command-search {
     display: flex;
-    width: min(100%, 34rem);
-    min-height: 2.65rem;
+    width: min(100%, 17.5rem);
+    min-height: 2.1rem;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.55rem;
     border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
+    border-radius: 9px;
     background: var(--bocchi-surface);
-    box-shadow: 0 10px 24px rgba(77, 67, 107, 0.04);
     color: var(--bocchi-text-muted);
-    padding: 0 0.75rem;
+    padding: 0 0.7rem;
+    transition: border-color 140ms ease;
+    transition-property: border-color, width, padding, background;
+}
+
+.bocchi-command-search:focus-within {
+    border-color: color-mix(in srgb, var(--bocchi-blue) 55%, var(--bocchi-border));
 }
 
 .bocchi-command-search svg {
-    width: 1rem;
-    height: 1rem;
+    width: 0.95rem;
+    height: 0.95rem;
 }
 
 .bocchi-command-search input {
     width: 100%;
     min-width: 0;
-    min-height: 2.35rem;
+    min-height: 1.85rem;
     border: 0;
     background: transparent;
     color: var(--bocchi-text);
-    font: inherit;
+    font-size: 0.88rem;
 }
 
 .bocchi-command-search input::placeholder {
     color: var(--bocchi-text-subtle);
 }
 
-.bocchi-command-search kbd {
-    border: 1px solid var(--bocchi-border);
-    border-radius: 6px;
-    background: var(--bocchi-surface-muted);
-    color: var(--bocchi-text-muted);
-    font-size: 0.78rem;
-    font-weight: 720;
-    padding: 0.18rem 0.38rem;
-    white-space: nowrap;
-}
-
 .bocchi-topbar__actions {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.65rem;
+    gap: 0.45rem;
 }
 
-.bocchi-soft-link,
-.bocchi-language-control label,
-.bocchi-appearance-control,
+/* 顶栏右侧三件套：语言/外观/账号。菜单不用原生 select，避免系统弹层样式跨平台漂移。 */
+.bocchi-menu-control,
 .bocchi-icon-button,
-.bocchi-account-link {
+.bocchi-account-avatar {
     display: inline-flex;
-    min-height: 2.55rem;
+    min-height: 2.1rem;
     align-items: center;
-    gap: 0.5rem;
-    border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
-    background: var(--bocchi-surface);
-    color: var(--bocchi-text);
-    font-size: 0.9rem;
-    font-weight: 650;
-    padding: 0 0.7rem;
-    text-decoration: none;
-    transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
-}
-
-.bocchi-soft-link:hover,
-.bocchi-language-control label:hover,
-.bocchi-appearance-control:hover,
-.bocchi-icon-button:hover,
-.bocchi-account-link:hover {
-    border-color: color-mix(in srgb, var(--bocchi-blue) 45%, var(--bocchi-border));
-    transform: translateY(-1px);
-}
-
-.bocchi-soft-link--primary {
-    border-color: color-mix(in srgb, var(--bocchi-pink) 55%, var(--bocchi-border));
-    background: var(--bocchi-surface-pink);
-    color: var(--bocchi-action);
-}
-
-.bocchi-soft-link svg,
-.bocchi-icon-button svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-.bocchi-appearance-control span {
-    color: var(--bocchi-text-muted);
-}
-
-.bocchi-language-control {
-    margin: 0;
-}
-
-.bocchi-language-control label {
-    cursor: pointer;
-}
-
-.bocchi-language-control span {
-    color: var(--bocchi-text-muted);
-}
-
-.bocchi-language-control select,
-.bocchi-appearance-control select {
-    min-height: 2rem;
-    border: 0;
-    background: transparent;
-    color: var(--bocchi-text);
-    font: inherit;
-    font-weight: 700;
-}
-
-.bocchi-account-link {
-    width: 2.55rem;
-    justify-content: center;
+    gap: 0.4rem;
     border-radius: 999px;
-    background: var(--bocchi-avatar-bg);
-    color: var(--bocchi-text);
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0 0.55rem;
+    text-decoration: none;
+    transition: background 140ms ease, color 140ms ease;
 }
 
-.bocchi-account-link span {
-    font-size: 0.82rem;
-    font-weight: 780;
-}
-
-.bocchi-icon-button {
-    justify-content: center;
-    width: 2.55rem;
+.bocchi-menu-control {
+    position: relative;
     padding: 0;
 }
 
-.bocchi-sidebar-card {
-    display: grid;
-    gap: 0.25rem;
-    margin-top: auto;
-    border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
-    background: var(--bocchi-surface);
-    color: var(--bocchi-text-muted);
-    font-size: 0.84rem;
-    padding: 0.85rem;
-}
-
-.bocchi-sidebar-card__dot {
-    width: 0.48rem;
-    height: 0.48rem;
+.bocchi-menu-control summary {
+    display: inline-flex;
+    min-height: 2.1rem;
+    align-items: center;
+    gap: 0.4rem;
     border-radius: 999px;
-    background: var(--bocchi-success-strong);
+    padding: 0 0.55rem;
+    cursor: pointer;
+    list-style: none;
 }
 
-.bocchi-sidebar-card strong {
+.bocchi-menu-control summary::-webkit-details-marker {
+    display: none;
+}
+
+.bocchi-menu-control summary:hover,
+.bocchi-menu-control[open] summary,
+.bocchi-icon-button:hover,
+.bocchi-account-avatar:hover {
+    background: var(--bocchi-surface-muted);
     color: var(--bocchi-text);
 }
 
-.bocchi-sidebar-card p {
+.bocchi-menu-control summary:focus-visible {
+    box-shadow: var(--bocchi-focus-ring);
+    outline: none;
+}
+
+.bocchi-menu-control ::deep svg,
+.bocchi-icon-button ::deep svg,
+.bocchi-account-avatar ::deep svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: 0 0 auto;
+}
+
+.bocchi-menu-control[open] summary ::deep svg:last-child {
+    transform: rotate(180deg);
+}
+
+.bocchi-menu-control__menu {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    right: 0;
+    z-index: 40;
+    display: grid;
+    min-width: 9.5rem;
+    gap: 0.2rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: 0 16px 36px rgba(77, 67, 107, 0.16);
     margin: 0;
+    padding: 0.35rem;
+}
+
+.bocchi-menu-control__option-list {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.bocchi-menu-control__option {
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr);
+    width: 100%;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: start;
+    gap: 0.45rem;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    font-weight: 640;
+    line-height: 1.2;
+    padding: 0 0.55rem;
+    text-align: left;
+}
+
+.bocchi-menu-control__option:hover:not(:disabled),
+.bocchi-menu-control__option:focus-visible {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    transform: none;
+}
+
+.bocchi-menu-control__check {
+    display: inline-flex;
+    width: 1rem;
+    height: 1rem;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+}
+
+.bocchi-menu-control__check ::deep svg {
+    width: 0.9rem;
+    height: 0.9rem;
+    color: var(--bocchi-action);
+}
+
+.bocchi-menu-control__option--active,
+.bocchi-menu-control__option[aria-current="true"] {
+    color: var(--bocchi-text);
+}
+
+.bocchi-menu-control__option--active .bocchi-menu-control__check,
+.bocchi-menu-control__option[aria-current="true"] .bocchi-menu-control__check {
+    opacity: 1;
+}
+
+.bocchi-menu-control__option span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-account-avatar {
+    width: 2.1rem;
+    justify-content: center;
+    padding: 0;
+}
+
+.bocchi-icon-button {
+    width: 2.1rem;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
 }
 
 .bocchi-page {
@@ -289,37 +329,30 @@
     .bocchi-sidebar {
         position: static;
         height: auto;
-        gap: 0.85rem;
+        gap: 0.6rem;
         border-right: 0;
         border-bottom: 1px solid var(--bocchi-border);
-        padding: 0.9rem 1rem;
+        padding: 0.85rem 1rem;
     }
 
     .bocchi-primary-nav {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.35rem;
-    }
-
-    .bocchi-primary-nav ::deep a,
-    .bocchi-primary-nav span {
-        min-height: 2.3rem;
-        justify-content: center;
-        padding: 0 0.75rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.3rem;
     }
 
     .bocchi-primary-nav ::deep a {
         flex-direction: column;
-        gap: 0.25rem;
+        gap: 0.2rem;
+        min-height: 2.4rem;
+        justify-content: center;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.78rem;
     }
 
     .bocchi-primary-nav ::deep svg {
         width: 1rem;
         height: 1rem;
-    }
-
-    .bocchi-sidebar-card {
-        display: none;
     }
 
     .bocchi-topbar {
@@ -328,9 +361,32 @@
         flex-direction: column;
     }
 
-    .bocchi-command-search,
     .bocchi-topbar__actions {
         width: 100%;
+    }
+
+    .bocchi-command-search {
+        width: 2.25rem;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .bocchi-command-search:focus-within {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 0 0.7rem;
+    }
+
+    .bocchi-command-search input {
+        width: 0;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .bocchi-command-search:focus-within input {
+        width: 100%;
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .bocchi-topbar__actions {

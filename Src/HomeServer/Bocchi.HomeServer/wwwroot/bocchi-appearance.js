@@ -11,10 +11,18 @@
         return mode === "auto" ? (query.matches ? "dark" : "light") : mode;
     }
 
-    function syncSelect(mode) {
-        const select = document.getElementById("bocchi-appearance-select");
-        if (select instanceof HTMLSelectElement) {
-            select.value = mode;
+    function syncAppearanceControl(mode) {
+        const label = document.querySelector("[data-bocchi-appearance-label]");
+        for (const option of document.querySelectorAll("[data-bocchi-appearance-option]")) {
+            if (!(option instanceof HTMLButtonElement)) {
+                continue;
+            }
+
+            const active = option.dataset.bocchiAppearanceOption === mode;
+            option.setAttribute("aria-current", active ? "true" : "false");
+            if (active && label instanceof HTMLElement) {
+                label.textContent = option.dataset.bocchiAppearanceLabelText || (option.textContent || "").trim();
+            }
         }
     }
 
@@ -42,7 +50,7 @@
         root.dataset.bocchiAppearance = normalized;
         root.dataset.bocchiEffectiveAppearance = effective;
         root.style.colorScheme = effective;
-        syncSelect(normalized);
+        syncAppearanceControl(normalized);
         syncToggle(effective);
     }
 
@@ -58,8 +66,39 @@
     apply(localStorage.getItem(storageKey) || "auto");
     query.addEventListener("change", () => apply(root.dataset.bocchiAppearance || "auto"));
     document.addEventListener("DOMContentLoaded", () => {
-        syncSelect(root.dataset.bocchiAppearance || "auto");
+        syncAppearanceControl(root.dataset.bocchiAppearance || "auto");
         syncToggle(root.dataset.bocchiEffectiveAppearance || effectiveMode(root.dataset.bocchiAppearance || "auto"));
+        for (const option of document.querySelectorAll("[data-bocchi-appearance-option]")) {
+            option.addEventListener("click", () => {
+                const menu = option.closest("details");
+                if (menu instanceof HTMLDetailsElement) {
+                    menu.open = false;
+                }
+            });
+        }
+
+        document.addEventListener("click", (event) => {
+            if (!(event.target instanceof Node)) {
+                return;
+            }
+
+            for (const menu of document.querySelectorAll(".bocchi-menu-control[open]")) {
+                if (menu instanceof HTMLDetailsElement && !menu.contains(event.target)) {
+                    menu.open = false;
+                }
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            for (const menu of document.querySelectorAll(".bocchi-menu-control[open]")) {
+                if (menu instanceof HTMLDetailsElement) {
+                    menu.open = false;
+                }
+            }
+        });
         for (const button of document.querySelectorAll("[data-bocchi-appearance-toggle]")) {
             button.addEventListener("click", () => {
                 const effective = root.dataset.bocchiEffectiveAppearance || effectiveMode(root.dataset.bocchiAppearance || "auto");

@@ -80,6 +80,7 @@ try
     builder.Services.AddSingleton<IConfigureOptions<OAuthOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
     builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
     builder.Services.AddScoped<HomeServerSetupService>();
+    builder.Services.AddScoped<DashboardGuideService>();
     builder.Services.AddScoped<DashboardSettingsService>();
     builder.Services.AddScoped<SiteProfileSettingsService>();
     builder.Services.AddScoped<ExternalLoginSettingsService>();
@@ -87,6 +88,7 @@ try
     builder.Services.AddScoped<LocalizationSettingsService>();
     builder.Services.AddSingleton<DashboardLocalizationService>();
     builder.Services.AddScoped<ContentEditingService>();
+    builder.Services.AddScoped<NoteCreationService>();
     builder.Services.AddScoped<PreviewRouteMapService>();
     builder.Services.AddScoped<PreviewHost>();
     builder.Services.Configure<RequestLocalizationOptions>(options =>
@@ -180,6 +182,7 @@ try
 
     app.MapBocchiAccountEndpoints();
     app.MapDashboardLocalizationEndpoints();
+    app.MapDashboardHomeEndpoints();
 
     app.MapBuildEndpoints();
 
