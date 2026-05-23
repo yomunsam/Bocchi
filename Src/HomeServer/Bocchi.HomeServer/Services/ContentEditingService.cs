@@ -58,16 +58,38 @@ public sealed class ContentEditingService
             File.GetLastWriteTimeUtc(fullPath));
     }
 
-    /// <summary>保存 frontmatter 与 Markdown 正文，并保持文件仍是单一事实来源。</summary>
-    public async Task SaveAsync(string relativePath, string yaml, string markdown, CancellationToken cancellationToken = default)
+    /// <summary>保存 frontmatter 与 Markdown 正文；允许改路径时，slug 管理的目录型内容会随 slug 移动源目录。</summary>
+    public async Task<EditableContentFile> SaveAsync(
+        string relativePath,
+        string yaml,
+        string markdown,
+        bool allowPathRename = true,
+        CancellationToken cancellationToken = default)
     {
         var fullPath = ResolveContentFile(relativePath);
+        var normalizedRelativePath = NormalizeContentRelativePath(relativePath);
         var normalizedYaml = (yaml ?? string.Empty).Trim();
+        if (!allowPathRename)
+        {
+            normalizedYaml = LockYamlSlugToPath(normalizedRelativePath, normalizedYaml);
+        }
+
         var normalizedBody = (markdown ?? string.Empty).Replace("\r\n", "\n");
         var content = string.IsNullOrWhiteSpace(normalizedYaml)
             ? normalizedBody
             : $"---\n{normalizedYaml}\n---\n{normalizedBody}";
+
+        if (allowPathRename &&
+            TryCreateMovedRelativePath(normalizedRelativePath, normalizedYaml, out var movedRelativePath))
+        {
+            var movedFullPath = ResolveContentPathForMovedFile(movedRelativePath);
+            MoveContentDirectory(fullPath, movedFullPath);
+            fullPath = movedFullPath;
+            normalizedRelativePath = movedRelativePath;
+        }
+
         await File.WriteAllTextAsync(fullPath, content, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(normalizedRelativePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>把编辑器临时草稿第一次落到内容 workspace，并把临时资产迁入最终内容目录。</summary>
@@ -173,7 +195,7 @@ public sealed class ContentEditingService
     private string ResolveContentFile(string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
-        var normalized = relativePath.Replace('\\', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar, '/');
+        var normalized = NormalizeContentRelativePath(relativePath).Replace('/', Path.DirectorySeparatorChar);
         if (normalized.Contains("..", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("内容路径不能包含上级目录跳转。");
@@ -197,7 +219,7 @@ public sealed class ContentEditingService
     private string ResolveContentPathForNewFile(string relativePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
-        var normalized = relativePath.Replace('\\', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar, '/');
+        var normalized = NormalizeContentRelativePath(relativePath).Replace('/', Path.DirectorySeparatorChar);
         if (normalized.Contains("..", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("内容路径不能包含上级目录跳转。");
@@ -213,6 +235,34 @@ public sealed class ContentEditingService
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         return fullPath;
     }
+
+    private string ResolveContentPathForMovedFile(string relativePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        var normalized = NormalizeContentRelativePath(relativePath).Replace('/', Path.DirectorySeparatorChar);
+        if (normalized.Contains("..", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("内容路径不能包含上级目录跳转。");
+        }
+
+        var root = Path.GetFullPath(_layout.WorkspaceRoot);
+        var fullPath = Path.GetFullPath(Path.Combine(root, normalized));
+        if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("内容路径必须位于 workspace 内。");
+        }
+
+        var targetDirectory = Path.GetDirectoryName(fullPath)!;
+        if (Directory.Exists(targetDirectory) || File.Exists(fullPath))
+        {
+            throw new InvalidOperationException("目标内容目录已经存在。");
+        }
+
+        return fullPath;
+    }
+
+    private static string NormalizeContentRelativePath(string relativePath)
+        => relativePath.Replace('\\', '/').TrimStart('/');
 
     private static string FormatDateTime(DateTimeOffset value)
         => value.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
@@ -245,6 +295,94 @@ public sealed class ContentEditingService
             ContentKind.Work => Path.Combine("works", year, slug, "index.md"),
             _ => Path.Combine("posts", year, slug, "index.md"),
         };
+    }
+
+    private static bool TryCreateMovedRelativePath(string currentRelativePath, string yaml, out string movedRelativePath)
+    {
+        movedRelativePath = currentRelativePath;
+        if (!TryReadSlugManagedRelativePath(currentRelativePath, out var parts, out _))
+        {
+            return false;
+        }
+
+        YamlMappingNode? root;
+        try
+        {
+            root = ParseYaml(yaml);
+        }
+        catch (YamlException)
+        {
+            return false;
+        }
+
+        var slug = ContentSlug.Normalize(ReadYamlString(root, "slug"));
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return false;
+        }
+
+        movedRelativePath = parts[0].ToLowerInvariant() switch
+        {
+            "pages" when parts.Length == 3 => $"pages/{slug}/index.md",
+            "posts" when parts.Length == 4 => $"posts/{parts[1]}/{slug}/index.md",
+            "works" when parts.Length == 4 => $"works/{parts[1]}/{slug}/index.md",
+            _ => currentRelativePath,
+        };
+        return !string.Equals(currentRelativePath, movedRelativePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string LockYamlSlugToPath(string currentRelativePath, string yaml)
+    {
+        if (!TryReadSlugManagedRelativePath(currentRelativePath, out _, out var pathSlug) ||
+            string.IsNullOrWhiteSpace(yaml))
+        {
+            return yaml;
+        }
+
+        try
+        {
+            var root = ParseYaml(yaml) ?? new YamlMappingNode();
+            root.Children[new YamlScalarNode("slug")] = new YamlScalarNode(pathSlug);
+            var stream = new YamlStream(new YamlDocument(root));
+            using var writer = new StringWriter(CultureInfo.InvariantCulture);
+            stream.Save(writer, assignAnchors: false);
+            return writer.ToString().Trim();
+        }
+        catch (YamlException)
+        {
+            return yaml;
+        }
+    }
+
+    private static bool TryReadSlugManagedRelativePath(
+        string currentRelativePath,
+        out string[] parts,
+        out string slug)
+    {
+        parts = currentRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        slug = string.Empty;
+        if (parts.Length < 3 || !string.Equals(parts[^1], "index.md", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        slug = parts[0].ToLowerInvariant() switch
+        {
+            "pages" when parts.Length == 3 => parts[1],
+            "posts" when parts.Length == 4 => parts[2],
+            "works" when parts.Length == 4 => parts[2],
+            _ => string.Empty,
+        };
+        return !string.IsNullOrWhiteSpace(slug);
+    }
+
+    private void MoveContentDirectory(string currentContentFile, string movedContentFile)
+    {
+        var currentDirectory = Path.GetDirectoryName(currentContentFile)!;
+        var movedDirectory = Path.GetDirectoryName(movedContentFile)!;
+        Directory.CreateDirectory(Path.GetDirectoryName(movedDirectory)!);
+        Directory.Move(currentDirectory, movedDirectory);
+        PruneEmptyDirectories(Path.GetDirectoryName(currentDirectory));
     }
 
     private static void MoveDraftAssets(string? sourceAssetsDirectory, string finalContentFile)

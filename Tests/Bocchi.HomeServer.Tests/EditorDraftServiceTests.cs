@@ -94,6 +94,148 @@ public sealed class EditorDraftServiceTests
     }
 
     [Fact]
+    public async Task SaveAsync_RenamesSlugManagedDirectoryAndKeepsAssets()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var drafts = scope.ServiceProvider.GetRequiredService<EditorDraftService>();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        var draft = await drafts.CreateAsync(ContentKind.Post);
+        var assetReference = await drafts.MoveAssetToDraftAsync(
+            draft.DraftId,
+            new MemoryStream(Encoding.UTF8.GetBytes("image")),
+            "Cover.png");
+        var saved = await editor.CreateFromDraftAsync(
+            ContentKind.Post,
+            "title: Old Post\nslug: old-post\nstatus: draft",
+            $"Body ![cover]({assetReference})\n",
+            draft.AssetsDirectory);
+
+        var oldContentDirectory = Path.Combine(
+            factory.DataRoot,
+            "workspace",
+            Path.GetDirectoryName(saved.RelativePath)!.Replace('/', Path.DirectorySeparatorChar));
+        var updated = await editor.SaveAsync(
+            saved.RelativePath,
+            "title: New Post\nslug: new-post\nstatus: draft",
+            saved.Markdown);
+        var newContentDirectory = Path.Combine(
+            factory.DataRoot,
+            "workspace",
+            Path.GetDirectoryName(updated.RelativePath)!.Replace('/', Path.DirectorySeparatorChar));
+
+        updated.RelativePath.Should().EndWith("new-post/index.md");
+        Directory.Exists(oldContentDirectory).Should().BeFalse();
+        File.Exists(Path.Combine(newContentDirectory, "assets", "cover.png")).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(ContentKind.Page, "old-page", "new-page", "pages/new-page/index.md")]
+    [InlineData(ContentKind.Work, "old-work", "new-work", "new-work/index.md")]
+    public async Task SaveAsync_RenamesPageAndWorkDirectories(ContentKind kind, string oldSlug, string newSlug, string expectedSuffix)
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var drafts = scope.ServiceProvider.GetRequiredService<EditorDraftService>();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        var draft = await drafts.CreateAsync(kind);
+        var saved = await editor.CreateFromDraftAsync(
+            kind,
+            $"title: Old Title\nslug: {oldSlug}\nstatus: draft",
+            "Body\n",
+            draft.AssetsDirectory);
+        var oldContentDirectory = Path.Combine(
+            factory.DataRoot,
+            "workspace",
+            Path.GetDirectoryName(saved.RelativePath)!.Replace('/', Path.DirectorySeparatorChar));
+
+        var updated = await editor.SaveAsync(
+            saved.RelativePath,
+            $"title: New Title\nslug: {newSlug}\nstatus: draft",
+            saved.Markdown);
+
+        updated.RelativePath.Should().EndWith(expectedSuffix);
+        Directory.Exists(oldContentDirectory).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SaveAsync_RejectsRenameWhenTargetDirectoryExists()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var drafts = scope.ServiceProvider.GetRequiredService<EditorDraftService>();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        var sourceDraft = await drafts.CreateAsync(ContentKind.Post);
+        var targetDraft = await drafts.CreateAsync(ContentKind.Post);
+        var source = await editor.CreateFromDraftAsync(
+            ContentKind.Post,
+            "title: Source\nslug: source-post\nstatus: draft",
+            sourceDraft.Markdown,
+            sourceDraft.AssetsDirectory);
+        await editor.CreateFromDraftAsync(
+            ContentKind.Post,
+            "title: Target\nslug: target-post\nstatus: draft",
+            targetDraft.Markdown,
+            targetDraft.AssetsDirectory);
+
+        var act = () => editor.SaveAsync(
+            source.RelativePath,
+            "title: Source\nslug: target-post\nstatus: draft",
+            source.Markdown);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*目标内容目录已经存在*");
+    }
+
+    [Fact]
+    public async Task SaveAsync_DoesNotRenameOrChangeSlugWhenPathRenameIsDisabled()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var drafts = scope.ServiceProvider.GetRequiredService<EditorDraftService>();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        var draft = await drafts.CreateAsync(ContentKind.Post);
+        var saved = await editor.CreateFromDraftAsync(
+            ContentKind.Post,
+            "title: Published\nslug: published-post\nstatus: published\npathLocked: true",
+            draft.Markdown,
+            draft.AssetsDirectory);
+
+        var updated = await editor.SaveAsync(
+            saved.RelativePath,
+            "title: Published\nslug: edited-post\nstatus: published\npathLocked: true",
+            saved.Markdown,
+            allowPathRename: false);
+        var oldContentDirectory = Path.Combine(
+            factory.DataRoot,
+            "workspace",
+            Path.GetDirectoryName(saved.RelativePath)!.Replace('/', Path.DirectorySeparatorChar));
+        var pathParts = saved.RelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var editedContentDirectory = Path.Combine(factory.DataRoot, "workspace", "posts", pathParts[1], "edited-post");
+
+        updated.RelativePath.Should().Be(saved.RelativePath);
+        updated.Yaml.Should().Contain("slug: published-post");
+        Directory.Exists(oldContentDirectory).Should().BeTrue();
+        Directory.Exists(editedContentDirectory).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task DeleteAsync_RemovesIndexDirectoryAndAssets()
     {
         using var factory = new IsolatedDataRootWebApplicationFactory();

@@ -116,25 +116,27 @@ public partial class ContentEditor
         _busy = true;
         try
         {
-            await Editor.SaveAsync(savePath, yamlToSave, _markdown);
+            var originalPath = savePath.Replace('\\', '/');
+            var saved = await Editor.SaveAsync(savePath, yamlToSave, _markdown, allowPathRename: !_pathLockedAtLoad);
             await Scanner.ScanAsync();
-            _yaml = yamlToSave;
-            _originalYaml = yamlToSave;
-            _originalMarkdown = _markdown;
-            RefreshPreview();
-            if (_file is not null)
+            if (!string.Equals(originalPath, saved.RelativePath, StringComparison.Ordinal))
             {
-                _file = _file with
-                {
-                    Yaml = yamlToSave,
-                    Markdown = _markdown,
-                    PreviewHtml = _previewHtml,
-                    LastModifiedUtc = Time.GetUtcNow().UtcDateTime,
-                };
+                await Store.DeleteContentBySourcePathAsync(originalPath);
             }
 
+            _file = saved;
+            Path = saved.RelativePath;
+            _yaml = saved.Yaml;
+            _originalYaml = saved.Yaml;
+            _originalMarkdown = saved.Markdown;
+            _previewHtml = saved.PreviewHtml;
+            _pathLockedAtLoad = _pathLocked;
             _saved = true;
             _saveMessage = "已保存并刷新内容索引。";
+            if (!string.Equals(originalPath, saved.RelativePath, StringComparison.Ordinal))
+            {
+                Nav.NavigateTo(ContentEditingService.EditUrl(saved.RelativePath), replace: true);
+            }
         }
         finally
         {

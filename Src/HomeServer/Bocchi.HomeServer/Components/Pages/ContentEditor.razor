@@ -241,7 +241,10 @@
                         <label class="bocchi-editor-field">
                             路径标识
                             <span class="bocchi-editor-slug-control">
-                                <input type="text" value="@_slug" @oninput="OnSlugInput" />
+                                <input type="text"
+                                       value="@_slug"
+                                       disabled="@(!CanAutoChangeSlug)"
+                                       @oninput="OnSlugInput" />
                                 @if (CanShowAiSlugButton)
                                 {
                                     <button type="button"
@@ -434,6 +437,9 @@
 
     /// <summary>内容是否曾经发布过；一旦为 true，Path 永不再自动跟随标题变化。</summary>
     private bool _pathLocked;
+
+    /// <summary>载入编辑器时内容是否已经锁定 Path；用于区分发布动作和已发布内容的普通保存。</summary>
+    private bool _pathLockedAtLoad;
 
     /// <summary>发布状态字段，保存为 frontmatter 中的 status。</summary>
     private string _status = ContentStatus.Draft.ToString();
@@ -633,6 +639,7 @@
         _slug = ReadString(root, "slug") ?? fallbackSlug;
         _status = NormalizeStatus(ReadString(root, "status")).ToString();
         _pathLocked = ReadBool(root, "pathLocked") ?? (CurrentStatus == ContentStatus.Published);
+        _pathLockedAtLoad = _pathLocked;
         _slugTouchedInSession = false;
         _summary = ReadString(root, "summary") ?? string.Empty;
         _category = ReadString(root, "category") ?? string.Empty;

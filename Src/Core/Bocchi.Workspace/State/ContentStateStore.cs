@@ -116,6 +116,12 @@ public sealed class ContentStateStore : IContentStateStore
             using var conn = _factory.OpenConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = """
+                DELETE FROM ContentItems
+                WHERE $replaceSingleFileItem = 1
+                    AND FileId = $file
+                    AND Kind = $kind
+                    AND ContentId <> $cid;
+
                 INSERT INTO ContentItems (FileId, Kind, ContentId, Slug, Title, Status, Year, PublishedAtUtc, UpdatedAtUtc, FrontmatterJson, LastSeenUtc)
                 VALUES ($file, $kind, $cid, $slug, $title, $status, $year, $published, $updated, $fm, $seen)
                 ON CONFLICT(Kind, ContentId) DO UPDATE SET
@@ -128,7 +134,8 @@ public sealed class ContentStateStore : IContentStateStore
                     UpdatedAtUtc = excluded.UpdatedAtUtc,
                     FrontmatterJson = excluded.FrontmatterJson,
                     LastSeenUtc = excluded.LastSeenUtc;
-                """;
+            """;
+            cmd.Parameters.AddWithValue("$replaceSingleFileItem", IsSingleItemPerSourceFile(item.Kind) ? 1 : 0);
             cmd.Parameters.AddWithValue("$file", (object?)fileId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$kind", (int)item.Kind);
             cmd.Parameters.AddWithValue("$cid", item.ContentId);
@@ -345,4 +352,8 @@ public sealed class ContentStateStore : IContentStateStore
 
     private static DateTimeOffset ParseUtc(string raw)
         => DateTimeOffset.Parse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+    /// <summary>目录型内容和站点配置一个源文件只产生一条业务记录；友链文件会产生多条记录。</summary>
+    private static bool IsSingleItemPerSourceFile(ContentKind kind)
+        => kind is not ContentKind.FriendLink;
 }

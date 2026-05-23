@@ -54,6 +54,49 @@ public sealed class ContentStateStoreTests
     }
 
     [Fact]
+    public async Task UpsertContentItem_ReplacesOldSlugForSameSourceFile()
+    {
+        var (temp, store) = NewStore();
+        using (temp)
+        {
+            var fileId = await store.UpsertFileAsync(new FileUpsert(
+                "posts/2025/old/index.md", ContentKind.Post, "abc", DateTimeOffset.UtcNow));
+
+            await store.UpsertContentItemAsync(new ContentItemUpsert(
+                ContentKind.Post, "old", "old", "Title", ContentStatus.Draft, "2025",
+                null, null, null, "posts/2025/old/index.md"), fileId);
+            await store.UpsertContentItemAsync(new ContentItemUpsert(
+                ContentKind.Post, "new", "new", "Title", ContentStatus.Draft, "2025",
+                null, null, null, "posts/2025/old/index.md"), fileId);
+
+            var items = await store.ListContentSummariesAsync(ContentKind.Post);
+            items.Should().ContainSingle();
+            items[0].ContentId.Should().Be("new");
+        }
+    }
+
+    [Fact]
+    public async Task UpsertContentItem_KeepsMultipleFriendLinksForSameSourceFile()
+    {
+        var (temp, store) = NewStore();
+        using (temp)
+        {
+            var fileId = await store.UpsertFileAsync(new FileUpsert(
+                "friends/friends.yaml", ContentKind.FriendLink, "abc", DateTimeOffset.UtcNow));
+
+            await store.UpsertContentItemAsync(new ContentItemUpsert(
+                ContentKind.FriendLink, "https://a.example", null, "A", ContentStatus.Published, null,
+                null, null, null, "friends/friends.yaml"), fileId);
+            await store.UpsertContentItemAsync(new ContentItemUpsert(
+                ContentKind.FriendLink, "https://b.example", null, "B", ContentStatus.Published, null,
+                null, null, null, "friends/friends.yaml"), fileId);
+
+            var items = await store.ListContentSummariesAsync(ContentKind.FriendLink);
+            items.Should().HaveCount(2);
+        }
+    }
+
+    [Fact]
     public async Task ScanRunFlow_RecordsMetadataAndErrors()
     {
         var (temp, store) = NewStore();

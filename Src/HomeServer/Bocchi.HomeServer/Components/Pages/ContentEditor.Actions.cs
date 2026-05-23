@@ -145,6 +145,7 @@ public partial class ContentEditor
             _originalYaml = saved.Yaml;
             _originalMarkdown = saved.Markdown;
             _previewHtml = saved.PreviewHtml;
+            _pathLockedAtLoad = _pathLocked;
             _saved = true;
             _saveMessage = targetStatus == ContentStatus.Published
                 ? "已发布并刷新内容索引。"

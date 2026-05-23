@@ -40,6 +40,11 @@ public partial class ContentEditor
     /// <summary>处理 slug 输入；本页第一次手动修改后，标题变化不再自动覆盖用户选择。</summary>
     private void OnSlugInput(ChangeEventArgs args)
     {
+        if (!CanAutoChangeSlug)
+        {
+            return;
+        }
+
         _slugTouchedInSession = true;
         _slug = ContentSlug.Normalize(args.Value?.ToString());
         _saved = false;
@@ -157,6 +162,12 @@ public partial class ContentEditor
         }
 
         var fallback = CurrentFallbackSlug;
+        if (_pathLockedAtLoad)
+        {
+            _slug = fallback;
+            return true;
+        }
+
         var candidate = string.IsNullOrWhiteSpace(_slug) ? fallback : _slug;
         var validation = IsUnsavedDraft
             ? Editor.ValidateNewUrlSlug(kind.Value, candidate)
@@ -175,6 +186,11 @@ public partial class ContentEditor
     private string SlugForYaml()
     {
         var fallback = CurrentFallbackSlug;
+        if (_pathLockedAtLoad)
+        {
+            return fallback;
+        }
+
         if (!IsSlugManagedContent)
         {
             return string.IsNullOrWhiteSpace(_slug) ? fallback : _slug.Trim();
