@@ -138,6 +138,8 @@ public sealed class ThemeContractTests
             ThemeConfigFieldType.Color,
             ThemeConfigFieldType.Image,
             ThemeConfigFieldType.Url,
+            ThemeConfigFieldType.LocalizedText,
+            ThemeConfigFieldType.LocalizedTextList,
             ThemeConfigFieldType.Group,
         });
     }

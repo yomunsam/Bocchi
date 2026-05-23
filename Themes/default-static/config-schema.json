@@ -9,6 +9,7 @@
           "key": "visual.accentColor",
           "type": "color",
           "title": "Accent color",
+          "description": "前台链接、active underline 和少量强调文字使用的主题色。",
           "default": "#E85D3A"
         }
       ]
@@ -17,6 +18,42 @@
       "id": "home",
       "title": "首页",
       "fields": [
+        {
+          "key": "home.heroTitle",
+          "type": "localizedText",
+          "title": "首页大标题",
+          "description": "首页首屏 display 标题。支持换行，属于当前 Theme 的表现层文案。",
+          "default": {
+            "en-US": "Bocchi — writing,\nwork, & notes.",
+            "zh-CN": "Bocchi — 写作、\n作品与札记。",
+            "zh-TW": "Bocchi — 寫作、\n作品與札記。",
+            "ja-JP": "Bocchi — 文章、\n制作、ノート。"
+          }
+        },
+        {
+          "key": "home.heroSubtitle",
+          "type": "localizedText",
+          "title": "首页副标题",
+          "description": "首页首屏下方的可见说明文案；SEO 描述请继续在站点资料中编辑。",
+          "default": {
+            "en-US": "A quiet personal site for long-form writing, selected work, and short updates.",
+            "zh-CN": "一个安静的个人站点，用来放长文章、作品和短札记。",
+            "zh-TW": "一個安靜的個人站點，用來放長文章、作品和短札記。",
+            "ja-JP": "長い文章、制作物、短いノートを置くための静かな個人サイト。"
+          }
+        },
+        {
+          "key": "home.tags",
+          "type": "localizedTextList",
+          "title": "首页 Tags",
+          "description": "首页首屏 meta-line 中展示的短标签；Dashboard 中每行一个。",
+          "default": {
+            "en-US": ["Personal site", "Software & words", "Static-first"],
+            "zh-CN": ["个人站点", "软件与文字", "静态优先"],
+            "zh-TW": ["個人站點", "軟體與文字", "靜態優先"],
+            "ja-JP": ["個人サイト", "ソフトウェアと言葉", "静的優先"]
+          }
+        },
         {
           "key": "home.featuredPosts",
           "type": "number",
@@ -34,12 +71,6 @@
           "type": "number",
           "title": "首页短文数量",
           "default": 3
-        },
-        {
-          "key": "home.showFriends",
-          "type": "boolean",
-          "title": "首页显示友链",
-          "default": true
         }
       ]
     },

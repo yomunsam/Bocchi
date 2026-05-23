@@ -93,28 +93,6 @@
         }
       },
       {
-        "key": "theme.defaultStatic.homeHeroAccent",
-        "title": "Home hero accent word",
-        "description": "Accent word in the home hero sentence.",
-        "defaultValues": {
-          "en-US": "writing",
-          "zh-CN": "写作",
-          "zh-TW": "寫作",
-          "ja-JP": "文章"
-        }
-      },
-      {
-        "key": "theme.defaultStatic.homeHeroRest",
-        "title": "Home hero rest text",
-        "description": "Text after the accent word in the home hero sentence.",
-        "defaultValues": {
-          "en-US": ", work, and notes.",
-          "zh-CN": "、作品与札记。",
-          "zh-TW": "、作品與札記。",
-          "ja-JP": "、制作、ノート。"
-        }
-      },
-      {
         "key": "theme.defaultStatic.homeSelectedWriting",
         "title": "Home selected writing heading",
         "description": "Heading for featured posts on the home page.",

@@ -77,6 +77,18 @@ body {
     letter-spacing: 0;
 }
 
+/* Admin 内部的 sizing reset 必须在全局 CSS 中定义；Blazor CSS isolation 不能让 MainLayout 样式稳定穿透到子组件。 */
+.bocchi-admin-shell,
+.bocchi-admin-shell *,
+.bocchi-admin-shell *::before,
+.bocchi-admin-shell *::after,
+#blazor-error-ui,
+#blazor-error-ui *,
+#blazor-error-ui *::before,
+#blazor-error-ui *::after {
+    box-sizing: border-box;
+}
+
 button,
 input,
 select,

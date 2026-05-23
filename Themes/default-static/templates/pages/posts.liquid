@@ -1,12 +1,29 @@
-<section class="content section">
-  <p class="eyebrow">{{ hero.number }}</p>
-  <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+<section class="content listing-hero">
+  <div class="caption" style="margin-bottom:16px;">{{ hero.number }} — <span{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</span> · {{ itemCount }}</div>
+  <h1 class="display listing-display"{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
   <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
 </section>
-<section class="content section">
-  {% if hasItems %}
-  <div class="list">
-    {% for item in items %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ item.yearMonth }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.meta }}</span></a>{% endfor %}
+
+<section class="content listing-toolbar">
+  <div class="filter-row">
+    <a href="/posts/" class="active"><span data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</span> <span class="muted">{{ itemCount }}</span></a>
+    <a href="/feed.xml">RSS</a>
   </div>
-  {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
+</section>
+
+<section class="content listing-body">
+  {% if hasItems %}
+  <div class="article-list">
+    {% for item in items %}
+    <a href="{{ item.url }}" class="row">
+      <span class="date">{{ item.yearMonth }}</span>
+      <span class="title">{{ item.title }}</span>
+      <span class="cat">{{ item.meta }}</span>
+      <span class="arrow">→</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>
+  {% endif %}
 </section>

@@ -69,6 +69,18 @@ public sealed class ThemeConfigFieldView
     /// <summary>当前有效多选值；仅 MultiSelect 字段使用。</summary>
     public required IReadOnlyList<string> SelectedValues { get; init; }
 
+    /// <summary>当前保存的多语言文本值；仅 LocalizedText 字段使用，空语言表示回退默认值。</summary>
+    public required IReadOnlyDictionary<string, string> LocalizedTextValues { get; init; }
+
+    /// <summary>schema 默认多语言文本值；仅 LocalizedText 字段用于输入框占位提示。</summary>
+    public required IReadOnlyDictionary<string, string> DefaultLocalizedTextValues { get; init; }
+
+    /// <summary>当前保存的多语言文本列表；仅 LocalizedTextList 字段使用，空语言表示回退默认值。</summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<string>> LocalizedTextListValues { get; init; }
+
+    /// <summary>schema 默认多语言文本列表；仅 LocalizedTextList 字段用于输入框占位提示。</summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<string>> DefaultLocalizedTextListValues { get; init; }
+
     /// <summary>schema 默认值的文本表示，用于占位提示和只读辅助信息。</summary>
     public string? DefaultText { get; init; }
 }
@@ -84,4 +96,12 @@ public sealed class ThemeConfigValueInput
 
     /// <summary>MultiSelect 字段的输入值集合。</summary>
     public IReadOnlyList<string> Values { get; init; } = [];
+
+    /// <summary>LocalizedText 字段的语言值集合，key 为语言代码。</summary>
+    public IReadOnlyDictionary<string, string> LocalizedValues { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>LocalizedTextList 字段的语言值集合，key 为语言代码。</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> LocalizedListValues { get; init; } =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
 }

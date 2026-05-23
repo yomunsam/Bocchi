@@ -342,7 +342,7 @@
   "themeCustomization.page.heading": "主题定制",
   "themeCustomization.page.description": "编辑当前前台 Theme 声明的配置项和私有文本。",
   "themeCustomization.loading": "正在读取 Theme 配置…",
-  "themeCustomization.actions.saveChanges": "保存更改",
+  "themeCustomization.actions.saveChanges": "保存",
   "themeCustomization.actions.savingChanges": "正在保存…",
   "themeCustomization.tabs.aria": "Theme 定制任务",
   "themeCustomization.tabs.config": "配置项",

@@ -193,6 +193,44 @@
                                                         }
                                                     </div>
                                                     break;
+                                                case ThemeConfigFieldType.LocalizedText:
+                                                    <div class="bocchi-theme-localized-values" role="group" aria-label="@field.Title">
+                                                        @foreach (var language in EnabledLanguagesForDisplay)
+                                                        {
+                                                            <label class="bocchi-theme-localized-input">
+                                                                <span>
+                                                                    <strong>@language.NativeName</strong>
+                                                                    <code>@language.Code</code>
+                                                                </span>
+                                                                <textarea
+                                                                    rows="2"
+                                                                    placeholder="@GetDefaultLocalizedTextValue(field, language.Code)"
+                                                                    @bind:get="GetLocalizedTextValue(field.Key, language.Code)"
+                                                                    @bind:set="value => SetLocalizedTextValue(field.Key, language.Code, value)"
+                                                                    @bind:event="oninput"></textarea>
+                                                            </label>
+                                                        }
+                                                    </div>
+                                                    break;
+                                                case ThemeConfigFieldType.LocalizedTextList:
+                                                    <div class="bocchi-theme-localized-values" role="group" aria-label="@field.Title">
+                                                        @foreach (var language in EnabledLanguagesForDisplay)
+                                                        {
+                                                            <label class="bocchi-theme-localized-input">
+                                                                <span>
+                                                                    <strong>@language.NativeName</strong>
+                                                                    <code>@language.Code</code>
+                                                                </span>
+                                                                <textarea
+                                                                    rows="3"
+                                                                    placeholder="@GetDefaultLocalizedTextListValue(field, language.Code)"
+                                                                    @bind:get="GetLocalizedTextListValue(field.Key, language.Code)"
+                                                                    @bind:set="value => SetLocalizedTextListValue(field.Key, language.Code, value)"
+                                                                    @bind:event="oninput"></textarea>
+                                                            </label>
+                                                        }
+                                                    </div>
+                                                    break;
                                                 case ThemeConfigFieldType.Color:
                                                     <div class="bocchi-color-field">
                                                         <input
@@ -380,6 +418,12 @@
     /// <summary>MultiSelect 字段编辑缓冲区。</summary>
     private Dictionary<string, HashSet<string>> _multiSelectValues = new(StringComparer.Ordinal);
 
+    /// <summary>LocalizedText 字段编辑缓冲区，字段 key -> 语言代码 -> 用户覆盖文案。</summary>
+    private Dictionary<string, Dictionary<string, string>> _localizedTextValues = new(StringComparer.Ordinal);
+
+    /// <summary>LocalizedTextList 字段编辑缓冲区，字段 key -> 语言代码 -> 用户覆盖列表。</summary>
+    private Dictionary<string, Dictionary<string, List<string>>> _localizedTextListValues = new(StringComparer.Ordinal);
+
     /// <summary>站点启用语言集合，用于 Theme 私有文本输入。</summary>
     private HashSet<string> _enabledLanguageCodes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -420,8 +464,8 @@
     {
         var site = await SiteProfileSettings.GetAsync();
         _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "default-static" : site.DefaultThemeId;
-        await LoadCustomizationAsync();
         await LoadLocalizationAsync();
+        await LoadCustomizationAsync();
         await LoadThemeI18nAsync();
     }
 
@@ -502,6 +546,8 @@
         _textValues = new Dictionary<string, string>(StringComparer.Ordinal);
         _booleanValues = new Dictionary<string, bool>(StringComparer.Ordinal);
         _multiSelectValues = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        _localizedTextValues = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        _localizedTextListValues = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.Ordinal);
 
         foreach (var field in _customization.Groups.SelectMany(group => group.Fields))
         {
@@ -512,6 +558,20 @@
             else if (field.Type == ThemeConfigFieldType.MultiSelect)
             {
                 _multiSelectValues[field.Key] = new HashSet<string>(field.SelectedValues, StringComparer.Ordinal);
+            }
+            else if (field.Type == ThemeConfigFieldType.LocalizedText)
+            {
+                _localizedTextValues[field.Key] = field.LocalizedTextValues.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value,
+                    StringComparer.OrdinalIgnoreCase);
+            }
+            else if (field.Type == ThemeConfigFieldType.LocalizedTextList)
+            {
+                _localizedTextListValues[field.Key] = field.LocalizedTextListValues.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.ToList(),
+                    StringComparer.OrdinalIgnoreCase);
             }
             else
             {
@@ -635,6 +695,23 @@
             {
                 Key = field.Key,
                 Values = _multiSelectValues.TryGetValue(field.Key, out var values) ? values.ToList() : [],
+            },
+            ThemeConfigFieldType.LocalizedText => new ThemeConfigValueInput
+            {
+                Key = field.Key,
+                LocalizedValues = _localizedTextValues.TryGetValue(field.Key, out var values)
+                    ? new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            },
+            ThemeConfigFieldType.LocalizedTextList => new ThemeConfigValueInput
+            {
+                Key = field.Key,
+                LocalizedListValues = _localizedTextListValues.TryGetValue(field.Key, out var values)
+                    ? values.ToDictionary(
+                        pair => pair.Key,
+                        pair => (IReadOnlyList<string>)pair.Value.ToList(),
+                        StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase),
             },
             _ => new ThemeConfigValueInput
             {
@@ -791,6 +868,89 @@
             values.Remove(value);
         }
 
+        _configDirty = true;
+        _configSaved = false;
+        _configMessage = null;
+    }
+
+    /// <summary>读取 LocalizedText 字段在某个语言下的用户覆盖文案。</summary>
+    private string GetLocalizedTextValue(string key, string languageCode)
+        => _localizedTextValues.TryGetValue(key, out var values)
+            && values.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    /// <summary>更新 LocalizedText 字段；空输入会删除该语言覆盖，让 Theme 默认值接管。</summary>
+    private void SetLocalizedTextValue(string key, string languageCode, string? value)
+    {
+        if (!_localizedTextValues.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _localizedTextValues[key] = values;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            values.Remove(languageCode);
+        }
+        else
+        {
+            values[languageCode] = value.Trim();
+        }
+
+        MarkConfigDirty();
+    }
+
+    /// <summary>读取 LocalizedTextList 字段在某个语言下的用户覆盖列表，按一行一项展示。</summary>
+    private string GetLocalizedTextListValue(string key, string languageCode)
+        => _localizedTextListValues.TryGetValue(key, out var values)
+            && values.TryGetValue(languageCode, out var value)
+            ? string.Join(Environment.NewLine, value)
+            : string.Empty;
+
+    /// <summary>更新 LocalizedTextList 字段；空输入会删除该语言覆盖，让 Theme 默认列表接管。</summary>
+    private void SetLocalizedTextListValue(string key, string languageCode, string? value)
+    {
+        if (!_localizedTextListValues.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            _localizedTextListValues[key] = values;
+        }
+
+        var list = SplitLocalizedListInput(value);
+        if (list.Count == 0)
+        {
+            values.Remove(languageCode);
+        }
+        else
+        {
+            values[languageCode] = list;
+        }
+
+        MarkConfigDirty();
+    }
+
+    /// <summary>读取 LocalizedText 字段在某个语言下的 schema 默认文案。</summary>
+    private static string GetDefaultLocalizedTextValue(ThemeConfigFieldView field, string languageCode)
+        => field.DefaultLocalizedTextValues.TryGetValue(languageCode, out var value) ? value : string.Empty;
+
+    /// <summary>读取 LocalizedTextList 字段在某个语言下的 schema 默认列表，按一行一项提示。</summary>
+    private static string GetDefaultLocalizedTextListValue(ThemeConfigFieldView field, string languageCode)
+        => field.DefaultLocalizedTextListValues.TryGetValue(languageCode, out var value)
+            ? string.Join(Environment.NewLine, value)
+            : string.Empty;
+
+    /// <summary>把 Dashboard 文本域拆成列表项，保持用户填写顺序并移除空行。</summary>
+    private static List<string> SplitLocalizedListInput(string? value)
+        => (value ?? string.Empty)
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>标记配置区有未保存改动，并清除上一次保存状态。</summary>
+    private void MarkConfigDirty()
+    {
         _configDirty = true;
         _configSaved = false;
         _configMessage = null;

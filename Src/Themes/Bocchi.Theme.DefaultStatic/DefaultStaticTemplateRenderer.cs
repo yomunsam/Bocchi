@@ -13,6 +13,15 @@ public sealed class DefaultStaticTemplateRenderer
     /// <summary>默认 accent，配置值不合法时使用它避免 CSS 注入。</summary>
     private const string DefaultAccentColor = "#E85D3A";
 
+    /// <summary>首页配置文案注入浏览器端 i18n JSON 时使用的虚拟 key。</summary>
+    private const string HomeHeroTitleClientKey = "theme.config.home.heroTitle";
+
+    /// <summary>首页副标题配置文案注入浏览器端 i18n JSON 时使用的虚拟 key。</summary>
+    private const string HomeHeroSubtitleClientKey = "theme.config.home.heroSubtitle";
+
+    /// <summary>首页 tag 配置文案注入浏览器端 i18n JSON 时使用的虚拟 key 前缀。</summary>
+    private const string HomeTagClientKeyPrefix = "theme.config.home.tag.";
+
     /// <summary>浏览器端语言切换需要同步的 Theme chrome 文案 key。</summary>
     private static readonly string[] ClientI18nKeys =
     [
@@ -21,8 +30,6 @@ public sealed class DefaultStaticTemplateRenderer
         "menu.works",
         "menu.notes",
         "menu.friends",
-        "theme.defaultStatic.homeHeroAccent",
-        "theme.defaultStatic.homeHeroRest",
         "theme.defaultStatic.homeSelectedWriting",
         "theme.defaultStatic.homeSelectedWork",
         "theme.defaultStatic.homeRecentNotes",
@@ -65,7 +72,7 @@ public sealed class DefaultStaticTemplateRenderer
         var visibleFriends = FilterVisible(input.Friends, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
 
         await WriteAssetsAsync(request, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, visiblePosts, visibleWorks, visibleNotes, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, visiblePosts, visibleWorks, visibleNotes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePostDetailsAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false);
         await WritePostCategoryPagesAsync(request, site, text, visiblePosts, input.PostCategories, cancellationToken).ConfigureAwait(false);
@@ -189,24 +196,22 @@ public sealed class DefaultStaticTemplateRenderer
         JsonElement[] posts,
         JsonElement[] works,
         JsonElement[] notes,
-        JsonElement[] friends,
         CancellationToken cancellationToken)
     {
         var featuredPosts = MapContentItems(Limit(posts, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredPosts"], 5)), site);
         var featuredWorks = MapContentItems(Limit(works, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredWorks"], 4)), site);
         var recentNotes = MapContentItems(Limit(notes, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "recentNotes"], 3)), site);
-        var friendLinks = MapFriendItems(Limit(friends, 6));
+        var homeCopy = CreateHomeCopyModel(input.ThemeContext, text);
 
         var model = CreatePageModel(site, text, text.Get("menu.home"), "/");
+        model["home"] = homeCopy.TemplateModel;
+        model["localization"] = CreateLocalizationModel(text, homeCopy.ClientText);
         model["featuredPosts"] = featuredPosts;
         model["hasFeaturedPosts"] = featuredPosts.Length > 0;
         model["featuredWorks"] = featuredWorks;
         model["hasFeaturedWorks"] = featuredWorks.Length > 0;
         model["recentNotes"] = recentNotes;
         model["hasRecentNotes"] = recentNotes.Length > 0;
-        model["friends"] = friendLinks;
-        model["hasFriends"] = friendLinks.Length > 0;
-        model["showFriends"] = GetConfigBool(input.ThemeContext, ["theme", "config", "home", "showFriends"], true);
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "index", model, cancellationToken);
     }
 
@@ -233,6 +238,10 @@ public sealed class DefaultStaticTemplateRenderer
     {
         var items = MapContentItems(works, site);
         var model = CreateListingModel(site, text, text.Get("menu.works"), "menu.works", "/works/", text.Get("theme.defaultStatic.worksDescription"), "theme.defaultStatic.worksDescription", "03", items, text.Get("theme.defaultStatic.emptyList"));
+        model["featuredWork"] = items.FirstOrDefault();
+        model["hasFeaturedWork"] = items.Length > 0;
+        model["workItems"] = items.Skip(1).ToArray();
+        model["hasWorkItems"] = items.Length > 1;
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "works", model, cancellationToken);
     }
 
@@ -251,6 +260,18 @@ public sealed class DefaultStaticTemplateRenderer
         var titleKey = year is null ? "menu.notes" : string.Empty;
         var model = CreateListingModel(site, text, title, titleKey, currentPath, text.Get("theme.defaultStatic.notesDescription"), "theme.defaultStatic.notesDescription", "04", MapContentItems(notes, site), text.Get("theme.defaultStatic.emptyList"));
         model["year"] = year;
+        model["isAllNotes"] = year is null;
+        model["years"] = notes.Select(note => GetString(note, "year"))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderByDescending(value => value, StringComparer.Ordinal)
+            .Select(value => new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["year"] = value,
+                ["url"] = $"/notes/{value}/",
+                ["current"] = string.Equals(value, year, StringComparison.Ordinal),
+            })
+            .ToArray();
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "notes", model, cancellationToken);
     }
 
@@ -447,6 +468,7 @@ public sealed class DefaultStaticTemplateRenderer
         model["hero"] = CreateHeroModel(title, description, number, titleKey, descriptionKey);
         model["items"] = items;
         model["hasItems"] = items.Length > 0;
+        model["itemCount"] = items.Length;
         model["emptyText"] = emptyText;
         model["emptyTextKey"] = "theme.defaultStatic.emptyList";
         return model;
@@ -580,13 +602,154 @@ public sealed class DefaultStaticTemplateRenderer
         };
     }
 
+    /// <summary>创建首页 Theme 配置文案模型，同时准备浏览器端语言切换需要的虚拟 i18n key。</summary>
+    private static HomeCopyModel CreateHomeCopyModel(JsonElement context, DefaultStaticThemeText text)
+    {
+        var titleValues = ReadLocalizedTextConfig(context, ["theme", "config", "home", "heroTitle"]);
+        var subtitleValues = ReadLocalizedTextConfig(context, ["theme", "config", "home", "heroSubtitle"]);
+        var tagValues = ReadLocalizedTextListConfig(context, ["theme", "config", "home", "tags"]);
+        var currentTags = ResolveLocalizedList(tagValues, text);
+        var slotCount = Math.Max(currentTags.Length, tagValues.Values.Select(tagList => tagList.Length).DefaultIfEmpty(0).Max());
+        var tagSlots = Enumerable.Range(0, slotCount)
+            .Select(index => new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["label"] = index < currentTags.Length ? currentTags[index] : string.Empty,
+                ["i18nKey"] = HomeTagClientKeyPrefix + index.ToString(CultureInfo.InvariantCulture),
+            })
+            .ToArray();
+
+        var clientText = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+        {
+            [HomeHeroTitleClientKey] = titleValues,
+            [HomeHeroSubtitleClientKey] = subtitleValues,
+        };
+        for (var index = 0; index < slotCount; index++)
+        {
+            clientText[HomeTagClientKeyPrefix + index.ToString(CultureInfo.InvariantCulture)] =
+                tagValues.ToDictionary(
+                    pair => pair.Key,
+                    pair => index < pair.Value.Length ? pair.Value[index] : string.Empty,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        var templateModel = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["heroTitle"] = ResolveLocalizedText(titleValues, text),
+            ["heroTitleKey"] = HomeHeroTitleClientKey,
+            ["heroSubtitle"] = ResolveLocalizedText(subtitleValues, text),
+            ["heroSubtitleKey"] = HomeHeroSubtitleClientKey,
+            ["tagSlots"] = tagSlots,
+            ["hasTags"] = tagSlots.Length > 0,
+        };
+        return new HomeCopyModel(templateModel, clientText);
+    }
+
+    /// <summary>读取 Theme 配置中的多语言文本对象；非对象值被当作当前语言的单值配置处理。</summary>
+    private static Dictionary<string, string> ReadLocalizedTextConfig(JsonElement context, IReadOnlyList<string> path)
+    {
+        var value = TryGetPath(context, path);
+        if (value is not { } element)
+        {
+            return [];
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var raw = element.GetString();
+            return string.IsNullOrWhiteSpace(raw) ? [] : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [""] = raw.Trim(),
+            };
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        return element.EnumerateObject()
+            .Where(property => property.Value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(property.Value.GetString()))
+            .ToDictionary(
+                property => property.Name.Trim(),
+                property => property.Value.GetString()!.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>读取 Theme 配置中的多语言文本列表对象；每个语言值必须是字符串数组。</summary>
+    private static Dictionary<string, string[]> ReadLocalizedTextListConfig(JsonElement context, IReadOnlyList<string> path)
+    {
+        var value = TryGetPath(context, path);
+        if (value is not { ValueKind: JsonValueKind.Object } element)
+        {
+            return [];
+        }
+
+        return element.EnumerateObject()
+            .Where(property => property.Value.ValueKind == JsonValueKind.Array)
+            .Select(property => new KeyValuePair<string, string[]>(
+                property.Name.Trim(),
+                property.Value.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+                    .Select(item => item.GetString()!.Trim())
+                    .ToArray()))
+            .Where(pair => pair.Value.Length > 0)
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>按当前语言、站点主要语言、任意可用值的顺序解析多语言文本。</summary>
+    private static string ResolveLocalizedText(Dictionary<string, string> values, DefaultStaticThemeText text)
+    {
+        foreach (var language in CreateConfigLanguageFallbacks(values.Keys, text))
+        {
+            if (values.TryGetValue(language, out var value))
+            {
+                return value;
+            }
+        }
+
+        return values.Values.FirstOrDefault() ?? string.Empty;
+    }
+
+    /// <summary>按当前语言、站点主要语言、任意可用值的顺序解析多语言列表。</summary>
+    private static string[] ResolveLocalizedList(Dictionary<string, string[]> values, DefaultStaticThemeText text)
+    {
+        foreach (var language in CreateConfigLanguageFallbacks(values.Keys, text))
+        {
+            if (values.TryGetValue(language, out var value))
+            {
+                return value;
+            }
+        }
+
+        return values.Values.FirstOrDefault() ?? [];
+    }
+
+    /// <summary>为 Theme 配置多语言值创建回退顺序，额外保留空语言 key 兼容单值配置。</summary>
+    private static IEnumerable<string> CreateConfigLanguageFallbacks(IEnumerable<string> availableLanguages, DefaultStaticThemeText text)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var language in new[] { text.CurrentLanguage, text.PrimaryLanguage, string.Empty })
+        {
+            if (seen.Add(language))
+            {
+                yield return language;
+            }
+        }
+
+        foreach (var language in text.EnabledLanguages.Select(language => language.Code).Concat(availableLanguages))
+        {
+            if (!string.IsNullOrWhiteSpace(language) && seen.Add(language))
+            {
+                yield return language;
+            }
+        }
+    }
+
     /// <summary>创建模板中用短属性名访问的前台文案模型，避免 Fluid 解析带点号的 i18n key。</summary>
     private static Dictionary<string, object?> CreateTextModel(DefaultStaticThemeText text)
     {
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["homeHeroAccent"] = text.Get("theme.defaultStatic.homeHeroAccent"),
-            ["homeHeroRest"] = text.Get("theme.defaultStatic.homeHeroRest"),
             ["homeSelectedWriting"] = text.Get("theme.defaultStatic.homeSelectedWriting"),
             ["homeSelectedWork"] = text.Get("theme.defaultStatic.homeSelectedWork"),
             ["homeRecentNotes"] = text.Get("theme.defaultStatic.homeRecentNotes"),
@@ -611,7 +774,9 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>创建模板可访问的站点本地化模型；默认 Theme 目前只展示当前语言，路径切换留给内容多语言页生成。</summary>
-    private static Dictionary<string, object?> CreateLocalizationModel(DefaultStaticThemeText text)
+    private static Dictionary<string, object?> CreateLocalizationModel(
+        DefaultStaticThemeText text,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? extraText = null)
     {
         var currentLanguage = text.EnabledLanguages.FirstOrDefault(
             language => string.Equals(language.Code, text.CurrentLanguage, StringComparison.OrdinalIgnoreCase));
@@ -621,7 +786,7 @@ public sealed class DefaultStaticTemplateRenderer
             ["currentLanguage"] = text.CurrentLanguage,
             ["currentLanguageName"] = currentLanguage?.NativeName ?? currentLanguage?.EnglishName ?? text.CurrentLanguage,
             ["primaryLanguage"] = text.PrimaryLanguage,
-            ["textJson"] = text.BuildClientJson(ClientI18nKeys),
+            ["textJson"] = text.BuildClientJson(ClientI18nKeys, extraText),
             ["languages"] = text.EnabledLanguages
                 .Select(language => new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
@@ -646,6 +811,7 @@ public sealed class DefaultStaticTemplateRenderer
         var stack = GetStringArray(item, "stack").ToArray();
         var cover = MapMediaReference(item, "cover");
         var media = MapMediaArray(item);
+        var links = MapLinkArray(item);
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["url"] = GetContentUrl(item),
@@ -674,7 +840,28 @@ public sealed class DefaultStaticTemplateRenderer
             ["hasCover"] = cover is not null,
             ["media"] = media,
             ["hasMedia"] = media.Length > 0,
+            ["links"] = links,
+            ["hasLinks"] = links.Length > 0,
         };
+    }
+
+    /// <summary>把作品链接数组映射成模板可访问的字典数组。</summary>
+    private static Dictionary<string, object?>[] MapLinkArray(JsonElement item)
+    {
+        if (!item.TryGetProperty("links", out var links) || links.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return links.EnumerateArray()
+            .Where(link => link.ValueKind == JsonValueKind.Object)
+            .Select(link => new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["label"] = GetString(link, "label", GetString(link, "url")),
+                ["url"] = GetString(link, "url"),
+            })
+            .Where(link => !string.IsNullOrWhiteSpace(link["url"]?.ToString()))
+            .ToArray();
     }
 
     /// <summary>把友链输入映射成模板可访问的字典数组。</summary>
@@ -845,13 +1032,6 @@ public sealed class DefaultStaticTemplateRenderer
         return value?.ValueKind == JsonValueKind.Number && value.Value.TryGetInt32(out var number) ? number : fallback;
     }
 
-    /// <summary>读取配置中的布尔值。</summary>
-    private static bool GetConfigBool(JsonElement root, string[] path, bool fallback)
-    {
-        var value = TryGetPath(root, path);
-        return value?.ValueKind == JsonValueKind.True ? true : value?.ValueKind == JsonValueKind.False ? false : fallback;
-    }
-
     /// <summary>按路径读取嵌套 JSON 值。</summary>
     private static JsonElement? TryGetPath(JsonElement root, IReadOnlyList<string> path)
     {
@@ -900,6 +1080,11 @@ public sealed class DefaultStaticTemplateRenderer
         /// <summary>当前构建是否包含草稿。</summary>
         public bool IncludeDrafts => TryGetPath(ThemeContext, ["build", "includeDrafts"])?.ValueKind == JsonValueKind.True;
     }
+
+    /// <summary>首页配置文案的模板模型与浏览器端 i18n 扩展数据。</summary>
+    private sealed record HomeCopyModel(
+        Dictionary<string, object?> TemplateModel,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> ClientText);
 
     /// <summary>布局层常用站点信息。</summary>
     private sealed record SiteInfo

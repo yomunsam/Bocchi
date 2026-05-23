@@ -189,6 +189,28 @@ public sealed class WriteThemeInputStage : IBuildStage
             current = child;
         }
 
-        current.TryAdd(segments[^1], defaultValue.DeepClone());
+        var leaf = segments[^1];
+        if (current[leaf] is JsonObject existingObject && defaultValue is JsonObject defaultObject)
+        {
+            MergeDefaultObject(existingObject, defaultObject);
+            return;
+        }
+
+        current.TryAdd(leaf, defaultValue.DeepClone());
+    }
+
+    /// <summary>递归补齐 object 默认值，让多语言配置可以只覆盖部分语言，其余语言继续使用 Theme 默认值。</summary>
+    private static void MergeDefaultObject(JsonObject target, JsonObject defaults)
+    {
+        foreach (var (key, defaultValue) in defaults)
+        {
+            if (target[key] is JsonObject targetChild && defaultValue is JsonObject defaultChild)
+            {
+                MergeDefaultObject(targetChild, defaultChild);
+                continue;
+            }
+
+            target.TryAdd(key, defaultValue?.DeepClone());
+        }
     }
 }

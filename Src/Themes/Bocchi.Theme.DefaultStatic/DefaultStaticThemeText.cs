@@ -108,7 +108,9 @@ internal sealed class DefaultStaticThemeText
     }
 
     /// <summary>生成浏览器端语言切换需要的 JSON；文案全部按 plain text 输出。</summary>
-    public string BuildClientJson(IEnumerable<string> keys)
+    public string BuildClientJson(
+        IEnumerable<string> keys,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? extraText = null)
     {
         ArgumentNullException.ThrowIfNull(keys);
 
@@ -121,6 +123,19 @@ internal sealed class DefaultStaticThemeText
                 StringComparer.OrdinalIgnoreCase);
         }
 
+        foreach (var (key, values) in extraText ?? new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            text[key] = EnabledLanguages.ToDictionary(
+                language => language.Code,
+                language => ResolveExtraTextValue(values, language.Code),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
         var data = new
         {
             currentLanguage = CurrentLanguage,
@@ -129,6 +144,20 @@ internal sealed class DefaultStaticThemeText
             text,
         };
         return JsonSerializer.Serialize(data, ClientJsonOptions);
+    }
+
+    /// <summary>解析 Theme 配置文案的浏览器端值；精确命中即使为空也保留，缺失语言才走主要语言和可用语言回退。</summary>
+    private string ResolveExtraTextValue(IReadOnlyDictionary<string, string> values, string language)
+    {
+        foreach (var fallback in new[] { language, PrimaryLanguage, CurrentLanguage, _themeDefaultLanguage, "en-US" })
+        {
+            if (!string.IsNullOrWhiteSpace(fallback) && values.TryGetValue(fallback, out var value))
+            {
+                return value;
+            }
+        }
+
+        return values.Values.FirstOrDefault() ?? string.Empty;
     }
 
     /// <summary>创建 Bocchi 约定的 Common i18n 默认文案，供默认 Theme 在无用户覆盖时直接使用。</summary>

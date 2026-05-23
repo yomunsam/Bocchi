@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
+using Bocchi.GeneratorContract;
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
 using Bocchi.Workspace;
@@ -229,8 +230,21 @@ public sealed class AccountAndSetupTests
                 },
                 new ThemeConfigValueInput
                 {
-                    Key = "home.showFriends",
-                    Value = "false",
+                    Key = "home.heroTitle",
+                    LocalizedValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["zh-CN"] = "  自定义首页标题  ",
+                        ["en-US"] = " ",
+                    },
+                },
+                new ThemeConfigValueInput
+                {
+                    Key = "home.tags",
+                    LocalizedListValues = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["zh-CN"] = ["设计", "构建", "设计", " "],
+                        ["en-US"] = [],
+                    },
                 },
             ]);
 
@@ -241,7 +255,35 @@ public sealed class AccountAndSetupTests
         root.GetProperty("manual").GetProperty("keep").GetString().Should().Be("yes");
         root.GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#123456");
         root.GetProperty("home").GetProperty("featuredPosts").GetDecimal().Should().Be(7);
-        root.GetProperty("home").GetProperty("showFriends").GetBoolean().Should().BeFalse();
+        root.GetProperty("home").GetProperty("heroTitle").GetProperty("zh-CN").GetString().Should().Be("自定义首页标题");
+        root.GetProperty("home").GetProperty("heroTitle").TryGetProperty("en-US", out _).Should().BeFalse();
+        root.GetProperty("home").GetProperty("tags").GetProperty("zh-CN").EnumerateArray()
+            .Select(item => item.GetString())
+            .Should().Equal("设计", "构建");
+    }
+
+    [Fact]
+    public async Task ThemeSettings_GetCustomization_ExposesLocalizedHomeFieldsWithDefaults()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
+
+        var view = await settings.GetCustomizationAsync("default-static");
+
+        var homeFields = view.Groups.Single(group => group.Id == "home").Fields;
+        var heroTitle = homeFields.Single(field => field.Key == "home.heroTitle");
+        heroTitle.Type.Should().Be(ThemeConfigFieldType.LocalizedText);
+        heroTitle.LocalizedTextValues.Should().BeEmpty();
+        heroTitle.DefaultLocalizedTextValues["zh-CN"].Should().Be("Bocchi — 写作、\n作品与札记。");
+
+        var tags = homeFields.Single(field => field.Key == "home.tags");
+        tags.Type.Should().Be(ThemeConfigFieldType.LocalizedTextList);
+        tags.DefaultLocalizedTextListValues["zh-CN"].Should().Equal("个人站点", "软件与文字", "静态优先");
     }
 
     [Fact]

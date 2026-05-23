@@ -16,6 +16,8 @@ public enum ThemeConfigFieldType
     Color,
     Image,
     Url,
+    LocalizedText,
+    LocalizedTextList,
     Group,
 }
 #pragma warning restore CA1720

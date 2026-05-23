@@ -1,16 +1,29 @@
-<section class="content section">
-  <p class="eyebrow">{{ hero.number }}</p>
-  <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+<section class="prose listing-hero">
+  <div class="caption" style="margin-bottom:16px;">{{ hero.number }} — <span{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</span> · {{ itemCount }}</div>
+  <h1 class="display listing-display"{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
   <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
 </section>
-<section class="content section">
+
+<section class="prose listing-toolbar">
+  <div class="filter-row">
+    <a href="/notes/"{% if isAllNotes %} class="active"{% endif %}><span data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</span></a>
+    {% for item in years %}<a href="{{ item.url }}"{% if item.current %} class="active"{% endif %}>{{ item.year }}</a>{% endfor %}
+  </div>
+</section>
+
+<section class="prose listing-body">
   {% if hasItems %}
+  <div class="tw-list">
     {% for item in items %}
-    <article class="note">
-      <bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time>{{ item.displayDateTime }}</time></bocchi-time>
-      <div class="note__body">{{ item.html | html }}</div>
+    <article class="tw-item">
+      <bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time class="ts">{{ item.displayDateTime }}</time></bocchi-time>
+      <div class="body">{{ item.html | html }}</div>
       {% if item.hasMedia %}<div class="media-grid note__media">{% for media in item.media %}<img src="{{ media.path }}" alt="{{ media.alt }}">{% endfor %}</div>{% endif %}
+      {% if item.hasTags %}<div class="meta">{% for tag in item.tags %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
     </article>
     {% endfor %}
-  {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
+  </div>
+  {% else %}
+  <div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>
+  {% endif %}
 </section>

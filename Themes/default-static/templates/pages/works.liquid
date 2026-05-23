@@ -1,20 +1,48 @@
-<section class="content section">
-  <p class="eyebrow">{{ hero.number }}</p>
-  <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+<section class="content listing-hero">
+  <div class="caption" style="margin-bottom:16px;">{{ hero.number }} — <span{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</span> · {{ itemCount }}</div>
+  <h1 class="display listing-display"{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
   <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
 </section>
-<section class="content section">
-  {% if hasItems %}
-  <div class="grid">
-    {% for item in items %}
-    <article class="card">
-      {% if item.hasCover %}<a class="card__cover" href="{{ item.url }}"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></a>{% endif %}
-      <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
-      <p>{{ item.summary }}</p>
-      {% if item.meta %}<div class="card__meta">{{ item.meta }}</div>{% endif %}
-      {% if item.hasStack %}<div class="tags">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+
+<section class="content listing-toolbar">
+  <div class="filter-row">
+    <a href="/works/" class="active"><span data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</span> <span class="muted">{{ itemCount }}</span></a>
+  </div>
+</section>
+
+{% if hasFeaturedWork %}
+<section class="content featured-work-section">
+  <article class="featured-work">
+    <div>
+      <div class="caption">Featured · {{ featuredWork.year }}</div>
+      <h2 class="display">{{ featuredWork.title }}</h2>
+      <p>{{ featuredWork.summary }}</p>
+      {% if featuredWork.hasStack %}<div class="stack">{% for tag in featuredWork.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+      {% if featuredWork.hasLinks %}<div class="links">{% for link in featuredWork.links %}<a href="{{ link.url }}" class="arrow-link">{{ link.label }} <span class="arrow">→</span></a>{% endfor %}</div>{% endif %}
+    </div>
+    <a class="featured-work__figure" href="{{ featuredWork.url }}">
+      {% if featuredWork.hasCover %}<img src="{{ featuredWork.cover.path }}" alt="{{ featuredWork.cover.alt }}">{% else %}<span>{{ featuredWork.title }}</span>{% endif %}
+    </a>
+  </article>
+</section>
+{% endif %}
+
+<section class="content listing-body">
+  {% if hasWorkItems %}
+  <div class="proj-grid">
+    {% for item in workItems %}
+    <article class="proj-card">
+      <div class="head"><h3><a href="{{ item.url }}">{{ item.title }}</a></h3><span class="fig-num">{{ forloop.index }}</span></div>
+      <p class="desc">{{ item.summary }}</p>
+      {% if item.hasStack %}<div class="stack">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+      {% if item.hasLinks %}<div class="links">{% for link in item.links %}<a href="{{ link.url }}">{{ link.label }} →</a>{% endfor %}</div>{% endif %}
     </article>
     {% endfor %}
   </div>
-  {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
+  {% else %}
+    {% if hasItems %}
+    {% else %}
+    <div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>
+    {% endif %}
+  {% endif %}
 </section>

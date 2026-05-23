@@ -1,5 +1,8 @@
-<article class="prose article-header">
-  <p class="eyebrow" data-bocchi-i18n="theme.defaultStatic.pageLabel">{{ text.pageLabel }}</p>
-  <h1>{{ item.title }}</h1>
+<article>
+  <header class="prose article-hero">
+    <div class="caption" data-bocchi-i18n="theme.defaultStatic.pageLabel">{{ text.pageLabel }}</div>
+    <h1 class="display article-display">{{ item.title }}</h1>
+    {% if item.summary %}<p class="lead">{{ item.summary }}</p>{% endif %}
+  </header>
+  <section class="prose prose-body">{{ item.html | html }}</section>
 </article>
-<article class="prose prose-body">{{ item.html | html }}</article>

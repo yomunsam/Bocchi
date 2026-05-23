@@ -154,6 +154,9 @@ public sealed class GeneratorPipelineEndToEndTests
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("id").GetString().Should().Be("default-static");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
             .GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#E85D3A");
+        contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
+            .GetProperty("home").GetProperty("heroTitle").GetProperty("zh-CN").GetString()
+            .Should().Be("Bocchi — 写作、\n作品与札记。");
         var themeI18n = contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("i18n");
         themeI18n.GetProperty("supportedLanguages").EnumerateArray().Should()
             .Contain(language => language.GetString() == "zh-CN");
@@ -390,10 +393,15 @@ public sealed class GeneratorPipelineEndToEndTests
         visibleHtml.Should().Contain("""<html lang="zh-CN">""");
         visibleHtml.Should().Contain(">首页</a>");
         visibleHtml.Should().Contain(">写作</a>");
-        visibleHtml.Should().Contain("theme.defaultStatic.homeHeroAccent\">写作</em>");
-        visibleHtml.Should().Contain("theme.defaultStatic.homeHeroRest\">、作品与札记。</span>");
-        visibleHtml.Should().Contain("theme.defaultStatic.homeSelectedWriting\">精选写作</h2>");
+        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroTitle\">Bocchi — 写作");
+        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroSubtitle\">一个安静的个人站点");
+        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.tag.0\">个人站点</span>");
+        visibleHtml.Should().Contain("theme.defaultStatic.homeSelectedWriting\">精选写作</span>");
         visibleHtml.Should().Contain("由测试构建。");
+        visibleHtml.Should().NotContain("kanban");
+        visibleHtml.Should().NotContain("myaccount");
+        visibleHtml.Should().NotContain("homeHeroAccent");
+        visibleHtml.Should().NotContain("homeHeroRest");
         visibleHtml.Should().Contain("""data-bocchi-language-control""");
         visibleHtml.Should().Contain("""data-bocchi-language-summary>简体中文</span>""");
         visibleHtml.Should().Contain("data-bocchi-language-option=\"zh-CN\" aria-current=\"true\"");
@@ -403,6 +411,81 @@ public sealed class GeneratorPipelineEndToEndTests
         visibleHtml.Should().Contain(">自动</span></button>");
         html.Should().Contain("<script type=\"application/json\" id=\"bocchi-i18n-data\">{\"currentLanguage\":\"zh-CN\"");
         visibleHtml.Should().NotContain(">Built with Bocchi.</span>");
+    }
+
+    [Fact]
+    public async Task DefaultStaticTheme_UsesThemeHomeCopyAndSiteMetaSeparately()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        await File.WriteAllTextAsync(fixture.Layout.Workspace.SiteSettingsFile, """
+            title: Visible Site
+            defaultTitle: Browser Tab Title
+            description: Search engine summary
+            language: zh-CN
+            timeZone: Asia/Shanghai
+            baseUrl: https://bocchi.example/
+            copyright: Copyright © 2026 Visible Site.
+
+            author:
+              name: Author
+
+            social: []
+            defaultThemeId: default-static
+            enableRss: true
+            enableSitemap: true
+            enableSearch: true
+            """);
+        WriteThemeConfig(fixture, "default-static", """
+            {
+              "home": {
+                "heroTitle": {
+                  "zh-CN": "主题首页大标题"
+                },
+                "heroSubtitle": {
+                  "en-US": "English-only custom subtitle"
+                },
+                "tags": {
+                  "zh-CN": ["主题标签一", "主题标签二"]
+                }
+              }
+            }
+            """);
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions
+            {
+                Mode = BuildMode.FullBuild,
+                Localization = CreateLocalizationOptions("Home", "首页") with
+                {
+                    PrimaryLanguage = "zh-CN",
+                },
+            },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var contextJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
+        using var contextDoc = JsonDocument.Parse(contextJson);
+        var homeConfig = contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config").GetProperty("home");
+        homeConfig.GetProperty("heroTitle").GetProperty("zh-CN").GetString().Should().Be("主题首页大标题");
+        homeConfig.GetProperty("heroTitle").GetProperty("en-US").GetString().Should().Be("Bocchi — writing,\nwork, & notes.");
+        homeConfig.GetProperty("heroSubtitle").GetProperty("zh-CN").GetString().Should().Be("一个安静的个人站点，用来放长文章、作品和短札记。");
+
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        var visibleHtml = System.Net.WebUtility.HtmlDecode(html);
+        html.Should().Contain("""<title>Browser Tab Title</title>""");
+        html.Should().Contain("""<meta name="description" content="Search engine summary">""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.heroTitle">主题首页大标题</h1>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.heroSubtitle">一个安静的个人站点，用来放长文章、作品和短札记。</p>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.tag.0">主题标签一</span>""");
+        visibleHtml.Should().NotContain("Search engine summary</p>");
+        visibleHtml.Should().NotContain("kanban");
+        visibleHtml.Should().NotContain("account");
+        visibleHtml.Should().NotContain("admin");
+        visibleHtml.Should().NotContain("myaccount");
     }
 
     [Fact]

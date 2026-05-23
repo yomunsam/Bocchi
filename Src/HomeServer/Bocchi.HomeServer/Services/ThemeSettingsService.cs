@@ -648,7 +648,8 @@ public sealed class ThemeSettingsService
         }
 
         var defaultValue = field["default"];
-        var currentValue = TryGetNestedValue(configuration, key) ?? defaultValue;
+        var savedValue = TryGetNestedValue(configuration, key);
+        var currentValue = savedValue ?? defaultValue;
         return new ThemeConfigFieldView
         {
             Key = key.Trim(),
@@ -662,6 +663,10 @@ public sealed class ThemeSettingsService
             TextValue = JsonNodeToText(currentValue),
             BooleanValue = JsonNodeToBool(currentValue),
             SelectedValues = JsonNodeToStringList(currentValue),
+            LocalizedTextValues = JsonNodeToLocalizedText(savedValue),
+            DefaultLocalizedTextValues = JsonNodeToLocalizedText(defaultValue),
+            LocalizedTextListValues = JsonNodeToLocalizedTextList(savedValue),
+            DefaultLocalizedTextListValues = JsonNodeToLocalizedTextList(defaultValue),
             DefaultText = TrimOrNull(JsonNodeToText(defaultValue)),
         };
     }
@@ -681,6 +686,12 @@ public sealed class ThemeSettingsService
                 break;
             case ThemeConfigFieldType.MultiSelect:
                 ApplyMultiSelectValue(configuration, field, input.Values);
+                break;
+            case ThemeConfigFieldType.LocalizedText:
+                ApplyLocalizedTextValue(configuration, field.Key, input.LocalizedValues);
+                break;
+            case ThemeConfigFieldType.LocalizedTextList:
+                ApplyLocalizedTextListValue(configuration, field.Key, input.LocalizedListValues);
                 break;
             case ThemeConfigFieldType.Select:
                 ApplyStringValue(configuration, field, input.Value, validateOptions: true);
@@ -756,6 +767,67 @@ public sealed class ThemeSettingsService
         }
 
         SetNestedValue(configuration, field.Key, array);
+    }
+
+    private static void ApplyLocalizedTextValue(
+        JsonObject configuration,
+        string key,
+        IReadOnlyDictionary<string, string> values)
+    {
+        var normalized = values
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
+            .Select(pair => new KeyValuePair<string, string>(pair.Key.Trim(), pair.Value.Trim()))
+            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().Value, StringComparer.OrdinalIgnoreCase);
+        if (normalized.Count == 0)
+        {
+            RemoveNestedValue(configuration, key);
+            return;
+        }
+
+        var obj = new JsonObject();
+        foreach (var (language, value) in normalized.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            obj[language] = value;
+        }
+
+        SetNestedValue(configuration, key, obj);
+    }
+
+    private static void ApplyLocalizedTextListValue(
+        JsonObject configuration,
+        string key,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> values)
+    {
+        var obj = new JsonObject();
+        foreach (var (language, rawValues) in values.Where(pair => !string.IsNullOrWhiteSpace(pair.Key)))
+        {
+            var normalized = rawValues
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value.Trim())
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            if (normalized.Count == 0)
+            {
+                continue;
+            }
+
+            var array = new JsonArray();
+            foreach (var value in normalized)
+            {
+                array.Add(value);
+            }
+
+            obj[language.Trim()] = array;
+        }
+
+        if (obj.Count == 0)
+        {
+            RemoveNestedValue(configuration, key);
+            return;
+        }
+
+        SetNestedValue(configuration, key, obj);
     }
 
     private static JsonNode? TryGetNestedValue(JsonObject root, string dottedKey)
@@ -844,6 +916,8 @@ public sealed class ThemeSettingsService
             "color" => SetType(ThemeConfigFieldType.Color, out type),
             "image" => SetType(ThemeConfigFieldType.Image, out type),
             "url" => SetType(ThemeConfigFieldType.Url, out type),
+            "localizedText" => SetType(ThemeConfigFieldType.LocalizedText, out type),
+            "localizedTextList" => SetType(ThemeConfigFieldType.LocalizedTextList, out type),
             "group" => SetType(ThemeConfigFieldType.Group, out type),
             _ => Enum.TryParse(value, ignoreCase: true, out type),
         };
@@ -918,6 +992,34 @@ public sealed class ThemeSettingsService
 
         var single = JsonNodeToText(node);
         return string.IsNullOrWhiteSpace(single) ? [] : [single];
+    }
+
+    private static Dictionary<string, string> JsonNodeToLocalizedText(JsonNode? node)
+    {
+        if (node is not JsonObject obj)
+        {
+            return [];
+        }
+
+        return obj
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
+            .Select(pair => new KeyValuePair<string, string>(pair.Key.Trim(), JsonNodeToText(pair.Value).Trim()))
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, IReadOnlyList<string>> JsonNodeToLocalizedTextList(JsonNode? node)
+    {
+        if (node is not JsonObject obj)
+        {
+            return [];
+        }
+
+        return obj
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Key))
+            .Select(pair => new KeyValuePair<string, IReadOnlyList<string>>(pair.Key.Trim(), JsonNodeToStringList(pair.Value)))
+            .Where(pair => pair.Value.Count > 0)
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
     }
 
     private static string? TrimOrNull(string? value)

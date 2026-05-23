@@ -355,7 +355,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Bocchi Mono");
         body.Should().Contain("Settings unchanged");
         body.Should().Contain("visual.accentColor");
-        body.Should().Contain("Save changes");
+        body.Should().Contain("首页");
+        body.Should().Contain("Save");
         body.Should().Contain("Theme private text");
         body.Should().Contain("Private text keys");
         body.Should().Contain("Override Theme-owned labels");

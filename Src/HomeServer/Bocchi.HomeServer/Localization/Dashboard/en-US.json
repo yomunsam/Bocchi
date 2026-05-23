@@ -342,7 +342,7 @@
   "themeCustomization.page.heading": "Theme customization",
   "themeCustomization.page.description": "Edit the settings and private text declared by the active frontend Theme.",
   "themeCustomization.loading": "Loading Theme settings...",
-  "themeCustomization.actions.saveChanges": "Save changes",
+  "themeCustomization.actions.saveChanges": "Save",
   "themeCustomization.actions.savingChanges": "Saving changes...",
   "themeCustomization.tabs.aria": "Theme customization tasks",
   "themeCustomization.tabs.config": "Settings",
