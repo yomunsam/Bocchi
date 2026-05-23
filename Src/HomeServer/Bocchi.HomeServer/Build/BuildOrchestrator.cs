@@ -69,7 +69,9 @@ public sealed class BuildOrchestrator : IDisposable
         var localizationSettings = scope.ServiceProvider.GetRequiredService<LocalizationSettingsService>();
         var siteProfileSettings = scope.ServiceProvider.GetRequiredService<SiteProfileSettingsService>();
         var themeSettings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
+        var categoryTree = scope.ServiceProvider.GetRequiredService<CategoryTreeService>();
         var localization = await localizationSettings.GetBuildLocalizationOptionsAsync(cancellationToken).ConfigureAwait(false);
+        var postCategories = await categoryTree.GetBuildPostCategoriesAsync(cancellationToken).ConfigureAwait(false);
         var normalizedThemeId = string.IsNullOrWhiteSpace(themeId)
             ? (await siteProfileSettings.GetAsync(cancellationToken).ConfigureAwait(false)).DefaultThemeId
             : themeId.Trim();
@@ -87,6 +89,7 @@ public sealed class BuildOrchestrator : IDisposable
             {
                 ThemeTextOverrides = themeTextOverrides,
             },
+            PostCategories = postCategories,
         };
     }
 

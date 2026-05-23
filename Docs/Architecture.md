@@ -198,6 +198,7 @@ cover: "/media/images/cover.jpg"
 - `order`
 - `showInNavigation`
 - `summary`
+- `template`：可选 Page template name，默认 `normal`。这里只保存模板名称，不保存 Theme id 或关联记录；如果当前 Theme 不再声明该模板，Dashboard 仍保留原 name 并提示不可用。
 
 ### 4.3 Work
 
@@ -258,7 +259,55 @@ cover: "/media/images/cover.jpg"
 - 默认 Theme。
 - RSS、Sitemap、搜索等开关。
 
-### 4.7 Photo
+### 4.7 Frontend Menu
+
+前台 Menu v1 是单个站点级 `primary menu`，由 Dashboard 的 `/Admin/Site/Navigation` 读写 `workspace/site/navigation.yaml`。Theme 自行决定桌面端、移动端和嵌套层级的展示方式；Home Server 只保存语义树和 target。
+
+`navigation.yaml` 使用正式 Menu tree，不再兼容旧的 `title/href` 扁平结构：
+
+```yaml
+items:
+  - id: home
+    label: i18n://common@menu.home
+    target:
+      type: builtin
+      value: home
+    children:
+      - id: about
+        label: About
+        target:
+          type: page
+          value: about
+        children: []
+```
+
+Menu item 字段：
+
+- `id`：稳定节点 id，由 Dashboard 生成并保留。
+- `label`：可选展示文本；可以是普通文本，也可以是 `i18n://common@key` / `i18n://theme@key`。
+- `target`：语义目标，不直接保存 URL。
+- `children`：嵌套子项，最大深度与 Category tree 一致，为 5 层。
+
+Target 类型固定为：
+
+- `builtin`：内置页面，首批 `home`、`posts`、`works`、`notes`、`friends`。
+- `themePage`：当前 Theme manifest 声明的特殊页面。
+- `page`：自定义 Page，值为 Page slug。
+- `postCategory`：Post Category，值为稳定 slug。
+
+Generator 会把可解析 target 转成 `navigation.json` 中的 `href`。无法解析的 target 在 Dashboard 中保留并提示，但不会进入公开 Theme input，避免生成死链接。
+
+### 4.8 Category Slug
+
+Post Category tree 节点拥有稳定 `slug`。Dashboard 新建节点时可由 name 自动生成 slug，保存时保证同一棵 Post category tree 内 slug 非空且唯一。已有 slug 不随 rename 自动改变。
+
+Post Category URL 固定为：
+
+```text
+/posts/categories/{slug}/
+```
+
+### 4.9 Photo
 
 照片墙预留。M2 仅在 workspace 约定 `photos/<year>/...` 占位目录，不实现解析。完整实现留给后续专门的"照片墙"里程碑。
 
@@ -348,7 +397,7 @@ Theme/
   "inputDir": "../../cache/theme-input",
   "outputDir": "build",
   "runner": {
-    "kind": "builtin-template",
+    "kind": "fluid-static",
     "entry": "fluid"
   },
   "features": {
@@ -359,7 +408,24 @@ Theme/
     "friends": true,
     "photos": false,
     "search": false
-  }
+  },
+  "pageTemplates": [
+    {
+      "name": "normal",
+      "displayName": "i18n://theme@theme.defaultStatic.pageTemplate.normal"
+    },
+    {
+      "name": "about",
+      "displayName": "i18n://theme@theme.defaultStatic.pageTemplate.about"
+    }
+  ],
+  "specialPages": [
+    {
+      "name": "calculator",
+      "displayName": "Calculator",
+      "route": "/calculator/"
+    }
+  ]
 }
 ```
 
@@ -383,6 +449,13 @@ Theme/
 
 M3 代码中的 `build.command` 是 process runner 的早期形态。M5 起文档以 `runner` 为准，代码实现可以保留 `build.command` 作为兼容别名。
 
+Theme 可以声明两类 Page 相关能力：
+
+- `pageTemplates[]`：可编辑 Page 的渲染模板声明，字段为 `name` 和 `displayName`。`normal` 是强制存在的模板；Theme 未声明时，Home Server 合成 `normal` fallback。Page frontmatter 只保存 template name，不保存 Theme id 或关联记录。
+- `specialPages[]`：Theme 自己提供的特殊页面声明，字段为 `name`、`displayName` 和 `route`。`route` 必须是站点根相对路径，例如 `/calculator/`；Home Server 不为特殊页面生成内容，只允许 Menu 指向它。
+
+`displayName` 可以是普通文本，也可以是显示值引用：`i18n://common@key` 或 `i18n://theme@key`。`common@` 表示 Bocchi 通用前台文案作用域，`theme@` 表示当前 Theme manifest 提供的私有文案作用域。本轮只把该约定用于 Dashboard 展示和 Theme manifest 声明，不做全字段全局改造。
+
 ### 7.3 Theme 输入数据
 
 Home Server 向 Theme 写入一组稳定 JSON 文件。
@@ -391,6 +464,7 @@ Home Server 向 Theme 写入一组稳定 JSON 文件。
 <data>/cache/theme-input/
   site.json
   navigation.json
+  post-categories.json
   posts.json
   pages.json
   works.json
@@ -405,10 +479,15 @@ Home Server 向 Theme 写入一组稳定 JSON 文件。
 
 - JSON 字段应尽量稳定，新增字段保持向后兼容。
 - 内容正文可以同时提供 `markdown`、`html` 和 `excerpt`，由 Theme 选择使用。
+- Post / Page / Work 的 canonical route 使用 `siteRelativeUrl`；`url` 暂时保留为 v1 兼容别名。Theme 不应从 slug/title 自己推导内容 URL。
 - 媒体路径统一转换为站点输出路径，不暴露本机绝对路径。
+- `navigation.json` 输出 Menu tree。每个节点包含 `id`、`label`、解析后的 `href`、原始 `target`、可选 `labelI18n` 和 `children`；无法解析 target 的节点不会进入公开 Theme input。
+- `post-categories.json` 输出 Post Category tree，包含稳定 `slug`、`url`、`count` 和 `children`。Post Category URL 固定为 `/posts/categories/{slug}/`。
+- `posts.json` 的 Post 节点包含 `categorySlug`，供 Theme 使用稳定分类 URL；`pages.json` 的 Page 节点包含 `template`，供 Theme 选择 Page 模板。
 - `build-context.json` 提供构建时间、站点 base URL、环境信息和功能开关。
-- `theme-context.json` 是 Theme 的全局上下文，聚合 Bocchi 版本、站点版本/配置、构建信息、作者信息、功能开关和当前 Theme 的合并后有效配置。
+- `theme-context.json` 是 Theme 的全局上下文，聚合 Bocchi 版本、站点版本/配置、构建信息、作者信息、功能开关和当前 Theme 的合并后有效配置；`theme-context.build.mode` 使用 `full` / `live` 标记普通构建与 Home Server 实时预览。
 - Theme 原始用户配置保存到 `state/theme-config/{themeId}.json`；Generator 将其与 `config-schema.json` 默认值合并后写入 `theme-context.theme.config`。
+- `theme-context.theme.pageTemplates` 和 `theme-context.theme.specialPages` 暴露当前 Theme 的有效 Page contract。Home Server 会补齐 `normal` template fallback，并过滤无效 special page route。
 
 ### 7.4 config-schema.json
 
@@ -484,13 +563,14 @@ Runner 是 Theme Contract 的执行层，不代表具体技术栈。所有 runne
 约束：
 
 - Theme 不直接写最终 `output/public/`。
+- Home Server Live Preview 是正式构建模式：Theme 仍然只读取 `BOCCHI_INPUT_DIR`、只写 `BOCCHI_OUTPUT_DIR`，只是输入/输出目录由 Home Server 放到一次性 cache 目录。
 - Generator 在 runner 结束后统一扫描 Theme 本地输出，登记为 `ArtifactKind.ThemeOutput`，再写入 `output/public/` 和 `.bocchi-manifest.json`。
 - stdout / stderr 统一进入 Build 日志。
 - timeout、取消、非零退出码统一映射为 Theme runner 错误。
 
 MVP runner：
 
-- `builtin-template`：调用 Bocchi 随包分发的默认 Fluid 模板 renderer。
+- `fluid-static`：调用 Bocchi 随包分发的 Fluid 静态站点 renderer；默认 Theme 与遵守同一模板模型的第三方 Theme 都可以使用。
 - `process`：执行本机命令，服务 SvelteKit、Astro、Hugo、自定义 binary、Blazor/Razor static renderer 等自由 Theme。
 
 后续 runner：
@@ -500,7 +580,7 @@ MVP runner：
 
 ## 8. 默认 Theme 策略
 
-默认 Theme 先使用 Fluid/Liquid 风格模板 renderer，原因是它能在 Home Server Docker 镜像中用较小边际依赖完成真实静态输出，同时给新手和社区一个可读、可修改、受约束的 Theme 起点。
+默认 Theme 先使用 Fluid/Liquid 风格模板 renderer，原因是它能在 Home Server Docker 镜像中用较小边际依赖完成真实静态输出，同时给新手和社区一个可读、可修改、受约束的 Theme 起点。默认 Theme 的 canonical source 位于仓库 `Themes/default-static/`，发布时作为 embedded resources 随 Home Server 分发，运行时物化到 `<data>/themes/default-static/`。
 
 MVP 要求：
 
@@ -525,7 +605,7 @@ Bocchi 不把某一种模板引擎作为所有 Theme 的中心。
 - Home Server 后台 UI 使用 Blazor Web App + InteractiveServer；Identity 登录、外部登录回调和账号管理走 ASP.NET Core Identity 推荐的服务端端点。
 - Page Frontend 通过 Theme Contract 接入，不绑定 Razor、SvelteKit 或任何单一技术。
 - RSS、Sitemap、简单文本产物可以使用 .NET 侧轻量模板或直接结构化生成。
-- 默认 Theme 使用独立 Fluid renderer 项目，但仍通过 Theme Contract 和 runner 边界工作，不读取数据库或 Home Server UI 状态。
+- 默认 Theme 源文件与第三方 Theme 使用同一目录形态；`Bocchi.Theme.DefaultStatic` 只承载 `fluid-static` runner、资源物化和少量模板模型代码，不读取数据库或 Home Server UI 状态。
 - Razor Components、RazorLight、Fluid/Liquid、SvelteKit、Blazor static renderer 都可以作为后续 Theme adapter；它们不替代整个 Theme Contract。
 - 默认 Theme 的前端脚本遵循 progressive enhancement：静态 HTML 先完整可用，再用原生 ES module、`data-*` 和少量 Web Components 增强。
 

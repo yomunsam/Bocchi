@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0",
+  "groups": [
+    {
+      "id": "visual",
+      "title": "视觉",
+      "fields": [
+        {
+          "key": "visual.accentColor",
+          "type": "color",
+          "title": "Accent color",
+          "default": "#E85D3A"
+        }
+      ]
+    },
+    {
+      "id": "home",
+      "title": "首页",
+      "fields": [
+        {
+          "key": "home.featuredPosts",
+          "type": "number",
+          "title": "首页文章数量",
+          "default": 5
+        },
+        {
+          "key": "home.featuredWorks",
+          "type": "number",
+          "title": "首页作品数量",
+          "default": 4
+        },
+        {
+          "key": "home.recentNotes",
+          "type": "number",
+          "title": "首页短文数量",
+          "default": 3
+        },
+        {
+          "key": "home.showFriends",
+          "type": "boolean",
+          "title": "首页显示友链",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "title": "阅读",
+      "fields": [
+        {
+          "key": "reading.showUpdatedAt",
+          "type": "boolean",
+          "title": "显示更新时间",
+          "default": true
+        }
+      ]
+    }
+  ]
+}

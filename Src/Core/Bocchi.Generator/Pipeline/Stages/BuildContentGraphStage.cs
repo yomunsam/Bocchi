@@ -33,11 +33,12 @@ public sealed class BuildContentGraphStage : IBuildStage
             IncludeDrafts = session.Options.IncludeDrafts,
             FailOnContentError = session.Options.FailOnContentError,
             FriendsDirectoryAbsolute = _layout.Workspace.FriendsDirectory,
+            PostCategories = session.Options.PostCategories,
         };
         var graph = _builder.Build(session.Scan, options);
         session.Graph = graph;
         session.Log(Name, BuildLogLevel.Info,
-            $"内容图：posts={graph.Posts.Count}, pages={graph.Pages.Count}, works={graph.Works.Count}, notes={graph.Notes.Count}, friends={graph.Friends.Count}, media={graph.MediaAssets.Count}.");
+            $"内容图：posts={graph.Posts.Count}, postCategories={graph.PostCategories.Count}, pages={graph.Pages.Count}, works={graph.Works.Count}, notes={graph.Notes.Count}, friends={graph.Friends.Count}, media={graph.MediaAssets.Count}.");
         return Task.FromResult(true);
     }
 }

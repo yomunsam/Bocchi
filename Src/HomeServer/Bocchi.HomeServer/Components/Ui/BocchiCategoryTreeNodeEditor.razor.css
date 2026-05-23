@@ -9,7 +9,7 @@
 
 .bocchi-category-node__row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 2rem 2rem;
+    grid-template-columns: auto minmax(0, 1.1fr) minmax(0, 0.9fr) 2rem 2rem;
     gap: 0.45rem;
     align-items: center;
 }
@@ -83,5 +83,9 @@
         grid-column: 1 / -1;
         justify-content: flex-start;
         width: fit-content;
+    }
+
+    .bocchi-category-node input {
+        grid-column: 1 / -1;
     }
 }

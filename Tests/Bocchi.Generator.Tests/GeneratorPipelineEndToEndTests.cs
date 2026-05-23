@@ -1,5 +1,6 @@
 using System.Text.Json;
 
+using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.Generator.State;
@@ -146,6 +147,7 @@ public sealed class GeneratorPipelineEndToEndTests
         var contextJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
         using var contextDoc = JsonDocument.Parse(contextJson);
         contextDoc.RootElement.GetProperty("$schema").GetString().Should().Be("https://bocchi.local/schema/v1/theme-context.json");
+        contextDoc.RootElement.GetProperty("data").GetProperty("build").GetProperty("mode").GetString().Should().Be("full");
         contextDoc.RootElement.GetProperty("data").GetProperty("site").GetProperty("defaultTitle").GetString().Should().Be("My Site");
         contextDoc.RootElement.GetProperty("data").GetProperty("site").GetProperty("copyrightNotice").GetString()
             .Should().Be("Copyright © 2026 My Site.");
@@ -166,6 +168,12 @@ public sealed class GeneratorPipelineEndToEndTests
                 && language.GetProperty("nativeName").GetString() == "简体中文"
                 && language.GetProperty("englishName").GetString() == "Simplified Chinese");
         localization.GetProperty("text").ValueKind.Should().Be(JsonValueKind.Object);
+
+        var postsJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "posts.json"));
+        using var postsDoc = JsonDocument.Parse(postsJson);
+        var post = postsDoc.RootElement.GetProperty("data").EnumerateArray().Single();
+        post.GetProperty("siteRelativeUrl").GetString().Should().Be("/posts/2025/hello/");
+        post.GetProperty("url").GetString().Should().Be("/posts/2025/hello/");
     }
 
     [Fact]
@@ -195,6 +203,80 @@ public sealed class GeneratorPipelineEndToEndTests
         var text = localization.GetProperty("text").GetProperty("menu.home");
         text.GetProperty("en-US").GetString().Should().Be("Home");
         text.GetProperty("zh-CN").GetString().Should().Be("首页");
+    }
+
+    [Fact]
+    public async Task ThemeInput_ResolvesMenuTreeAndPostCategories()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var postFile = Path.Combine(fixture.Layout.Workspace.PostsDirectory, "2025", "hello", "index.md");
+        var postRaw = await File.ReadAllTextAsync(postFile);
+        await File.WriteAllTextAsync(postFile, postRaw.Replace("tags: [a, b]", "category: Tech\ntags: [a, b]", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(fixture.Layout.Workspace.NavigationFile, """
+            items:
+              - id: home
+                label: i18n://common@menu.home
+                target:
+                  type: builtin
+                  value: home
+                children:
+                  - id: about
+                    label: About page
+                    target:
+                      type: page
+                      value: about
+                    children: []
+              - id: tech
+                label: Tech
+                target:
+                  type: postCategory
+                  value: tech
+                children: []
+            """);
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions
+            {
+                Mode = BuildMode.FullBuild,
+                PostCategories =
+                [
+                    new BuildCategoryNode
+                    {
+                        Id = "tech",
+                        Name = "Tech",
+                        Slug = "tech",
+                    },
+                ],
+            },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+
+        var navigationJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "navigation.json"));
+        using var navigationDoc = JsonDocument.Parse(navigationJson);
+        var navigation = navigationDoc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray().ToArray();
+        navigation.Should().HaveCount(2);
+        navigation[0].GetProperty("href").GetString().Should().Be("/");
+        navigation[0].GetProperty("labelI18n").GetProperty("key").GetString().Should().Be("menu.home");
+        navigation[0].GetProperty("children").EnumerateArray().Single().GetProperty("href").GetString().Should().Be("/about/");
+        navigation[1].GetProperty("target").GetProperty("type").GetString().Should().Be("postCategory");
+        navigation[1].GetProperty("href").GetString().Should().Be("/posts/categories/tech/");
+
+        var categoriesJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "post-categories.json"));
+        using var categoriesDoc = JsonDocument.Parse(categoriesJson);
+        var category = categoriesDoc.RootElement.GetProperty("data").EnumerateArray().Single();
+        category.GetProperty("slug").GetString().Should().Be("tech");
+        category.GetProperty("siteRelativeUrl").GetString().Should().Be("/posts/categories/tech/");
+        category.GetProperty("count").GetInt32().Should().Be(1);
+
+        var postsJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "posts.json"));
+        using var postsDoc = JsonDocument.Parse(postsJson);
+        postsDoc.RootElement.GetProperty("data").EnumerateArray().Single().GetProperty("categorySlug").GetString().Should().Be("tech");
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "categories", "tech", "index.html")).Should().BeTrue();
     }
 
     [Fact]
@@ -279,6 +361,21 @@ public sealed class GeneratorPipelineEndToEndTests
                 },
             },
         };
+        await File.WriteAllTextAsync(fixture.Layout.Workspace.NavigationFile, """
+            items:
+              - id: home
+                label: i18n://common@menu.home
+                target:
+                  type: builtin
+                  value: home
+                children: []
+              - id: posts
+                label: i18n://common@menu.posts
+                target:
+                  type: builtin
+                  value: posts
+                children: []
+            """);
 
         var result = await pipeline.RunAsync(
             new BuildOptions { Mode = BuildMode.FullBuild, Localization = localizationOptions },
@@ -307,37 +404,26 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_RefreshesUnmodifiedLegacyMaterializedFiles()
+    public async Task DefaultStaticTheme_MaterializesReferenceSourceAndPreservesUserFiles()
     {
         using var fixture = new TestWorkspaceFixture();
         var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "default-static");
-        var indexTemplate = Path.Combine(themeRoot, "templates", "pages", "index.liquid");
         var appCss = Path.Combine(themeRoot, "assets", "app.css");
-        var appJs = Path.Combine(themeRoot, "assets", "app.js");
-        Directory.CreateDirectory(Path.GetDirectoryName(indexTemplate)!);
-        Directory.CreateDirectory(Path.GetDirectoryName(appCss)!);
-        await File.WriteAllTextAsync(Path.Combine(themeRoot, "theme.json"), GetDefaultStaticPrivateConstant("LegacyThemeJson"));
-        await File.WriteAllTextAsync(indexTemplate, GetDefaultStaticPrivateConstant("LegacyIndexTemplate"));
-        await File.WriteAllTextAsync(appCss, GetDefaultStaticAssetsPrivateConstant("LegacyCss"));
-        await File.WriteAllTextAsync(appJs, GetDefaultStaticAssetsPrivateConstant("LegacyJs"));
 
-        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
-        var result = await pipeline.RunAsync(
-            new BuildOptions { Mode = BuildMode.FullBuild, Localization = CreateLocalizationOptions("Index", "首页") with { PrimaryLanguage = "zh-CN" } },
-            new FileSystemBuildSink(fixture.Layout),
-            themeId: null,
-            bocchiVersion: "0.0.0-test",
-            cancellationToken: default);
+        await DefaultStaticThemeDefinition.EnsureAsync(fixture.Layout.ThemesDirectory);
 
-        result.Status.Should().Be(BuildStatus.Succeeded);
-        var refreshedManifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"));
-        var refreshedIndex = await File.ReadAllTextAsync(indexTemplate);
-        var refreshedCss = await File.ReadAllTextAsync(appCss);
-        var refreshedJs = await File.ReadAllTextAsync(appJs);
-        refreshedManifest.Should().Contain("theme.defaultStatic.homeHeroAccent");
-        refreshedIndex.Should().Contain("text.homeHeroAccent");
-        refreshedCss.Should().Contain(".theme-menu");
-        refreshedJs.Should().Contain("bocchi-theme-language");
+        var manifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"));
+        manifest.Should().Contain("\"kind\": \"fluid-static\"");
+        File.Exists(Path.Combine(themeRoot, "config-schema.json")).Should().BeTrue();
+        File.Exists(Path.Combine(themeRoot, "templates", "layouts", "base.liquid")).Should().BeTrue();
+        File.Exists(Path.Combine(themeRoot, "templates", "pages", "index.liquid")).Should().BeTrue();
+        File.Exists(appCss).Should().BeTrue();
+        File.Exists(Path.Combine(themeRoot, "README.md")).Should().BeTrue();
+
+        await File.WriteAllTextAsync(appCss, "/* user custom css */");
+        await DefaultStaticThemeDefinition.EnsureAsync(fixture.Layout.ThemesDirectory);
+
+        (await File.ReadAllTextAsync(appCss)).Should().Be("/* user custom css */");
     }
 
     [Fact]
@@ -400,6 +486,27 @@ public sealed class GeneratorPipelineEndToEndTests
         using var context = JsonDocument.Parse(contextJson);
         context.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
             .GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#E85D3A");
+    }
+
+    [Fact]
+    public async Task FullBuild_WithThirdPartyFluidStaticTheme_UsesPublicRunner()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        CreateFluidStaticTheme(fixture, "fluid-reference");
+
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: "fluid-reference",
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/index.html");
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        html.Should().Contain("id=\"third-party-fluid-static\"");
+        html.Should().Contain("My Site");
     }
 
     [Fact]
@@ -546,28 +653,6 @@ public sealed class GeneratorPipelineEndToEndTests
             },
         };
 
-    /// <summary>读取默认 Theme 定义里的私有常量，供升级测试复用旧内置模板而不在测试中复制大段文本。</summary>
-    private static string GetDefaultStaticPrivateConstant(string name)
-    {
-        var field = typeof(DefaultStaticThemeDefinition).GetField(
-            name,
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        return field?.GetRawConstantValue() as string
-            ?? throw new InvalidOperationException($"DefaultStaticThemeDefinition 缺少私有常量 '{name}'。");
-    }
-
-    /// <summary>读取默认 Theme asset 定义里的私有常量，供旧物化资产刷新测试复用。</summary>
-    private static string GetDefaultStaticAssetsPrivateConstant(string name)
-    {
-        var type = typeof(DefaultStaticThemeDefinition).Assembly.GetType("Bocchi.Theme.DefaultStatic.DefaultStaticThemeAssets")
-            ?? throw new InvalidOperationException("DefaultStaticThemeAssets 类型不存在。");
-        var field = type.GetField(
-            name,
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        return field?.GetRawConstantValue() as string
-            ?? throw new InvalidOperationException($"DefaultStaticThemeAssets 缺少私有常量 '{name}'。");
-    }
-
     /// <summary>创建一个只用于测试 Theme 加载边界的 process Theme manifest。</summary>
     private static void CreateProcessTheme(TestWorkspaceFixture fixture, string themeId)
     {
@@ -595,6 +680,44 @@ public sealed class GeneratorPipelineEndToEndTests
                 "search": false
               }
             }
+            """);
+    }
+
+    /// <summary>创建一个使用公开 fluid-static runner 的第三方 Theme。</summary>
+    private static void CreateFluidStaticTheme(TestWorkspaceFixture fixture, string themeId)
+    {
+        var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, themeId);
+        Directory.CreateDirectory(Path.Combine(themeRoot, "templates", "layouts"));
+        Directory.CreateDirectory(Path.Combine(themeRoot, "templates", "pages"));
+        File.WriteAllText(Path.Combine(themeRoot, "theme.json"), $$"""
+            {
+              "id": "{{themeId}}",
+              "name": "Fluid Reference",
+              "version": "0.1.0",
+              "contractVersion": "1.0",
+              "inputDir": "../../cache/theme-input",
+              "outputDir": "build",
+              "runner": {
+                "kind": "fluid-static",
+                "entry": "fluid"
+              },
+              "features": {
+                "posts": true,
+                "pages": true,
+                "works": true,
+                "notes": true,
+                "friends": true,
+                "photos": false,
+                "search": false
+              }
+            }
+            """);
+        File.WriteAllText(Path.Combine(themeRoot, "templates", "layouts", "base.liquid"), """
+            <!doctype html>
+            <html><body><main>{{ content | html }}</main></body></html>
+            """);
+        File.WriteAllText(Path.Combine(themeRoot, "templates", "pages", "index.liquid"), """
+            <section id="third-party-fluid-static">{{ site.title }}</section>
             """);
     }
 

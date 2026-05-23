@@ -15,6 +15,7 @@ public sealed class ValidateOutputStage : IBuildStage
     [
         "/site.json",
         "/navigation.json",
+        "/post-categories.json",
         "/posts.json",
         "/pages.json",
         "/works.json",

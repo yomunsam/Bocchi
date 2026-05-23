@@ -1,4 +1,5 @@
 @using System.Globalization
+@using Bocchi.ContentModel
 @inject DashboardLocalizationService I18n
 
 <article class="bocchi-category-node">
@@ -8,6 +9,10 @@
                @oninput="OnNameInputAsync"
                placeholder='@I18n["category.editor.namePlaceholder"]'
                aria-label='@I18n["category.editor.namePlaceholder"]' />
+        <input value="@Node.Slug"
+               @oninput="OnSlugInputAsync"
+               placeholder='@I18n["category.editor.slugPlaceholder"]'
+               aria-label='@I18n["category.editor.slugPlaceholder"]' />
         <button type="button"
                 class="bocchi-category-node__icon"
                 disabled="@(!CanAddChild)"
@@ -68,7 +73,20 @@
 
     private async Task OnNameInputAsync(ChangeEventArgs args)
     {
+        var wasSlugEmpty = string.IsNullOrWhiteSpace(Node.Slug);
         Node.Name = args.Value?.ToString() ?? string.Empty;
+        if (wasSlugEmpty)
+        {
+            Node.Slug = CategorySlug.Normalize(Node.Name);
+        }
+
+        await Changed.InvokeAsync();
+    }
+
+    /// <summary>手动编辑 slug 时立即归一化为 URL 安全字符集。</summary>
+    private async Task OnSlugInputAsync(ChangeEventArgs args)
+    {
+        Node.Slug = CategorySlug.Normalize(args.Value?.ToString());
         await Changed.InvokeAsync();
     }
 }

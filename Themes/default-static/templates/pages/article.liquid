@@ -1,0 +1,11 @@
+<article class="prose article-header">
+  <p><a class="arrow-link" href="{{ section.url }}"><span data-bocchi-i18n="theme.defaultStatic.articleBackPrefix">{{ text.articleBackPrefix }}</span> {{ section.name }}</a></p>
+  <p class="article-meta">{{ section.name }}{% if item.date %} · {{ item.date }}{% endif %}</p>
+  <h1>{{ item.title }}</h1>
+</article>
+{% if item.hasCover %}<figure class="prose media-cover"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></figure>{% endif %}
+<article class="prose prose-body">{{ item.html | html }}</article>
+<nav class="prose section" aria-label="Adjacent content">
+  {% if hasPrevious %}<a class="arrow-link" href="{{ previous.url }}"><span data-bocchi-i18n="common.previous">{{ text.previous }}</span>: {{ previous.title }}</a>{% endif %}
+  {% if hasNext %}<a class="arrow-link" href="{{ next.url }}"><span data-bocchi-i18n="common.next">{{ text.next }}</span>: {{ next.title }}</a>{% endif %}
+</nav>

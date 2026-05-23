@@ -50,6 +50,7 @@ public sealed class WriteThemeInputStage : IBuildStage
         var pairs = _writer.Build(
             session.Graph,
             themeId,
+            session.Options.Mode,
             session.Options.Environment,
             session.Options.IncludeDrafts,
             bocchiVersion,

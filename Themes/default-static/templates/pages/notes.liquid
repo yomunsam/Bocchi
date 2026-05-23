@@ -1,0 +1,16 @@
+<section class="content section">
+  <p class="eyebrow">{{ hero.number }}</p>
+  <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+  <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
+</section>
+<section class="content section">
+  {% if hasItems %}
+    {% for item in items %}
+    <article class="note">
+      <bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time>{{ item.displayDateTime }}</time></bocchi-time>
+      <div class="note__body">{{ item.html | html }}</div>
+      {% if item.hasMedia %}<div class="media-grid note__media">{% for media in item.media %}<img src="{{ media.path }}" alt="{{ media.alt }}">{% endfor %}</div>{% endif %}
+    </article>
+    {% endfor %}
+  {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
+</section>

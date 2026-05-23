@@ -1,0 +1,45 @@
+<section class="hero container">
+  <p class="eyebrow"><span data-bocchi-i18n="menu.home">{{ page.title }}</span> · {{ site.authorTimeZone }}</p>
+  <h1>{{ site.title }} <em data-bocchi-i18n="theme.defaultStatic.homeHeroAccent">{{ text.homeHeroAccent }}</em><span data-bocchi-i18n="theme.defaultStatic.homeHeroRest">{{ text.homeHeroRest }}</span></h1>
+  <p class="lead">{{ site.description }}</p>
+  <div class="meta-row"><span>{{ site.authorName }}</span><span data-bocchi-current-language>{{ localization.currentLanguage }}</span><span>{{ site.baseUrl }}</span></div>
+</section>
+<section class="content section">
+  <div class="section-head"><h2 data-bocchi-i18n="theme.defaultStatic.homeSelectedWriting">{{ text.homeSelectedWriting }}</h2><a class="arrow-link" href="/posts/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
+  {% if hasFeaturedPosts %}
+  <div class="list">
+    {% for item in featuredPosts %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date">{{ item.yearMonth }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.meta }}</span></a>{% endfor %}
+  </div>
+  {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
+</section>
+<section class="content section">
+  <div class="section-head"><h2 data-bocchi-i18n="theme.defaultStatic.homeSelectedWork">{{ text.homeSelectedWork }}</h2><a class="arrow-link" href="/works/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
+  {% if hasFeaturedWorks %}
+  <div class="grid">
+    {% for item in featuredWorks %}
+    <article class="card">
+      {% if item.hasCover %}<a class="card__cover" href="{{ item.url }}"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></a>{% endif %}
+      <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
+      <p>{{ item.summary }}</p>
+      {% if item.hasStack %}<div class="tags">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
+</section>
+<section class="content section">
+  <div class="section-head"><h2 data-bocchi-i18n="theme.defaultStatic.homeRecentNotes">{{ text.homeRecentNotes }}</h2><a class="arrow-link" href="/notes/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
+  {% if hasRecentNotes %}
+    {% for item in recentNotes %}<article class="note"><bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time>{{ item.displayDateTime }}</time></bocchi-time><div class="note__body">{{ item.html | html }}</div></article>{% endfor %}
+  {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
+</section>
+{% if showFriends %}
+<section class="content section">
+  <div class="section-head"><h2 data-bocchi-i18n="menu.friends">{{ text.homeFriends }}</h2><a class="arrow-link" href="/friends/" data-bocchi-i18n="theme.defaultStatic.all">{{ text.all }}</a></div>
+  {% if hasFriends %}
+  <div class="list">
+    {% for item in friends %}<a class="list-row" href="{{ item.url }}"><span class="list-row__date" data-bocchi-i18n="theme.defaultStatic.linkLabel">{{ text.linkLabel }}</span><span class="list-row__title">{{ item.title }}</span><span class="list-row__meta">{{ item.summary }}</span></a>{% endfor %}
+  </div>
+  {% else %}<div class="empty" data-bocchi-i18n="theme.defaultStatic.emptyList">{{ text.emptyList }}</div>{% endif %}
+</section>
+{% endif %}

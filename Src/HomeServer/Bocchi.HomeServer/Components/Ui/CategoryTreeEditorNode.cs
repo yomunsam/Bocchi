@@ -11,6 +11,9 @@ public sealed class CategoryTreeEditorNode
     /// <summary>类别显示名称。</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>类别 URL slug；为空保存时会由服务层从名称自动生成。</summary>
+    public string Slug { get; set; } = string.Empty;
+
     /// <summary>下一层子类别。</summary>
     public List<CategoryTreeEditorNode> Children { get; } = [];
 }

@@ -9,4 +9,10 @@
     <ProjectReference Include="..\..\Core\Bocchi.GeneratorContract\Bocchi.GeneratorContract.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\Themes\default-static\**\*">
+      <LogicalName>Bocchi.Theme.DefaultStatic.DefaultTheme/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

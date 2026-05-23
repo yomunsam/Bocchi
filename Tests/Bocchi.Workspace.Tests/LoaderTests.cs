@@ -93,6 +93,37 @@ public sealed class LoaderTests
     }
 
     [Fact]
+    public void PageLoader_ReadsTemplateAndDefaultsToNormal()
+    {
+        var loader = new PageLoader(Markdown);
+        var withTemplate = """
+            ---
+            title: About
+            slug: about
+            status: Published
+            template: about
+            ---
+            About body.
+            """;
+        var withoutTemplate = """
+            ---
+            title: FAQ
+            slug: faq
+            status: Published
+            ---
+            FAQ body.
+            """;
+
+        var about = loader.Load(Loc("pages/about/index.md"), "about", withTemplate);
+        var faq = loader.Load(Loc("pages/faq/index.md"), "faq", withoutTemplate);
+
+        about.Errors.Should().BeEmpty();
+        about.Document!.Frontmatter.Template.Should().Be("about");
+        faq.Errors.Should().BeEmpty();
+        faq.Document!.Frontmatter.Template.Should().Be("normal");
+    }
+
+    [Fact]
     public void FriendLinksLoader_ParsesShortAndFullForms()
     {
         var yaml = """
@@ -160,15 +191,24 @@ public sealed class LoaderTests
             baseUrl: https://demo.example/
             copyright: Copyright © 2026 Demo.
             navigation:
-              - title: A
-                href: /a
+              - id: inline-a
+                label: A
+                target:
+                  type: builtin
+                  value: home
             """;
         var navYaml = """
             items:
-              - title: B
-                href: /b
-              - title: C
-                href: /c
+              - id: nav-b
+                label: B
+                target:
+                  type: page
+                  value: b
+              - id: nav-c
+                label: C
+                target:
+                  type: builtin
+                  value: posts
             """;
 
         var result = SiteSettingsLoader.Load(
@@ -179,6 +219,8 @@ public sealed class LoaderTests
         result.Document!.DefaultTitle.Should().Be("Demo Default");
         result.Document.CopyrightNotice.Should().Be("Copyright © 2026 Demo.");
         result.Document!.Navigation.Should().HaveCount(2);
-        result.Document.Navigation[0].Title.Should().Be("B");
+        result.Document.Navigation[0].Label.Should().Be("B");
+        result.Document.Navigation[0].Target.Type.Should().Be("page");
+        result.Document.Navigation[0].Target.Value.Should().Be("b");
     }
 }

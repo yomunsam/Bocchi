@@ -146,11 +146,14 @@ public sealed class BocchiDataInitializer
         """;
 
     private const string DefaultNavigationYaml = """
-        # 顶部导航条目。覆盖 site.yaml 中的 navigation 字段（如果同时存在）。
-        # - title: Home
-        #   href: /
-        # - title: Blog
-        #   href: /posts/
+        # 前台 primary menu。Dashboard 会读写这个文件；Theme 自行决定如何展示嵌套。
+        # items:
+        #   - id: home
+        #     label: i18n://common@menu.home
+        #     target:
+        #       type: builtin
+        #       value: home
+        #     children: []
         items: []
         """;
 

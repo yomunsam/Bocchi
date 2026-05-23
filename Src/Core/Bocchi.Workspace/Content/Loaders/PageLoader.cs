@@ -71,6 +71,7 @@ public sealed class PageLoader
         var order = YamlAccess.GetInt(mapping, "order") ?? 0;
         var showInNavigation = YamlAccess.GetBool(mapping, "showInNavigation") ?? false;
         var summary = YamlAccess.GetString(mapping, "summary");
+        var template = NormalizeTemplateName(YamlAccess.GetString(mapping, "template"));
 
         if (errors.Any(e => e.Severity == ContentErrorSeverity.Error))
         {
@@ -89,9 +90,14 @@ public sealed class PageLoader
             Order = order,
             ShowInNavigation = showInNavigation,
             Summary = summary,
+            Template = template,
         };
 
         var body = new ContentBody(split.Body, html, excerpt, media);
         return LoadResult.Ok<PageDocument>(new PageDocument(location, page, body), errors);
     }
+
+    /// <summary>页面模板为空时使用 Theme Contract 固定存在的 normal 模板。</summary>
+    private static string NormalizeTemplateName(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "normal" : value.Trim();
 }

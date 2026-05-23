@@ -1,0 +1,30 @@
+.bocchi-template-selector {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+}
+
+.bocchi-template-selector label {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 720;
+}
+
+.bocchi-template-selector select {
+    width: 100%;
+    min-height: 2.35rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    padding: 0 0.65rem;
+}
+
+.bocchi-template-selector__warning {
+    margin: 0;
+    color: var(--bocchi-warning-strong);
+    font-size: 0.86rem;
+    line-height: 1.5;
+}

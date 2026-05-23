@@ -1,0 +1,41 @@
+.bocchi-navigation-tree {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.bocchi-navigation-empty {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px dashed var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface-muted) 45%, transparent);
+    padding: 0.85rem;
+}
+
+.bocchi-navigation-empty strong {
+    color: var(--bocchi-text);
+}
+
+.bocchi-navigation-warning {
+    display: grid;
+    gap: 0.25rem;
+    border: 1px solid color-mix(in srgb, var(--bocchi-warning) 44%, var(--bocchi-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-warning) 10%, var(--bocchi-surface));
+    color: var(--bocchi-warning-strong);
+    padding: 0.8rem;
+}
+
+.bocchi-navigation-warning p,
+.bocchi-navigation-status {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.bocchi-navigation-status--success {
+    color: var(--bocchi-success-strong);
+}

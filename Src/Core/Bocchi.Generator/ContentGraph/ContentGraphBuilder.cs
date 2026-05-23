@@ -49,8 +49,20 @@ public sealed class ContentGraphBuilder
         var site = BuildSite(scan.SiteSettings);
         var rewriter = new MediaPathRewriter();
 
-        var posts = BuildPosts(scan.Posts, options, rewriter);
+        var usedPostCategorySlugs = new HashSet<string>(StringComparer.Ordinal);
+        var configuredPostCategories = NormalizePostCategoryNodes(options.PostCategories, usedPostCategorySlugs);
+        var configuredPostCategoryLookup = BuildPostCategoryLookup(configuredPostCategories);
+        var derivedPostCategories = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var posts = BuildPosts(
+            scan.Posts,
+            options,
+            rewriter,
+            configuredPostCategoryLookup,
+            derivedPostCategories,
+            usedPostCategorySlugs);
         EnsureUniqueSlugs(posts.Select(p => (Year: p.Year, Slug: p.Slug)), "post");
+        var postCategories = BuildPostCategories(configuredPostCategories, derivedPostCategories, posts);
 
         var pages = BuildPages(scan.Pages, options, rewriter);
         EnsureUniqueSlugs(pages.Select(p => (Year: string.Empty, Slug: p.Slug)), "page");
@@ -69,6 +81,7 @@ public sealed class ContentGraphBuilder
         {
             Site = site,
             Posts = posts,
+            PostCategories = postCategories,
             Pages = pages,
             Works = works,
             Notes = notes,
@@ -91,7 +104,12 @@ public sealed class ContentGraphBuilder
     }
 
     private List<GraphPost> BuildPosts(
-        IReadOnlyList<PostDocument> docs, ContentGraphOptions opts, MediaPathRewriter rewriter)
+        IReadOnlyList<PostDocument> docs,
+        ContentGraphOptions opts,
+        MediaPathRewriter rewriter,
+        IReadOnlyDictionary<string, string> configuredCategoryLookup,
+        Dictionary<string, string> derivedCategories,
+        HashSet<string> usedCategorySlugs)
     {
         var list = new List<GraphPost>(docs.Count);
         foreach (var doc in docs)
@@ -126,6 +144,11 @@ public sealed class ContentGraphBuilder
                 PublishedAt = doc.Frontmatter.PublishedAt,
                 UpdatedAt = doc.Frontmatter.UpdatedAt,
                 Category = doc.Frontmatter.Category,
+                CategorySlug = ResolvePostCategorySlug(
+                    doc.Frontmatter.Category,
+                    configuredCategoryLookup,
+                    derivedCategories,
+                    usedCategorySlugs),
                 Tags = doc.Frontmatter.Tags,
                 Summary = doc.Frontmatter.Summary,
                 Cover = rewrittenCover,
@@ -141,6 +164,163 @@ public sealed class ContentGraphBuilder
             .OrderByDescending(p => p.PublishedAt ?? DateTimeOffset.MinValue)
             .ThenBy(p => p.Slug, StringComparer.Ordinal)
             .ToList();
+    }
+
+    /// <summary>把外部 Category 快照清理为 Generator 内部树，并确保整棵树 slug 唯一。</summary>
+    private static List<NormalizedPostCategory> NormalizePostCategoryNodes(
+        IEnumerable<BuildCategoryNode> nodes,
+        HashSet<string> usedSlugs)
+        => NormalizePostCategoryNodes(nodes, usedSlugs, depth: 0);
+
+    private static List<NormalizedPostCategory> NormalizePostCategoryNodes(
+        IEnumerable<BuildCategoryNode> nodes,
+        HashSet<string> usedSlugs,
+        int depth)
+    {
+        if (depth >= 5)
+        {
+            return [];
+        }
+
+        var result = new List<NormalizedPostCategory>();
+        foreach (var node in nodes)
+        {
+            var name = string.IsNullOrWhiteSpace(node.Name) ? string.Empty : node.Name.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var slug = EnsureUniqueCategorySlug(CreateCategorySlug(node.Slug, name, node.Id), usedSlugs);
+            result.Add(new NormalizedPostCategory(
+                name,
+                slug,
+                NormalizePostCategoryNodes(node.Children, usedSlugs, depth + 1)));
+        }
+
+        return result;
+    }
+
+    /// <summary>建立 name/slug 到稳定 slug 的查找表，让 Post frontmatter 可以用类别名或 slug 匹配 Category tree。</summary>
+    private static Dictionary<string, string> BuildPostCategoryLookup(IEnumerable<NormalizedPostCategory> nodes)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in FlattenPostCategories(nodes))
+        {
+            result.TryAdd(node.Name, node.Slug);
+            result.TryAdd(node.Slug, node.Slug);
+        }
+
+        return result;
+    }
+
+    /// <summary>解析文章 Category slug；未配置的 category 会派生成根级 Category，避免 posts.json 指向不可生成的页面。</summary>
+    private static string? ResolvePostCategorySlug(
+        string? category,
+        IReadOnlyDictionary<string, string> configuredCategoryLookup,
+        Dictionary<string, string> derivedCategories,
+        HashSet<string> usedCategorySlugs)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return null;
+        }
+
+        var name = category.Trim();
+        if (configuredCategoryLookup.TryGetValue(name, out var configuredSlug))
+        {
+            return configuredSlug;
+        }
+
+        if (derivedCategories.TryGetValue(name, out var derivedSlug))
+        {
+            return derivedSlug;
+        }
+
+        var slug = EnsureUniqueCategorySlug(CreateCategorySlug(null, name, name), usedCategorySlugs);
+        derivedCategories[name] = slug;
+        return slug;
+    }
+
+    /// <summary>创建最终输出的 Post Category tree；配置树优先，文章中出现但未配置的 category 追加为根节点。</summary>
+    private static List<GraphPostCategory> BuildPostCategories(
+        IEnumerable<NormalizedPostCategory> configuredCategories,
+        IReadOnlyDictionary<string, string> derivedCategories,
+        IReadOnlyList<GraphPost> posts)
+    {
+        var counts = posts
+            .Where(post => !string.IsNullOrWhiteSpace(post.CategorySlug))
+            .GroupBy(post => post.CategorySlug!, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+        var result = configuredCategories.Select(node => ToGraphPostCategory(node, counts)).ToList();
+        foreach (var (name, slug) in derivedCategories.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            result.Add(new GraphPostCategory
+            {
+                Name = name,
+                Slug = slug,
+                SiteRelativeUrl = SiteUrlResolver.PostCategoryUrl(slug),
+                Count = counts.GetValueOrDefault(slug),
+            });
+        }
+
+        return result;
+    }
+
+    private static GraphPostCategory ToGraphPostCategory(
+        NormalizedPostCategory node,
+        IReadOnlyDictionary<string, int> counts)
+        => new()
+        {
+            Name = node.Name,
+            Slug = node.Slug,
+            SiteRelativeUrl = SiteUrlResolver.PostCategoryUrl(node.Slug),
+            Count = counts.GetValueOrDefault(node.Slug),
+            Children = node.Children.Select(child => ToGraphPostCategory(child, counts)).ToArray(),
+        };
+
+    private static IEnumerable<NormalizedPostCategory> FlattenPostCategories(IEnumerable<NormalizedPostCategory> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in FlattenPostCategories(node.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+
+    private static string CreateCategorySlug(string? explicitSlug, string name, string id)
+    {
+        var slug = CategorySlug.Normalize(explicitSlug);
+        if (!string.IsNullOrWhiteSpace(slug))
+        {
+            return slug;
+        }
+
+        slug = CategorySlug.Normalize(name);
+        if (!string.IsNullOrWhiteSpace(slug))
+        {
+            return slug;
+        }
+
+        slug = CategorySlug.Normalize(id);
+        return string.IsNullOrWhiteSpace(slug) ? "category" : slug;
+    }
+
+    private static string EnsureUniqueCategorySlug(string baseSlug, HashSet<string> usedSlugs)
+    {
+        var normalized = string.IsNullOrWhiteSpace(baseSlug) ? "category" : baseSlug;
+        var candidate = normalized;
+        var suffix = 2;
+        while (!usedSlugs.Add(candidate))
+        {
+            candidate = string.Format(CultureInfo.InvariantCulture, "{0}-{1}", normalized, suffix);
+            suffix++;
+        }
+
+        return candidate;
     }
 
     private List<GraphPage> BuildPages(
@@ -175,6 +355,7 @@ public sealed class ContentGraphBuilder
                 Order = doc.Frontmatter.Order,
                 ShowInNavigation = doc.Frontmatter.ShowInNavigation,
                 Summary = doc.Frontmatter.Summary,
+                Template = doc.Frontmatter.Template,
                 SiteRelativeUrl = SiteUrlResolver.PageUrl(doc.Frontmatter.Slug),
                 BodyMarkdown = rewrittenMarkdown,
                 BodyHtml = rewrittenHtml,
@@ -395,6 +576,12 @@ public sealed class ContentGraphBuilder
                 $"内容 '{descriptor}' 的 Markdown 正文超过限制（{opts.MaxBodyBytes} 字节）。");
         }
     }
+
+    /// <summary>Generator 内部使用的标准化 Category 节点。</summary>
+    private sealed record NormalizedPostCategory(
+        string Name,
+        string Slug,
+        IReadOnlyList<NormalizedPostCategory> Children);
 }
 
 /// <summary>
@@ -413,4 +600,7 @@ public sealed record ContentGraphOptions
 
     /// <summary>friends.yaml 所在目录的绝对路径（用于解析头像相对路径）。</summary>
     public required string FriendsDirectoryAbsolute { get; init; }
+
+    /// <summary>外部注入的 Post Category tree；为空时按文章 frontmatter category 派生扁平 tree。</summary>
+    public IReadOnlyList<BuildCategoryNode> PostCategories { get; init; } = [];
 }

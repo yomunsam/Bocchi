@@ -38,6 +38,26 @@ internal static class DefaultStaticFluidRenderer
         return await RenderTemplateAsync("layouts/base.liquid", layoutSource, layoutModel).ConfigureAwait(false);
     }
 
+    /// <summary>检查页面模板是否存在于可覆盖 Theme 目录或内置默认资源中。</summary>
+    public static async Task<bool> PageTemplateExistsAsync(
+        string themeRoot,
+        string pageTemplateName,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(themeRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageTemplateName);
+
+        var relativePath = $"pages/{pageTemplateName}.liquid";
+        var diskPath = Path.Combine(themeRoot, "templates", relativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (File.Exists(diskPath))
+        {
+            return true;
+        }
+
+        return await DefaultStaticThemeDefinition.TryReadTemplateAsync(relativePath, cancellationToken)
+            .ConfigureAwait(false) is not null;
+    }
+
     /// <summary>读取工作区模板；缺失时回退到内置默认模板，保证旧工作区也能构建。</summary>
     private static async Task<string> ReadTemplateAsync(string themeRoot, string relativePath, CancellationToken cancellationToken)
     {
@@ -47,7 +67,7 @@ internal static class DefaultStaticFluidRenderer
             return await File.ReadAllTextAsync(diskPath, cancellationToken).ConfigureAwait(false);
         }
 
-        return DefaultStaticThemeDefinition.TryGetTemplate(relativePath)
+        return await DefaultStaticThemeDefinition.TryReadTemplateAsync(relativePath, cancellationToken).ConfigureAwait(false)
             ?? throw new DefaultStaticThemeException($"默认 Theme 缺少模板 '{relativePath}'。");
     }
 

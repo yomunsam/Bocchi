@@ -41,6 +41,18 @@ public sealed class ThemeInputWriter
         ["ja-JP"] = new() { Code = "ja-JP", NativeName = "日本語", EnglishName = "Japanese" },
     };
 
+    /// <summary>Generator 用于解析 Menu label 的 Common i18n 默认值；完整前台文案仍由 Theme 自己决定。</summary>
+    private static readonly Dictionary<string, IReadOnlyDictionary<string, string>> CommonDisplayDefaults = new(StringComparer.Ordinal)
+    {
+        ["menu.home"] = CreateLanguageValues("Index", "首页", "首頁", "ホーム"),
+        ["menu.posts"] = CreateLanguageValues("Writing", "写作", "寫作", "文章"),
+        ["menu.works"] = CreateLanguageValues("Work", "作品", "作品", "制作"),
+        ["menu.notes"] = CreateLanguageValues("Notes", "札记", "札記", "ノート"),
+        ["menu.friends"] = CreateLanguageValues("Friends", "友链", "友站", "リンク"),
+        ["menu.about"] = CreateLanguageValues("About", "关于", "關於", "紹介"),
+        ["page.normal.name"] = CreateLanguageValues("Normal", "普通页面", "普通頁面", "通常ページ"),
+    };
+
     private readonly TimeProvider _time;
 
     public ThemeInputWriter(TimeProvider time)
@@ -49,12 +61,27 @@ public sealed class ThemeInputWriter
         _time = time;
     }
 
+    /// <summary>创建首批 Common display ref 的默认多语言文案。</summary>
+    private static Dictionary<string, string> CreateLanguageValues(
+        string enUs,
+        string zhCn,
+        string zhTw,
+        string jaJp)
+        => new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["en-US"] = enUs,
+            ["zh-CN"] = zhCn,
+            ["zh-TW"] = zhTw,
+            ["ja-JP"] = jaJp,
+        };
+
     /// <summary>
     /// 序列化所有 Theme 输入 artifact，但不实际写入 Sink；返回 artifact + 字节内容（供 caller 写到任何 Sink）。
     /// </summary>
     public IReadOnlyList<(BuildArtifact Artifact, ReadOnlyMemory<byte> Bytes)> Build(
         ContentGraph.ContentGraph graph,
         string themeId,
+        BuildMode mode,
         string environment,
         bool includeDrafts,
         string? bocchiVersion,
@@ -94,7 +121,8 @@ public sealed class ThemeInputWriter
         }
 
         Add("site.json", ContractSchemaIds.Site, MapSite(graph.Site));
-        Add("navigation.json", ContractSchemaIds.Navigation, new NavigationInput { Items = graph.Site.Settings.Navigation });
+        Add("navigation.json", ContractSchemaIds.Navigation, MapNavigation(graph, manifest, localization));
+        Add("post-categories.json", ContractSchemaIds.PostCategories, graph.PostCategories.Select(MapPostCategory).ToArray());
         Add("posts.json", ContractSchemaIds.Posts, graph.Posts.Select(MapPost).ToArray());
         Add("pages.json", ContractSchemaIds.Pages, graph.Pages.Select(MapPage).ToArray());
         Add("works.json", ContractSchemaIds.Works, graph.Works.Select(MapWork).ToArray());
@@ -104,7 +132,7 @@ public sealed class ThemeInputWriter
         Add(
             "theme-context.json",
             ContractSchemaIds.ThemeContext,
-            MapThemeContext(graph, themeId, environment, includeDrafts, bocchiVersion, generatedAt, manifest, themeConfig, localization));
+            MapThemeContext(graph, themeId, mode, environment, includeDrafts, bocchiVersion, generatedAt, manifest, themeConfig, localization));
 
         var buildContext = new BuildContext
         {
@@ -127,6 +155,7 @@ public sealed class ThemeInputWriter
     private static ThemeContextInput MapThemeContext(
         ContentGraph.ContentGraph graph,
         string themeId,
+        BuildMode mode,
         string environment,
         bool includeDrafts,
         string? bocchiVersion,
@@ -146,6 +175,7 @@ public sealed class ThemeInputWriter
             },
             Build = new ThemeContextBuild
             {
+                Mode = mode == BuildMode.Live ? "live" : "full",
                 GeneratedAt = generatedAt,
                 Environment = environment,
                 IncludeDrafts = includeDrafts,
@@ -183,6 +213,8 @@ public sealed class ThemeInputWriter
                 Version = manifest?.Version ?? "0.0.0",
                 Config = themeConfig ?? new JsonObject(),
                 I18n = MapThemeI18n(manifest?.I18n),
+                PageTemplates = MapThemePageTemplates(manifest),
+                SpecialPages = MapThemeSpecialPages(manifest),
             },
         };
     }
@@ -299,8 +331,84 @@ public sealed class ThemeInputWriter
                 .GroupBy(key => key.Key.Trim(), StringComparer.Ordinal)
                 .Select(group => MapThemeI18nKey(group.First()))
                 .OrderBy(key => key.Key, StringComparer.Ordinal)
-                .ToArray(),
+            .ToArray(),
         };
+    }
+
+    private static ThemeContextPageTemplate[] MapThemePageTemplates(ThemeManifest? manifest)
+        => NormalizePageTemplates(manifest)
+            .Select(template => new ThemeContextPageTemplate
+            {
+                Name = template.Name,
+                DisplayName = template.DisplayName,
+            })
+            .ToArray();
+
+    private static ThemeContextSpecialPage[] MapThemeSpecialPages(ThemeManifest? manifest)
+        => NormalizeSpecialPages(manifest)
+            .Select(page => new ThemeContextSpecialPage
+            {
+                Name = page.Name,
+                DisplayName = page.DisplayName,
+                Route = NormalizeRoute(page.Route),
+            })
+            .ToArray();
+
+    private static List<ThemePageTemplateManifest> NormalizePageTemplates(ThemeManifest? manifest)
+    {
+        var result = new List<ThemePageTemplateManifest>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var template in manifest?.PageTemplates ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(template.Name) ||
+                string.IsNullOrWhiteSpace(template.DisplayName) ||
+                !seen.Add(template.Name.Trim()))
+            {
+                continue;
+            }
+
+            result.Add(new ThemePageTemplateManifest
+            {
+                Name = template.Name.Trim(),
+                DisplayName = template.DisplayName.Trim(),
+            });
+        }
+
+        if (!seen.Contains("normal"))
+        {
+            result.Insert(0, new ThemePageTemplateManifest
+            {
+                Name = "normal",
+                DisplayName = "i18n://common@page.normal.name",
+            });
+        }
+
+        return result;
+    }
+
+    private static List<ThemeSpecialPageManifest> NormalizeSpecialPages(ThemeManifest? manifest)
+    {
+        var result = new List<ThemeSpecialPageManifest>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var page in manifest?.SpecialPages ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(page.Name) ||
+                string.IsNullOrWhiteSpace(page.DisplayName) ||
+                !IsValidThemeSpecialPageRoute(page.Route) ||
+                !seen.Add(page.Name.Trim()))
+            {
+                continue;
+            }
+
+            result.Add(new ThemeSpecialPageManifest
+            {
+                Name = page.Name.Trim(),
+                DisplayName = page.DisplayName.Trim(),
+                Route = NormalizeRoute(page.Route),
+            });
+        }
+
+        return result;
     }
 
     /// <summary>清理单个 Theme 私有 key 声明；默认值保持 plain text，不做 HTML/Markdown 解释。</summary>
@@ -360,6 +468,255 @@ public sealed class ThemeInputWriter
     private static bool SameCode(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
+    private static NavigationInput MapNavigation(
+        ContentGraph.ContentGraph graph,
+        ThemeManifest? manifest,
+        BuildLocalizationOptions? localization)
+    {
+        var pages = graph.Pages.ToDictionary(page => page.Slug, StringComparer.Ordinal);
+        var specialPages = NormalizeSpecialPages(manifest).ToDictionary(page => page.Name, StringComparer.Ordinal);
+        var postCategories = FlattenPostCategories(graph.PostCategories).ToDictionary(category => category.Slug, StringComparer.Ordinal);
+        var items = graph.Site.Settings.Navigation
+            .Select(item => MapNavigationItem(item, pages, specialPages, postCategories, manifest, localization, graph.Site.Settings.Language))
+            .Where(item => item is not null)
+            .Select(item => item!)
+            .ToArray();
+        return new NavigationInput { Items = items };
+    }
+
+    private static NavigationItemInput? MapNavigationItem(
+        NavigationItem item,
+        IReadOnlyDictionary<string, GraphPage> pages,
+        IReadOnlyDictionary<string, ThemeSpecialPageManifest> specialPages,
+        IReadOnlyDictionary<string, GraphPostCategory> postCategories,
+        ThemeManifest? manifest,
+        BuildLocalizationOptions? localization,
+        string siteLanguage)
+    {
+        var href = ResolveNavigationHref(item.Target, pages, specialPages, postCategories);
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            return null;
+        }
+
+        var fallback = ResolveNavigationFallbackLabel(item.Target, pages, specialPages, postCategories);
+        var display = ResolveDisplayText(item.Label, fallback, manifest, localization, siteLanguage);
+        return new NavigationItemInput
+        {
+            Id = item.Id,
+            Label = display.Text,
+            LabelI18n = display.I18n,
+            Href = href,
+            Target = new NavigationTargetInput
+            {
+                Type = item.Target.Type,
+                Value = item.Target.Value,
+            },
+            Children = item.Children
+                .Select(child => MapNavigationItem(child, pages, specialPages, postCategories, manifest, localization, siteLanguage))
+                .Where(child => child is not null)
+                .Select(child => child!)
+                .ToArray(),
+        };
+    }
+
+    private static string? ResolveNavigationHref(
+        NavigationTarget target,
+        IReadOnlyDictionary<string, GraphPage> pages,
+        IReadOnlyDictionary<string, ThemeSpecialPageManifest> specialPages,
+        IReadOnlyDictionary<string, GraphPostCategory> postCategories)
+    {
+        var value = string.IsNullOrWhiteSpace(target.Value) ? string.Empty : target.Value.Trim();
+        return target.Type.Trim() switch
+        {
+            "builtin" => BuiltinHref(value),
+            "page" => pages.TryGetValue(value, out var page) ? page.SiteRelativeUrl : null,
+            "themePage" => specialPages.TryGetValue(value, out var page) && IsValidThemeSpecialPageRoute(page.Route)
+                ? NormalizeRoute(page.Route)
+                : null,
+            "postCategory" => postCategories.TryGetValue(value, out var category) ? category.SiteRelativeUrl : null,
+            _ => null,
+        };
+    }
+
+    private static string ResolveNavigationFallbackLabel(
+        NavigationTarget target,
+        IReadOnlyDictionary<string, GraphPage> pages,
+        IReadOnlyDictionary<string, ThemeSpecialPageManifest> specialPages,
+        IReadOnlyDictionary<string, GraphPostCategory> postCategories)
+    {
+        var value = string.IsNullOrWhiteSpace(target.Value) ? string.Empty : target.Value.Trim();
+        return target.Type.Trim() switch
+        {
+            "builtin" => BuiltinDisplayRef(value) ?? value,
+            "page" => pages.TryGetValue(value, out var page) ? page.Title : value,
+            "themePage" => specialPages.TryGetValue(value, out var page) ? page.DisplayName : value,
+            "postCategory" => postCategories.TryGetValue(value, out var category) ? category.Name : value,
+            _ => value,
+        };
+    }
+
+    private static string? BuiltinHref(string value) => value switch
+    {
+        "home" => "/",
+        "posts" => "/posts/",
+        "works" => "/works/",
+        "notes" => "/notes/",
+        "friends" => "/friends/",
+        _ => null,
+    };
+
+    private static string? BuiltinDisplayRef(string value) => value switch
+    {
+        "home" => "i18n://common@menu.home",
+        "posts" => "i18n://common@menu.posts",
+        "works" => "i18n://common@menu.works",
+        "notes" => "i18n://common@menu.notes",
+        "friends" => "i18n://common@menu.friends",
+        _ => null,
+    };
+
+    private static DisplayText ResolveDisplayText(
+        string? raw,
+        string fallback,
+        ThemeManifest? manifest,
+        BuildLocalizationOptions? localization,
+        string siteLanguage)
+    {
+        var source = string.IsNullOrWhiteSpace(raw) ? fallback : raw.Trim();
+        if (TryParseDisplayRef(source, out var scope, out var key))
+        {
+            return new DisplayText(
+                ResolveDisplayRef(scope, key, manifest, localization, siteLanguage),
+                new NavigationLabelI18nRefInput
+                {
+                    Scope = scope,
+                    Key = key,
+                    Raw = source,
+                });
+        }
+
+        return new DisplayText(string.IsNullOrWhiteSpace(source) ? fallback : source, null);
+    }
+
+    private static string ResolveDisplayRef(
+        string scope,
+        string key,
+        ThemeManifest? manifest,
+        BuildLocalizationOptions? localization,
+        string siteLanguage)
+    {
+        var language = string.IsNullOrWhiteSpace(localization?.PrimaryLanguage)
+            ? siteLanguage
+            : localization.PrimaryLanguage;
+        if (string.Equals(scope, "common", StringComparison.Ordinal))
+        {
+            return ResolveLanguageValue(localization?.Text, key, language)
+                ?? ResolveLanguageValue(CommonDisplayDefaults, key, language)
+                ?? key;
+        }
+
+        if (string.Equals(scope, "theme", StringComparison.Ordinal))
+        {
+            return ResolveLanguageValue(localization?.ThemeTextOverrides, key, language)
+                ?? ResolveThemeDefaultValue(manifest, key, language)
+                ?? key;
+        }
+
+        return key;
+    }
+
+    private static string? ResolveLanguageValue(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? values,
+        string key,
+        string language)
+    {
+        if (values is null || !values.TryGetValue(key, out var languageValues))
+        {
+            return null;
+        }
+
+        if (languageValues.TryGetValue(language, out var value) && !string.IsNullOrWhiteSpace(value))
+        {
+            return value.Trim();
+        }
+
+        return languageValues.Values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+    }
+
+    private static string? ResolveThemeDefaultValue(ThemeManifest? manifest, string key, string language)
+    {
+        var item = manifest?.I18n?.Keys.FirstOrDefault(candidate => string.Equals(candidate.Key, key, StringComparison.Ordinal));
+        if (item is null)
+        {
+            return null;
+        }
+
+        if (item.DefaultValues.TryGetValue(language, out var value) && !string.IsNullOrWhiteSpace(value))
+        {
+            return value.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest?.I18n?.DefaultLanguage) &&
+            item.DefaultValues.TryGetValue(manifest.I18n.DefaultLanguage, out var fallback) &&
+            !string.IsNullOrWhiteSpace(fallback))
+        {
+            return fallback.Trim();
+        }
+
+        return item.DefaultValues.Values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+    }
+
+    private static bool TryParseDisplayRef(string value, out string scope, out string key)
+    {
+        scope = string.Empty;
+        key = string.Empty;
+        const string prefix = "i18n://";
+        if (!value.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var body = value[prefix.Length..];
+        var separator = body.IndexOf('@', StringComparison.Ordinal);
+        if (separator <= 0 || separator >= body.Length - 1)
+        {
+            return false;
+        }
+
+        scope = body[..separator].Trim();
+        key = body[(separator + 1)..].Trim();
+        return !string.IsNullOrWhiteSpace(scope) && !string.IsNullOrWhiteSpace(key);
+    }
+
+    private static bool IsValidThemeSpecialPageRoute(string? route)
+    {
+        if (string.IsNullOrWhiteSpace(route))
+        {
+            return false;
+        }
+
+        var normalized = route.Trim();
+        return normalized[0] == '/'
+            && !normalized.StartsWith("//", StringComparison.Ordinal)
+            && !normalized.Contains("..", StringComparison.Ordinal);
+    }
+
+    private static string NormalizeRoute(string route)
+        => route.Trim();
+
+    private static IEnumerable<GraphPostCategory> FlattenPostCategories(IEnumerable<GraphPostCategory> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in FlattenPostCategories(node.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+
     private static SiteInput MapSite(GraphSite site) => new()
     {
         Title = site.Settings.Title,
@@ -386,9 +743,11 @@ public sealed class ThemeInputWriter
         PublishedAt = p.PublishedAt,
         UpdatedAt = p.UpdatedAt,
         Category = p.Category,
+        CategorySlug = p.CategorySlug,
         Tags = p.Tags,
         Summary = p.Summary,
         Cover = MapMedia(p.Cover),
+        SiteRelativeUrl = p.SiteRelativeUrl,
         Url = p.SiteRelativeUrl,
         Markdown = p.BodyMarkdown,
         Html = p.BodyHtml,
@@ -404,6 +763,8 @@ public sealed class ThemeInputWriter
         Order = p.Order,
         ShowInNavigation = p.ShowInNavigation,
         Summary = p.Summary,
+        Template = p.Template,
+        SiteRelativeUrl = p.SiteRelativeUrl,
         Url = p.SiteRelativeUrl,
         Markdown = p.BodyMarkdown,
         Html = p.BodyHtml,
@@ -424,6 +785,7 @@ public sealed class ThemeInputWriter
         Stack = w.Stack,
         Summary = w.Summary,
         Featured = w.Featured,
+        SiteRelativeUrl = w.SiteRelativeUrl,
         Url = w.SiteRelativeUrl,
         Markdown = w.BodyMarkdown,
         Html = w.BodyHtml,
@@ -455,6 +817,16 @@ public sealed class ThemeInputWriter
         Order = f.Order,
     };
 
+    private static PostCategoryInput MapPostCategory(GraphPostCategory category) => new()
+    {
+        Name = category.Name,
+        Slug = category.Slug,
+        SiteRelativeUrl = category.SiteRelativeUrl,
+        Url = category.SiteRelativeUrl,
+        Count = category.Count,
+        Children = category.Children.Select(MapPostCategory).ToArray(),
+    };
+
     private static MediaReferenceInput? MapMedia(MediaReference? media)
         => media is null ? null : new MediaReferenceInput(media.Path, media.Alt);
 
@@ -481,4 +853,7 @@ public sealed class ThemeInputWriter
 
         return sb.ToString();
     }
+
+    /// <summary>解析后的展示文案与可选 i18n 元数据。</summary>
+    private sealed record DisplayText(string Text, NavigationLabelI18nRefInput? I18n);
 }

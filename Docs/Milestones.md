@@ -200,14 +200,14 @@
 
 详细规划：见 [`Docs/Milestones/M5/M5.md`](./Milestones/M5/M5.md)。
 
-当前状态：已完成。`default-static` 会物化到 `<data>/themes/default-static/`，`builtin-template` runner 可在不依赖 Node.js 的情况下执行该 Theme 实例中的 `.liquid` 模板，输出首页、文章、页面、作品、短文、友链、404、CSS、JS，并进入 `.bocchi-manifest.json`；`theme-context.json`、Theme 配置文件边界、manifest 对账、模板覆盖、Preview Host 首页、四个关键视口和 `bocchi-time` 双时区增强均已有验证。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
+当前状态：已完成。`default-static` 的 canonical source 位于 `Themes/default-static/`，会作为 embedded resources 随包分发并物化到 `<data>/themes/default-static/`；`fluid-static` runner 可在不依赖 Node.js 的情况下执行该 Theme 实例中的 `.liquid` 模板，输出首页、文章、页面、作品、短文、友链、404、CSS、JS，并进入 `.bocchi-manifest.json`；`theme-context.json`、Theme 配置文件边界、manifest 对账、模板覆盖、Preview Host 首页、四个关键视口和 `bocchi-time` 双时区增强均已有验证。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
 
 建议任务：
 
 - 建立 `Src/Themes/Bocchi.Theme.DefaultStatic/` 作为内置 Fluid 模板 renderer。
 - 明确内置默认 Theme 到 `<data>/themes/default-static/` manifest/schema/templates/assets 的物化方式。
 - 补齐 `theme-context.json` 输入，让 Dashboard Theme 设置和站点/作者/构建上下文参与构建。
-- 新增 `builtin-template` / `process` runner 边界，默认 Theme 走 `builtin-template`，第三方 Theme 可继续走本机命令。
+- 新增 `fluid-static` / `process` runner 边界，默认 Theme 走 `fluid-static`，第三方纯模板 Theme 也可使用它；高级 Theme 可继续走本机命令。
 - 新增 Theme 输出收集阶段，把 Theme 本地输出登记为 `ArtifactKind.ThemeOutput` 并纳入 manifest。
 - 实现 `theme.json`、`config-schema.json` 和 Theme 输入数据加载。
 - 实现首页、文章列表和详情页、独立页面、作品列表和详情页、短文列表、友链页、404 页面。
@@ -234,7 +234,7 @@
 
 目标：让 Bocchi 在不打断普通写作流程的前提下，支持 Dashboard 自身 i18n、站点语言设置、Theme 本地化约定和内容多语言版本。
 
-详细规划：见 [`Docs/Milestones/M6/M6.md`](./Milestones/M6/M6.md)。
+详细规划：见 [`Docs/Milestones/M6/M6.md`](./Milestones/M6/M6.md)；Frontend Menu v1 与 Theme Page Contract 的本轮设计和实施记录见 [`Docs/Milestones/M6/Menu.md`](./Milestones/M6/Menu.md)。
 
 关键方向：
 
@@ -243,6 +243,8 @@
 - 语言记录包含 `code`、`nativeName`、`englishName`；语言图标不进入 Home Server / Dashboard 通用模型。
 - `Settings / Localization` 管理站点语言、自定义语言、Common i18n key 覆盖和 URL policy。
 - `Settings / Theme` 管理当前 Theme、Theme manifest、Theme 私有配置和 Theme 私有 i18n key 覆盖。
+- 前台 Menu 是单个站点级 `primary menu`，Dashboard 读写 `workspace/site/navigation.yaml`，Theme 消费 `navigation.json` 并自行决定嵌套展示。
+- Theme 可以声明 Page templates 和 special pages；Page 只保存 template name，Menu 可以指向 Theme special page。
 - Post / Page / Work 使用 localization group + content variant 表达多语言内容；同一个 group 强制放在同一个内容目录下，例如 `index.md`、`index.zh-TW.md`。
 - M6 固定 `PrimaryUnprefixed` URL 策略：主语言无前缀，其他语言使用语言前缀。
 - 默认 Theme 首批示范 `en-US`、`zh-CN`、`zh-TW`、`ja-JP`，输出语言切换、翻译提示、canonical 和 `hreflang`。
@@ -252,6 +254,7 @@
 - Dashboard i18n JSON 资源、语言选择和持久化。
 - Localization 设置页、语言 Picklist 和自定义语言管理。
 - Common i18n key 覆盖、Theme 私有 i18n key 声明与覆盖。
+- Frontend Menu v1、Theme Page Contract、Post Category slug 和默认 Theme Menu 输入消费。
 - Theme Context 增加 localization 节点。
 - Post / Page / Work loader、scanner、state store、content graph 和 Theme input 增加 language / localization variant 字段。
 - 编辑器 `Language & versions` 小组件和“添加语言版本”Modal。
@@ -263,6 +266,8 @@
 - Dashboard 自身 UI 可在 `zh-CN` / `en-US` 间切换，控件可扩展到更多语言。
 - 站点主要语言、启用语言和自定义语言可配置并持久化。
 - 普通新建和编辑内容时不需要理解多语言概念。
+- `/Admin/Site/Navigation` 可管理嵌套 Menu，默认 Theme 不再硬编码顶栏导航。
+- Page 编辑器可选择 active Theme 声明的 template，并对 unavailable template 给出保留原值的提示。
 - Post / Page / Work 可添加语言版本，并生成同一目录下的独立 Markdown variant。
 - Translation variant 能记录来源语言和来源内容。
 - 默认 Theme 输出语言切换、翻译提示、`html lang`、canonical 和 `hreflang`。

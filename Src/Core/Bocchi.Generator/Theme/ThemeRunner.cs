@@ -7,7 +7,7 @@ using Bocchi.Theme.DefaultStatic;
 
 namespace Bocchi.Generator.Theme;
 
-/// <summary>默认 <see cref="IThemeRunner"/>。支持 M5 内置模板 runner，并保留旧版 <c>build.command</c> 兼容路径。</summary>
+/// <summary>默认 <see cref="IThemeRunner"/>。支持 <c>fluid-static</c> 与 <c>process</c> runner。</summary>
 public sealed class ThemeRunner : IThemeRunner
 {
     /// <inheritdoc />
@@ -19,9 +19,9 @@ public sealed class ThemeRunner : IThemeRunner
         ArgumentNullException.ThrowIfNull(invocation);
         ArgumentNullException.ThrowIfNull(onLog);
 
-        if (IsBuiltinTemplate(invocation.Manifest))
+        if (IsFluidStatic(invocation.Manifest))
         {
-            await RunBuiltinTemplateAsync(invocation, onLog, cancellationToken).ConfigureAwait(false);
+            await RunFluidStaticAsync(invocation, onLog, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -34,22 +34,17 @@ public sealed class ThemeRunner : IThemeRunner
         await ExecuteAsync(processRunner.Command, "build", invocation, onLog, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>判断 manifest 是否声明为内置模板 runner。</summary>
-    private static bool IsBuiltinTemplate(ThemeManifest manifest)
+    /// <summary>判断 manifest 是否声明为内置 Fluid 静态站点 runner。</summary>
+    private static bool IsFluidStatic(ThemeManifest manifest)
         => manifest.Runner is not null &&
-           string.Equals(manifest.Runner.Kind.Trim(), "builtin-template", StringComparison.OrdinalIgnoreCase);
+           string.Equals(manifest.Runner.Kind.Trim(), "fluid-static", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>运行受信任的内置默认模板 renderer。</summary>
-    private static async Task RunBuiltinTemplateAsync(
+    /// <summary>运行受信任的内置 Fluid 静态站点 renderer。</summary>
+    private static async Task RunFluidStaticAsync(
         ThemeRunInvocation invocation,
         Action<BuildLogLevel, string> onLog,
         CancellationToken cancellationToken)
     {
-        if (!string.Equals(invocation.Manifest.Id, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
-        {
-            throw new ThemeRunnerException($"builtin-template runner 暂时只支持 '{DefaultStaticThemeDefinition.ThemeId}'。");
-        }
-
         try
         {
             await DefaultStaticTemplateRenderer.RenderAsync(
@@ -63,15 +58,15 @@ public sealed class ThemeRunner : IThemeRunner
                     Environment = invocation.Environment,
                 },
                 cancellationToken).ConfigureAwait(false);
-            onLog(BuildLogLevel.Info, "[builtin-template] default-static rendered.");
+            onLog(BuildLogLevel.Info, $"[fluid-static] Theme '{invocation.Manifest.Id}' rendered.");
         }
         catch (DefaultStaticThemeException ex)
         {
-            throw new ThemeRunnerException($"Theme '{invocation.Manifest.Id}' builtin-template 渲染失败：{ex.Message}", ex);
+            throw new ThemeRunnerException($"Theme '{invocation.Manifest.Id}' fluid-static 渲染失败：{ex.Message}", ex);
         }
     }
 
-    /// <summary>把新旧 Theme manifest 统一解析成 process runner 命令；非 process runner 交给后续内置 renderer 实现。</summary>
+    /// <summary>把新旧 Theme manifest 统一解析成 process runner 命令。</summary>
     internal static ResolvedProcessRunner ResolveProcessRunner(ThemeManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);

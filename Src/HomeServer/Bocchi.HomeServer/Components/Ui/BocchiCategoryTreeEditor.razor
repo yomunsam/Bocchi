@@ -178,6 +178,7 @@
         {
             Id = node.Id,
             Name = node.Name,
+            Slug = node.Slug,
         };
         editorNode.Children.AddRange(node.Children.Select(ToEditorNode));
         return editorNode;
@@ -187,5 +188,6 @@
         => new(
             node.Id,
             node.Name,
+            node.Slug,
             node.Children.Select(ToServiceNode).ToList());
 }

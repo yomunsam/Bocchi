@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="{{ localization.currentLanguage }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{ site.description }}">
+  <title>{{ page.fullTitle }}</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/assets/app.css">
+  <style>:root{--accent: {{ site.accentColor }};}</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="wordmark" href="/">{{ site.title }}</a>
+      <nav class="nav" aria-label="Primary">
+        {% for item in navigation %}<span class="nav__item"><a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</a>{{ item.childrenHtml | html }}</span>{% endfor %}
+      </nav>
+      <div class="toolbar">
+        <details class="theme-menu" data-bocchi-language-control>
+          <summary aria-label="{{ text.languageLabel }}" title="{{ text.languageLabel }}">
+            <span class="theme-menu__icon" aria-hidden="true">文</span>
+            <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguage }}</span>
+            <span class="theme-menu__chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="theme-menu__menu" role="menu" aria-label="{{ text.languageLabel }}">
+            {% for language in localization.languages %}
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-language-option="{{ language.code }}" aria-current="{% if language.code == localization.currentLanguage %}true{% else %}false{% endif %}">
+              <span>{{ language.nativeName }}</span>
+              <small>{{ language.code }}</small>
+            </button>
+            {% endfor %}
+          </div>
+        </details>
+        <details class="theme-menu" data-bocchi-appearance-control>
+          <summary aria-label="{{ text.appearanceLabel }}" title="{{ text.appearanceLabel }}">
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--auto" aria-hidden="true">◐</span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--light" aria-hidden="true">☀</span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--dark" aria-hidden="true">☾</span>
+            <span class="theme-menu__chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="theme-menu__menu" role="menu" aria-label="{{ text.appearanceLabel }}">
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="auto" aria-current="true"><span data-bocchi-i18n="theme.defaultStatic.appearanceAuto">{{ text.appearanceAuto }}</span></button>
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="light" aria-current="false"><span data-bocchi-i18n="theme.defaultStatic.appearanceLight">{{ text.appearanceLight }}</span></button>
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="dark" aria-current="false"><span data-bocchi-i18n="theme.defaultStatic.appearanceDark">{{ text.appearanceDark }}</span></button>
+          </div>
+        </details>
+        <button class="icon-button mobile-toggle" type="button" data-mobile-toggle aria-expanded="false" aria-label="{{ text.openMenu }}">☰</button>
+      </div>
+    </div>
+    <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
+      {% for item in navigation %}<div class="mobile-nav__item"><a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</a>{{ item.mobileChildrenHtml | html }}</div>{% endfor %}
+    </nav>
+  </header>
+  <main>{{ content | html }}</main>
+  <footer class="footer">
+    <div class="footer__inner">
+      <span>{{ site.copyrightNotice }}</span>
+      <span data-bocchi-i18n="theme.defaultStatic.colophonBuiltWith">{{ text.colophonBuiltWith }}</span>
+      <span><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span>
+    </div>
+  </footer>
+  <script type="application/json" id="bocchi-i18n-data">{{ localization.textJson | html }}</script>
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>

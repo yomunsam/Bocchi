@@ -13,6 +13,7 @@ public static class ContractSchemaIds
 
     public const string Site = Base + "site.json";
     public const string Navigation = Base + "navigation.json";
+    public const string PostCategories = Base + "post-categories.json";
     public const string Posts = Base + "posts.json";
     public const string Pages = Base + "pages.json";
     public const string Works = Base + "works.json";

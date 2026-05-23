@@ -60,6 +60,11 @@ public static class SitemapXmlGenerator
                 WriteUrl(post.SiteRelativeUrl, mtime);
             }
 
+            foreach (var category in FlattenPostCategories(graph.PostCategories))
+            {
+                WriteUrl(category.SiteRelativeUrl, null);
+            }
+
             foreach (var work in graph.Works)
             {
                 var mtime = sourceMtimeProvider($"works/{work.Year}/{work.Slug}");
@@ -84,5 +89,17 @@ public static class SitemapXmlGenerator
                 Bytes = bytes,
             },
             bytes);
+    }
+
+    private static IEnumerable<GraphPostCategory> FlattenPostCategories(IEnumerable<GraphPostCategory> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in FlattenPostCategories(node.Children))
+            {
+                yield return child;
+            }
+        }
     }
 }

@@ -1,0 +1,20 @@
+<section class="content section">
+  <p class="eyebrow">{{ hero.number }}</p>
+  <h1{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+  <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
+</section>
+<section class="content section">
+  {% if hasItems %}
+  <div class="grid">
+    {% for item in items %}
+    <article class="card">
+      {% if item.hasCover %}<a class="card__cover" href="{{ item.url }}"><img src="{{ item.cover.path }}" alt="{{ item.cover.alt }}"></a>{% endif %}
+      <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
+      <p>{{ item.summary }}</p>
+      {% if item.meta %}<div class="card__meta">{{ item.meta }}</div>{% endif %}
+      {% if item.hasStack %}<div class="tags">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>{% endif %}
+</section>

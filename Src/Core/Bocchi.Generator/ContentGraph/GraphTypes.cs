@@ -17,6 +17,9 @@ public sealed record GraphPage
 
     public string? Summary { get; init; }
 
+    /// <summary>Page 使用的 Theme 模板名称。</summary>
+    public string Template { get; init; } = "normal";
+
     public required string SiteRelativeUrl { get; init; }
 
     public required string BodyMarkdown { get; init; }
@@ -26,6 +29,41 @@ public sealed record GraphPage
     public string? Excerpt { get; init; }
 
     public IReadOnlyList<MediaReference> Media { get; init; } = [];
+}
+
+/// <summary>构建入口注入的 Category tree 快照。Generator 不直接读取 HomeServer 数据库。</summary>
+public sealed record BuildCategoryNode
+{
+    /// <summary>稳定节点 id，主要用于空 slug fallback。</summary>
+    public required string Id { get; init; }
+
+    /// <summary>类别显示名称。</summary>
+    public required string Name { get; init; }
+
+    /// <summary>类别稳定 URL slug；为空时 Generator 会从名称或 id 归一化。</summary>
+    public string? Slug { get; init; }
+
+    /// <summary>下一层子类别。</summary>
+    public IReadOnlyList<BuildCategoryNode> Children { get; init; } = [];
+}
+
+/// <summary>内容图中的 Post Category 节点，已经带有稳定 URL 与文章数量。</summary>
+public sealed record GraphPostCategory
+{
+    /// <summary>类别显示名称。</summary>
+    public required string Name { get; init; }
+
+    /// <summary>稳定 URL slug。</summary>
+    public required string Slug { get; init; }
+
+    /// <summary>站点根相对 URL。</summary>
+    public required string SiteRelativeUrl { get; init; }
+
+    /// <summary>当前类别及其子类别直接匹配到的文章数量。</summary>
+    public required int Count { get; init; }
+
+    /// <summary>下一层类别。</summary>
+    public IReadOnlyList<GraphPostCategory> Children { get; init; } = [];
 }
 
 /// <summary>作品视图。</summary>

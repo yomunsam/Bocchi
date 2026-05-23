@@ -198,22 +198,67 @@ public static class SiteSettingsLoader
     }
 
     private static List<NavigationItem> ParseNavigationSequence(YamlSequenceNode seq)
+        => ParseNavigationSequence(seq, depth: 0, path: "nav");
+
+    private static List<NavigationItem> ParseNavigationSequence(YamlSequenceNode seq, int depth, string path)
     {
-        var list = new List<NavigationItem>();
-        foreach (var child in seq.Children)
+        if (depth >= CategoryDepthLimit)
         {
+            return [];
+        }
+
+        var list = new List<NavigationItem>();
+        for (var i = 0; i < seq.Children.Count; i++)
+        {
+            var child = seq.Children[i];
             if (child is YamlMappingNode m)
             {
-                var t = YamlAccess.GetString(m, "title");
-                var h = YamlAccess.GetString(m, "href");
-                if (!string.IsNullOrWhiteSpace(t) && !string.IsNullOrWhiteSpace(h))
+                var target = ParseNavigationTarget(m);
+                if (target is null)
                 {
-                    list.Add(new NavigationItem(t!, h!));
+                    continue;
                 }
+
+                var id = YamlAccess.GetString(m, "id");
+                var label = YamlAccess.GetString(m, "label");
+                var children = YamlAccess.GetSequence(m, "children") is { } childSeq
+                    ? ParseNavigationSequence(childSeq, depth + 1, $"{path}-{i}")
+                    : [];
+                list.Add(new NavigationItem
+                {
+                    Id = string.IsNullOrWhiteSpace(id) ? $"{path}-{i}" : id.Trim(),
+                    Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim(),
+                    Target = target,
+                    Children = children,
+                });
             }
         }
 
         return list;
+    }
+
+    private const int CategoryDepthLimit = 5;
+
+    private static NavigationTarget? ParseNavigationTarget(YamlMappingNode item)
+    {
+        var target = YamlAccess.GetMapping(item, "target");
+        if (target is null)
+        {
+            return null;
+        }
+
+        var type = YamlAccess.GetString(target, "type");
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            return null;
+        }
+
+        var value = YamlAccess.GetString(target, "value");
+        return new NavigationTarget
+        {
+            Type = type.Trim(),
+            Value = string.IsNullOrWhiteSpace(value) ? null : value.Trim(),
+        };
     }
 
     private static List<NavigationItem>? TryParseNavigationFile(

@@ -24,7 +24,8 @@ public sealed class CategoryTreeServiceTests
             new CategoryTreeNode(
                 "root-tech",
                 "计算机技术",
-                [new CategoryTreeNode("root-tech-ai", "AI", [])]),
+                "tech",
+                [new CategoryTreeNode("root-tech-ai", "AI", "ai", [])]),
         ]);
 
         var postTree = await service.GetAsync(ContentKind.Post);
@@ -32,6 +33,7 @@ public sealed class CategoryTreeServiceTests
 
         postTree.Roots.Should().ContainSingle();
         postTree.Roots[0].Name.Should().Be("计算机技术");
+        postTree.Roots[0].Slug.Should().Be("tech");
         postTree.Roots[0].Children.Should().ContainSingle(x => x.Name == "AI");
         workTree.Roots.Should().BeEmpty();
     }
@@ -48,7 +50,7 @@ public sealed class CategoryTreeServiceTests
         await service.SaveAsync(ContentKind.Post,
         [
             BuildChain(level: 0, maxLevel: 6),
-            new CategoryTreeNode("blank", "   ", []),
+            new CategoryTreeNode("blank", "   ", string.Empty, []),
         ]);
 
         var tree = await service.GetAsync(ContentKind.Post);
@@ -56,6 +58,26 @@ public sealed class CategoryTreeServiceTests
         tree.Roots.Should().ContainSingle();
         CountLevels(tree.Roots[0]).Should().Be(CategoryTreeService.MaxDepth);
         LastNode(tree.Roots[0]).Children.Should().BeEmpty();
+    }
+
+    /// <summary>保存时保证同一棵树内 slug 非空且唯一，避免前台 Category URL 抖动或冲突。</summary>
+    [Fact]
+    public async Task SaveAsync_NormalizesAndDeduplicatesSlugs()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = await CreateDbContextAsync(connection);
+        var service = new CategoryTreeService(db, TimeProvider.System);
+
+        await service.SaveAsync(ContentKind.Post,
+        [
+            new CategoryTreeNode("a", "Hello World", string.Empty, []),
+            new CategoryTreeNode("b", "Other", "hello-world", []),
+        ]);
+
+        var tree = await service.GetAsync(ContentKind.Post);
+
+        tree.Roots.Select(node => node.Slug).Should().Equal("hello-world", "hello-world-2");
     }
 
     private static async Task<BocchiDbContext> CreateDbContextAsync(SqliteConnection connection)
@@ -72,6 +94,7 @@ public sealed class CategoryTreeServiceTests
         => new(
             $"node-{level}",
             $"Level {level}",
+            $"level-{level}",
             level >= maxLevel ? [] : [BuildChain(level + 1, maxLevel)]);
 
     private static int CountLevels(CategoryTreeNode node)

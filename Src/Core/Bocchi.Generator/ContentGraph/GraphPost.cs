@@ -21,6 +21,9 @@ public sealed record GraphPost
 
     public string? Category { get; init; }
 
+    /// <summary>匹配到的 Category 稳定 slug；为空表示文章没有 Category。</summary>
+    public string? CategorySlug { get; init; }
+
     public IReadOnlyList<string> Tags { get; init; } = [];
 
     public string? Summary { get; init; }

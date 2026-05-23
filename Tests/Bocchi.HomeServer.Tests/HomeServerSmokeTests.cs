@@ -121,7 +121,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
-    public async Task SiteNavigationPage_RendersPlaceholderAndSiteSidebarLinks()
+    public async Task SiteNavigationPage_RendersEditorAndSiteSidebarLinks()
     {
         using var client = await _factory.CreateAdminClientAsync();
 
@@ -129,7 +129,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        body.Should().Contain("Entry ready");
+        body.Should().Contain("Primary Menu");
+        body.Should().Contain("Add root item");
         body.Should().Contain("Navigation");
         body.Should().Contain("Theme customization");
     }

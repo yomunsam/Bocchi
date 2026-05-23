@@ -1,5 +1,8 @@
 @page "/Admin/Site/Navigation"
+@using System.Globalization
+@using Bocchi.HomeServer.Services
 @inject DashboardLocalizationService I18n
+@inject NavigationMenuService Menu
 
 <PageTitle>@I18n["siteNavigation.page.title"] · Bocchi</PageTitle>
 
@@ -11,8 +14,230 @@
     </header>
 
     <section class="bocchi-panel bocchi-panel--soft">
-        <h2>@I18n["siteNavigation.placeholder.title"]</h2>
-        <p>@I18n["siteNavigation.placeholder.description"]</p>
-        <BocchiStatusPill Tone="info">@I18n["siteNavigation.placeholder.status"]</BocchiStatusPill>
+        <div class="bocchi-inline-actions">
+            <h2>@I18n["siteNavigation.editor.title"]</h2>
+            <div class="bocchi-inline-actions">
+                <button type="button" class="secondary" @onclick="AddRoot">
+                    <Blazicon Svg="Lucide.Plus" />
+                    <span>@I18n["siteNavigation.editor.addRoot"]</span>
+                </button>
+                <button type="button" disabled="@(!CanSave)" @onclick="SaveAsync">
+                    <Blazicon Svg="Lucide.Save" />
+                    <span>@(_busy ? I18n["siteNavigation.editor.saving"] : I18n["siteNavigation.editor.save"])</span>
+                </button>
+            </div>
+        </div>
+
+        @if (!_loaded)
+        {
+            <p>@I18n["siteNavigation.editor.loading"]</p>
+        }
+        else
+        {
+            @if (_warnings.Count > 0)
+            {
+                <div class="bocchi-navigation-warning">
+                    <strong>@I18n["siteNavigation.warning.title"]</strong>
+                    @foreach (var warning in _warnings)
+                    {
+                        <p>@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.warning.unresolvedFormat"], warning.Label, warning.TargetType, warning.TargetValue)</p>
+                    }
+                </div>
+            }
+
+            @if (_items.Count == 0)
+            {
+                <div class="bocchi-navigation-empty">
+                    <strong>@I18n["siteNavigation.editor.empty"]</strong>
+                    <button type="button" class="secondary" @onclick="AddRoot">@I18n["siteNavigation.editor.addRoot"]</button>
+                </div>
+            }
+            else
+            {
+                <div class="bocchi-navigation-tree">
+                    @for (var i = 0; i < _items.Count; i++)
+                    {
+                        var item = _items[i];
+                        <BocchiMenuNodeEditor Node="item"
+                                              TargetOptions="_targetOptions"
+                                              Level="0"
+                                              IsFirst="@(i == 0)"
+                                              IsLast="@(i == _items.Count - 1)"
+                                              AddChild="AddChild"
+                                              Remove="RemoveNode"
+                                              MoveUp="MoveUp"
+                                              MoveDown="MoveDown"
+                                              Changed="MarkDirty" />
+                    }
+                </div>
+            }
+
+            @if (_saved)
+            {
+                <p class="bocchi-navigation-status bocchi-navigation-status--success">@I18n["siteNavigation.editor.saved"]</p>
+            }
+        }
     </section>
 </article>
+
+@code {
+    /// <summary>当前编辑中的 Menu root 节点。</summary>
+    private readonly List<NavigationEditorItem> _items = [];
+
+    /// <summary>当前可选择 target；包含 unavailable 保留项。</summary>
+    private IReadOnlyList<NavigationTargetOption> _targetOptions = [];
+
+    /// <summary>当前 Menu 的 unresolved target warning。</summary>
+    private IReadOnlyList<NavigationMenuWarning> _warnings = [];
+
+    /// <summary>页面数据是否加载完成。</summary>
+    private bool _loaded;
+
+    /// <summary>当前编辑缓冲区是否有未保存改动。</summary>
+    private bool _dirty;
+
+    /// <summary>保存按钮 busy 状态。</summary>
+    private bool _busy;
+
+    /// <summary>保存成功提示。</summary>
+    private bool _saved;
+
+    private bool CanSave => _loaded && _dirty && !_busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var view = await Menu.GetEditorAsync();
+        _items.Clear();
+        _items.AddRange(view.Items);
+        _targetOptions = view.TargetOptions;
+        _warnings = view.Warnings;
+        _dirty = false;
+        _saved = false;
+        _loaded = true;
+    }
+
+    private void AddRoot()
+    {
+        _items.Add(CreateDefaultItem());
+        MarkDirty();
+    }
+
+    private void AddChild(NavigationEditorItem parent)
+    {
+        parent.Children.Add(CreateDefaultItem());
+        MarkDirty();
+    }
+
+    private void RemoveNode(NavigationEditorItem node)
+    {
+        if (RemoveFrom(_items, node))
+        {
+            MarkDirty();
+        }
+    }
+
+    private void MoveUp(NavigationEditorItem node)
+    {
+        if (MoveIn(_items, node, -1))
+        {
+            MarkDirty();
+        }
+    }
+
+    private void MoveDown(NavigationEditorItem node)
+    {
+        if (MoveIn(_items, node, 1))
+        {
+            MarkDirty();
+        }
+    }
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _saved = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Menu.SaveAsync(_items);
+            var view = await Menu.GetEditorAsync();
+            _targetOptions = view.TargetOptions;
+            _warnings = view.Warnings;
+            _dirty = false;
+            _saved = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private NavigationEditorItem CreateDefaultItem()
+    {
+        var first = _targetOptions.FirstOrDefault(option => option.Available) ??
+            new NavigationTargetOption { Type = "builtin", Value = "home", Label = "Home", Available = true };
+        return new NavigationEditorItem
+        {
+            TargetType = first.Type,
+            TargetValue = first.Value,
+        };
+    }
+
+    private static bool RemoveFrom(List<NavigationEditorItem> nodes, NavigationEditorItem target)
+    {
+        if (nodes.Remove(target))
+        {
+            return true;
+        }
+
+        foreach (var node in nodes)
+        {
+            if (RemoveFrom(node.Children, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool MoveIn(List<NavigationEditorItem> nodes, NavigationEditorItem target, int direction)
+    {
+        var index = nodes.IndexOf(target);
+        if (index >= 0)
+        {
+            var next = index + direction;
+            if (next < 0 || next >= nodes.Count)
+            {
+                return false;
+            }
+
+            (nodes[index], nodes[next]) = (nodes[next], nodes[index]);
+            return true;
+        }
+
+        foreach (var node in nodes)
+        {
+            if (MoveIn(node.Children, target, direction))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

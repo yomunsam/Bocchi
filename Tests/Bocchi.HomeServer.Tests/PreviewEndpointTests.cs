@@ -27,6 +27,19 @@ public sealed class PreviewEndpointTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
+    public async Task PreviewThemeContext_MarksLiveBuildMode()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/_bocchi/preview/data/theme-context.json");
+
+        response.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        doc.RootElement.GetProperty("$schema").GetString().Should().Be("https://bocchi.local/schema/v1/theme-context.json");
+        doc.RootElement.GetProperty("data").GetProperty("build").GetProperty("mode").GetString().Should().Be("live");
+    }
+
+    [Fact]
     public async Task PreviewRoot_ReturnsDefaultThemeHomeWithoutFullBuild()
     {
         using var client = await _factory.CreateAdminClientAsync();

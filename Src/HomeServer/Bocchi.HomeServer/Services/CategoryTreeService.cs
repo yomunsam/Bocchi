@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using Bocchi.ContentModel;
+using Bocchi.Generator.ContentGraph;
 using Bocchi.HomeServer.Data;
 
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// 后台分类树服务。它只保存 Admin 编辑器状态，不把分类树写入内容 frontmatter、前台 Menu 或构建输入。
+/// 后台分类树服务。它保存 Admin 编辑器状态，并把 Post Category tree 作为 Generator 构建快照输入。
 /// </summary>
 public sealed class CategoryTreeService
 {
@@ -48,7 +49,8 @@ public sealed class CategoryTreeService
         ArgumentNullException.ThrowIfNull(roots);
 
         var scope = NormalizeScope(kind);
-        var normalizedRoots = NormalizeNodes(roots, depth: 0);
+        var usedSlugs = new HashSet<string>(StringComparer.Ordinal);
+        var normalizedRoots = NormalizeNodes(roots, depth: 0, usedSlugs);
         var record = await _db.CategoryTrees
             .FirstOrDefaultAsync(x => x.Scope == scope, cancellationToken)
             .ConfigureAwait(false);
@@ -69,12 +71,25 @@ public sealed class CategoryTreeService
         _ => nameof(ContentKind.Post),
     };
 
+    /// <summary>读取 Generator 构建所需的 Post Category tree 快照。</summary>
+    public async Task<IReadOnlyList<BuildCategoryNode>> GetBuildPostCategoriesAsync(CancellationToken cancellationToken = default)
+    {
+        var view = await GetAsync(ContentKind.Post, cancellationToken).ConfigureAwait(false);
+        return view.Roots.Select(ToBuildNode).ToArray();
+    }
+
     private static List<CategoryTreeNode> Deserialize(string? treeJson)
         => string.IsNullOrWhiteSpace(treeJson)
             ? []
-            : NormalizeNodes(JsonSerializer.Deserialize<List<CategoryTreeNode>>(treeJson, JsonOptions) ?? [], depth: 0);
+            : NormalizeNodes(
+                JsonSerializer.Deserialize<List<CategoryTreeNode>>(treeJson, JsonOptions) ?? [],
+                depth: 0,
+                new HashSet<string>(StringComparer.Ordinal));
 
-    private static List<CategoryTreeNode> NormalizeNodes(IEnumerable<CategoryTreeNode> nodes, int depth)
+    private static List<CategoryTreeNode> NormalizeNodes(
+        IEnumerable<CategoryTreeNode> nodes,
+        int depth,
+        HashSet<string> usedSlugs)
     {
         if (depth >= MaxDepth)
         {
@@ -82,13 +97,13 @@ public sealed class CategoryTreeService
         }
 
         return nodes
-            .Select(node => NormalizeNode(node, depth))
+            .Select(node => NormalizeNode(node, depth, usedSlugs))
             .Where(node => node is not null)
             .Select(node => node!)
             .ToList();
     }
 
-    private static CategoryTreeNode? NormalizeNode(CategoryTreeNode node, int depth)
+    private static CategoryTreeNode? NormalizeNode(CategoryTreeNode node, int depth, HashSet<string> usedSlugs)
     {
         var name = NormalizeName(node.Name);
         if (string.IsNullOrWhiteSpace(name))
@@ -97,14 +112,56 @@ public sealed class CategoryTreeService
         }
 
         var id = string.IsNullOrWhiteSpace(node.Id) ? Guid.NewGuid().ToString("N") : node.Id.Trim();
+        var slug = EnsureUniqueSlug(CreateBaseSlug(node.Slug, name, id), usedSlugs);
         var children = depth + 1 >= MaxDepth
             ? []
-            : NormalizeNodes(node.Children, depth + 1);
-        return new CategoryTreeNode(id, name, children);
+            : NormalizeNodes(node.Children, depth + 1, usedSlugs);
+        return new CategoryTreeNode(id, name, slug, children);
     }
 
     private static string NormalizeName(string? value)
         => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    private static string CreateBaseSlug(string? slug, string name, string id)
+    {
+        var explicitSlug = CategorySlug.Normalize(slug);
+        if (!string.IsNullOrWhiteSpace(explicitSlug))
+        {
+            return explicitSlug;
+        }
+
+        var nameSlug = CategorySlug.Normalize(name);
+        if (!string.IsNullOrWhiteSpace(nameSlug))
+        {
+            return nameSlug;
+        }
+
+        var idSlug = CategorySlug.Normalize(id);
+        return string.IsNullOrWhiteSpace(idSlug) ? "category" : idSlug;
+    }
+
+    private static string EnsureUniqueSlug(string baseSlug, HashSet<string> usedSlugs)
+    {
+        var normalized = string.IsNullOrWhiteSpace(baseSlug) ? "category" : baseSlug;
+        var candidate = normalized;
+        var suffix = 2;
+        while (!usedSlugs.Add(candidate))
+        {
+            candidate = $"{normalized}-{suffix.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private static BuildCategoryNode ToBuildNode(CategoryTreeNode node)
+        => new()
+        {
+            Id = node.Id,
+            Name = node.Name,
+            Slug = node.Slug,
+            Children = node.Children.Select(ToBuildNode).ToArray(),
+        };
 }
 
 /// <summary>分类树读取结果。</summary>
@@ -116,11 +173,13 @@ public sealed record CategoryTreeView(
     IReadOnlyList<CategoryTreeNode> Roots,
     DateTimeOffset? UpdatedAt);
 
-/// <summary>分类树节点。节点 id 负责保持 UI 和后续关联的稳定性，名称负责后台展示。</summary>
+/// <summary>分类树节点。节点 id 负责保持 UI 稳定，slug 负责前台 URL 稳定，名称负责后台展示。</summary>
 /// <param name="Id">稳定节点 id。</param>
 /// <param name="Name">类别显示名称。</param>
+/// <param name="Slug">类别稳定 URL slug。</param>
 /// <param name="Children">下一层子类别。</param>
 public sealed record CategoryTreeNode(
     string Id,
     string Name,
+    string Slug,
     IReadOnlyList<CategoryTreeNode> Children);

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 
@@ -6,7 +7,7 @@ using Bocchi.GeneratorContract;
 
 namespace Bocchi.Theme.DefaultStatic;
 
-/// <summary>内置默认静态 Theme renderer，负责把 Theme Contract 输入转成 Fluid 模板模型并输出静态文件。</summary>
+/// <summary>内置 fluid-static renderer，负责把 Theme Contract 输入转成 Fluid 模板模型并输出静态文件。</summary>
 public sealed class DefaultStaticTemplateRenderer
 {
     /// <summary>默认 accent，配置值不合法时使用它避免 CSS 注入。</summary>
@@ -52,16 +53,11 @@ public sealed class DefaultStaticTemplateRenderer
     public static async Task RenderAsync(DefaultStaticRenderRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (!string.Equals(request.Manifest.Id, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
-        {
-            throw new DefaultStaticThemeException($"默认 renderer 只能处理 '{DefaultStaticThemeDefinition.ThemeId}'，实际为 '{request.Manifest.Id}'。");
-        }
-
         var input = await ReadInputAsync(request.InputDirectory, cancellationToken).ConfigureAwait(false);
         Directory.CreateDirectory(request.OutputDirectory);
 
         var text = DefaultStaticThemeText.From(input.ThemeContext);
-        var site = SiteInfo.From(input.ThemeContext, text.CurrentLanguage);
+        var site = SiteInfo.From(input.ThemeContext, text.CurrentLanguage) with { Navigation = input.Navigation };
         var visiblePosts = FilterVisible(input.Posts, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
         var visiblePages = FilterVisible(input.Pages, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
         var visibleWorks = FilterVisible(input.Works, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
@@ -72,6 +68,7 @@ public sealed class DefaultStaticTemplateRenderer
         await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, visiblePosts, visibleWorks, visibleNotes, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePostDetailsAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false);
+        await WritePostCategoryPagesAsync(request, site, text, visiblePosts, input.PostCategories, cancellationToken).ConfigureAwait(false);
         await WriteStandalonePagesAsync(request, site, text, visiblePages, cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "works/index.html", await RenderWorkListAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WriteWorkDetailsAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false);
@@ -86,6 +83,8 @@ public sealed class DefaultStaticTemplateRenderer
     {
         return new ThemeInputSet(
             await ReadDataAsync(inputDirectory, "theme-context.json", cancellationToken).ConfigureAwait(false),
+            ReadNavigationItems(await ReadDataAsync(inputDirectory, "navigation.json", cancellationToken).ConfigureAwait(false)),
+            await ReadArrayAsync(inputDirectory, "post-categories.json", cancellationToken).ConfigureAwait(false),
             await ReadArrayAsync(inputDirectory, "posts.json", cancellationToken).ConfigureAwait(false),
             await ReadArrayAsync(inputDirectory, "pages.json", cancellationToken).ConfigureAwait(false),
             await ReadArrayAsync(inputDirectory, "works.json", cancellationToken).ConfigureAwait(false),
@@ -128,14 +127,27 @@ public sealed class DefaultStaticTemplateRenderer
         return data.EnumerateArray().Select(item => item.Clone()).ToArray();
     }
 
+    /// <summary>读取 navigation.json 的 items 数组；无菜单时返回空数组。</summary>
+    private static JsonElement[] ReadNavigationItems(JsonElement navigationData)
+    {
+        if (navigationData.ValueKind != JsonValueKind.Object ||
+            !navigationData.TryGetProperty("items", out var items) ||
+            items.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return items.EnumerateArray().Select(item => item.Clone()).ToArray();
+    }
+
     /// <summary>复制用户可覆盖资产；缺失时回退到内置资产。</summary>
     private static async Task WriteAssetsAsync(DefaultStaticRenderRequest request, CancellationToken cancellationToken)
     {
         var assetOutput = Path.Combine(request.OutputDirectory, "assets");
         Directory.CreateDirectory(assetOutput);
-        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "favicon.svg", DefaultStaticThemeAssets.FaviconSvg, cancellationToken).ConfigureAwait(false);
-        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "app.css", DefaultStaticThemeAssets.Css, cancellationToken).ConfigureAwait(false);
-        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "app.js", DefaultStaticThemeAssets.Js, cancellationToken).ConfigureAwait(false);
+        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "favicon.svg", cancellationToken).ConfigureAwait(false);
+        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "app.css", cancellationToken).ConfigureAwait(false);
+        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "app.js", cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>优先复制工作区 Theme asset，保证用户修改 CSS/JS 后构建能生效。</summary>
@@ -143,7 +155,6 @@ public sealed class DefaultStaticTemplateRenderer
         string themeRoot,
         string outputDirectory,
         string fileName,
-        string fallbackContent,
         CancellationToken cancellationToken)
     {
         var source = Path.Combine(themeRoot, "assets", fileName);
@@ -156,7 +167,8 @@ public sealed class DefaultStaticTemplateRenderer
             return;
         }
 
-        await File.WriteAllTextAsync(destination, fallbackContent, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        await DefaultStaticThemeResources.CopyToFileAsync($"assets/{fileName}", destination, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>写入一个相对 Theme 输出目录的 HTML 文件。</summary>
@@ -274,7 +286,54 @@ public sealed class DefaultStaticTemplateRenderer
         {
             var post = posts[i];
             var body = await RenderArticleAsync(request, site, text, text.Get("menu.posts"), "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
-            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(post, "url")), body, cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(post)), body, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>递归渲染 Post Category 列表页。</summary>
+    private static async Task WritePostCategoryPagesAsync(
+        DefaultStaticRenderRequest request,
+        SiteInfo site,
+        DefaultStaticThemeText text,
+        JsonElement[] posts,
+        JsonElement[] categories,
+        CancellationToken cancellationToken)
+    {
+        foreach (var category in categories)
+        {
+            var slug = GetString(category, "slug");
+            var categoryPosts = posts
+                .Where(post => string.Equals(GetString(post, "categorySlug"), slug, StringComparison.Ordinal))
+                .ToArray();
+            var title = GetString(category, "name", slug);
+            var currentPath = GetContentUrl(category);
+            var model = CreateListingModel(
+                site,
+                text,
+                title,
+                string.Empty,
+                currentPath,
+                $"{text.Get("menu.posts")} / {title}",
+                string.Empty,
+                "02",
+                MapContentItems(categoryPosts, site),
+                text.Get("theme.defaultStatic.emptyList"));
+            await WritePageAsync(
+                request.OutputDirectory,
+                ToOutputPath(currentPath),
+                await DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "posts", model, cancellationToken).ConfigureAwait(false),
+                cancellationToken).ConfigureAwait(false);
+
+            if (category.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
+            {
+                await WritePostCategoryPagesAsync(
+                    request,
+                    site,
+                    text,
+                    posts,
+                    children.EnumerateArray().Select(child => child.Clone()).ToArray(),
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
@@ -284,10 +343,12 @@ public sealed class DefaultStaticTemplateRenderer
         foreach (var page in pages)
         {
             var title = GetTitle(page);
-            var model = CreatePageModel(site, text, title, GetString(page, "url"));
+            var model = CreatePageModel(site, text, title, GetContentUrl(page));
             model["item"] = MapContentItem(page, site);
-            var body = await DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "standalone-page", model, cancellationToken).ConfigureAwait(false);
-            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(page, "url")), body, cancellationToken).ConfigureAwait(false);
+            var template = await ResolveStandalonePageTemplateAsync(request.ThemeRoot, GetString(page, "template", "normal"), cancellationToken)
+                .ConfigureAwait(false);
+            var body = await DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, template, model, cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(page)), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -298,7 +359,7 @@ public sealed class DefaultStaticTemplateRenderer
         {
             var work = works[i];
             var body = await RenderArticleAsync(request, site, text, text.Get("menu.works"), "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
-            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetString(work, "url")), body, cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(work)), body, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -328,7 +389,7 @@ public sealed class DefaultStaticTemplateRenderer
         CancellationToken cancellationToken)
     {
         var title = GetTitle(item);
-        var model = CreatePageModel(site, text, title, GetString(item, "url"));
+        var model = CreatePageModel(site, text, title, GetContentUrl(item));
         model["section"] = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["name"] = sectionName,
@@ -340,6 +401,33 @@ public sealed class DefaultStaticTemplateRenderer
         model["next"] = next is null ? null : MapContentItem(next.Value, site);
         model["hasNext"] = next is not null;
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "article", model, cancellationToken);
+    }
+
+    /// <summary>按 Page template 选择独立页模板；专用模板缺失或名称不安全时回退到 standalone-page。</summary>
+    private static async Task<string> ResolveStandalonePageTemplateAsync(
+        string themeRoot,
+        string template,
+        CancellationToken cancellationToken)
+    {
+        if (string.Equals(template, "normal", StringComparison.Ordinal) || !IsSafeTemplateName(template))
+        {
+            return "standalone-page";
+        }
+
+        var candidate = $"standalone-page-{template}";
+        return await DefaultStaticFluidRenderer.PageTemplateExistsAsync(themeRoot, candidate, cancellationToken).ConfigureAwait(false)
+            ? candidate
+            : "standalone-page";
+    }
+
+    private static bool IsSafeTemplateName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_');
     }
 
     /// <summary>创建列表页通用模板模型。</summary>
@@ -379,7 +467,7 @@ public sealed class DefaultStaticTemplateRenderer
                 ["fullTitle"] = fullTitle,
                 ["currentPath"] = currentPath,
             },
-            ["navigation"] = CreateNavigationModel(currentPath, text),
+            ["navigation"] = CreateNavigationModel(currentPath, site.Navigation),
         };
     }
 
@@ -401,31 +489,82 @@ public sealed class DefaultStaticTemplateRenderer
         };
     }
 
-    /// <summary>创建顶栏和移动端导航使用的链接模型。</summary>
-    private static Dictionary<string, object?>[] CreateNavigationModel(string currentPath, DefaultStaticThemeText text)
-    {
-        return new[]
-        {
-            CreateNavigationItem("/", "menu.home", text.Get("menu.home"), currentPath),
-            CreateNavigationItem("/posts/", "menu.posts", text.Get("menu.posts"), currentPath),
-            CreateNavigationItem("/works/", "menu.works", text.Get("menu.works"), currentPath),
-            CreateNavigationItem("/notes/", "menu.notes", text.Get("menu.notes"), currentPath),
-            CreateNavigationItem("/friends/", "menu.friends", text.Get("menu.friends"), currentPath),
-        };
-    }
+    /// <summary>创建顶栏和移动端导航使用的链接模型，保留 Menu tree 的嵌套结构。</summary>
+    private static Dictionary<string, object?>[] CreateNavigationModel(string currentPath, JsonElement[] navigation)
+        => navigation.Select(item => CreateNavigationItem(item, currentPath)).ToArray();
 
-    /// <summary>创建单个导航链接模型并标记当前页。</summary>
-    private static Dictionary<string, object?> CreateNavigationItem(string href, string i18nKey, string label, string currentPath)
+    /// <summary>创建单个导航链接模型并递归标记当前页。</summary>
+    private static Dictionary<string, object?> CreateNavigationItem(JsonElement item, string currentPath)
     {
+        var href = GetString(item, "href");
+        var children = item.TryGetProperty("children", out var childArray) && childArray.ValueKind == JsonValueKind.Array
+            ? childArray.EnumerateArray().Select(child => CreateNavigationItem(child, currentPath)).ToArray()
+            : [];
         var current = string.Equals(href, currentPath, StringComparison.Ordinal) ||
-            href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal);
-        return new Dictionary<string, object?>(StringComparer.Ordinal)
+            href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal) ||
+            children.Any(child => child.TryGetValue("current", out var childCurrent) && childCurrent is true);
+        var model = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["href"] = href,
-            ["i18nKey"] = i18nKey,
-            ["label"] = label,
+            ["i18nKey"] = ReadNavigationI18nKey(item),
+            ["label"] = GetString(item, "label"),
             ["current"] = current,
+            ["children"] = children,
+            ["hasChildren"] = children.Length > 0,
         };
+        model["childrenHtml"] = RenderNavigationChildrenHtml(children, mobile: false);
+        model["mobileChildrenHtml"] = RenderNavigationChildrenHtml(children, mobile: true);
+        return model;
+    }
+
+    private static string ReadNavigationI18nKey(JsonElement item)
+        => item.TryGetProperty("labelI18n", out var i18n) && i18n.ValueKind == JsonValueKind.Object
+            ? GetString(i18n, "key")
+            : string.Empty;
+
+    /// <summary>把嵌套 Menu 子树预渲染为 HTML，避免模板系统依赖递归 include。</summary>
+    private static string RenderNavigationChildrenHtml(Dictionary<string, object?>[] children, bool mobile)
+    {
+        if (children.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var listClass = mobile ? "mobile-nav__children" : "nav__children";
+        var itemClass = mobile ? "mobile-nav__item" : "nav__item";
+        var builder = new StringBuilder();
+        builder.Append("<ul class=\"").Append(listClass).Append("\">");
+        foreach (var child in children)
+        {
+            var href = child.TryGetValue("href", out var hrefValue) ? hrefValue?.ToString() ?? "#" : "#";
+            var label = child.TryGetValue("label", out var labelValue) ? labelValue?.ToString() ?? string.Empty : string.Empty;
+            var i18nKey = child.TryGetValue("i18nKey", out var keyValue) ? keyValue?.ToString() ?? string.Empty : string.Empty;
+            var current = child.TryGetValue("current", out var currentValue) && currentValue is true;
+            var nestedHtml = child.TryGetValue(mobile ? "mobileChildrenHtml" : "childrenHtml", out var htmlValue)
+                ? htmlValue?.ToString() ?? string.Empty
+                : string.Empty;
+            builder.Append("<li class=\"").Append(itemClass).Append("\"><a href=\"")
+                .Append(WebUtility.HtmlEncode(href))
+                .Append('"');
+            if (current)
+            {
+                builder.Append(" aria-current=\"page\"");
+            }
+
+            if (!string.IsNullOrWhiteSpace(i18nKey))
+            {
+                builder.Append(" data-bocchi-i18n=\"").Append(WebUtility.HtmlEncode(i18nKey)).Append('"');
+            }
+
+            builder.Append('>')
+                .Append(WebUtility.HtmlEncode(label))
+                .Append("</a>")
+                .Append(nestedHtml)
+                .Append("</li>");
+        }
+
+        builder.Append("</ul>");
+        return builder.ToString();
     }
 
     /// <summary>创建页面 Hero 模型。</summary>
@@ -505,13 +644,17 @@ public sealed class DefaultStaticTemplateRenderer
         var media = MapMediaArray(item);
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["url"] = GetString(item, "url"),
+            ["url"] = GetContentUrl(item),
             ["title"] = GetTitle(item),
             ["summary"] = GetSummary(item),
             ["html"] = GetString(item, "html"),
             ["year"] = GetString(item, "year"),
             ["status"] = GetString(item, "status"),
             ["category"] = GetString(item, "category"),
+            ["categorySlug"] = GetString(item, "categorySlug"),
+            ["categoryUrl"] = string.IsNullOrWhiteSpace(GetString(item, "categorySlug"))
+                ? string.Empty
+                : $"/posts/categories/{GetString(item, "categorySlug")}/",
             ["role"] = GetString(item, "role"),
             ["period"] = GetString(item, "period"),
             ["date"] = FormatDate(date, site.AuthorTimeZone),
@@ -674,6 +817,13 @@ public sealed class DefaultStaticTemplateRenderer
         return null;
     }
 
+    /// <summary>读取内容的 canonical 站点根相对 URL；优先使用新的 siteRelativeUrl 字段。</summary>
+    private static string GetContentUrl(JsonElement item)
+    {
+        var siteRelativeUrl = GetString(item, "siteRelativeUrl");
+        return string.IsNullOrWhiteSpace(siteRelativeUrl) ? GetString(item, "url") : siteRelativeUrl;
+    }
+
     /// <summary>读取字符串属性。</summary>
     private static string GetString(JsonElement item, string key, string fallback = "")
         => item.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : fallback;
@@ -733,7 +883,15 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>默认 Theme 输入集合。</summary>
-    private sealed record ThemeInputSet(JsonElement ThemeContext, JsonElement[] Posts, JsonElement[] Pages, JsonElement[] Works, JsonElement[] Notes, JsonElement[] Friends)
+    private sealed record ThemeInputSet(
+        JsonElement ThemeContext,
+        JsonElement[] Navigation,
+        JsonElement[] PostCategories,
+        JsonElement[] Posts,
+        JsonElement[] Pages,
+        JsonElement[] Works,
+        JsonElement[] Notes,
+        JsonElement[] Friends)
     {
         /// <summary>当前构建是否包含草稿。</summary>
         public bool IncludeDrafts => TryGetPath(ThemeContext, ["build", "includeDrafts"])?.ValueKind == JsonValueKind.True;
@@ -768,6 +926,9 @@ public sealed class DefaultStaticTemplateRenderer
 
         /// <summary>经过 CSS 安全归一化的 accent color。</summary>
         public required string AccentColor { get; init; }
+
+        /// <summary>前台 primary menu tree。</summary>
+        public JsonElement[] Navigation { get; init; } = [];
 
         /// <summary>构建时间对应年份，用于 footer。</summary>
         public required int GeneratedYear { get; init; }

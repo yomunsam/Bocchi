@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
+using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Exceptions;
 using Bocchi.Generator.Theme;
 using Bocchi.Workspace;
@@ -52,13 +53,18 @@ public sealed class ComputeFingerprintStage : IBuildStage
         // 内容：每篇按 site-relative-url 排序后 hash 关键字段
         foreach (var post in session.Graph.Posts.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
         {
-            AppendLine(sha, $"post:{post.SiteRelativeUrl}|st={post.Status}|pub={post.PublishedAt?.UtcTicks}|up={post.UpdatedAt?.UtcTicks}");
+            AppendLine(sha, $"post:{post.SiteRelativeUrl}|st={post.Status}|cat={post.Category}|catSlug={post.CategorySlug}|pub={post.PublishedAt?.UtcTicks}|up={post.UpdatedAt?.UtcTicks}");
             AppendBodyHash(sha, post.BodyMarkdown);
+        }
+
+        foreach (var category in FlattenPostCategories(session.Graph.PostCategories).OrderBy(c => c.Slug, StringComparer.Ordinal))
+        {
+            AppendLine(sha, $"postCategory:{category.Slug}|name={category.Name}|url={category.SiteRelativeUrl}|count={category.Count}");
         }
 
         foreach (var page in session.Graph.Pages.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
         {
-            AppendLine(sha, $"page:{page.SiteRelativeUrl}|st={page.Status}");
+            AppendLine(sha, $"page:{page.SiteRelativeUrl}|st={page.Status}|template={page.Template}");
             AppendBodyHash(sha, page.BodyMarkdown);
         }
 
@@ -171,6 +177,18 @@ public sealed class ComputeFingerprintStage : IBuildStage
         }
 
         AppendLine(sha, $"themeConfig={sb}");
+    }
+
+    private static IEnumerable<GraphPostCategory> FlattenPostCategories(IEnumerable<GraphPostCategory> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in FlattenPostCategories(node.Children))
+            {
+                yield return child;
+            }
+        }
     }
 
     /// <summary>把 Theme 源文件纳入构建指纹，避免模板或 CSS 修改后被错误短路。</summary>

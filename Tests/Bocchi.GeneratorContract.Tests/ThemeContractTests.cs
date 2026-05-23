@@ -40,13 +40,13 @@ public sealed class ThemeContractTests
             ContractVersion = ThemeContractVersion.V1,
             Runner = new ThemeRunnerSpec
             {
-                Kind = "builtin-template",
+                Kind = "fluid-static",
                 Entry = "fluid",
             },
         };
 
         manifest.Runner.Should().NotBeNull();
-        manifest.Runner!.Kind.Should().Be("builtin-template");
+        manifest.Runner!.Kind.Should().Be("fluid-static");
         manifest.Runner.Entry.Should().Be("fluid");
         manifest.Build.Should().BeNull();
     }
@@ -86,6 +86,42 @@ public sealed class ThemeContractTests
         manifest.I18n.Keys.Should().ContainSingle(key =>
             key.Key == "theme.defaultStatic.colophonBuiltWith"
             && key.DefaultValues["zh-CN"] == "由 Bocchi 构建。");
+    }
+
+    [Fact]
+    public void ThemeManifest_SupportsPageTemplatesAndSpecialPages()
+    {
+        var manifest = new ThemeManifest
+        {
+            Id = "custom-theme",
+            Name = "Custom Theme",
+            Version = "0.1.0",
+            ContractVersion = ThemeContractVersion.V1,
+            PageTemplates =
+            [
+                new ThemePageTemplateManifest
+                {
+                    Name = "normal",
+                    DisplayName = "i18n://theme@theme.custom.pageTemplate.normal",
+                },
+            ],
+            SpecialPages =
+            [
+                new ThemeSpecialPageManifest
+                {
+                    Name = "calculator",
+                    DisplayName = "Calculator",
+                    Route = "/calculator/",
+                },
+            ],
+        };
+
+        manifest.PageTemplates.Should().ContainSingle(template =>
+            template.Name == "normal" &&
+            template.DisplayName == "i18n://theme@theme.custom.pageTemplate.normal");
+        manifest.SpecialPages.Should().ContainSingle(page =>
+            page.Name == "calculator" &&
+            page.Route == "/calculator/");
     }
 
     [Fact]

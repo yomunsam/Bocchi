@@ -9,6 +9,9 @@ public sealed record ContentGraph
 
     public IReadOnlyList<GraphPost> Posts { get; init; } = [];
 
+    /// <summary>站点 Post Category tree，带稳定 slug、URL 和计数。</summary>
+    public IReadOnlyList<GraphPostCategory> PostCategories { get; init; } = [];
+
     public IReadOnlyList<GraphPage> Pages { get; init; } = [];
 
     public IReadOnlyList<GraphWork> Works { get; init; } = [];

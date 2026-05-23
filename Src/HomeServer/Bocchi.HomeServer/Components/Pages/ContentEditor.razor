@@ -1,10 +1,17 @@
 @page "/Admin/Content/Edit"
 @using Bocchi.Workspace.Scanning
 @using Bocchi.Workspace.State
+@using Bocchi.HomeServer.Services
+@using YamlDotNet.Core
+@using YamlDotNet.RepresentationModel
 @inject ContentEditingService Editor
 @inject Bocchi.Workspace.Content.MarkdownPipeline Markdown
 @inject ContentScanner Scanner
 @inject IContentStateStore Store
+@inject ThemeSettingsService ThemeSettings
+@inject SiteProfileSettingsService SiteProfile
+@inject DashboardLocalizationService I18n
+@inject NavigationManager Nav
 
 <PageTitle>Write · Bocchi</PageTitle>
 
@@ -96,6 +103,30 @@
 
             <aside class="bocchi-panel bocchi-editor-preview">
                 <h2>Preview</h2>
+                @if (IsPageFile)
+                {
+                    <div class="bocchi-template-selector">
+                        <label>
+                            @I18n["contentEditor.template.label"]
+                            <select value="@CurrentTemplate" @onchange="OnTemplateChangedAsync">
+                                @if (TemplateUnavailable)
+                                {
+                                    <option value="@CurrentTemplate">@string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["contentEditor.template.unavailableOptionFormat"], CurrentTemplate)</option>
+                                }
+                                @foreach (var template in _pageTemplates)
+                                {
+                                    <option value="@template.Name">@template.DisplayName</option>
+                                }
+                            </select>
+                        </label>
+                        @if (TemplateUnavailable)
+                        {
+                            <p class="bocchi-template-selector__warning">
+                                @string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["contentEditor.template.unavailableWarningFormat"], CurrentTemplate)
+                            </p>
+                        }
+                    </div>
+                }
                 <div class="bocchi-markdown-preview">@((MarkupString)_previewHtml)</div>
             </aside>
         </section>
@@ -107,11 +138,18 @@
     [SupplyParameterFromQuery(Name = "path")]
     public string? Path { get; set; }
 
+    /// <summary>创建入口传入的内容类型；本轮先支持 kind=page。</summary>
+    [SupplyParameterFromQuery(Name = "kind")]
+    public string? Kind { get; set; }
+
     /// <summary>未指定 path 时展示的内容候选列表。</summary>
     private IReadOnlyList<ContentSummary> _summaries = [];
 
     /// <summary>当前编辑文件。</summary>
     private EditableContentFile? _file;
+
+    /// <summary>当前 Theme 声明的 Page template 下拉选项。</summary>
+    private IReadOnlyList<ThemePageTemplateOption> _pageTemplates = [];
 
     /// <summary>frontmatter YAML 编辑缓冲区。</summary>
     private string _yaml = string.Empty;
@@ -143,6 +181,13 @@
     /// <summary>当前编辑缓冲区是否相对载入版本发生变化。</summary>
     private bool IsDirty => _yaml != _originalYaml || _markdown != _originalMarkdown;
 
+    private bool IsPageFile => _file?.RelativePath.StartsWith("pages/", StringComparison.OrdinalIgnoreCase) == true;
+
+    private string CurrentTemplate => ReadTemplateName(_yaml);
+
+    private bool TemplateUnavailable => IsPageFile &&
+        !_pageTemplates.Any(template => string.Equals(template.Name, CurrentTemplate, StringComparison.Ordinal));
+
     /// <summary>保存前给用户扫读的轻量差异摘要。</summary>
     private string DiffSummary
     {
@@ -173,6 +218,16 @@
         _error = null;
         if (string.IsNullOrWhiteSpace(Path))
         {
+            if (string.Equals(Kind, "page", StringComparison.OrdinalIgnoreCase))
+            {
+                _file = await Editor.CreatePageDraftAsync();
+                Path = _file.RelativePath;
+                await LoadPageTemplatesAsync();
+                LoadFileIntoEditor(_file);
+                Nav.NavigateTo(ContentEditingService.EditUrl(_file.RelativePath), replace: true);
+                return;
+            }
+
             _summaries = await Store.ListContentSummariesAsync(null);
             _file = null;
             return;
@@ -181,12 +236,8 @@
         try
         {
             _file = await Editor.ReadAsync(Path);
-            _yaml = _file.Yaml;
-            _markdown = _file.Markdown;
-            _originalYaml = _file.Yaml;
-            _originalMarkdown = _file.Markdown;
-            _previewHtml = _file.PreviewHtml;
-            _diffConfirmed = false;
+            await LoadPageTemplatesAsync();
+            LoadFileIntoEditor(_file);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -225,7 +276,84 @@
         _previewHtml = Markdown.RenderHtml(_markdown);
     }
 
+    private void LoadFileIntoEditor(EditableContentFile file)
+    {
+        _yaml = file.Yaml;
+        _markdown = file.Markdown;
+        _originalYaml = file.Yaml;
+        _originalMarkdown = file.Markdown;
+        _previewHtml = file.PreviewHtml;
+        _diffConfirmed = false;
+    }
+
+    private async Task LoadPageTemplatesAsync()
+    {
+        if (_file?.RelativePath.StartsWith("pages/", StringComparison.OrdinalIgnoreCase) != true)
+        {
+            _pageTemplates = [];
+            return;
+        }
+
+        var settings = await SiteProfile.GetAsync();
+        var themeId = string.IsNullOrWhiteSpace(settings.DefaultThemeId)
+            ? (await ThemeSettings.GetDefaultAsync()).ThemeId
+            : settings.DefaultThemeId;
+        var contract = await ThemeSettings.GetPageContractAsync(themeId, I18n.CurrentLanguage.Code);
+        _pageTemplates = contract.PageTemplates;
+    }
+
+    private async Task OnTemplateChangedAsync(ChangeEventArgs args)
+    {
+        _yaml = SetTemplateName(_yaml, args.Value?.ToString() ?? "normal");
+        _diffConfirmed = false;
+        await Task.CompletedTask;
+    }
+
     /// <summary>跨平台拆分文本行，仅用于保存前差异摘要。</summary>
     private static string[] SplitLines(string value)
         => value.Replace("\r\n", "\n").Split('\n');
+
+    private static string ReadTemplateName(string yaml)
+    {
+        var root = ParseYaml(yaml);
+        if (root?.Children.TryGetValue(new YamlScalarNode("template"), out var node) == true &&
+            node is YamlScalarNode scalar &&
+            !string.IsNullOrWhiteSpace(scalar.Value))
+        {
+            return scalar.Value.Trim();
+        }
+
+        return "normal";
+    }
+
+    private static string SetTemplateName(string yaml, string template)
+    {
+        var root = ParseYaml(yaml) ?? new YamlMappingNode();
+        root.Children[new YamlScalarNode("template")] = new YamlScalarNode(string.IsNullOrWhiteSpace(template) ? "normal" : template.Trim());
+        var stream = new YamlStream(new YamlDocument(root));
+        using var writer = new StringWriter();
+        stream.Save(writer, assignAnchors: false);
+        return writer.ToString().Trim();
+    }
+
+    private static YamlMappingNode? ParseYaml(string yaml)
+    {
+        if (string.IsNullOrWhiteSpace(yaml))
+        {
+            return null;
+        }
+
+        var stream = new YamlStream();
+        using var reader = new StringReader(yaml);
+        try
+        {
+            stream.Load(reader);
+        }
+        catch (YamlException)
+        {
+            return null;
+        }
+
+        return stream.Documents.Count > 0 ? stream.Documents[0].RootNode as YamlMappingNode : null;
+    }
 }

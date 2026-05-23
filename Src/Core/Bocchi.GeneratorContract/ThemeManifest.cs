@@ -13,10 +13,10 @@ public sealed record ThemeBuildSpec
 /// <summary>Theme Runner 声明，描述当前 Theme 应由哪类执行器处理。</summary>
 public sealed record ThemeRunnerSpec
 {
-    /// <summary>Runner 类型。M5 本地 runner 先约定 <c>process</c> 与 <c>builtin-template</c>。</summary>
+    /// <summary>Runner 类型。当前本地 runner 约定 <c>process</c> 与 <c>fluid-static</c>。</summary>
     public required string Kind { get; init; }
 
-    /// <summary>Runner 入口。<c>builtin-template</c> 可用它选择内置模板 renderer，例如 <c>fluid</c>。</summary>
+    /// <summary>Runner 入口。<c>fluid-static</c> 可用它选择内置模板 renderer，例如 <c>fluid</c>。</summary>
     public string? Entry { get; init; }
 
     /// <summary><c>process</c> runner 的构建命令。第三方 Theme 使用它接入自己的构建工具。</summary>
@@ -81,6 +81,29 @@ public sealed record ThemeI18nKeyManifest
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>Theme 声明的自定义页面模板。页面 frontmatter 只保存 <see cref="Name"/>，不保存 Theme 关联。</summary>
+public sealed record ThemePageTemplateManifest
+{
+    /// <summary>模板唯一名称；<c>normal</c> 是 HomeServer 强制存在的基础模板。</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Dashboard 展示名。可以是普通文本，也可以是 <c>i18n://common@key</c> / <c>i18n://theme@key</c>。</summary>
+    public required string DisplayName { get; init; }
+}
+
+/// <summary>Theme 声明的特殊页面。它不由 Bocchi 生成内容，只允许 Menu 指向 Theme 自己能处理的路径。</summary>
+public sealed record ThemeSpecialPageManifest
+{
+    /// <summary>特殊页面唯一名称，Menu target 使用该值持久化。</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Dashboard 展示名。可以是普通文本，也可以是 <c>i18n://common@key</c> / <c>i18n://theme@key</c>。</summary>
+    public required string DisplayName { get; init; }
+
+    /// <summary>站点根相对路径，例如 <c>/calculator/</c>。HomeServer 只做引用，不生成页面正文。</summary>
+    public required string Route { get; init; }
+}
+
 /// <summary>
 /// Theme 元信息清单。对应 <c>theme.json</c>，参见 <c>Docs/Architecture.md §7.2</c>。
 /// </summary>
@@ -115,4 +138,10 @@ public sealed record ThemeManifest
 
     /// <summary>Theme 私有 i18n key 声明；为空表示 Theme 未声明私有可覆盖文案。</summary>
     public ThemeI18nManifest? I18n { get; init; }
+
+    /// <summary>Theme 接受的 Page 模板声明。HomeServer 会在缺失 <c>normal</c> 时合成 fallback。</summary>
+    public IReadOnlyList<ThemePageTemplateManifest> PageTemplates { get; init; } = [];
+
+    /// <summary>Theme 自己提供的特殊页面声明，Menu 可指向这些页面。</summary>
+    public IReadOnlyList<ThemeSpecialPageManifest> SpecialPages { get; init; } = [];
 }

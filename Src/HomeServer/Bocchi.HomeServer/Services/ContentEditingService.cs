@@ -32,10 +32,46 @@ public sealed class ContentEditingService
             File.GetLastWriteTimeUtc(fullPath));
     }
 
+    /// <summary>创建一个新的 Page 草稿文件，并返回可编辑内容。</summary>
+    public async Task<EditableContentFile> CreatePageDraftAsync(CancellationToken cancellationToken = default)
+    {
+        var slug = CreateUniquePageSlug();
+        var directory = Path.Combine(_layout.Workspace.PagesDirectory, slug);
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "index.md");
+        var relativePath = _layout.Workspace.ToRelative(file);
+        var yaml = $"""
+            title: New Page
+            slug: {slug}
+            status: draft
+            template: normal
+            order: 0
+            showInNavigation: false
+            """;
+        await SaveNewAsync(relativePath, yaml, string.Empty, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(relativePath, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>保存 frontmatter 与 Markdown 正文，并保持文件仍是单一事实来源。</summary>
     public async Task SaveAsync(string relativePath, string yaml, string markdown, CancellationToken cancellationToken = default)
     {
         var fullPath = ResolveContentFile(relativePath);
+        var normalizedYaml = (yaml ?? string.Empty).Trim();
+        var normalizedBody = (markdown ?? string.Empty).Replace("\r\n", "\n");
+        var content = string.IsNullOrWhiteSpace(normalizedYaml)
+            ? normalizedBody
+            : $"---\n{normalizedYaml}\n---\n{normalizedBody}";
+        await File.WriteAllTextAsync(fullPath, content, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SaveNewAsync(string relativePath, string yaml, string markdown, CancellationToken cancellationToken)
+    {
+        var fullPath = ResolveContentPathForNewFile(relativePath);
+        if (File.Exists(fullPath))
+        {
+            throw new InvalidOperationException("内容文件已经存在。");
+        }
+
         var normalizedYaml = (yaml ?? string.Empty).Trim();
         var normalizedBody = (markdown ?? string.Empty).Replace("\r\n", "\n");
         var content = string.IsNullOrWhiteSpace(normalizedYaml)
@@ -80,6 +116,40 @@ public sealed class ContentEditingService
         }
 
         return fullPath;
+    }
+
+    private string ResolveContentPathForNewFile(string relativePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+        var normalized = relativePath.Replace('\\', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar, '/');
+        if (normalized.Contains("..", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("内容路径不能包含上级目录跳转。");
+        }
+
+        var root = Path.GetFullPath(_layout.WorkspaceRoot);
+        var fullPath = Path.GetFullPath(Path.Combine(root, normalized));
+        if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("内容路径必须位于 workspace 内。");
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        return fullPath;
+    }
+
+    private string CreateUniquePageSlug()
+    {
+        const string prefix = "new-page";
+        var candidate = prefix;
+        var index = 2;
+        while (Directory.Exists(Path.Combine(_layout.Workspace.PagesDirectory, candidate)))
+        {
+            candidate = $"{prefix}-{index.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            index++;
+        }
+
+        return candidate;
     }
 
     private void PruneEmptyDirectories(string? start)

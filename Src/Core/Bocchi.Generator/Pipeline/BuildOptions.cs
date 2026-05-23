@@ -1,3 +1,5 @@
+using Bocchi.Generator.ContentGraph;
+
 namespace Bocchi.Generator.Pipeline;
 
 /// <summary>本次构建的可调参数。</summary>
@@ -35,6 +37,11 @@ public sealed record BuildOptions
     /// 因此测试和 CLI 未提供该快照时会回退到 <c>site.yaml</c> 的单语言事实。
     /// </summary>
     public BuildLocalizationOptions? Localization { get; init; }
+
+    /// <summary>
+    /// HomeServer 注入的 Post Category tree 快照。CLI 或测试未提供时，Generator 会从文章 frontmatter category 派生扁平 tree。
+    /// </summary>
+    public IReadOnlyList<BuildCategoryNode> PostCategories { get; init; } = [];
 }
 
 /// <summary>一次构建使用的站点本地化快照，供 Theme Context 输出使用。</summary>

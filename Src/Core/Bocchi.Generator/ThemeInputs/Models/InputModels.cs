@@ -25,7 +25,33 @@ public sealed record SiteInput
 /// <summary>对应 <c>../../cache/theme-input/navigation.json</c>。</summary>
 public sealed record NavigationInput
 {
-    public required IReadOnlyList<NavigationItem> Items { get; init; }
+    public required IReadOnlyList<NavigationItemInput> Items { get; init; }
+}
+
+/// <summary>Theme 输入中的 Menu tree 节点，已经解析出可点击 URL。</summary>
+public sealed record NavigationItemInput
+{
+    public required string Id { get; init; }
+    public required string Label { get; init; }
+    public NavigationLabelI18nRefInput? LabelI18n { get; init; }
+    public required string Href { get; init; }
+    public required NavigationTargetInput Target { get; init; }
+    public required IReadOnlyList<NavigationItemInput> Children { get; init; }
+}
+
+/// <summary>Menu label 使用的 i18n 引用，Theme 可据此在浏览器端切换文案。</summary>
+public sealed record NavigationLabelI18nRefInput
+{
+    public required string Scope { get; init; }
+    public required string Key { get; init; }
+    public required string Raw { get; init; }
+}
+
+/// <summary>Theme 输入中保留的原始 Menu target。</summary>
+public sealed record NavigationTargetInput
+{
+    public required string Type { get; init; }
+    public string? Value { get; init; }
 }
 
 /// <summary>Theme 输入数据中通用的 Post 表达。包含三态正文。</summary>
@@ -38,9 +64,13 @@ public sealed record PostInput
     public DateTimeOffset? PublishedAt { get; init; }
     public DateTimeOffset? UpdatedAt { get; init; }
     public string? Category { get; init; }
+    public string? CategorySlug { get; init; }
     public required IReadOnlyList<string> Tags { get; init; }
     public string? Summary { get; init; }
     public MediaReferenceInput? Cover { get; init; }
+    /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
+    public required string SiteRelativeUrl { get; init; }
+    /// <summary>站点根相对 URL 的兼容别名。</summary>
     public required string Url { get; init; }
     public required string Markdown { get; init; }
     public required string Html { get; init; }
@@ -57,6 +87,10 @@ public sealed record PageInput
     public required int Order { get; init; }
     public required bool ShowInNavigation { get; init; }
     public string? Summary { get; init; }
+    public required string Template { get; init; }
+    /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
+    public required string SiteRelativeUrl { get; init; }
+    /// <summary>站点根相对 URL 的兼容别名。</summary>
     public required string Url { get; init; }
     public required string Markdown { get; init; }
     public required string Html { get; init; }
@@ -78,6 +112,9 @@ public sealed record WorkInput
     public required IReadOnlyList<string> Stack { get; init; }
     public string? Summary { get; init; }
     public required bool Featured { get; init; }
+    /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
+    public required string SiteRelativeUrl { get; init; }
+    /// <summary>站点根相对 URL 的兼容别名。</summary>
     public required string Url { get; init; }
     public required string Markdown { get; init; }
     public required string Html { get; init; }
@@ -111,6 +148,17 @@ public sealed record FriendInput
     public required int Order { get; init; }
 }
 
+/// <summary>对应 <c>../../cache/theme-input/post-categories.json</c> 的 Post Category tree 节点。</summary>
+public sealed record PostCategoryInput
+{
+    public required string Name { get; init; }
+    public required string Slug { get; init; }
+    public required string SiteRelativeUrl { get; init; }
+    public required string Url { get; init; }
+    public required int Count { get; init; }
+    public required IReadOnlyList<PostCategoryInput> Children { get; init; }
+}
+
 /// <summary>媒体引用。<see cref="Path"/> 总是站点根相对（以 <c>/</c> 开头）。</summary>
 public sealed record MediaReferenceInput(string Path, string? Alt = null);
 
@@ -136,6 +184,9 @@ public sealed record ThemeContextBocchi
 /// <summary>本次构建的运行信息。</summary>
 public sealed record ThemeContextBuild
 {
+    /// <summary>构建模式。<c>full</c> 表示写入发布输出，<c>live</c> 表示 Home Server 实时预览。</summary>
+    public required string Mode { get; init; }
+
     public required DateTimeOffset GeneratedAt { get; init; }
     public required string Environment { get; init; }
     public required bool IncludeDrafts { get; init; }
@@ -210,6 +261,10 @@ public sealed record ThemeContextTheme
     public JsonObject Config { get; init; } = new();
     /// <summary>当前 Theme manifest 声明的私有 i18n key；Theme 未声明时保留空列表。</summary>
     public ThemeContextThemeI18n I18n { get; init; } = new();
+    /// <summary>当前 Theme 接受的 Page 模板声明；至少包含 normal。</summary>
+    public IReadOnlyList<ThemeContextPageTemplate> PageTemplates { get; init; } = [];
+    /// <summary>当前 Theme 自己提供的特殊页面声明。</summary>
+    public IReadOnlyList<ThemeContextSpecialPage> SpecialPages { get; init; } = [];
 }
 
 /// <summary>Theme Context 中的 Theme 私有 i18n 声明快照。</summary>
@@ -239,4 +294,19 @@ public sealed record ThemeContextThemeI18nKey
 
     /// <summary>Theme manifest 提供的默认 plain text 值。</summary>
     public JsonObject DefaultValues { get; init; } = new();
+}
+
+/// <summary>Theme Context 中的 Page 模板声明。</summary>
+public sealed record ThemeContextPageTemplate
+{
+    public required string Name { get; init; }
+    public required string DisplayName { get; init; }
+}
+
+/// <summary>Theme Context 中的特殊页面声明。</summary>
+public sealed record ThemeContextSpecialPage
+{
+    public required string Name { get; init; }
+    public required string DisplayName { get; init; }
+    public required string Route { get; init; }
 }

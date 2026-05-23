@@ -46,6 +46,13 @@ public static class SiteUrlResolver
     /// <summary>友链页：<c>/friends/</c>。</summary>
     public const string FriendsUrl = "/friends/";
 
+    /// <summary>文章 Category 列表页：<c>/posts/categories/{slug}/</c>。</summary>
+    public static string PostCategoryUrl(string slug)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+        return string.Format(CultureInfo.InvariantCulture, "/posts/categories/{0}/", slug);
+    }
+
     /// <summary>把站点根相对路径与 <paramref name="baseUrl"/> 拼成绝对 URL。</summary>
     public static Uri Absolute(Uri baseUrl, string siteRelative)
     {

@@ -21,9 +21,6 @@ internal sealed class DefaultStaticThemeText
     /// <summary>默认 Theme 内置的 Common i18n 文案；用户覆盖和 Theme manifest 默认值始终拥有更高优先级。</summary>
     private static readonly Dictionary<string, Dictionary<string, string>> CommonTextDefaults = CreateCommonTextDefaults();
 
-    /// <summary>默认 Theme 私有文案的 renderer 兜底值，用于兼容工作区里尚未更新的 default-static manifest。</summary>
-    private static readonly Dictionary<string, Dictionary<string, string>> BuiltInThemeTextDefaults = CreateBuiltInThemeTextDefaults();
-
     /// <summary>浏览器端 i18n 数据使用 camelCase，便于 JS 直接读取。</summary>
     private static readonly JsonSerializerOptions ClientJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -101,11 +98,6 @@ internal sealed class DefaultStaticThemeText
                 return manifestValue;
             }
 
-            if (TryGetLocalizedValue(BuiltInThemeTextDefaults, key, fallback, out var builtInValue))
-            {
-                return builtInValue;
-            }
-
             if (TryGetLocalizedValue(CommonTextDefaults, key, fallback, out var commonValue))
             {
                 return commonValue;
@@ -156,37 +148,6 @@ internal sealed class DefaultStaticThemeText
             ["common.next"] = CreateLanguageValues("Next", "下一篇", "下一篇", "次へ"),
             ["content.translationNotice"] = CreateLanguageValues("This page is available in another language.", "此页面有其他语言版本。", "此頁面有其他語言版本。", "このページには他の言語版があります。"),
             ["content.viewOriginal"] = CreateLanguageValues("View original", "查看原文", "查看原文", "原文を見る"),
-        };
-    }
-
-    /// <summary>创建默认 Theme 私有 i18n 默认文案；它与 manifest 中声明的默认值保持一致。</summary>
-    private static Dictionary<string, Dictionary<string, string>> CreateBuiltInThemeTextDefaults()
-    {
-        return new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
-        {
-            ["theme.defaultStatic.colophonBuiltWith"] = CreateLanguageValues("Built with Bocchi.", "由 Bocchi 构建。", "由 Bocchi 構建。", "Bocchi で構築。"),
-            ["theme.defaultStatic.emptyList"] = CreateLanguageValues("Nothing here yet.", "这里还没有内容。", "這裡還沒有內容。", "まだ何もありません。"),
-            ["theme.defaultStatic.homeHeroAccent"] = CreateLanguageValues("writing", "写作", "寫作", "文章"),
-            ["theme.defaultStatic.homeHeroRest"] = CreateLanguageValues(", work, and notes.", "、作品与札记。", "、作品與札記。", "、制作、ノート。"),
-            ["theme.defaultStatic.homeSelectedWriting"] = CreateLanguageValues("Selected Writing", "精选写作", "精選寫作", "選んだ文章"),
-            ["theme.defaultStatic.homeSelectedWork"] = CreateLanguageValues("Selected Work", "精选作品", "精選作品", "選んだ制作"),
-            ["theme.defaultStatic.homeRecentNotes"] = CreateLanguageValues("Recent Notes", "最近札记", "最近札記", "最近のノート"),
-            ["theme.defaultStatic.all"] = CreateLanguageValues("All", "全部", "全部", "すべて"),
-            ["theme.defaultStatic.postsDescription"] = CreateLanguageValues("Long-form notes and essays.", "长文章、随笔与记录。", "長文章、隨筆與記錄。", "長めのノートとエッセイ。"),
-            ["theme.defaultStatic.worksDescription"] = CreateLanguageValues("Selected projects and experiments.", "选中的项目与实验。", "選中的專案與實驗。", "選んだプロジェクトと実験。"),
-            ["theme.defaultStatic.notesDescription"] = CreateLanguageValues("Short updates in plain text.", "用纯文本记录的短更新。", "用純文字記錄的短更新。", "プレーンテキストの短い更新。"),
-            ["theme.defaultStatic.friendsDescription"] = CreateLanguageValues("People and sites worth visiting.", "值得拜访的人与站点。", "值得拜訪的人與站點。", "訪ねたい人とサイト。"),
-            ["theme.defaultStatic.linkLabel"] = CreateLanguageValues("Link", "链接", "連結", "リンク"),
-            ["theme.defaultStatic.pageLabel"] = CreateLanguageValues("Page", "页面", "頁面", "ページ"),
-            ["theme.defaultStatic.articleBackPrefix"] = CreateLanguageValues("Back to", "返回", "返回", "戻る"),
-            ["theme.defaultStatic.notFoundDescription"] = CreateLanguageValues("This page is not in the static output.", "这个页面不在静态输出中。", "這個頁面不在靜態輸出中。", "このページは静的出力にありません。"),
-            ["theme.defaultStatic.toggleAppearance"] = CreateLanguageValues("Toggle appearance", "切换外观", "切換外觀", "外観を切り替える"),
-            ["theme.defaultStatic.openMenu"] = CreateLanguageValues("Open menu", "打开菜单", "開啟選單", "メニューを開く"),
-            ["theme.defaultStatic.languageLabel"] = CreateLanguageValues("Language", "语言", "語言", "言語"),
-            ["theme.defaultStatic.appearanceLabel"] = CreateLanguageValues("Appearance", "外观", "外觀", "外観"),
-            ["theme.defaultStatic.appearanceAuto"] = CreateLanguageValues("Auto", "自动", "自動", "自動"),
-            ["theme.defaultStatic.appearanceLight"] = CreateLanguageValues("Light", "浅色", "淺色", "ライト"),
-            ["theme.defaultStatic.appearanceDark"] = CreateLanguageValues("Dark", "深色", "深色", "ダーク"),
         };
     }
 
