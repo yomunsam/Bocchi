@@ -1,0 +1,93 @@
+@if (Open)
+{
+    <div class="bocchi-dialog-backdrop" @onclick="HandleBackdropAsync">
+        <section class="bocchi-dialog"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="@_titleId"
+                 @onclick:stopPropagation="true">
+            <header class="bocchi-dialog__head">
+                <h2 id="@_titleId">@Title</h2>
+            </header>
+            <div class="bocchi-dialog__body">
+                @ChildContent
+            </div>
+            <footer class="bocchi-dialog__actions">
+                @if (!string.IsNullOrWhiteSpace(SecondaryText))
+                {
+                    <button type="button" class="secondary" @onclick="HandleSecondaryAsync">@SecondaryText</button>
+                }
+                @if (!string.IsNullOrWhiteSpace(PrimaryText))
+                {
+                    <button type="button" @onclick="HandlePrimaryAsync" disabled="@PrimaryDisabled">@PrimaryText</button>
+                }
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    /// <summary>弹窗是否显示。</summary>
+    [Parameter]
+    public bool Open { get; set; }
+
+    /// <summary>弹窗标题，同时作为 dialog 的无障碍名称。</summary>
+    [Parameter]
+    public string Title { get; set; } = "提示";
+
+    /// <summary>主要操作按钮文案；为空时不渲染主要按钮。</summary>
+    [Parameter]
+    public string? PrimaryText { get; set; }
+
+    /// <summary>次要操作按钮文案；为空时不渲染次要按钮。</summary>
+    [Parameter]
+    public string? SecondaryText { get; set; }
+
+    /// <summary>主要操作按钮是否禁用。</summary>
+    [Parameter]
+    public bool PrimaryDisabled { get; set; }
+
+    /// <summary>点击空白遮罩时是否触发关闭。</summary>
+    [Parameter]
+    public bool CloseOnBackdrop { get; set; } = true;
+
+    /// <summary>弹窗正文内容。</summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>主要操作回调。</summary>
+    [Parameter]
+    public EventCallback OnPrimary { get; set; }
+
+    /// <summary>次要操作回调。</summary>
+    [Parameter]
+    public EventCallback OnSecondary { get; set; }
+
+    /// <summary>遮罩关闭回调，通常等价于取消。</summary>
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+
+    /// <summary>标题元素 id，避免页面上多个 dialog 同时存在时 aria-labelledby 冲突。</summary>
+    private readonly string _titleId = $"bocchi-dialog-{Guid.NewGuid():N}";
+
+    /// <summary>处理主要按钮点击。</summary>
+    private async Task HandlePrimaryAsync()
+    {
+        await OnPrimary.InvokeAsync();
+    }
+
+    /// <summary>处理次要按钮点击。</summary>
+    private async Task HandleSecondaryAsync()
+    {
+        await OnSecondary.InvokeAsync();
+    }
+
+    /// <summary>处理遮罩点击；只有允许空白关闭的弹窗才会转发 dismiss。</summary>
+    private async Task HandleBackdropAsync()
+    {
+        if (CloseOnBackdrop)
+        {
+            await OnDismiss.InvokeAsync();
+        }
+    }
+}

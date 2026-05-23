@@ -1,0 +1,251 @@
+@implements IAsyncDisposable
+@inject IJSRuntime Js
+
+<section @ref="_root" class="bocchi-markdown-editor" data-view="@ViewModeCss">
+    <header class="bocchi-markdown-editor__head">
+        <div class="bocchi-markdown-editor__title">
+            <span>@ResolvedContentKindLabel</span>
+            <h2>@Title</h2>
+        </div>
+        <div class="bocchi-markdown-editor__view" role="group" aria-label="编辑视图">
+            <button type="button"
+                    class="@ViewButtonClass(EditorViewMode.Write)"
+                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Write)"
+                    title="编辑"
+                    @onclick="() => SetViewModeAsync(EditorViewMode.Write)">
+                <Blazicon Svg="Lucide.Pencil" />
+            </button>
+            <button type="button"
+                    class="@ViewButtonClass(EditorViewMode.Split)"
+                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Split)"
+                    title="分屏"
+                    @onclick="() => SetViewModeAsync(EditorViewMode.Split)">
+                <Blazicon Svg="Lucide.Columns2" />
+            </button>
+            <button type="button"
+                    class="@ViewButtonClass(EditorViewMode.Preview)"
+                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Preview)"
+                    title="预览"
+                    @onclick="() => SetViewModeAsync(EditorViewMode.Preview)">
+                <Blazicon Svg="Lucide.Eye" />
+            </button>
+        </div>
+    </header>
+
+    <div class="bocchi-markdown-toolbar" role="toolbar" aria-label="Markdown 工具">
+        <div class="bocchi-markdown-toolbar__group">
+            <button type="button" title="二级标题" aria-label="二级标题" @onclick='() => ApplyAsync("heading")'>
+                <Blazicon Svg="Lucide.Heading2" />
+            </button>
+            <button type="button" title="加粗" aria-label="加粗" @onclick='() => ApplyAsync("bold")'>
+                <Blazicon Svg="Lucide.Bold" />
+            </button>
+            <button type="button" title="斜体" aria-label="斜体" @onclick='() => ApplyAsync("italic")'>
+                <Blazicon Svg="Lucide.Italic" />
+            </button>
+            <button type="button" title="引用" aria-label="引用" @onclick='() => ApplyAsync("quote")'>
+                <Blazicon Svg="Lucide.Quote" />
+            </button>
+            <button type="button" title="无序列表" aria-label="无序列表" @onclick='() => ApplyAsync("list")'>
+                <Blazicon Svg="Lucide.List" />
+            </button>
+            <button type="button" title="有序列表" aria-label="有序列表" @onclick='() => ApplyAsync("ordered")'>
+                <Blazicon Svg="Lucide.ListOrdered" />
+            </button>
+            <button type="button" title="代码块" aria-label="代码块" @onclick='() => ApplyAsync("code")'>
+                <Blazicon Svg="Lucide.Code" />
+            </button>
+        </div>
+        <div class="bocchi-markdown-toolbar__group">
+            <button type="button" title="链接" aria-label="链接" @onclick='() => ApplyAsync("link")'>
+                <Blazicon Svg="Lucide.Link" />
+            </button>
+            <button type="button" title="图片" aria-label="图片" @onclick='() => ApplyAsync("image")'>
+                <Blazicon Svg="Lucide.Image" />
+            </button>
+            <button type="button" title="公式" aria-label="公式" @onclick='() => ApplyAsync("formula")'>
+                <Blazicon Svg="Lucide.Sigma" />
+            </button>
+            <button type="button" title="视频链接" aria-label="视频链接" @onclick='() => ApplyAsync("video")'>
+                <Blazicon Svg="Lucide.Video" />
+            </button>
+            <button type="button" title="链接卡片" aria-label="链接卡片" @onclick='() => ApplyAsync("link-card")'>
+                <Blazicon Svg="Lucide.SquareDashedText" />
+            </button>
+        </div>
+    </div>
+
+    <div class="bocchi-markdown-editor__body">
+        <div class="bocchi-markdown-editor__pane bocchi-markdown-editor__pane--write">
+            <span class="bocchi-visually-hidden">@Title</span>
+            <div class="bocchi-codemirror-host" data-bocchi-codemirror-host></div>
+        </div>
+
+        <aside class="bocchi-markdown-editor__pane bocchi-markdown-editor__pane--preview" aria-label="Markdown preview">
+            @if (string.IsNullOrWhiteSpace(PreviewHtml))
+            {
+                <div class="bocchi-markdown-editor__empty">还没有可预览内容</div>
+            }
+            else
+            {
+                <div class="bocchi-markdown-preview">@((MarkupString)PreviewHtml)</div>
+            }
+        </aside>
+    </div>
+</section>
+
+@code {
+    /// <summary>编辑器上方的小标签；新调用点优先使用 <see cref="ContentKindLabel"/>。</summary>
+    [Parameter]
+    public string Kicker { get; set; } = "Markdown";
+
+    /// <summary>当前内容类型标签，例如文章、页面或作品。</summary>
+    [Parameter]
+    public string? ContentKindLabel { get; set; }
+
+    /// <summary>编辑器标题。</summary>
+    [Parameter]
+    public string Title { get; set; } = "正文";
+
+    /// <summary>Markdown 正文。</summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>Markdown 正文变化回调，父组件负责更新预览 HTML。</summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>已经由统一 Markdown pipeline 渲染好的预览 HTML。</summary>
+    [Parameter]
+    public string PreviewHtml { get; set; } = string.Empty;
+
+    /// <summary>正文为空时显示的轻提示。</summary>
+    [Parameter]
+    public string Placeholder { get; set; } = "从这里开始写 Markdown...";
+
+    /// <summary>默认视图模式：write、split 或 preview。</summary>
+    [Parameter]
+    public string DefaultViewMode { get; set; } = "write";
+
+    /// <summary>承载 CodeMirror 实例的组件根元素。</summary>
+    private ElementReference _root;
+
+    /// <summary>Blazor 到 JavaScript 的回调引用，用于接收 CodeMirror 文档变化。</summary>
+    private DotNetObjectReference<BocchiMarkdownEditor>? _dotNetReference;
+
+    /// <summary>JavaScript 编辑器是否已经挂载。</summary>
+    private bool _mounted;
+
+    /// <summary>避免 Blazor 参数回写与 CodeMirror input 回调互相覆盖。</summary>
+    private string _lastEditorValue = string.Empty;
+
+    /// <summary>当前编辑视图，默认只显示编辑区，让移动端首屏更聚焦。</summary>
+    private EditorViewMode _viewMode;
+
+    /// <summary>默认视图只在首次渲染前读取一次，避免父组件重渲染时打断用户切换。</summary>
+    private bool _viewModeInitialized;
+
+    private string ResolvedContentKindLabel => string.IsNullOrWhiteSpace(ContentKindLabel) ? Kicker : ContentKindLabel;
+
+    private string ViewModeCss => _viewMode switch
+    {
+        EditorViewMode.Preview => "preview",
+        EditorViewMode.Split => "split",
+        _ => "write",
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (!_viewModeInitialized)
+        {
+            _viewMode = ParseViewMode(DefaultViewMode);
+            _viewModeInitialized = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_mounted)
+        {
+            _dotNetReference = DotNetObjectReference.Create(this);
+            await Js.InvokeVoidAsync("bocchiMarkdownEditor.mount", _root, _dotNetReference, new
+            {
+                value = Value,
+                placeholder = Placeholder,
+                defaultViewMode = ViewModeCss,
+            });
+            _lastEditorValue = Value;
+            _mounted = true;
+            return;
+        }
+
+        if (!string.Equals(Value, _lastEditorValue, StringComparison.Ordinal))
+        {
+            await Js.InvokeVoidAsync("bocchiMarkdownEditor.setValue", _root, Value);
+            _lastEditorValue = Value;
+        }
+    }
+
+    /// <summary>接收 CodeMirror 文档变化并转交给父组件。</summary>
+    [JSInvokable]
+    public async Task HandleEditorInputAsync(string value)
+    {
+        _lastEditorValue = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private static string ViewButtonClass(EditorViewMode mode)
+        => mode == EditorViewMode.Split ? "split" : mode.ToString().ToLowerInvariant();
+
+    private async Task SetViewModeAsync(EditorViewMode mode)
+    {
+        _viewMode = mode;
+        if (_mounted)
+        {
+            await Js.InvokeVoidAsync("bocchiMarkdownEditor.setViewMode", _root, ViewModeCss);
+        }
+    }
+
+    private async Task ApplyAsync(string action)
+    {
+        if (_mounted)
+        {
+            await Js.InvokeVoidAsync("bocchiMarkdownEditor.insert", _root, action);
+        }
+    }
+
+    private static string AriaPressed(bool pressed) => pressed ? "true" : "false";
+
+    private static EditorViewMode ParseViewMode(string? value)
+        => value?.ToLowerInvariant() switch
+        {
+            "preview" => EditorViewMode.Preview,
+            "split" => EditorViewMode.Split,
+            _ => EditorViewMode.Write,
+        };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_mounted)
+        {
+            try
+            {
+                await Js.InvokeVoidAsync("bocchiMarkdownEditor.dispose", _root);
+            }
+            catch (JSDisconnectedException)
+            {
+                // 组件随 Blazor circuit 断开时无需再访问浏览器实例。
+            }
+        }
+
+        _dotNetReference?.Dispose();
+    }
+
+    /// <summary>编辑器视图模式。</summary>
+    private enum EditorViewMode
+    {
+        Write,
+        Split,
+        Preview,
+    }
+}

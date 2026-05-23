@@ -1,13 +1,13 @@
 .bocchi-status-pill {
     display: inline-flex;
-    min-height: 1.65rem;
+    min-height: 1.45rem;
     align-items: center;
     border: 1px solid transparent;
     border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 760;
+    font-size: 0.74rem;
+    font-weight: 650;
     line-height: 1;
-    padding: 0 0.62rem;
+    padding: 0 0.55rem;
     white-space: nowrap;
 }
 

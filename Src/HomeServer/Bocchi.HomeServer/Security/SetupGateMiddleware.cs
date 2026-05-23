@@ -41,6 +41,9 @@ public sealed class SetupGateMiddleware
 
         return value.Equals("/app.css", StringComparison.OrdinalIgnoreCase)
             || value.Equals("/bocchi-appearance.js", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("/bocchi-appearance.", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("/bocchi-markdown-editor.js", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("/bocchi-markdown-editor.", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
             || value.EndsWith(".styles.css", StringComparison.OrdinalIgnoreCase);

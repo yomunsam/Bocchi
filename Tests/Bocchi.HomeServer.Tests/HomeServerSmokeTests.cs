@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 
+using Bocchi.ContentModel;
 using Bocchi.HomeServer.Services;
+using Bocchi.Workspace.State;
 
 namespace Bocchi.HomeServer.Tests;
 
@@ -63,6 +65,102 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("工作区");
         body.Should().Contain(_factory.DataRoot);
+    }
+
+    [Fact]
+    public async Task ContentEditingService_CreatesPostAndPageDrafts()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+
+        var post = await editor.CreateDraftAsync(ContentKind.Post);
+        var page = await editor.CreateDraftAsync(ContentKind.Page);
+
+        post.RelativePath.Should().StartWith("posts/");
+        post.RelativePath.Should().EndWith("/index.md");
+        post.Yaml.Should().Contain("status: draft");
+        post.Markdown.Should().Contain("# New Post");
+        File.Exists(Path.Combine(factory.DataRoot, "workspace", post.RelativePath)).Should().BeTrue();
+
+        page.RelativePath.Should().Be("pages/new-page/index.md");
+        page.Yaml.Should().Contain("template: normal");
+        File.Exists(Path.Combine(factory.DataRoot, "workspace", page.RelativePath)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ContentEditingService_ValidatesUnicodeSlugAndDuplicateScope()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        var post = await editor.CreateDraftAsync(ContentKind.Post);
+        var page = await editor.CreateDraftAsync(ContentKind.Page);
+
+        var normalized = editor.ValidateUrlSlug(ContentKind.Post, post.RelativePath, " 我的 第一篇文章！");
+        normalized.IsAvailable.Should().BeTrue();
+        normalized.Slug.Should().Be("我的-第一篇文章");
+
+        await editor.SaveAsync(
+            post.RelativePath,
+            "title: 我的第一篇文章\nslug: 我的-第一篇文章\nstatus: draft",
+            post.Markdown);
+        var otherPost = await editor.CreateDraftAsync(ContentKind.Post);
+
+        editor.ValidateUrlSlug(ContentKind.Post, otherPost.RelativePath, "我的 第一篇文章")
+            .IsAvailable.Should().BeFalse();
+        editor.ValidateUrlSlug(ContentKind.Post, post.RelativePath, "我的 第一篇文章")
+            .IsAvailable.Should().BeTrue();
+        editor.ValidateUrlSlug(ContentKind.Page, page.RelativePath, "posts")
+            .IsAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ContentEditor_CreatePostDraftRendersMarkdownEditor()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        using (var categoryScope = factory.Services.CreateScope())
+        {
+            var categories = categoryScope.ServiceProvider.GetRequiredService<CategoryTreeService>();
+            await categories.SaveAsync(
+                ContentKind.Post,
+                [new CategoryTreeNode("design", "Design", "design", [])]);
+        }
+
+        var response = await client.GetAsync("/Admin/Content/Edit?kind=post");
+        if (response.StatusCode == HttpStatusCode.Redirect)
+        {
+            response = await client.GetAsync(response.Headers.Location!.ToString());
+        }
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("写作与发布");
+        body.Should().Contain("bocchi-markdown-editor");
+        body.Should().Contain("bocchi-codemirror-host");
+        body.Should().Contain("data-bocchi-codemirror-host");
+        body.Should().Contain("posts/");
+        body.Should().Contain("Frontmatter");
+        body.Should().Contain("发布状态");
+        body.Should().Contain("内容设置");
+        body.Should().Contain("AI助手");
+        body.Should().Contain("value=\"Design\"");
+        body.Should().Contain(">Design</option>");
+        body.Should().NotContain("选择要编辑的 Markdown");
+
+        using var scope = factory.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IContentStateStore>();
+        var posts = await store.ListContentSummariesAsync(ContentKind.Post);
+        posts.Should().ContainSingle(x => x.RelativePath.StartsWith("posts/", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -227,8 +325,12 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var response = await client.GetAsync("/Admin/Content/Edit?path=posts%2F2026%2Fhello-preview%2Findex.md");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Diff before save");
-        body.Should().Contain("I reviewed these changes");
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-markdown-editor");
+        body.Should().Contain("data-bocchi-codemirror-host");
+        body.Should().Contain("Frontmatter");
+        body.Should().Contain("发布状态");
+        body.Should().Contain("内容设置");
+        body.Should().Contain("AI助手");
     }
 }

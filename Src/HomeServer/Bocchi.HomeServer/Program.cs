@@ -7,6 +7,7 @@ using Bocchi.HomeServer.Components;
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Security;
 using Bocchi.HomeServer.Services;
+using Bocchi.HomeServer.Services.Ai;
 using Bocchi.Workspace;
 using Bocchi.Workspace.DependencyInjection;
 using Bocchi.Workspace.State;
@@ -88,6 +89,7 @@ try
     builder.Services.AddScoped<LocalizationSettingsService>();
     builder.Services.AddScoped<CategoryTreeService>();
     builder.Services.AddScoped<NavigationMenuService>();
+    builder.Services.AddScoped<DashboardAiClient>();
     builder.Services.AddSingleton<DashboardLocalizationService>();
     builder.Services.AddScoped<ContentEditingService>();
     builder.Services.AddScoped<NoteCreationService>();

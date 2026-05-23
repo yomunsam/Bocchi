@@ -66,7 +66,10 @@
                             <span>@ContentTimeLabel(item)</span>
                         </Metadata>
                         <Action>
-                            <a class="bocchi-button secondary" href="@ContentEditingService.EditUrl(item.RelativePath)">Edit</a>
+                            @if (IsMarkdownPath(item.RelativePath))
+                            {
+                                <a class="bocchi-button secondary" href="@ContentEditingService.EditUrl(item.RelativePath)">Edit</a>
+                            }
                         </Action>
                     </BocchiListRow>
                 }
@@ -262,6 +265,10 @@
     /// <summary>统一大小写不敏感的列表文本匹配。</summary>
     private static bool Contains(string? value, string term)
         => value?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>完整编辑器只处理 Markdown 内容；YAML 配置应走专门表单，避免误把结构化配置当正文保存。</summary>
+    private static bool IsMarkdownPath(string relativePath)
+        => relativePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>把扫描诊断级别映射到柔和状态色。</summary>
     private static string ErrorTone(ContentErrorSeverity severity)

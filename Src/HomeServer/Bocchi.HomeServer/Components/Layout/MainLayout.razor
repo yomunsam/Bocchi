@@ -203,7 +203,7 @@
             </div>
         </header>
 
-        <main class="bocchi-page">
+        <main class="@PageClass">
             @Body
         </main>
     </div>
@@ -259,6 +259,11 @@
 
     /// <summary>侧栏在移动端是否以覆盖层方式显示。</summary>
     private string SidebarClass => _mobileSidebarOpen ? "bocchi-sidebar bocchi-sidebar--open" : "bocchi-sidebar";
+
+    /// <summary>当前页面的主内容容器 class；写作页需要释放通用后台页面的阅读宽度限制。</summary>
+    private string PageClass => IsCurrentPath("/Admin/Content/Edit")
+        ? "bocchi-page bocchi-page--editor"
+        : "bocchi-page";
 
     /// <summary>导航位置改变时同步 active 状态，并收起移动端覆盖层。</summary>
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)

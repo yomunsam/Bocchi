@@ -37,4 +37,10 @@
     <InternalsVisibleTo Include="Bocchi.HomeServer.Tests" />
   </ItemGroup>
 
+  <Target Name="BuildAdminClientAssets"
+          BeforeTargets="BeforeBuild"
+          Condition="Exists('package.json') and Exists('node_modules') and '$(BocchiSkipAdminAssetsBuild)' != 'true'">
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>

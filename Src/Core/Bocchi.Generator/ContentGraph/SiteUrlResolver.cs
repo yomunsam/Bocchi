@@ -7,7 +7,7 @@ namespace Bocchi.Generator.ContentGraph;
 /// </summary>
 /// <remarks>
 /// 所有方法返回的字符串都以 <c>/</c> 开头、以 <c>/</c> 归一化；目录类 URL 以 <c>/</c> 结尾。
-/// 不做 URL 编码，因为 slug / 年份在 M2 已被约束为安全字符集；非法字符在更上游报错。
+/// 不做 URL 编码；内容 slug 由上游规范化为单段 Unicode path segment，浏览器与站点输出层负责最终转义。
 /// </remarks>
 public static class SiteUrlResolver
 {

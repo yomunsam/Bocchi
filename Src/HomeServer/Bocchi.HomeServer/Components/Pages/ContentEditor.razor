@@ -1,39 +1,71 @@
 @page "/Admin/Content/Edit"
+@using System.Globalization
+@using Bocchi.ContentModel
 @using Bocchi.Workspace.Scanning
 @using Bocchi.Workspace.State
 @using Bocchi.HomeServer.Services
+@using Bocchi.HomeServer.Services.Ai
 @using YamlDotNet.Core
 @using YamlDotNet.RepresentationModel
 @inject ContentEditingService Editor
+@inject CategoryTreeService Categories
 @inject Bocchi.Workspace.Content.MarkdownPipeline Markdown
 @inject ContentScanner Scanner
 @inject IContentStateStore Store
 @inject ThemeSettingsService ThemeSettings
 @inject SiteProfileSettingsService SiteProfile
+@inject DashboardAiClient Ai
 @inject DashboardLocalizationService I18n
+@inject TimeProvider Time
 @inject NavigationManager Nav
 
-<PageTitle>Write · Bocchi</PageTitle>
+<PageTitle>@EditorPageTitle · Bocchi</PageTitle>
 
-<article class="bocchi-shell">
-    <header class="bocchi-page-heading">
-        <span class="bocchi-page-heading__eyebrow">Write / Markdown Editor</span>
-        <h1>Write in Markdown, preview softly.</h1>
-        <p>正文仍然写回内容 workspace 文件；预览复用现有 Markdig pipeline，避免编辑体验和生成结果走成两套事实。</p>
-    </header>
+<article class="bocchi-shell bocchi-editor-page">
+    @if (_file is not null && _error is null)
+    {
+        <header class="bocchi-editor-commandbar">
+            <a class="bocchi-editor-commandbar__back" href="@BackUrl" aria-label="返回列表">
+                <Blazicon Svg="Lucide.ArrowLeft" />
+            </a>
+            <div class="bocchi-editor-commandbar__title">
+                <span>@EditorKicker</span>
+                <h1>@EditorHeading</h1>
+            </div>
+            <div class="bocchi-editor-commandbar__actions">
+                <BocchiStatusPill Tone="@(_saved ? "success" : IsDirty ? "warning" : "info")">@EditorStateLabel</BocchiStatusPill>
+                <button type="button" @onclick="SaveAsync" disabled="@_busy">
+                    <Blazicon Svg="Lucide.Save" />
+                    @(_busy ? "保存中..." : "保存")
+                </button>
+                <button type="button" class="secondary" @onclick="PublishAsync" disabled="@_busy">
+                    <Blazicon Svg="Lucide.Send" />
+                    发布
+                </button>
+            </div>
+        </header>
+    }
+    else
+    {
+        <header class="bocchi-page-heading">
+            <span class="bocchi-page-heading__eyebrow">@EditorKicker</span>
+            <h1>@EditorHeading</h1>
+            <p>@EditorDescription</p>
+        </header>
+    }
 
-    @if (string.IsNullOrWhiteSpace(Path))
+    @if (string.IsNullOrWhiteSpace(Path) && _file is null)
     {
         <section class="bocchi-panel" aria-labelledby="pick-file-heading">
-            <h2 id="pick-file-heading">Choose something to edit</h2>
+            <h2 id="pick-file-heading">选择要编辑的 Markdown</h2>
             @if (_summaries.Count == 0)
             {
                 <BocchiListRow Kicker="Empty" Title="还没有可编辑内容">
                     <ChildContent>
-                        <p>先在 Content 页面扫描工作区，或者在 workspace/ 下创建 Markdown 文件。</p>
+                        <p>先在 Content 页面扫描 workspace，或从文章/页面列表创建新草稿。</p>
                     </ChildContent>
                     <Action>
-                        <a class="bocchi-button secondary" href="/Admin/Content">Open Content</a>
+                        <a class="bocchi-button secondary" href="/Admin/Content">打开 Content</a>
                     </Action>
                 </BocchiListRow>
             }
@@ -46,10 +78,13 @@
                             <p><code>@item.RelativePath</code></p>
                         </ChildContent>
                         <Metadata>
-                            <BocchiStatusPill Tone="info">@item.Status</BocchiStatusPill>
+                            <BocchiStatusPill Tone="@StatusTone(item.Status)">@StatusLabel(item.Status)</BocchiStatusPill>
                         </Metadata>
                         <Action>
-                            <a class="bocchi-button secondary" href="@ContentEditingService.EditUrl(item.RelativePath)">Edit</a>
+                            @if (IsMarkdownPath(item.RelativePath))
+                            {
+                                <a class="bocchi-button secondary" href="@ContentEditingService.EditUrl(item.RelativePath)">编辑</a>
+                            }
                         </Action>
                     </BocchiListRow>
                 }
@@ -59,86 +94,232 @@
     else if (_error is not null)
     {
         <section class="bocchi-panel">
-            <h2>Needs a quick look</h2>
+            <h2>需要处理一下</h2>
             <p>@_error</p>
-            <a class="bocchi-button secondary" href="/Admin/Content">Back to Content</a>
+            <a class="bocchi-button secondary" href="@BackUrl">返回</a>
         </section>
     }
     else if (_file is null)
     {
         <section class="bocchi-panel">
-            <p>Loading editor…</p>
+            <p>正在打开编辑器...</p>
         </section>
     }
     else
     {
-        <section class="bocchi-editor-grid" aria-label="Markdown editor">
-            <div class="bocchi-panel bocchi-editor-panel">
-                <div class="bocchi-inline-actions">
-                    <h2>@_file.RelativePath</h2>
-                    <BocchiStatusPill Tone="@(_saved ? "success" : "info")">@(_saved ? "Saved" : "Editing")</BocchiStatusPill>
-                </div>
-                <label>
-                    Frontmatter
-                    <textarea class="bocchi-editor-textarea bocchi-editor-textarea--frontmatter" @bind="_yaml"></textarea>
-                </label>
-                <label>
-                    Markdown
-                    <textarea class="bocchi-editor-textarea" @bind="_markdown"></textarea>
-                </label>
-                <details class="bocchi-advanced-details" open>
-                    <summary>Diff before save</summary>
-                    <p>@DiffSummary</p>
-                    <label class="bocchi-checkbox">
-                        <input type="checkbox" @bind="_diffConfirmed" disabled="@(!IsDirty)" />
-                        I reviewed these changes
+        <div class="bocchi-editor-layout">
+            <section class="bocchi-writing-surface" aria-labelledby="writing-heading">
+                <section class="bocchi-writing-card" aria-labelledby="writing-heading">
+                    <div class="bocchi-writing-card__meta">
+                        <span>@EditorKindLabel</span>
+                        <code>@_file.RelativePath</code>
+                    </div>
+                    <label class="bocchi-title-field">
+                        <span class="bocchi-visually-hidden">标题</span>
+                        <input id="writing-heading"
+                               type="text"
+                               value="@_title"
+                               @oninput="OnTitleInput"
+                               placeholder="@TitlePlaceholder" />
                     </label>
-                </details>
-                <div class="bocchi-inline-actions">
-                    <button type="button" @onclick="SaveAsync" disabled="@(_busy || (IsDirty && !_diffConfirmed))">@(_busy ? "Saving..." : "Save")</button>
-                    <button type="button" class="secondary" @onclick="RefreshPreview">Refresh preview</button>
-                    <a class="bocchi-button secondary" href="/Admin/Content">Back</a>
-                </div>
-            </div>
+                    <label class="bocchi-summary-field">
+                        <span>摘要</span>
+                        <textarea @bind="_summary"
+                                  @bind:event="oninput"
+                                  placeholder="用一句话说明这篇内容要交付给读者什么。"></textarea>
+                    </label>
+                    @if (TemplateUnavailable)
+                    {
+                        <p class="bocchi-template-selector__warning">
+                            @string.Format(CultureInfo.CurrentCulture, I18n["contentEditor.template.unavailableWarningFormat"], _template)
+                        </p>
+                    }
+                </section>
 
-            <aside class="bocchi-panel bocchi-editor-preview">
-                <h2>Preview</h2>
-                @if (IsPageFile)
-                {
-                    <div class="bocchi-template-selector">
-                        <label>
-                            @I18n["contentEditor.template.label"]
-                            <select value="@CurrentTemplate" @onchange="OnTemplateChangedAsync">
-                                @if (TemplateUnavailable)
+                <BocchiMarkdownEditor ContentKindLabel="@EditorKindLabel"
+                                      Title="正文"
+                                      Value="@_markdown"
+                                      ValueChanged="OnMarkdownChangedAsync"
+                                      PreviewHtml="@_previewHtml"
+                                      Placeholder="从这里开始写 Markdown..."
+                                      DefaultViewMode="write" />
+
+                <details class="bocchi-advanced-details">
+                    <summary>
+                        <span>高级 Frontmatter</span>
+                        <small>保留自定义 YAML 字段，日常发布通常不需要修改。</small>
+                    </summary>
+                    <textarea class="bocchi-editor-frontmatter" @bind="_yaml"></textarea>
+                </details>
+            </section>
+
+            <aside class="bocchi-editor-side" aria-label="发布设置">
+                <details class="bocchi-panel bocchi-panel--soft bocchi-publish-panel" open>
+                    <summary class="bocchi-editor-details-summary">
+                        <span>发布状态</span>
+                        <BocchiStatusPill Tone="@StatusTone(CurrentStatus)">@StatusLabel(CurrentStatus)</BocchiStatusPill>
+                    </summary>
+                    <label class="bocchi-editor-field">
+                        状态
+                        <select @bind="_status">
+                            <option value="@ContentStatus.Draft.ToString()">草稿</option>
+                            <option value="@ContentStatus.Published.ToString()">已发布</option>
+                            <option value="@ContentStatus.Archived.ToString()">已归档</option>
+                        </select>
+                    </label>
+                    <dl class="bocchi-meta-list">
+                        <div>
+                            <dt>类型</dt>
+                            <dd>@EditorKindLabel</dd>
+                        </div>
+                        <div>
+                            <dt>状态</dt>
+                            <dd>@StatusLabel(CurrentStatus)</dd>
+                        </div>
+                        <div>
+                            <dt>正文</dt>
+                            <dd>@MarkdownStats</dd>
+                        </div>
+                        <div>
+                            <dt>最后保存</dt>
+                            <dd>@_file.LastModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture)</dd>
+                        </div>
+                    </dl>
+                    <p>@DiffSummary</p>
+                    @if (!string.IsNullOrWhiteSpace(_saveMessage))
+                    {
+                        <p class="bocchi-editor-save-message">@_saveMessage</p>
+                    }
+                </details>
+
+                <details class="bocchi-panel bocchi-editor-inspector" open>
+                    <summary class="bocchi-editor-details-summary">
+                        <span>内容设置</span>
+                    </summary>
+                    <div class="bocchi-editor-field-stack">
+                        <label class="bocchi-editor-field">
+                            路径标识
+                            <span class="bocchi-editor-slug-control">
+                                <input type="text" value="@_slug" @oninput="OnSlugInput" />
+                                @if (CanShowAiSlugButton)
                                 {
-                                    <option value="@CurrentTemplate">@string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["contentEditor.template.unavailableOptionFormat"], CurrentTemplate)</option>
+                                    <button type="button"
+                                            class="@AiSlugButtonClass"
+                                            title="@AiSlugButtonLabel"
+                                            aria-label="@AiSlugButtonLabel"
+                                            aria-busy="@_aiSlugBusy"
+                                            disabled="@(!CanUseAiSlug)"
+                                            @onclick="OpenAiSlugConfirm">
+                                        @if (_aiSlugBusy)
+                                        {
+                                            <Blazicon Svg="Lucide.LoaderCircle" />
+                                        }
+                                        else
+                                        {
+                                            <Blazicon Svg="Lucide.Sparkles" />
+                                        }
+                                    </button>
                                 }
-                                @foreach (var template in _pageTemplates)
-                                {
-                                    <option value="@template.Name">@template.DisplayName</option>
-                                }
-                            </select>
+                            </span>
+                            @if (_aiSlugBusy)
+                            {
+                                <span class="bocchi-editor-slug-status" aria-live="polite">正在本地生成路径标识...</span>
+                            }
                         </label>
-                        @if (TemplateUnavailable)
+
+                        @if (IsPostFile)
                         {
-                            <p class="bocchi-template-selector__warning">
-                                @string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["contentEditor.template.unavailableWarningFormat"], CurrentTemplate)
-                            </p>
+                            <label class="bocchi-editor-field">
+                                分类
+                                <select @bind="_category">
+                                    <option value="">未分类</option>
+                                    @if (CategoryUnavailable)
+                                    {
+                                        <option value="@_category">@_category（未在分类树中）</option>
+                                    }
+                                    @foreach (var category in _postCategories)
+                                    {
+                                        <option value="@category.Name">@CategoryOptionLabel(category)</option>
+                                    }
+                                </select>
+                            </label>
+                            <label class="bocchi-editor-field">
+                                标签
+                                <input type="text" @bind="_tagsText" @bind:event="oninput" placeholder="design, devlog" />
+                            </label>
+                            <label class="bocchi-editor-field">
+                                发布时间
+                                <input type="text" @bind="_publishedAt" @bind:event="oninput" placeholder="2026-05-23T12:00:00+08:00" />
+                            </label>
+                        }
+
+                        @if (IsPageFile)
+                        {
+                            <label class="bocchi-editor-field">
+                                @I18n["contentEditor.template.label"]
+                                <select @bind="_template">
+                                    @if (TemplateUnavailable)
+                                    {
+                                        <option value="@_template">@string.Format(CultureInfo.CurrentCulture, I18n["contentEditor.template.unavailableOptionFormat"], _template)</option>
+                                    }
+                                    @foreach (var template in _pageTemplates)
+                                    {
+                                        <option value="@template.Name">@template.DisplayName</option>
+                                    }
+                                </select>
+                            </label>
+                            <label class="bocchi-editor-field">
+                                导航顺序
+                                <input type="number" @bind="_order" />
+                            </label>
+                            <label class="bocchi-checkbox bocchi-editor-checkbox">
+                                <input type="checkbox" @bind="_showInNavigation" />
+                                显示在导航栏
+                            </label>
                         }
                     </div>
-                }
-                <div class="bocchi-markdown-preview">@((MarkupString)_previewHtml)</div>
+                </details>
+
+                <details class="bocchi-panel bocchi-editor-ai" open>
+                    <summary class="bocchi-editor-details-summary">
+                        <span>AI助手</span>
+                    </summary>
+                    @if (_aiAvailabilityChecked && !_aiAvailability.HasAvailableProvider)
+                    {
+                        <p class="bocchi-editor-ai__empty">当前没有可用的AI方式</p>
+                    }
+                </details>
             </aside>
-        </section>
+        </div>
     }
 </article>
+
+<BocchiDialog Open="@_showAiSlugConfirm"
+              Title="AI生成路径标识"
+              PrimaryText="@(_aiSlugBusy ? "生成中..." : "继续")"
+              SecondaryText="取消"
+              PrimaryDisabled="@_aiSlugBusy"
+              CloseOnBackdrop="true"
+              OnPrimary="GenerateAiSlugAsync"
+              OnSecondary="CancelAiSlugConfirm"
+              OnDismiss="CancelAiSlugConfirm">
+    <p>将通过AI根据你的当前标题与摘要自动生成路径标识</p>
+</BocchiDialog>
+
+<BocchiDialog Open="@_showAiSlugFailure"
+              Title="AI生成路径标识失败"
+              PrimaryText="知道了"
+              CloseOnBackdrop="false"
+              OnPrimary="CloseAiSlugFailure">
+    <p>AI生成路径标识失败，请手动输入或稍后再试</p>
+</BocchiDialog>
 
 @code {
     /// <summary>查询字符串中的内容 workspace 相对路径。</summary>
     [SupplyParameterFromQuery(Name = "path")]
     public string? Path { get; set; }
 
-    /// <summary>创建入口传入的内容类型；本轮先支持 kind=page。</summary>
+    /// <summary>创建入口传入的内容类型，例如 post/page/work。</summary>
     [SupplyParameterFromQuery(Name = "kind")]
     public string? Kind { get; set; }
 
@@ -151,16 +332,19 @@
     /// <summary>当前 Theme 声明的 Page template 下拉选项。</summary>
     private IReadOnlyList<ThemePageTemplateOption> _pageTemplates = [];
 
-    /// <summary>frontmatter YAML 编辑缓冲区。</summary>
+    /// <summary>Post 分类下拉选项；值保存为 frontmatter 中的 category name。</summary>
+    private IReadOnlyList<CategoryOption> _postCategories = [];
+
+    /// <summary>frontmatter YAML 编辑缓冲区；结构化字段保存时会回写到这里。</summary>
     private string _yaml = string.Empty;
 
     /// <summary>Markdown 正文编辑缓冲区。</summary>
     private string _markdown = string.Empty;
 
-    /// <summary>载入时的原始 frontmatter，用于保存前确认。</summary>
+    /// <summary>载入时的原始 frontmatter，用于差异提示。</summary>
     private string _originalYaml = string.Empty;
 
-    /// <summary>载入时的原始 Markdown，用于保存前确认。</summary>
+    /// <summary>载入时的原始 Markdown，用于差异提示。</summary>
     private string _originalMarkdown = string.Empty;
 
     /// <summary>当前预览 HTML。</summary>
@@ -169,24 +353,137 @@
     /// <summary>页面级错误提示。</summary>
     private string? _error;
 
+    /// <summary>保存成功或失败后的短提示。</summary>
+    private string? _saveMessage;
+
     /// <summary>保存中禁用按钮。</summary>
     private bool _busy;
 
     /// <summary>保存成功后给用户一个轻反馈。</summary>
     private bool _saved;
 
-    /// <summary>用户是否已经查看并确认当前差异。</summary>
-    private bool _diffConfirmed;
+    /// <summary>标题字段。</summary>
+    private string _title = string.Empty;
+
+    /// <summary>slug 字段。</summary>
+    private string _slug = string.Empty;
+
+    /// <summary>当前页面生命周期内用户是否手动改过 slug；刷新或重新进入编辑页会恢复标题跟随。</summary>
+    private bool _slugTouchedInSession;
+
+    /// <summary>内容是否曾经发布过；一旦为 true，Path 永不再自动跟随标题变化。</summary>
+    private bool _pathLocked;
+
+    /// <summary>发布状态字段，保存为 frontmatter 中的 status。</summary>
+    private string _status = ContentStatus.Draft.ToString();
+
+    /// <summary>摘要字段。</summary>
+    private string _summary = string.Empty;
+
+    /// <summary>Post 分类字段。</summary>
+    private string _category = string.Empty;
+
+    /// <summary>Post 标签字段，UI 使用逗号分隔，保存时写回 YAML sequence。</summary>
+    private string _tagsText = string.Empty;
+
+    /// <summary>Post 发布时间字段；保持文本输入是为了允许用户显式控制时区。</summary>
+    private string _publishedAt = string.Empty;
+
+    /// <summary>Page template 字段。</summary>
+    private string _template = "normal";
+
+    /// <summary>Page 是否进入导航栏。</summary>
+    private bool _showInNavigation;
+
+    /// <summary>Page 导航顺序。</summary>
+    private int _order;
+
+    /// <summary>浏览器侧 AI provider 探测结果。</summary>
+    private AiAvailabilitySnapshot _aiAvailability = AiAvailabilitySnapshot.Empty;
+
+    /// <summary>AI provider 是否完成过一次浏览器侧探测。</summary>
+    private bool _aiAvailabilityChecked;
+
+    /// <summary>AI slug 生成确认弹窗是否打开。</summary>
+    private bool _showAiSlugConfirm;
+
+    /// <summary>AI slug 生成失败弹窗是否打开。</summary>
+    private bool _showAiSlugFailure;
+
+    /// <summary>AI slug 生成流程是否正在运行。</summary>
+    private bool _aiSlugBusy;
 
     /// <summary>当前编辑缓冲区是否相对载入版本发生变化。</summary>
-    private bool IsDirty => _yaml != _originalYaml || _markdown != _originalMarkdown;
+    private bool IsDirty => CurrentYamlSnapshot != _originalYaml || _markdown != _originalMarkdown;
 
     private bool IsPageFile => _file?.RelativePath.StartsWith("pages/", StringComparison.OrdinalIgnoreCase) == true;
 
-    private string CurrentTemplate => ReadTemplateName(_yaml);
+    private bool IsPostFile => _file?.RelativePath.StartsWith("posts/", StringComparison.OrdinalIgnoreCase) == true;
+
+    private bool IsWorkFile => _file?.RelativePath.StartsWith("works/", StringComparison.OrdinalIgnoreCase) == true;
+
+    private bool IsSlugManagedContent => IsPostFile || IsPageFile;
+
+    private bool CanAutoChangeSlug => IsSlugManagedContent && !_pathLocked && CurrentStatus != ContentStatus.Published;
+
+    private bool CanFollowTitleSlug => CanAutoChangeSlug && !_slugTouchedInSession;
+
+    private bool CanShowAiSlugButton => CanAutoChangeSlug && _aiAvailability.HasAvailableProvider;
+
+    private bool CanUseAiSlug => CanShowAiSlugButton && !_busy && !_aiSlugBusy;
 
     private bool TemplateUnavailable => IsPageFile &&
-        !_pageTemplates.Any(template => string.Equals(template.Name, CurrentTemplate, StringComparison.Ordinal));
+        !_pageTemplates.Any(template => string.Equals(template.Name, _template, StringComparison.Ordinal));
+
+    private bool CategoryUnavailable => IsPostFile &&
+        !string.IsNullOrWhiteSpace(_category) &&
+        !_postCategories.Any(category => string.Equals(category.Name, _category, StringComparison.Ordinal));
+
+    private ContentStatus CurrentStatus => NormalizeStatus(_status);
+
+    private string EditorPageTitle => _file is null ? "Write" : _title.Length == 0 ? "Write" : _title;
+
+    private string EditorKicker => _file is null ? "内容 / Markdown" : $"{EditorKindLabel} / 写作";
+
+    private string EditorHeading => _file is null ? "Markdown 编辑器" : "写作与发布";
+
+    private string EditorDescription => _file is null
+        ? "新建或打开 Markdown 内容，完成正文、frontmatter 与预览。"
+        : "先把标题、摘要和正文写清楚，再用右侧设置完成发布。保存后会立刻刷新内容索引。";
+
+    private string EditorKindLabel => CurrentKind() switch
+    {
+        ContentKind.Page => "页面",
+        ContentKind.Work => "作品",
+        _ => "文章",
+    };
+
+    private string BackUrl => CurrentKind() switch
+    {
+        ContentKind.Page => "/Admin/Pages",
+        ContentKind.Work => "/Admin/Works",
+        ContentKind.Post => "/Admin/Posts",
+        _ => "/Admin/Content",
+    };
+
+    private string EditorStateLabel => _saved ? "已保存" : IsDirty ? "有未保存修改" : "正在编辑";
+
+    private string TitlePlaceholder => CurrentKind() switch
+    {
+        ContentKind.Page => "页面标题",
+        ContentKind.Work => "作品标题",
+        _ => "文章标题",
+    };
+
+    private string MarkdownStats
+    {
+        get
+        {
+            var chars = _markdown.Length;
+            var lines = _markdown.Length == 0 ? 0 : _markdown.Replace("\r\n", "\n").Split('\n').Length;
+            return $"{chars.ToString(CultureInfo.CurrentCulture)} 字符 / {lines.ToString(CultureInfo.CurrentCulture)} 行";
+        }
+    }
 
     /// <summary>保存前给用户扫读的轻量差异摘要。</summary>
     private string DiffSummary
@@ -194,7 +491,7 @@
         get
         {
             var before = SplitLines(_originalYaml + "\n---body---\n" + _originalMarkdown);
-            var after = SplitLines(_yaml + "\n---body---\n" + _markdown);
+            var after = SplitLines(CurrentYamlSnapshot + "\n---body---\n" + _markdown);
             var changed = 0;
             for (var i = 0; i < Math.Max(before.Length, after.Length); i++)
             {
@@ -207,42 +504,75 @@
             }
 
             return changed == 0
-                ? "No changes since this file was opened."
-                : $"{changed} line positions changed. Confirm before saving so accidental frontmatter rewrites do not slip through.";
+                ? "当前没有未保存修改。"
+                : $"{changed.ToString(CultureInfo.CurrentCulture)} 处行位置发生变化。";
         }
     }
+
+    private string CurrentYamlSnapshot
+        => TryBuildYamlFromFields(out var yaml, out _) ? yaml : _yaml;
 
     protected override async Task OnParametersSetAsync()
     {
         _saved = false;
+        _saveMessage = null;
         _error = null;
         if (string.IsNullOrWhiteSpace(Path))
         {
-            if (string.Equals(Kind, "page", StringComparison.OrdinalIgnoreCase))
+            if (TryParseCreateKind(Kind, out var createKind))
             {
-                _file = await Editor.CreatePageDraftAsync();
-                Path = _file.RelativePath;
-                await LoadPageTemplatesAsync();
-                LoadFileIntoEditor(_file);
-                Nav.NavigateTo(ContentEditingService.EditUrl(_file.RelativePath), replace: true);
+                try
+                {
+                    _file = await Editor.CreateDraftAsync(createKind);
+                    await Scanner.ScanAsync();
+                    await LoadEditorOptionsAsync();
+                    LoadFileIntoEditor(_file);
+                    Path = _file.RelativePath;
+                    Nav.NavigateTo(ContentEditingService.EditUrl(_file.RelativePath), replace: true);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _error = ex.Message;
+                }
+
                 return;
             }
 
-            _summaries = await Store.ListContentSummariesAsync(null);
+            _summaries = (await Store.ListContentSummariesAsync(null))
+                .Where(x => IsMarkdownPath(x.RelativePath))
+                .ToList();
             _file = null;
+            return;
+        }
+
+        if (!IsMarkdownPath(Path))
+        {
+            _error = "这个入口只编辑 Markdown 内容；站点配置和友链会有独立表单。";
             return;
         }
 
         try
         {
             _file = await Editor.ReadAsync(Path);
-            await LoadPageTemplatesAsync();
+            await LoadEditorOptionsAsync();
             LoadFileIntoEditor(_file);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
             _error = ex.Message;
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _aiAvailability = await Ai.GetAvailabilityAsync();
+        _aiAvailabilityChecked = true;
+        StateHasChanged();
     }
 
     /// <summary>保存文件、刷新扫描投影，并重算预览。</summary>
@@ -253,16 +583,34 @@
             return;
         }
 
+        if (!TryPrepareSlugForSave(out var slugError))
+        {
+            _saveMessage = slugError;
+            return;
+        }
+
+        if (IsSlugManagedContent && CurrentStatus == ContentStatus.Published)
+        {
+            _pathLocked = true;
+        }
+
+        if (!TryBuildYamlFromFields(out var yamlToSave, out var yamlError))
+        {
+            _saveMessage = yamlError;
+            return;
+        }
+
         _busy = true;
         try
         {
-            await Editor.SaveAsync(Path, _yaml, _markdown);
+            await Editor.SaveAsync(Path, yamlToSave, _markdown);
             await Scanner.ScanAsync();
-            RefreshPreview();
-            _originalYaml = _yaml;
+            _yaml = yamlToSave;
+            _originalYaml = yamlToSave;
             _originalMarkdown = _markdown;
-            _diffConfirmed = false;
+            RefreshPreview();
             _saved = true;
+            _saveMessage = "已保存并刷新内容索引。";
         }
         finally
         {
@@ -270,7 +618,32 @@
         }
     }
 
-    /// <summary>用编辑缓冲区重算预览，避免每个键入事件都跑 Markdown 渲染。</summary>
+    /// <summary>把当前草稿切到 Published 后保存；Post 缺发布时间时补当前时间。</summary>
+    private async Task PublishAsync()
+    {
+        _status = ContentStatus.Published.ToString();
+        if (IsSlugManagedContent)
+        {
+            _pathLocked = true;
+        }
+
+        if (IsPostFile && string.IsNullOrWhiteSpace(_publishedAt))
+        {
+            _publishedAt = FormatDateTime(Time.GetUtcNow());
+        }
+
+        await SaveAsync();
+    }
+
+    private Task OnMarkdownChangedAsync(string value)
+    {
+        _markdown = value;
+        _saved = false;
+        RefreshPreview();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>用编辑缓冲区重算预览。</summary>
     private void RefreshPreview()
     {
         _previewHtml = Markdown.RenderHtml(_markdown);
@@ -283,12 +656,18 @@
         _originalYaml = file.Yaml;
         _originalMarkdown = file.Markdown;
         _previewHtml = file.PreviewHtml;
-        _diffConfirmed = false;
+        _saved = false;
+        LoadMetadataFromYaml(file);
     }
 
-    private async Task LoadPageTemplatesAsync()
+    /// <summary>按当前内容类型载入写作页所需的下拉选项。</summary>
+    private async Task LoadEditorOptionsAsync()
     {
-        if (_file?.RelativePath.StartsWith("pages/", StringComparison.OrdinalIgnoreCase) != true)
+        _postCategories = IsPostFile
+            ? FlattenCategoryOptions((await Categories.GetAsync(ContentKind.Post)).Roots)
+            : [];
+
+        if (!IsPageFile)
         {
             _pageTemplates = [];
             return;
@@ -302,39 +681,176 @@
         _pageTemplates = contract.PageTemplates;
     }
 
-    private async Task OnTemplateChangedAsync(ChangeEventArgs args)
+    /// <summary>把树形分类压平成下拉选项，并保留层级深度用于展示缩进。</summary>
+    private static IReadOnlyList<CategoryOption> FlattenCategoryOptions(IEnumerable<CategoryTreeNode> roots)
     {
-        _yaml = SetTemplateName(_yaml, args.Value?.ToString() ?? "normal");
-        _diffConfirmed = false;
-        await Task.CompletedTask;
+        var options = new List<CategoryOption>();
+        foreach (var root in roots)
+        {
+            AppendCategoryOption(root, depth: 0, options);
+        }
+
+        return options;
+    }
+
+    /// <summary>递归展开分类树；保存值始终使用节点 Name，而不是 URL slug。</summary>
+    private static void AppendCategoryOption(CategoryTreeNode node, int depth, List<CategoryOption> options)
+    {
+        options.Add(new CategoryOption(node.Name, depth));
+        foreach (var child in node.Children)
+        {
+            AppendCategoryOption(child, depth + 1, options);
+        }
+    }
+
+    private static string CategoryOptionLabel(CategoryOption option)
+        => option.Depth == 0
+            ? option.Name
+            : $"{string.Concat(Enumerable.Repeat("— ", option.Depth))}{option.Name}";
+
+    /// <summary>从 YAML 载入常用字段；未知字段保留在原始 YAML 中，保存时不会被主动删除。</summary>
+    private void LoadMetadataFromYaml(EditableContentFile file)
+    {
+        var root = ParseYaml(file.Yaml);
+        var fallbackSlug = SlugFromPath(file.RelativePath);
+        _title = ReadString(root, "title") ?? string.Empty;
+        _slug = ReadString(root, "slug") ?? fallbackSlug;
+        _status = NormalizeStatus(ReadString(root, "status")).ToString();
+        _pathLocked = ReadBool(root, "pathLocked") ?? (CurrentStatus == ContentStatus.Published);
+        _slugTouchedInSession = false;
+        _summary = ReadString(root, "summary") ?? string.Empty;
+        _category = ReadString(root, "category") ?? string.Empty;
+        _tagsText = string.Join(", ", ReadStringList(root, "tags"));
+        _publishedAt = ReadString(root, "publishedAt") ?? string.Empty;
+        _template = ReadString(root, "template") ?? "normal";
+        _showInNavigation = ReadBool(root, "showInNavigation") ?? false;
+        _order = ReadInt(root, "order") ?? 0;
+    }
+
+    /// <summary>把结构化字段写回 YAML，同时保留用户在 Frontmatter 中添加的其他键。</summary>
+    private bool TryBuildYamlFromFields(out string yaml, out string? error)
+    {
+        yaml = string.Empty;
+        error = null;
+
+        YamlMappingNode root;
+        if (string.IsNullOrWhiteSpace(_yaml))
+        {
+            root = new YamlMappingNode();
+        }
+        else
+        {
+            try
+            {
+                root = ParseYamlStrict(_yaml) ?? new YamlMappingNode();
+            }
+            catch (YamlException ex)
+            {
+                error = $"Frontmatter YAML 无法解析：{ex.Message}";
+                return false;
+            }
+        }
+
+        SetScalar(root, "title", _title);
+        SetScalar(root, "slug", SlugForYaml());
+        SetScalar(root, "status", StatusYamlValue(CurrentStatus));
+        SetScalar(root, "summary", _summary, removeWhenBlank: true);
+        SetScalar(root, "pathLocked", _pathLocked ? "true" : null, removeWhenBlank: true);
+
+        if (IsPostFile)
+        {
+            SetScalar(root, "category", _category, removeWhenBlank: true);
+            SetSequence(root, "tags", ParseCommaList(_tagsText));
+            SetScalar(root, "publishedAt", _publishedAt, removeWhenBlank: true);
+            SetScalar(root, "updatedAt", FormatDateTime(Time.GetUtcNow()));
+        }
+
+        if (IsPageFile)
+        {
+            SetScalar(root, "template", string.IsNullOrWhiteSpace(_template) ? "normal" : _template);
+            SetScalar(root, "order", _order.ToString(CultureInfo.InvariantCulture));
+            SetScalar(root, "showInNavigation", _showInNavigation ? "true" : "false");
+        }
+
+        var stream = new YamlStream(new YamlDocument(root));
+        using var writer = new StringWriter(CultureInfo.InvariantCulture);
+        stream.Save(writer, assignAnchors: false);
+        yaml = writer.ToString().Trim();
+        return true;
     }
 
     /// <summary>跨平台拆分文本行，仅用于保存前差异摘要。</summary>
     private static string[] SplitLines(string value)
         => value.Replace("\r\n", "\n").Split('\n');
 
-    private static string ReadTemplateName(string yaml)
+    private ContentKind? CurrentKind()
     {
-        var root = ParseYaml(yaml);
-        if (root?.Children.TryGetValue(new YamlScalarNode("template"), out var node) == true &&
-            node is YamlScalarNode scalar &&
-            !string.IsNullOrWhiteSpace(scalar.Value))
+        if (IsPageFile)
         {
-            return scalar.Value.Trim();
+            return ContentKind.Page;
         }
 
-        return "normal";
+        if (IsWorkFile)
+        {
+            return ContentKind.Work;
+        }
+
+        return IsPostFile ? ContentKind.Post : null;
     }
 
-    private static string SetTemplateName(string yaml, string template)
+    private static bool TryParseCreateKind(string? value, out ContentKind kind)
     {
-        var root = ParseYaml(yaml) ?? new YamlMappingNode();
-        root.Children[new YamlScalarNode("template")] = new YamlScalarNode(string.IsNullOrWhiteSpace(template) ? "normal" : template.Trim());
-        var stream = new YamlStream(new YamlDocument(root));
-        using var writer = new StringWriter();
-        stream.Save(writer, assignAnchors: false);
-        return writer.ToString().Trim();
+        kind = default;
+        return !string.IsNullOrWhiteSpace(value) &&
+            Enum.TryParse(value, ignoreCase: true, out kind) &&
+            kind is ContentKind.Post or ContentKind.Page or ContentKind.Work;
     }
+
+    private static bool IsMarkdownPath(string? path)
+        => path?.EndsWith(".md", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string SlugFromPath(string relativePath)
+    {
+        var parts = relativePath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3 && (string.Equals(parts[0], "posts", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(parts[0], "works", StringComparison.OrdinalIgnoreCase)))
+        {
+            return parts[2];
+        }
+
+        return parts.Length >= 2 && string.Equals(parts[0], "pages", StringComparison.OrdinalIgnoreCase)
+            ? parts[1]
+            : "draft";
+    }
+
+    private static ContentStatus NormalizeStatus(string? value)
+        => Enum.TryParse<ContentStatus>(value, ignoreCase: true, out var status)
+            ? status
+            : ContentStatus.Draft;
+
+    private static string StatusYamlValue(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => "published",
+            ContentStatus.Archived => "archived",
+            _ => "draft",
+        };
+
+    private static string StatusLabel(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => "已发布",
+            ContentStatus.Archived => "已归档",
+            _ => "草稿",
+        };
+
+    private static string StatusTone(ContentStatus status)
+        => status switch
+        {
+            ContentStatus.Published => "success",
+            ContentStatus.Archived => "neutral",
+            _ => "warning",
+        };
 
     private static YamlMappingNode? ParseYaml(string yaml)
     {
@@ -343,17 +859,101 @@
             return null;
         }
 
-        var stream = new YamlStream();
-        using var reader = new StringReader(yaml);
         try
         {
-            stream.Load(reader);
+            return ParseYamlStrict(yaml);
         }
         catch (YamlException)
         {
             return null;
         }
+    }
 
+    private static YamlMappingNode? ParseYamlStrict(string yaml)
+    {
+        var stream = new YamlStream();
+        using var reader = new StringReader(yaml);
+        stream.Load(reader);
         return stream.Documents.Count > 0 ? stream.Documents[0].RootNode as YamlMappingNode : null;
     }
+
+    private static string? ReadString(YamlMappingNode? root, string key)
+    {
+        if (root?.Children.TryGetValue(new YamlScalarNode(key), out var node) == true &&
+            node is YamlScalarNode scalar &&
+            !string.IsNullOrWhiteSpace(scalar.Value))
+        {
+            return scalar.Value.Trim();
+        }
+
+        return null;
+    }
+
+    private static bool? ReadBool(YamlMappingNode? root, string key)
+    {
+        var value = ReadString(root, key);
+        return bool.TryParse(value, out var result) ? result : null;
+    }
+
+    private static int? ReadInt(YamlMappingNode? root, string key)
+    {
+        var value = ReadString(root, key);
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : null;
+    }
+
+    private static IReadOnlyList<string> ReadStringList(YamlMappingNode? root, string key)
+    {
+        if (root?.Children.TryGetValue(new YamlScalarNode(key), out var node) != true)
+        {
+            return [];
+        }
+
+        if (node is YamlSequenceNode sequence)
+        {
+            return sequence.Children
+                .OfType<YamlScalarNode>()
+                .Select(x => x.Value?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .ToList();
+        }
+
+        return node is YamlScalarNode scalar && !string.IsNullOrWhiteSpace(scalar.Value)
+            ? ParseCommaList(scalar.Value)
+            : [];
+    }
+
+    private static void SetScalar(YamlMappingNode root, string key, string? value, bool removeWhenBlank = false)
+    {
+        var scalarKey = new YamlScalarNode(key);
+        if (removeWhenBlank && string.IsNullOrWhiteSpace(value))
+        {
+            root.Children.Remove(scalarKey);
+            return;
+        }
+
+        root.Children[scalarKey] = new YamlScalarNode(value?.Trim() ?? string.Empty);
+    }
+
+    private static void SetSequence(YamlMappingNode root, string key, IReadOnlyList<string> values)
+    {
+        var sequence = new YamlSequenceNode();
+        foreach (var value in values)
+        {
+            sequence.Add(new YamlScalarNode(value));
+        }
+
+        root.Children[new YamlScalarNode(key)] = sequence;
+    }
+
+    private static IReadOnlyList<string> ParseCommaList(string value)
+        => value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+    private static string FormatDateTime(DateTimeOffset value)
+        => value.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
+
+    /// <summary>Post 分类下拉选项，Name 同时作为 UI 显示名与 frontmatter 保存值。</summary>
+    private sealed record CategoryOption(string Name, int Depth);
 }

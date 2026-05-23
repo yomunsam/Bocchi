@@ -1,0 +1,239 @@
+.bocchi-markdown-editor {
+    display: grid;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+}
+
+.bocchi-markdown-editor,
+.bocchi-markdown-editor * {
+    box-sizing: border-box;
+}
+
+.bocchi-markdown-editor__head {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    border-bottom: 1px solid var(--bocchi-border);
+    padding: 0.7rem 0.85rem;
+}
+
+.bocchi-markdown-editor__title {
+    display: grid;
+    min-width: 0;
+    gap: 0.08rem;
+}
+
+.bocchi-markdown-editor__title span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.74rem;
+    font-weight: 760;
+}
+
+.bocchi-markdown-editor__title h2 {
+    overflow: hidden;
+    margin: 0;
+    font-size: 1rem;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-markdown-editor__view,
+.bocchi-markdown-toolbar__group {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 0.28rem;
+}
+
+.bocchi-markdown-editor__view {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface-muted) 76%, var(--bocchi-surface));
+    padding: 0.18rem;
+}
+
+.bocchi-markdown-editor__view button,
+.bocchi-markdown-toolbar button {
+    width: 2rem;
+    min-height: 2rem;
+    flex: 0 0 2rem;
+    justify-content: center;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    padding: 0;
+}
+
+.bocchi-markdown-editor__view button[aria-pressed="true"],
+.bocchi-markdown-toolbar button:hover,
+.bocchi-markdown-toolbar button:focus-visible {
+    background: var(--bocchi-surface);
+    color: var(--bocchi-action);
+    transform: none;
+}
+
+.bocchi-markdown-editor__view ::deep svg,
+.bocchi-markdown-toolbar ::deep svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.bocchi-markdown-toolbar {
+    display: flex;
+    min-width: 0;
+    gap: 0.5rem;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--bocchi-border);
+    background: color-mix(in srgb, var(--bocchi-surface) 90%, var(--bocchi-surface-muted));
+    padding: 0.5rem 0.65rem;
+    scrollbar-width: thin;
+}
+
+.bocchi-markdown-toolbar__group {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.bocchi-markdown-toolbar__group + .bocchi-markdown-toolbar__group {
+    padding-left: 0.5rem;
+}
+
+.bocchi-markdown-toolbar__group + .bocchi-markdown-toolbar__group::before {
+    position: absolute;
+    left: 0.1rem;
+    width: 1px;
+    height: 1.4rem;
+    align-self: center;
+    background: var(--bocchi-border);
+    content: "";
+}
+
+.bocchi-markdown-editor__body {
+    display: grid;
+    min-height: 34rem;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.82fr);
+}
+
+.bocchi-markdown-editor__pane {
+    min-width: 0;
+}
+
+.bocchi-markdown-editor__pane--write {
+    display: grid;
+    background: color-mix(in srgb, var(--bocchi-surface) 94%, var(--bocchi-bg));
+}
+
+.bocchi-codemirror-host,
+.bocchi-codemirror-host ::deep .cm-editor {
+    max-width: 100%;
+    min-height: 34rem;
+    overflow: hidden;
+}
+
+.bocchi-codemirror-host ::deep .cm-scroller {
+    max-width: 100%;
+}
+
+.bocchi-markdown-editor__pane--preview {
+    overflow: auto;
+    max-height: 46rem;
+    border-left: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    padding: 1.15rem 1.3rem;
+}
+
+.bocchi-markdown-editor__empty {
+    display: grid;
+    min-height: 16rem;
+    place-items: center;
+    color: var(--bocchi-text-subtle);
+    font-weight: 720;
+}
+
+.bocchi-markdown-preview {
+    overflow-wrap: anywhere;
+    color: var(--bocchi-text);
+    line-height: 1.75;
+}
+
+.bocchi-markdown-preview h1,
+.bocchi-markdown-preview h2,
+.bocchi-markdown-preview h3 {
+    line-height: 1.2;
+}
+
+.bocchi-markdown-preview p,
+.bocchi-markdown-preview ul,
+.bocchi-markdown-preview ol,
+.bocchi-markdown-preview blockquote {
+    margin: 0 0 0.9rem;
+}
+
+.bocchi-markdown-preview blockquote {
+    border-left: 3px solid var(--bocchi-lavender);
+    color: var(--bocchi-text-muted);
+    padding-left: 0.85rem;
+}
+
+.bocchi-markdown-preview :first-child {
+    margin-top: 0;
+}
+
+.bocchi-markdown-preview :last-child {
+    margin-bottom: 0;
+}
+
+.bocchi-markdown-preview img {
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+.bocchi-markdown-editor[data-view="write"] .bocchi-markdown-editor__body,
+.bocchi-markdown-editor[data-view="preview"] .bocchi-markdown-editor__body {
+    grid-template-columns: 1fr;
+}
+
+.bocchi-markdown-editor[data-view="write"] .bocchi-markdown-editor__pane--preview,
+.bocchi-markdown-editor[data-view="preview"] .bocchi-markdown-editor__pane--write {
+    display: none;
+}
+
+.bocchi-markdown-editor[data-view="preview"] .bocchi-markdown-editor__pane--preview {
+    border-left: 0;
+}
+
+@media (max-width: 900px) {
+    .bocchi-markdown-editor__body {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-markdown-editor__body,
+    .bocchi-codemirror-host,
+    .bocchi-codemirror-host ::deep .cm-editor {
+        min-height: 30rem;
+    }
+
+    .bocchi-markdown-editor[data-view="split"] .bocchi-markdown-editor__pane--preview {
+        display: none;
+    }
+}
+
+@media (max-width: 620px) {
+    .bocchi-markdown-editor__head {
+        min-height: 2.85rem;
+        align-items: center;
+    }
+
+    .bocchi-markdown-editor__view {
+        flex: 0 0 auto;
+    }
+}

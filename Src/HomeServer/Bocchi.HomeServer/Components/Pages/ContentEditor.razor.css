@@ -1,25 +1,358 @@
-.bocchi-template-selector {
-    display: grid;
-    gap: 0.45rem;
-    margin-bottom: 1rem;
+.bocchi-editor-page {
+    gap: 0.75rem;
 }
 
-.bocchi-template-selector label {
-    display: grid;
-    gap: 0.35rem;
-    color: var(--bocchi-text-muted);
-    font-size: 0.86rem;
-    font-weight: 720;
+.bocchi-editor-page,
+.bocchi-editor-page * {
+    box-sizing: border-box;
 }
 
-.bocchi-template-selector select {
-    width: 100%;
+.bocchi-editor-commandbar {
+    position: sticky;
+    top: 3.5rem;
+    z-index: 12;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 94%, var(--bocchi-bg));
+    box-shadow: 0 10px 28px rgba(77, 67, 107, 0.08);
+    padding: 0.55rem 0.65rem;
+    backdrop-filter: blur(16px);
+}
+
+.bocchi-editor-commandbar__back {
+    display: inline-flex;
+    width: 2.35rem;
     min-height: 2.35rem;
+    align-items: center;
+    justify-content: center;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
-    padding: 0 0.65rem;
+    text-decoration: none;
+}
+
+.bocchi-editor-commandbar__back ::deep svg,
+.bocchi-editor-commandbar__actions button ::deep svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.bocchi-editor-commandbar__title {
+    display: grid;
+    min-width: 0;
+    gap: 0.05rem;
+}
+
+.bocchi-editor-commandbar__title span {
+    overflow: hidden;
+    color: var(--bocchi-blue-strong);
+    font-size: 0.78rem;
+    font-weight: 760;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-editor-commandbar__title h1 {
+    overflow: hidden;
+    margin: 0;
+    font-size: 1.02rem;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-editor-commandbar__actions {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.bocchi-editor-commandbar__actions button {
+    gap: 0.42rem;
+}
+
+.bocchi-editor-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(19rem, 25vw, 23rem);
+    gap: 0.85rem;
+    align-items: start;
+}
+
+.bocchi-writing-surface,
+.bocchi-editor-side {
+    display: grid;
+    max-width: 100%;
+    min-width: 0;
+    gap: 0.65rem;
+}
+
+.bocchi-editor-side {
+    position: sticky;
+    top: 8rem;
+}
+
+.bocchi-editor-side .bocchi-panel {
+    padding: 0.82rem;
+}
+
+.bocchi-writing-card {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0.2rem 0 0.1rem;
+}
+
+.bocchi-writing-card__meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+}
+
+.bocchi-writing-card__meta span {
+    color: var(--bocchi-blue-strong);
+    font-size: 0.78rem;
+    font-weight: 760;
+}
+
+.bocchi-writing-card__meta code {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.bocchi-title-field,
+.bocchi-summary-field,
+.bocchi-editor-field {
+    display: grid;
+    max-width: 100%;
+    min-width: 0;
+    gap: 0.25rem;
+}
+
+.bocchi-title-field input,
+.bocchi-summary-field textarea,
+.bocchi-editor-field input,
+.bocchi-editor-field select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-weight: 400;
+}
+
+.bocchi-title-field input {
+    min-height: 3rem;
+    border-color: color-mix(in srgb, var(--bocchi-border) 72%, transparent);
+    background: color-mix(in srgb, var(--bocchi-surface) 72%, var(--bocchi-bg));
+    font-size: 2.15rem;
+    font-weight: 780;
+    line-height: 1.15;
+    padding: 0.3rem 0.55rem;
+    transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.bocchi-title-field input::placeholder,
+.bocchi-summary-field textarea::placeholder,
+.bocchi-editor-field input::placeholder {
+    color: var(--bocchi-text-subtle);
+}
+
+.bocchi-title-field input:hover,
+.bocchi-title-field input:focus-visible {
+    border-color: color-mix(in srgb, var(--bocchi-action) 46%, var(--bocchi-border));
+    background: var(--bocchi-surface);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bocchi-action) 12%, transparent);
+}
+
+.bocchi-summary-field span,
+.bocchi-editor-field,
+.bocchi-editor-field-stack,
+.bocchi-editor-checkbox {
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.bocchi-summary-field textarea {
+    min-height: 3.5rem;
+    resize: vertical;
+    background: color-mix(in srgb, var(--bocchi-surface) 92%, var(--bocchi-bg));
+    line-height: 1.4;
+    padding: 0.58rem 0.68rem;
+}
+
+.bocchi-publish-panel {
+    display: grid;
+    min-width: 0;
+    gap: 0.55rem;
+    overflow: hidden;
+}
+
+.bocchi-editor-details-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.bocchi-editor-details-summary::-webkit-details-marker {
+    display: none;
+}
+
+.bocchi-editor-details-summary span {
+    color: var(--bocchi-text);
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+.bocchi-publish-panel .bocchi-meta-list {
+    font-size: 0.86rem;
+    padding-top: 0;
+}
+
+.bocchi-publish-panel > p {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.bocchi-editor-inspector {
+    display: grid;
+    min-width: 0;
+    gap: 0.58rem;
+    overflow: hidden;
+}
+
+.bocchi-editor-ai {
+    display: grid;
+    min-width: 0;
+    gap: 0.5rem;
+    overflow: hidden;
+}
+
+.bocchi-editor-ai__empty {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.bocchi-editor-slug-control {
+    position: relative;
+    display: block;
+    min-width: 0;
+}
+
+.bocchi-editor-slug-control input {
+    padding-right: 2.35rem;
+}
+
+.bocchi-editor-slug-control__ai {
+    position: absolute;
+    top: 50%;
+    right: 0.25rem;
+    width: 1.75rem;
+    min-height: 1.75rem;
+    justify-content: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    padding: 0;
+    transform: translateY(-50%);
+}
+
+.bocchi-editor-slug-control__ai:hover:not(:disabled) {
+    color: var(--bocchi-action);
+    transform: translateY(-50%);
+}
+
+.bocchi-editor-slug-control__ai--busy {
+    color: var(--bocchi-action);
+    cursor: wait;
+}
+
+.bocchi-editor-slug-control__ai--busy ::deep svg {
+    animation: bocchi-editor-spin 900ms linear infinite;
+    transform-origin: center;
+}
+
+.bocchi-editor-slug-control__ai ::deep svg {
+    width: 0.92rem;
+    height: 0.92rem;
+}
+
+.bocchi-editor-slug-status {
+    color: var(--bocchi-text-muted);
+    font-size: 0.76rem;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+@keyframes bocchi-editor-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.bocchi-editor-field-stack {
+    display: grid;
+    max-width: 100%;
+    min-width: 0;
+    gap: 0.52rem;
+}
+
+.bocchi-editor-field input,
+.bocchi-editor-field select {
+    font-size: 0.88rem;
+    min-height: 2.12rem;
+    line-height: 1.2;
+    padding: 0 0.62rem;
+}
+
+.bocchi-editor-checkbox {
+    min-width: 0;
+}
+
+.bocchi-editor-frontmatter {
+    width: 100%;
+    min-height: 12rem;
+    resize: vertical;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
+    color: var(--bocchi-text);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    line-height: 1.6;
+    margin-top: 0.75rem;
+    padding: 0.85rem;
+}
+
+.bocchi-editor-save-message {
+    color: var(--bocchi-success-strong);
+    font-weight: 600;
+    line-height: 1.35;
 }
 
 .bocchi-template-selector__warning {
@@ -27,4 +360,77 @@
     color: var(--bocchi-warning-strong);
     font-size: 0.86rem;
     line-height: 1.5;
+}
+
+.bocchi-advanced-details {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.bocchi-advanced-details summary {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.bocchi-advanced-details summary span {
+    color: var(--bocchi-text);
+}
+
+.bocchi-advanced-details summary small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.82rem;
+    font-weight: 520;
+    line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+    .bocchi-editor-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-editor-side {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .bocchi-editor-page {
+        gap: 0.75rem;
+    }
+
+    .bocchi-editor-commandbar {
+        top: 3.5rem;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        padding: 0.5rem;
+    }
+
+    .bocchi-editor-commandbar__title h1 {
+        font-size: 0.98rem;
+    }
+
+    .bocchi-editor-commandbar__actions {
+        grid-column: 1 / -1;
+        justify-content: stretch;
+    }
+
+    .bocchi-editor-commandbar__actions > * {
+        flex: 1 1 8rem;
+        justify-content: center;
+    }
+
+    .bocchi-title-field input {
+        font-size: 1.7rem;
+    }
+
+    .bocchi-writing-card__meta {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .bocchi-editor-side {
+        grid-template-columns: 1fr;
+    }
 }

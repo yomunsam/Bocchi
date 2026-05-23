@@ -58,4 +58,14 @@ public sealed class ContentModelContractTests
         settings.DefaultTitle.Should().BeNull();
         settings.CopyrightNotice.Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("我的 第一篇文章！", "我的-第一篇文章")]
+    [InlineData("吾輩は猫である", "吾輩は猫である")]
+    [InlineData("Hello, Bocchi!", "hello-bocchi")]
+    [InlineData("設計 2026 / Devlog", "設計-2026-devlog")]
+    public void ContentSlug_NormalizesUnicodePathSegments(string value, string expected)
+    {
+        ContentSlug.Normalize(value).Should().Be(expected);
+    }
 }

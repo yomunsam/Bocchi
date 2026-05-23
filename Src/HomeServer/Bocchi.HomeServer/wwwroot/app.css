@@ -79,15 +79,15 @@ textarea {
 button,
 .bocchi-button {
     display: inline-flex;
-    min-height: 2.45rem;
+    min-height: 2.25rem;
     align-items: center;
     border: 0;
     border-radius: 8px;
     background: var(--bocchi-text);
     color: var(--bocchi-surface);
     cursor: pointer;
-    font-weight: 760;
-    padding: 0 0.9rem;
+    font-weight: 660;
+    padding: 0 0.78rem;
     text-decoration: none;
     transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
 }
@@ -1328,7 +1328,7 @@ h1:focus {
     border-radius: 8px;
     background: var(--bocchi-surface);
     box-shadow: var(--bocchi-shadow-soft);
-    padding: 1rem;
+    padding: 0.9rem;
 }
 
 .bocchi-panel--soft {
@@ -1342,25 +1342,26 @@ h1:focus {
 
 .bocchi-meta-list {
     display: grid;
-    gap: 0.55rem;
+    gap: 0.38rem;
     margin: 0;
 }
 
 .bocchi-meta-list div {
     display: grid;
-    grid-template-columns: minmax(7rem, 0.25fr) minmax(0, 1fr);
-    gap: 0.8rem;
+    grid-template-columns: minmax(6rem, 0.25fr) minmax(0, 1fr);
+    gap: 0.65rem;
     align-items: baseline;
 }
 
 .bocchi-meta-list dt {
     color: var(--bocchi-text-muted);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .bocchi-meta-list dd {
     min-width: 0;
     margin: 0;
+    line-height: 1.35;
     overflow-wrap: anywhere;
 }
 
@@ -1373,7 +1374,7 @@ h1:focus {
 
 .bocchi-form-grid {
     display: grid;
-    gap: 0.75rem;
+    gap: 0.62rem;
 }
 
 .bocchi-form-grid label {
@@ -1381,7 +1382,7 @@ h1:focus {
     gap: 0.32rem;
     color: var(--bocchi-text-muted);
     font-size: 0.9rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .bocchi-form-grid input[type="text"],
@@ -1402,17 +1403,18 @@ h1:focus {
 .bocchi-auth-card input[type="password"],
 .bocchi-provider-card input[type="text"],
 .bocchi-provider-card input[type="password"] {
-    min-height: 2.45rem;
+    min-height: 2.25rem;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
-    padding: 0 0.75rem;
+    font-weight: 400;
+    padding: 0 0.65rem;
 }
 
 .bocchi-compact-field {
     display: inline-flex;
-    min-height: 2.45rem;
+    min-height: 2.25rem;
     align-items: center;
     gap: 0.45rem;
     border: 1px solid var(--bocchi-border);
@@ -1420,8 +1422,8 @@ h1:focus {
     background: var(--bocchi-surface);
     color: var(--bocchi-text-muted);
     font-size: 0.9rem;
-    font-weight: 700;
-    padding: 0 0.7rem;
+    font-weight: 600;
+    padding: 0 0.62rem;
 }
 
 .bocchi-compact-field select {
@@ -1452,10 +1454,8 @@ h1:focus {
     font-weight: 760;
 }
 
-.bocchi-editor-grid,
 .bocchi-settings-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.72fr);
     gap: 1rem;
     align-items: start;
 }
@@ -1464,31 +1464,9 @@ h1:focus {
     grid-template-columns: 12rem minmax(0, 1fr);
 }
 
-.bocchi-editor-panel label,
 .bocchi-provider-card {
     display: grid;
     gap: 0.55rem;
-}
-
-.bocchi-editor-textarea {
-    width: 100%;
-    min-height: 24rem;
-    resize: vertical;
-    border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
-    background: var(--bocchi-surface);
-    color: var(--bocchi-text);
-    line-height: 1.55;
-    padding: 0.85rem;
-}
-
-.bocchi-editor-textarea--frontmatter {
-    min-height: 9rem;
-}
-
-.bocchi-markdown-preview {
-    overflow-wrap: anywhere;
-    line-height: 1.75;
 }
 
 .bocchi-preview-empty {
@@ -1873,7 +1851,6 @@ h1:focus {
         grid-template-columns: 1fr;
     }
 
-    .bocchi-editor-grid,
     .bocchi-settings-layout,
     .bocchi-localization-grid,
     .bocchi-theme-field,
