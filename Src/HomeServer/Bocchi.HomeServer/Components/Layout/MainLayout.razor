@@ -92,7 +92,7 @@
                 <Blazicon Svg="Lucide.Send" />
                 <span>@I18n["nav.publish"]</span>
             </a>
-            <a href="/Admin/Settings" class="@PrimaryNavLinkClass(IsCurrentPath("/Admin/Settings"))" aria-current="@AriaCurrent(IsCurrentPath("/Admin/Settings"))">
+            <a href="/Admin/Settings" class="@PrimaryNavLinkClass(IsSettingsSectionActive())" aria-current="@AriaCurrent(IsSettingsSectionActive())">
                 <Blazicon Svg="Lucide.Settings" />
                 <span>@I18n["nav.settings"]</span>
             </a>
@@ -369,6 +369,12 @@
 
     /// <summary>主题定制入口是否为当前页面。</summary>
     private bool IsThemeCustomizationActive() => IsCurrentPath("/Admin/Site/Theme");
+
+    /// <summary>设置主导航是否包含当前页面；Users 独立路由也属于设置体系。</summary>
+    private bool IsSettingsSectionActive()
+        => IsCurrentPath("/Admin/Settings")
+           || _currentPath.StartsWith("/Admin/Settings/", StringComparison.OrdinalIgnoreCase)
+           || IsCurrentPath("/Admin/Users");
 
     /// <summary>判断编辑页是否正在处理指定内容类型。</summary>
     private bool IsEditorFor(string kind, string encodedPathPrefix)

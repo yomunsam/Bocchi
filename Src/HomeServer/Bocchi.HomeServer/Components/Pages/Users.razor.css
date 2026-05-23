@@ -1,0 +1,12 @@
+.bocchi-users-layout {
+    display: grid;
+    grid-template-columns: minmax(14rem, 0.28fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .bocchi-users-layout {
+        grid-template-columns: 1fr;
+    }
+}

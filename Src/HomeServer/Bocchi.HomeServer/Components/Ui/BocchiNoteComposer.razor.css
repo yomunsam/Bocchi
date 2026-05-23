@@ -1,0 +1,93 @@
+.bocchi-composer {
+    display: grid;
+    gap: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+    padding: 1rem;
+}
+
+.bocchi-composer__form {
+    display: grid;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.bocchi-composer__textarea {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 6.5rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    font: inherit;
+    line-height: 1.55;
+    padding: 0.75rem 0.85rem;
+    resize: vertical;
+}
+
+.bocchi-composer__textarea:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--bocchi-action) 35%, var(--bocchi-border));
+    background: var(--bocchi-surface);
+}
+
+.bocchi-composer__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bocchi-composer__toolbar {
+    display: flex;
+    gap: 0.2rem;
+}
+
+.bocchi-composer__toolbar .bocchi-icon-button {
+    width: 1.95rem;
+    min-height: 1.95rem;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--bocchi-text-subtle);
+    padding: 0;
+}
+
+.bocchi-composer__toolbar .bocchi-icon-button:hover:not(:disabled) {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    transform: none;
+}
+
+.bocchi-composer__toolbar .bocchi-icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.bocchi-composer__publish {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.bocchi-composer__counter {
+    color: var(--bocchi-text-subtle);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.bocchi-composer__submit {
+    gap: 0.5rem;
+}
+
+.bocchi-composer__submit ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}

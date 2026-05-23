@@ -3,72 +3,77 @@
 @using Microsoft.AspNetCore.Identity
 @inject UserManager<BocchiUser> UsersService
 @inject RoleManager<IdentityRole> RolesService
+@inject DashboardLocalizationService I18n
 
-<PageTitle>Users · Bocchi</PageTitle>
+<PageTitle>@I18n["settings.users.title"] · Bocchi</PageTitle>
 
-<article class="bocchi-shell">
-    <header class="bocchi-page-heading">
-        <span class="bocchi-page-heading__eyebrow">Users</span>
-        <h1>Keep access intentional.</h1>
-        <p>M4 只有 Admin 一个业务角色。非 Admin 用户可以存在，但不能进入 Dashboard、内容、设置、构建或编辑功能。</p>
+<article class="bocchi-shell bocchi-shell--dashboard">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["settings.page.eyebrow"]</span>
+        <h1>@I18n["settings.users.title"]</h1>
+        <p>@I18n["settings.users.description"]</p>
     </header>
 
-    <div class="bocchi-two-column">
-        <section class="bocchi-panel" aria-labelledby="users-heading">
-            <h2 id="users-heading">People</h2>
-            @foreach (var user in _users)
-            {
-                <BocchiListRow Kicker="@(user.IsAdmin ? "Admin" : "No Dashboard access")" Title="@(user.DisplayName ?? user.UserName ?? user.Id)">
-                    <ChildContent>
-                        <p>Username: @user.UserName</p>
-                        <p>Email: @(string.IsNullOrWhiteSpace(user.Email) ? "Not set" : user.Email)</p>
-                        @if (user.ExternalLogins.Count == 0)
-                        {
-                            <p>No external login bound.</p>
-                        }
-                        else
-                        {
-                            <p>External login: @string.Join(", ", user.ExternalLogins.Select(x => x.ProviderDisplayName))</p>
-                        }
-                    </ChildContent>
-                    <Metadata>
-                        <BocchiStatusPill Tone="@(user.IsDisabled ? "warning" : "success")">@(user.IsDisabled ? "Disabled" : "Can sign in")</BocchiStatusPill>
-                        <span>Created @user.CreatedAt.ToString("yyyy-MM-dd")</span>
-                        <span>@(user.LastLoginAt is null ? "No login yet" : $"Last login {user.LastLoginAt:yyyy-MM-dd HH:mm}")</span>
-                    </Metadata>
-                    <Action>
-                        <button type="button" class="secondary" @onclick="() => ToggleAdminAsync(user.Id)">
-                            @(user.IsAdmin ? "Remove Admin" : "Make Admin")
-                        </button>
-                        <button type="button" class="secondary" @onclick="() => ToggleDisabledAsync(user.Id)">
-                            @(user.IsDisabled ? "Enable" : "Disable")
-                        </button>
-                        @foreach (var login in user.ExternalLogins)
-                        {
-                            <button type="button" class="secondary" @onclick="() => RemoveExternalLoginAsync(user.Id, login.LoginProvider, login.ProviderKey)">
-                                Unlink @login.ProviderDisplayName
-                            </button>
-                        }
-                    </Action>
-                </BocchiListRow>
-            }
-        </section>
+    <div class="bocchi-users-layout">
+        <BocchiSettingsNav />
 
-        <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="create-user-heading">
-            <h2 id="create-user-heading">Create user</h2>
-            <div class="bocchi-form-grid">
-                <label>Username<input type="text" @bind="_newUserName" /></label>
-                <label>Display name<input type="text" @bind="_newDisplayName" /></label>
-                <label>Email (optional)<input type="email" @bind="_newEmail" /></label>
-                <label>Password<input type="password" @bind="_newPassword" /></label>
-                <label class="bocchi-checkbox"><input type="checkbox" @bind="_newIsAdmin" />Admin</label>
-                <button type="button" @onclick="CreateUserAsync">Create</button>
-                @if (!string.IsNullOrWhiteSpace(_message))
+        <div class="bocchi-two-column">
+            <section class="bocchi-panel" aria-labelledby="users-heading">
+                <h2 id="users-heading">People</h2>
+                @foreach (var user in _users)
                 {
-                    <p>@_message</p>
+                    <BocchiListRow Kicker="@(user.IsAdmin ? "Admin" : "No Dashboard access")" Title="@(user.DisplayName ?? user.UserName ?? user.Id)">
+                        <ChildContent>
+                            <p>Username: @user.UserName</p>
+                            <p>Email: @(string.IsNullOrWhiteSpace(user.Email) ? "Not set" : user.Email)</p>
+                            @if (user.ExternalLogins.Count == 0)
+                            {
+                                <p>No external login bound.</p>
+                            }
+                            else
+                            {
+                                <p>External login: @string.Join(", ", user.ExternalLogins.Select(x => x.ProviderDisplayName))</p>
+                            }
+                        </ChildContent>
+                        <Metadata>
+                            <BocchiStatusPill Tone="@(user.IsDisabled ? "warning" : "success")">@(user.IsDisabled ? "Disabled" : "Can sign in")</BocchiStatusPill>
+                            <span>Created @user.CreatedAt.ToString("yyyy-MM-dd")</span>
+                            <span>@(user.LastLoginAt is null ? "No login yet" : $"Last login {user.LastLoginAt:yyyy-MM-dd HH:mm}")</span>
+                        </Metadata>
+                        <Action>
+                            <button type="button" class="secondary" @onclick="() => ToggleAdminAsync(user.Id)">
+                                @(user.IsAdmin ? "Remove Admin" : "Make Admin")
+                            </button>
+                            <button type="button" class="secondary" @onclick="() => ToggleDisabledAsync(user.Id)">
+                                @(user.IsDisabled ? "Enable" : "Disable")
+                            </button>
+                            @foreach (var login in user.ExternalLogins)
+                            {
+                                <button type="button" class="secondary" @onclick="() => RemoveExternalLoginAsync(user.Id, login.LoginProvider, login.ProviderKey)">
+                                    Unlink @login.ProviderDisplayName
+                                </button>
+                            }
+                        </Action>
+                    </BocchiListRow>
                 }
+            </section>
+
+            <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="create-user-heading">
+                <h2 id="create-user-heading">Create user</h2>
+                <div class="bocchi-form-grid">
+                    <label>Username<input type="text" @bind="_newUserName" /></label>
+                    <label>Display name<input type="text" @bind="_newDisplayName" /></label>
+                    <label>Email (optional)<input type="email" @bind="_newEmail" /></label>
+                    <label>Password<input type="password" @bind="_newPassword" /></label>
+                    <label class="bocchi-checkbox"><input type="checkbox" @bind="_newIsAdmin" />Admin</label>
+                    <button type="button" @onclick="CreateUserAsync">Create</button>
+                    @if (!string.IsNullOrWhiteSpace(_message))
+                    {
+                        <p>@_message</p>
+                    }
+                </div>
+            </aside>
             </div>
-        </aside>
     </div>
 </article>
 

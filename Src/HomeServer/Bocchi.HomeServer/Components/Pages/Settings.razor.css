@@ -1,0 +1,157 @@
+.bocchi-settings-shell {
+    gap: 1rem;
+}
+
+.bocchi-settings-hub {
+    align-items: stretch;
+}
+
+.bocchi-settings-hub-card {
+    min-height: 6.25rem;
+}
+
+.bocchi-settings-layout {
+    display: grid;
+    grid-template-columns: minmax(14rem, 0.28fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.bocchi-settings-stack {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.bocchi-settings-section {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.bocchi-settings-section h2,
+.bocchi-settings-section h3 {
+    margin: 0;
+}
+
+.bocchi-settings-form {
+    max-width: 52rem;
+}
+
+.bocchi-localization-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.bocchi-localization-card {
+    display: grid;
+    align-content: start;
+    gap: 0.65rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
+    padding: 0.9rem;
+}
+
+.bocchi-localization-card--wide {
+    grid-column: 1 / -1;
+}
+
+.bocchi-localization-card h3,
+.bocchi-localization-card p {
+    margin: 0;
+}
+
+.bocchi-localization-card p,
+.bocchi-language-list p {
+    color: var(--bocchi-text-muted);
+    line-height: 1.55;
+}
+
+.bocchi-language-list {
+    display: grid;
+    gap: 0.5rem;
+    max-height: 18rem;
+    overflow: auto;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.75rem;
+}
+
+.bocchi-custom-language-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 0.65rem;
+    align-items: end;
+}
+
+.bocchi-custom-language-form label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.bocchi-custom-language-form input[type="text"],
+.bocchi-common-i18n-row input[type="text"],
+.bocchi-provider-card input[type="text"],
+.bocchi-provider-card input[type="password"] {
+    min-height: 2.25rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-weight: 400;
+    padding: 0 0.65rem;
+}
+
+.bocchi-localization-message,
+.bocchi-settings-message {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-provider-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.bocchi-provider-card {
+    display: grid;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    padding: 1rem;
+}
+
+.bocchi-provider-card label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.bocchi-settings-system-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+@media (max-width: 900px) {
+    .bocchi-settings-layout,
+    .bocchi-localization-grid,
+    .bocchi-custom-language-form,
+    .bocchi-provider-grid,
+    .bocchi-settings-system-grid {
+        grid-template-columns: 1fr;
+    }
+}

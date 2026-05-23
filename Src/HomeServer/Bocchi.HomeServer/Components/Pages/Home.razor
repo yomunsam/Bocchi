@@ -177,7 +177,7 @@
     private static (string Url, string Hint)? GuideAction(string key)
         => key switch
         {
-            DashboardGuideService.SiteLanguageKey => ("/Admin/Settings#localization", "settings"),
+            DashboardGuideService.SiteLanguageKey => ("/Admin/Settings/Localization", "settings"),
             DashboardGuideService.SiteThemeKey => ("/Admin/Site/Theme", "settings"),
             DashboardGuideService.EditPageKey => ("/Admin/Pages", "pages"),
             DashboardGuideService.WelcomeKey => ("/Admin/Settings", "settings"),

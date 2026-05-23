@@ -1,83 +1,98 @@
 @page "/Admin/Settings"
-@using Bocchi.HomeServer.Data
+@page "/Admin/Settings/{Section}"
 @using Bocchi.Workspace
-@inject DashboardSettingsService DashboardSettings
 @inject SiteProfileSettingsService SiteProfileSettings
 @inject ExternalLoginSettingsService ExternalLogins
 @inject LocalizationSettingsService LocalizationSettings
 @inject DashboardLocalizationService I18n
 @inject BocchiDataLayout Layout
 
-<PageTitle>@I18n["settings.page.title"] · Bocchi</PageTitle>
+<PageTitle>@CurrentPageTitle · Bocchi</PageTitle>
 
-<article class="bocchi-shell">
-    <header class="bocchi-page-heading">
-        <span class="bocchi-page-heading__eyebrow">@I18n["settings.page.eyebrow"]</span>
-        <h1>@I18n["settings.page.heading"]</h1>
-        <p>@I18n["settings.page.description"]</p>
+<article class="bocchi-shell bocchi-shell--dashboard bocchi-settings-shell">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["settings.page.eyebrow"]</span>
+        <h1>@CurrentHeading</h1>
+        <p>@CurrentDescription</p>
     </header>
 
-    <div class="bocchi-settings-layout">
-        <nav class="bocchi-secondary-nav" aria-label="Settings sections">
-            <a href="#basic">@I18n["settings.nav.basic"]</a>
-            <a href="#localization">@I18n["settings.nav.localization"]</a>
-            <a href="#database">@I18n["settings.nav.database"]</a>
-            <a href="#login">@I18n["settings.nav.login"]</a>
-            <a href="/Admin/Users">@I18n["settings.nav.users"]</a>
-            <a href="#workspace">@I18n["settings.nav.workspace"]</a>
-        </nav>
+    @if (IsSettingsHub)
+    {
+        <section class="bocchi-quick-actions bocchi-settings-hub" aria-label='@I18n["settings.nav.aria"]'>
+            @foreach (var card in HubCards)
+            {
+                <a class="bocchi-quick-card bocchi-settings-hub-card" href="@card.Url">
+                    <span class="bocchi-quick-card__icon bocchi-quick-card__icon--@card.Tone">
+                        <Blazicon Svg="@card.Icon" />
+                    </span>
+                    <span class="bocchi-quick-card__body">
+                        <strong>@I18n[card.TitleKey]</strong>
+                        <span>@I18n[card.DescriptionKey]</span>
+                    </span>
+                </a>
+            }
+        </section>
+    }
+    else
+    {
+        <div class="bocchi-settings-layout">
+            <BocchiSettingsNav />
 
-        <div class="bocchi-settings-stack">
-            <section id="basic" class="bocchi-panel">
-                <h2>Basic Info</h2>
-                <div class="bocchi-form-grid">
-                    <label>
-                        Site name
-                        <input type="text" @bind="_siteName" />
-                    </label>
-                    <label>
-                        Default title
-                        <input type="text" @bind="_defaultTitle" />
-                    </label>
-                    <label>
-                        Default frontend URL
-                        <input type="text" @bind="_publicBaseUrl" />
-                    </label>
-                    <label>
-                        Default frontend Theme
-                        <input type="text" @bind="_siteDefaultThemeId" />
-                    </label>
-                    <label>
-                        Time zone
-                        <input type="text" @bind="_siteTimeZone" />
-                    </label>
-                    <label>
-                        Description
-                        <input type="text" @bind="_siteDescription" />
-                    </label>
-                    <label>
-                        Copyright
-                        <input type="text" @bind="_copyrightNotice" />
-                    </label>
-                    <label>
-                        Dashboard appearance
-                        <select @bind="_appearance">
-                            <option value="auto">Auto</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                    </label>
-                    <button type="button" @onclick="SaveBasicInfoAsync">Save basic info</button>
-                    @if (_basicSaved)
-                    {
-                        <BocchiStatusPill Tone="success">Saved</BocchiStatusPill>
-                    }
-                </div>
-            </section>
-
-            <section id="localization" class="bocchi-panel">
+            <div class="bocchi-settings-stack">
+                @switch (CurrentSection)
+                {
+                    case ProfileSection:
+                        <section class="bocchi-panel bocchi-settings-section" aria-labelledby="settings-profile-heading">
+                            <div class="bocchi-section-heading">
+                                <h2 id="settings-profile-heading">@I18n["settings.profile.title"]</h2>
+                                <p>@I18n["settings.profile.description"]</p>
+                            </div>
+                            <form class="bocchi-form-grid bocchi-settings-form" @onsubmit="SaveBasicInfoAsync" @onsubmit:preventDefault>
+                                <label>
+                                    @I18n["settings.profile.siteName"]
+                                    <input type="text" @bind="_siteName" />
+                                </label>
+                                <label>
+                                    @I18n["settings.profile.defaultTitle"]
+                                    <input type="text" @bind="_defaultTitle" />
+                                </label>
+                                <label>
+                                    @I18n["settings.profile.publicBaseUrl"]
+                                    <input type="url" @bind="_publicBaseUrl" />
+                                </label>
+                                <label>
+                                    @I18n["settings.profile.defaultTheme"]
+                                    <input type="text" @bind="_siteDefaultThemeId" />
+                                </label>
+                                <label>
+                                    @I18n["settings.profile.timeZone"]
+                                    <input type="text" @bind="_siteTimeZone" />
+                                </label>
+                                <label>
+                                    @I18n["settings.profile.descriptionField"]
+                                    <input type="text" @bind="_siteDescription" />
+                                </label>
+                                <label>
+                                    @I18n["settings.profile.copyright"]
+                                    <input type="text" @bind="_copyrightNotice" />
+                                </label>
+                                <div class="bocchi-inline-actions">
+                                    <button type="submit">
+                                        <Blazicon Svg="Lucide.Save" />
+                                        <span>@I18n["settings.profile.save"]</span>
+                                    </button>
+                                    @if (_basicSaved)
+                                    {
+                                        <BocchiStatusPill Tone="success">@I18n["settings.profile.saved"]</BocchiStatusPill>
+                                    }
+                                </div>
+                            </form>
+                        </section>
+                        break;
+                    case LocalizationSection:
+                        <section class="bocchi-panel bocchi-settings-section" aria-labelledby="settings-localization-heading">
                 <div class="bocchi-section-heading">
-                    <h2>@I18n["settings.localization.title"]</h2>
+                    <h2 id="settings-localization-heading">@I18n["settings.localization.title"]</h2>
                     <p>@I18n["settings.localization.description"]</p>
                 </div>
 
@@ -86,7 +101,7 @@
                         <h3>@I18n["settings.localization.dashboardTitle"]</h3>
                         <p>@I18n["settings.localization.dashboardDescription"]</p>
                         <form class="bocchi-form-grid" method="post" action="/Admin/Settings/Localization/UiLanguage">
-                            <input type="hidden" name="returnUrl" value="/Admin/Settings#localization" />
+                            <input type="hidden" name="returnUrl" value="/Admin/Settings/Localization" />
                             <label>
                                 @I18n["settings.localization.dashboardTitle"]
                                 <select name="uiLanguage" aria-label='@I18n["topbar.language.aria"]'>
@@ -265,74 +280,134 @@
                     </div>
                 </div>
             </section>
+                        break;
+                    case LoginSection:
+                        <section class="bocchi-panel bocchi-settings-section" aria-labelledby="settings-login-heading">
+                            <div class="bocchi-section-heading">
+                                <h2 id="settings-login-heading">@I18n["settings.login.title"]</h2>
+                                <p>@I18n["settings.login.description"]</p>
+                            </div>
+                            <div class="bocchi-provider-grid">
+                                <div class="bocchi-provider-card">
+                                    <h3>GitHub</h3>
+                                    <label class="bocchi-checkbox"><input type="checkbox" @bind="_github.Enabled" />@I18n["settings.login.enabled"]</label>
+                                    <label>@I18n["settings.login.displayName"]<input type="text" @bind="_github.DisplayName" /></label>
+                                    <label>@I18n["settings.login.clientId"]<input type="text" @bind="_github.ClientId" /></label>
+                                    <label>@I18n["settings.login.clientSecret"]<input type="password" @bind="_github.ClientSecret" placeholder='@I18n["settings.login.secretPlaceholder"]' /></label>
+                                    <label>@I18n["settings.login.callbackPath"]<input type="text" @bind="_github.CallbackPath" /></label>
+                                    <button type="button" class="secondary" @onclick="SaveGitHubAsync">@I18n["settings.login.saveGitHub"]</button>
+                                </div>
 
-            <section id="database" class="bocchi-panel">
-                <h2>Database</h2>
-                <dl class="bocchi-meta-list">
-                    <div>
-                        <dt>SQLite</dt>
-                        <dd><code>@Layout.SqliteDatabasePath</code></dd>
-                    </div>
-                    <div>
-                        <dt>Data Protection keys</dt>
-                        <dd><code>@System.IO.Path.Combine(Layout.StateDirectory, "data-protection-keys")</code></dd>
-                    </div>
-                </dl>
-            </section>
+                                <div class="bocchi-provider-card">
+                                    <h3>OpenID Connect</h3>
+                                    <label class="bocchi-checkbox"><input type="checkbox" @bind="_oidc.Enabled" />@I18n["settings.login.enabled"]</label>
+                                    <label>@I18n["settings.login.displayName"]<input type="text" @bind="_oidc.DisplayName" /></label>
+                                    <label>@I18n["settings.login.authority"]<input type="text" @bind="_oidc.Authority" /></label>
+                                    <label>@I18n["settings.login.clientId"]<input type="text" @bind="_oidc.ClientId" /></label>
+                                    <label>@I18n["settings.login.clientSecret"]<input type="password" @bind="_oidc.ClientSecret" placeholder='@I18n["settings.login.secretPlaceholder"]' /></label>
+                                    <label>@I18n["settings.login.callbackPath"]<input type="text" @bind="_oidc.CallbackPath" /></label>
+                                    <label>@I18n["settings.login.scopes"]<input type="text" @bind="_oidc.Scopes" /></label>
+                                    <button type="button" class="secondary" @onclick="SaveOidcAsync">@I18n["settings.login.saveOidc"]</button>
+                                </div>
+                            </div>
+                            @if (_loginSaved)
+                            {
+                                <p class="bocchi-settings-message">
+                                    <BocchiStatusPill Tone="success">@I18n["settings.login.saved"]</BocchiStatusPill>
+                                    @I18n["settings.login.savedDescription"]
+                                </p>
+                            }
+                        </section>
+                        break;
+                    case SystemSection:
+                        <div class="bocchi-settings-system-grid">
+                            <section class="bocchi-panel bocchi-settings-section" aria-labelledby="settings-system-database-heading">
+                                <div class="bocchi-section-heading">
+                                    <h2 id="settings-system-database-heading">@I18n["settings.system.databaseTitle"]</h2>
+                                    <p>@I18n["settings.system.databaseDescription"]</p>
+                                </div>
+                                <dl class="bocchi-meta-list">
+                                    <div>
+                                        <dt>SQLite</dt>
+                                        <dd><code>@Layout.SqliteDatabasePath</code></dd>
+                                    </div>
+                                    <div>
+                                        <dt>@I18n["settings.system.dataProtectionKeys"]</dt>
+                                        <dd><code>@System.IO.Path.Combine(Layout.StateDirectory, "data-protection-keys")</code></dd>
+                                    </div>
+                                </dl>
+                            </section>
 
-            <section id="login" class="bocchi-panel">
-                <h2>Third-party Login</h2>
-                <div class="bocchi-provider-grid">
-                    <div class="bocchi-provider-card">
-                        <h3>GitHub</h3>
-                        <label class="bocchi-checkbox"><input type="checkbox" @bind="_github.Enabled" />Enabled</label>
-                        <label>Display name<input type="text" @bind="_github.DisplayName" /></label>
-                        <label>Client ID<input type="text" @bind="_github.ClientId" /></label>
-                        <label>Client secret<input type="password" @bind="_github.ClientSecret" placeholder="Leave blank to keep existing secret" /></label>
-                        <label>Callback path<input type="text" @bind="_github.CallbackPath" /></label>
-                        <button type="button" class="secondary" @onclick="SaveGitHubAsync">Save GitHub</button>
-                    </div>
-
-                    <div class="bocchi-provider-card">
-                        <h3>OpenID Connect</h3>
-                        <label class="bocchi-checkbox"><input type="checkbox" @bind="_oidc.Enabled" />Enabled</label>
-                        <label>Display name<input type="text" @bind="_oidc.DisplayName" /></label>
-                        <label>Authority<input type="text" @bind="_oidc.Authority" /></label>
-                        <label>Client ID<input type="text" @bind="_oidc.ClientId" /></label>
-                        <label>Client secret<input type="password" @bind="_oidc.ClientSecret" placeholder="Leave blank to keep existing secret" /></label>
-                        <label>Callback path<input type="text" @bind="_oidc.CallbackPath" /></label>
-                        <label>Scopes<input type="text" @bind="_oidc.Scopes" /></label>
-                        <button type="button" class="secondary" @onclick="SaveOidcAsync">Save OIDC</button>
-                    </div>
-                </div>
-                @if (_loginSaved)
-                {
-                    <p><BocchiStatusPill Tone="success">Saved</BocchiStatusPill> Login page buttons now follow enabled and complete Provider settings.</p>
+                            <section class="bocchi-panel bocchi-settings-section" aria-labelledby="settings-system-data-heading">
+                                <div class="bocchi-section-heading">
+                                    <h2 id="settings-system-data-heading">@I18n["settings.system.dataTitle"]</h2>
+                                    <p>@I18n["settings.system.dataDescription"]</p>
+                                </div>
+                                <dl class="bocchi-meta-list">
+                                    <div>
+                                        <dt>DataRoot</dt>
+                                        <dd><code>@Layout.DataRoot</code></dd>
+                                    </div>
+                                    <div>
+                                        <dt>Workspace</dt>
+                                        <dd><code>@Layout.WorkspaceRoot</code></dd>
+                                    </div>
+                                    <div>
+                                        <dt>@I18n["settings.system.output"]</dt>
+                                        <dd><code>@Layout.PublicOutputDirectory</code></dd>
+                                    </div>
+                                </dl>
+                            </section>
+                        </div>
+                        break;
                 }
-            </section>
-
-            <section id="workspace" class="bocchi-panel">
-                <h2>Data</h2>
-                <dl class="bocchi-meta-list">
-                    <div>
-                        <dt>DataRoot</dt>
-                        <dd><code>@Layout.DataRoot</code></dd>
-                    </div>
-                    <div>
-                        <dt>Workspace</dt>
-                        <dd><code>@Layout.WorkspaceRoot</code></dd>
-                    </div>
-                    <div>
-                        <dt>Output</dt>
-                        <dd><code>@Layout.PublicOutputDirectory</code></dd>
-                    </div>
-                </dl>
-            </section>
+            </div>
         </div>
-    </div>
+    }
 </article>
 
 @code {
+    /// <summary>Settings 子路由片段；为空时展示 Settings hub。</summary>
+    [Parameter] public string? Section { get; set; }
+
+    /// <summary>站点资料子页路由片段。</summary>
+    private const string ProfileSection = "profile";
+
+    /// <summary>本地化子页路由片段。</summary>
+    private const string LocalizationSection = "localization";
+
+    /// <summary>登录设置子页路由片段。</summary>
+    private const string LoginSection = "login";
+
+    /// <summary>系统信息子页路由片段。</summary>
+    private const string SystemSection = "system";
+
+    /// <summary>Settings hub 卡片定义，复用 Overview quick-card 的正式视觉语言。</summary>
+    private static readonly SettingsHubCard[] HubCards =
+    [
+        new("/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal, "pink"),
+        new("/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages, "lavender"),
+        new("/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound, "blue"),
+        new("/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users, "green"),
+        new("/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database, "blue"),
+        new("/Admin/Site/Theme", "nav.themeCustomization", "settings.nav.themeDescription", Lucide.SunMoon, "pink"),
+    ];
+
+    /// <summary>规范化后的当前 Settings section；未知片段回到 hub，避免空页面。</summary>
+    private string CurrentSection => NormalizeSection(Section);
+
+    /// <summary>当前是否展示 Settings hub。</summary>
+    private bool IsSettingsHub => CurrentSection.Length == 0;
+
+    /// <summary>当前浏览器标题。</summary>
+    private string CurrentPageTitle => IsSettingsHub ? I18n["settings.page.title"] : I18n[$"settings.{CurrentSection}.title"];
+
+    /// <summary>当前页主标题。</summary>
+    private string CurrentHeading => IsSettingsHub ? I18n["settings.page.heading"] : I18n[$"settings.{CurrentSection}.title"];
+
+    /// <summary>当前页说明文案。</summary>
+    private string CurrentDescription => IsSettingsHub ? I18n["settings.page.description"] : I18n[$"settings.{CurrentSection}.description"];
+
     /// <summary>站点名称编辑缓冲区。</summary>
     private string _siteName = "Bocchi";
 
@@ -353,9 +428,6 @@
 
     /// <summary>站点默认时区编辑缓冲区。</summary>
     private string _siteTimeZone = "Asia/Shanghai";
-
-    /// <summary>Dashboard 外观编辑缓冲区。</summary>
-    private string _appearance = "auto";
 
     /// <summary>站点主要语言编辑缓冲区。</summary>
     private string _primaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
@@ -430,8 +502,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var settings = await DashboardSettings.GetAsync();
-        _appearance = settings.AppearanceMode;
         var site = await SiteProfileSettings.GetAsync();
         _siteName = site.SiteName;
         _defaultTitle = site.DefaultTitle;
@@ -464,11 +534,10 @@
         }
     }
 
-    /// <summary>保存站点基础约定与 Dashboard 外观偏好。</summary>
+    /// <summary>保存站点基础约定；Dashboard 明暗外观已收敛到顶栏客户端控件。</summary>
     private async Task SaveBasicInfoAsync()
     {
         await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
-        await DashboardSettings.SaveAsync(_appearance);
         _basicSaved = true;
     }
 
@@ -721,6 +790,20 @@
         => language.Code.Contains(query, StringComparison.OrdinalIgnoreCase)
             || language.NativeName.Contains(query, StringComparison.OrdinalIgnoreCase)
             || language.EnglishName.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>把路由片段收敛到明确支持的 Settings section。</summary>
+    private static string NormalizeSection(string? section)
+        => section?.Trim().ToLowerInvariant() switch
+        {
+            ProfileSection => ProfileSection,
+            LocalizationSection => LocalizationSection,
+            LoginSection => LoginSection,
+            SystemSection => SystemSection,
+            _ => string.Empty,
+        };
+
+    /// <summary>Settings hub 卡片定义。</summary>
+    private sealed record SettingsHubCard(string Url, string TitleKey, string DescriptionKey, SvgIcon Icon, string Tone);
 
     /// <summary>Provider 表单缓冲区，不直接暴露受保护 secret。</summary>
     private sealed class ProviderForm

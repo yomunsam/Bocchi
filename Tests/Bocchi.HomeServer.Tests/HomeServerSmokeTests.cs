@@ -215,21 +215,96 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
-    public async Task SettingsPage_RendersLocalizationAndExternalLoginSections()
+    public async Task SettingsHub_RendersSettingsChildNavigation()
     {
         using var client = await _factory.CreateAdminClientAsync();
 
         var response = await client.GetAsync("/Admin/Settings");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Third-party Login");
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-page-intro");
+        body.Should().Contain("bocchi-quick-actions");
+        body.Should().Contain("/Admin/Settings/Profile");
+        body.Should().Contain("/Admin/Settings/Localization");
+        body.Should().Contain("/Admin/Settings/Login");
+        body.Should().Contain("/Admin/Settings/System");
+        body.Should().Contain("/Admin/Users");
+        body.Should().Contain("Site profile");
         body.Should().Contain("Localization");
+        body.Should().Contain("Third-party Login");
+        body.Should().Contain("System");
+        body.Should().NotContain("Site primary language");
+        body.Should().NotContain("Save Theme config");
+    }
+
+    [Fact]
+    public async Task SettingsProfilePage_RendersSiteProfileForm()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/Profile");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-settings-nav");
+        body.Should().Contain("Site profile");
+        body.Should().Contain("Site name");
+        body.Should().Contain("Default frontend URL");
+        body.Should().Contain("Default frontend Theme");
+        body.Should().Contain("Save site profile");
+        body.Should().NotContain("Dashboard appearance");
+    }
+
+    [Fact]
+    public async Task SettingsLocalizationPage_RendersLocalizationEditors()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/Localization");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-settings-nav");
         body.Should().Contain("Site primary language");
         body.Should().Contain("Common theme text");
         body.Should().Contain("menu.home");
         body.Should().Contain("PrimaryUnprefixed");
+        body.Should().Contain("value=\"/Admin/Settings/Localization\"");
         body.Should().NotContain("Save Theme config");
+    }
+
+    [Fact]
+    public async Task SettingsLoginPage_RendersExternalLoginProviders()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/Login");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-settings-nav");
+        body.Should().Contain("Third-party login");
+        body.Should().Contain("GitHub");
+        body.Should().Contain("OpenID Connect");
+        body.Should().Contain("Leave blank to keep existing secret");
+    }
+
+    [Fact]
+    public async Task SettingsSystemPage_RendersRuntimePaths()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/System");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-settings-nav");
+        body.Should().Contain("Database");
+        body.Should().Contain("SQLite");
+        body.Should().Contain("DataRoot");
+        body.Should().Contain("Workspace");
+        body.Should().Contain(_factory.DataRoot);
     }
 
     [Fact]
@@ -255,6 +330,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-page-intro");
         body.Should().Contain("Menu tree");
         body.Should().Contain("Menu item details");
         body.Should().Contain("Label mode");
@@ -273,6 +349,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-page-intro");
         body.Should().Contain("Theme customization");
         body.Should().Contain("Bocchi Mono");
         body.Should().Contain("visual.accentColor");
@@ -289,19 +366,19 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var response = await client.PostAsync("/Admin/Settings/Localization/UiLanguage", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["uiLanguage"] = "zh-CN",
-            ["returnUrl"] = "/Admin/Settings#localization",
+            ["returnUrl"] = "/Admin/Settings/Localization",
         }));
 
         response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location!.ToString().Should().Be("/Admin/Settings#localization");
+        response.Headers.Location!.ToString().Should().Be("/Admin/Settings/Localization");
 
-        var settings = await client.GetAsync("/Admin/Settings");
+        var settings = await client.GetAsync("/Admin/Settings/Localization");
         settings.EnsureSuccessStatusCode();
         // Blazor prerender 会把非 ASCII 文案编码成 HTML entity；这里按浏览器看到的文本断言真实渲染结果。
         var body = WebUtility.HtmlDecode(await settings.Content.ReadAsStringAsync());
         body.Should().Contain("本地化");
-        body.Should().Contain("保持服务器清爽");
         body.Should().Contain("站点主要语言");
+        body.Should().Contain("Theme 通用文本");
 
         var home = await client.GetAsync("/Admin");
         home.EnsureSuccessStatusCode();
@@ -323,6 +400,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("bocchi-page-intro");
+        body.Should().Contain("bocchi-settings-nav");
         body.Should().Contain("Remove Admin");
         body.Should().Contain("No external login bound.");
     }

@@ -40,7 +40,7 @@ public static class DashboardLocalizationEndpoints
                 Secure = context.Request.IsHttps,
             });
 
-        return Results.LocalRedirect(IsLocalReturnUrl(returnUrl) ? returnUrl! : "/Admin/Settings#localization");
+        return Results.LocalRedirect(IsLocalReturnUrl(returnUrl) ? returnUrl! : "/Admin/Settings/Localization");
     }
 
     /// <summary>只允许站内相对跳转，避免语言切换端点成为开放重定向入口。</summary>

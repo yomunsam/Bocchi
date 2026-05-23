@@ -1,0 +1,69 @@
+@inject DashboardLocalizationService I18n
+@inject NavigationManager Navigation
+
+<nav class="bocchi-settings-nav" aria-label='@I18n["settings.nav.aria"]'>
+    @foreach (var item in Items)
+    {
+        <a href="@item.Url"
+           class="@ItemClass(item)"
+           aria-current="@AriaCurrent(item)">
+            <span class="bocchi-settings-nav__icon" aria-hidden="true">
+                <Blazicon Svg="@item.Icon" />
+            </span>
+            <span>
+                <strong>@I18n[item.TitleKey]</strong>
+                <small>@I18n[item.DescriptionKey]</small>
+            </span>
+        </a>
+    }
+</nav>
+
+@code {
+    /// <summary>Settings 导航项的固定定义；Users 是设置体系的一部分，但保留独立路由。</summary>
+    private static readonly SettingsNavItem[] Items =
+    [
+        new("/Admin/Settings", "settings.nav.overview", "settings.nav.overviewDescription", Lucide.LayoutGrid),
+        new("/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal),
+        new("/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages),
+        new("/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound),
+        new("/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users),
+        new("/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database),
+    ];
+
+    /// <summary>当前 Dashboard 路径，用于设置导航 active 状态。</summary>
+    private string CurrentPath
+    {
+        get
+        {
+            var relative = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', 2)[0];
+            var path = "/" + relative.Trim('/').TrimEnd('/');
+            return string.Equals(path, "/", StringComparison.Ordinal) ? "/Admin" : path;
+        }
+    }
+
+    /// <summary>生成导航项 class；active 时仅改变视觉，不改变路由。</summary>
+    private string ItemClass(SettingsNavItem item)
+        => IsActive(item) ? "bocchi-settings-nav__item bocchi-settings-nav__item--active" : "bocchi-settings-nav__item";
+
+    /// <summary>当前项 active 时输出 aria-current。</summary>
+    private string? AriaCurrent(SettingsNavItem item) => IsActive(item) ? "page" : null;
+
+    /// <summary>判断 Settings 导航项是否命中当前路由。</summary>
+    private bool IsActive(SettingsNavItem item)
+    {
+        var normalized = NormalizePath(item.Url);
+        if (string.Equals(normalized, "/Admin/Settings", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>统一去掉尾斜杠，避免导航 active 被 URL 细节影响。</summary>
+    private static string NormalizePath(string value)
+        => "/" + value.Trim('/').TrimEnd('/');
+
+    /// <summary>Settings 导航项定义。</summary>
+    private sealed record SettingsNavItem(string Url, string TitleKey, string DescriptionKey, SvgIcon Icon);
+}

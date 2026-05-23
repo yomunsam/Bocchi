@@ -1,0 +1,118 @@
+.bocchi-theme-customization-layout {
+    margin-bottom: 1rem;
+}
+
+.bocchi-theme-config-form,
+.bocchi-theme-config-group,
+.bocchi-theme-field-list {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.bocchi-theme-config-group {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
+    padding: 0.85rem;
+}
+
+.bocchi-theme-config-group h3 {
+    margin: 0;
+}
+
+.bocchi-theme-field {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.42fr) minmax(0, 1fr);
+    gap: 0.85rem;
+    align-items: start;
+    border-top: 1px solid var(--bocchi-border);
+    padding-top: 0.75rem;
+}
+
+.bocchi-theme-field:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.bocchi-theme-field__label,
+.bocchi-theme-field__control {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.bocchi-theme-field__label code {
+    width: fit-content;
+    color: var(--bocchi-text-muted);
+    font-size: 0.82rem;
+}
+
+.bocchi-theme-field__label small,
+.bocchi-theme-field__control small {
+    color: var(--bocchi-text-muted);
+    line-height: 1.5;
+}
+
+.bocchi-theme-field input[type="text"],
+.bocchi-theme-field input[type="number"],
+.bocchi-theme-field input[type="url"],
+.bocchi-theme-field select,
+.bocchi-common-i18n-row input[type="text"] {
+    min-height: 2.25rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-weight: 400;
+    padding: 0 0.65rem;
+}
+
+.bocchi-color-field {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.bocchi-color-field input[type="color"] {
+    width: 3rem;
+    min-height: 2.45rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    padding: 0.2rem;
+}
+
+.bocchi-theme-option-list {
+    display: grid;
+    gap: 0.45rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.65rem;
+}
+
+.bocchi-theme-i18n {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.bocchi-theme-i18n-key {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.bocchi-theme-i18n-key strong {
+    color: var(--bocchi-text);
+}
+
+.bocchi-theme-i18n-key small {
+    color: var(--bocchi-text-muted);
+    line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+    .bocchi-theme-field {
+        grid-template-columns: 1fr;
+    }
+}

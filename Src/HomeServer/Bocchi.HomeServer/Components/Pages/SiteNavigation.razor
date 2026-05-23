@@ -7,12 +7,12 @@
 
 <PageTitle>@I18n["siteNavigation.page.title"] · Bocchi</PageTitle>
 
-<article class="bocchi-shell bocchi-navigation-shell">
-    <header class="bocchi-page-heading bocchi-page-heading--with-actions">
-        <span class="bocchi-page-heading__eyebrow">@I18n["siteNavigation.page.eyebrow"]</span>
+<article class="bocchi-shell bocchi-shell--dashboard bocchi-navigation-shell">
+    <header class="bocchi-page-intro bocchi-page-intro--with-actions">
+        <span class="bocchi-eyebrow">@I18n["siteNavigation.page.eyebrow"]</span>
         <h1>@I18n["siteNavigation.page.heading"]</h1>
         <p>@I18n["siteNavigation.page.description"]</p>
-        <div class="bocchi-page-heading__actions">
+        <div class="bocchi-page-intro__actions">
             <button type="button" class="secondary" @onclick="AddRoot">
                 <Blazicon Svg="Lucide.Plus" />
                 <span>@I18n["siteNavigation.editor.addRoot"]</span>
