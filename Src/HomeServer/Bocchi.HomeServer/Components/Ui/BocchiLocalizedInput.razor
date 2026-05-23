@@ -1,0 +1,251 @@
+@using System.Globalization
+@inject DashboardLocalizationService I18n
+
+@*
+    统一的多语言输入控件：默认形态等同普通输入框；右上角图标按钮弹 popover 主动添加翻译。
+    - 单语言用户不会被多语言细节打扰；
+    - 已添加的次级语言占一行紧凑输入；
+    - 数据中存在的「已停用语言」键不会丢失，会带 ⚠ 高亮，但不会出现在 popover 添加列表。
+
+    父组件契约：将 Values（Dictionary<langCode,string>）传入并保持引用稳定；
+    ValuesChanged 回传后请将引用直接赋回父组件状态（控件以引用相等判断「外部重置」）。
+*@
+<div class="bocchi-loc-input @(Mode == BocchiLocalizedInputMode.MultiLine ? "bocchi-loc-input--multi" : null)">
+    <div class="bocchi-loc-input__primary">
+        @if (Mode == BocchiLocalizedInputMode.MultiLine)
+        {
+            <textarea class="bocchi-loc-input__field"
+                      rows="@(Rows ?? 3)"
+                      value="@PrimaryValue"
+                      placeholder="@Placeholder"
+                      aria-label="@AriaLabel"
+                      @oninput="e => UpdateValueAsync(PrimaryLanguageCode, e.Value?.ToString() ?? string.Empty)"></textarea>
+        }
+        else
+        {
+            <input class="bocchi-loc-input__field"
+                   type="text"
+                   value="@PrimaryValue"
+                   placeholder="@Placeholder"
+                   aria-label="@AriaLabel"
+                   @oninput="e => UpdateValueAsync(PrimaryLanguageCode, e.Value?.ToString() ?? string.Empty)" />
+        }
+        <button type="button"
+                class="bocchi-loc-input__trigger"
+                aria-haspopup="menu"
+                aria-expanded="@(_menuOpen ? "true" : "false")"
+                title="@TriggerTitle"
+                @onclick="ToggleMenu">
+            <Blazicon Svg="Lucide.Languages" />
+            @if (_extraLangs.Count > 0)
+            {
+                <span class="bocchi-loc-input__count" aria-hidden="true">@_extraLangs.Count</span>
+            }
+        </button>
+
+        @if (_menuOpen)
+        {
+            @* 点击外部关闭：透明 backdrop 占满视口拦截点击 *@
+            <div class="bocchi-loc-input__backdrop" @onclick="CloseMenu"></div>
+            <div class="bocchi-loc-input__menu" role="menu">
+                @if (AddableLanguages.Count == 0)
+                {
+                    <p class="bocchi-loc-input__menu-empty">@I18n["localizedInput.allAdded"]</p>
+                }
+                else
+                {
+                    <p class="bocchi-loc-input__menu-title">@I18n["localizedInput.addLanguage"]</p>
+                    @foreach (var lang in AddableLanguages)
+                    {
+                        <button type="button"
+                                class="bocchi-loc-input__menu-item"
+                                role="menuitem"
+                                @onclick="() => AddLanguageAsync(lang.Code)">
+                            <span class="bocchi-loc-input__menu-code">@lang.Code</span>
+                            <span class="bocchi-loc-input__menu-name">@DisplayName(lang)</span>
+                        </button>
+                    }
+                }
+            </div>
+        }
+    </div>
+
+    @foreach (var langCode in _extraLangs)
+    {
+        var stale = IsStale(langCode);
+        var langLabel = FindDisplayName(langCode);
+        <div class="bocchi-loc-input__secondary @(stale ? "bocchi-loc-input__secondary--stale" : null)">
+            <span class="bocchi-loc-input__badge"
+                  title="@(stale ? I18n["localizedInput.staleHint"] : null)">
+                @if (stale)
+                {
+                    <span class="bocchi-loc-input__warn" aria-hidden="true">⚠</span>
+                }
+                <span>@langCode</span>
+                @if (!string.IsNullOrEmpty(langLabel))
+                {
+                    <small class="bocchi-loc-input__badge-name">@langLabel</small>
+                }
+            </span>
+            @if (Mode == BocchiLocalizedInputMode.MultiLine)
+            {
+                <textarea class="bocchi-loc-input__field"
+                          rows="@(Rows ?? 3)"
+                          value="@GetValue(langCode)"
+                          placeholder="@SecondaryPlaceholder()"
+                          aria-label="@SecondaryAriaLabel(langCode)"
+                          @oninput="e => UpdateValueAsync(langCode, e.Value?.ToString() ?? string.Empty)"></textarea>
+            }
+            else
+            {
+                <input class="bocchi-loc-input__field"
+                       type="text"
+                       value="@GetValue(langCode)"
+                       placeholder="@SecondaryPlaceholder()"
+                       aria-label="@SecondaryAriaLabel(langCode)"
+                       @oninput="e => UpdateValueAsync(langCode, e.Value?.ToString() ?? string.Empty)" />
+            }
+            <button type="button"
+                    class="bocchi-loc-input__remove"
+                    title="@I18n["localizedInput.removeLanguage"]"
+                    aria-label="@I18n["localizedInput.removeLanguage"]"
+                    @onclick="() => RemoveLanguageAsync(langCode)">
+                <Blazicon Svg="Lucide.X" />
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>输入控件形态。单行用 input，多行用 textarea。</summary>
+    [Parameter] public BocchiLocalizedInputMode Mode { get; set; } = BocchiLocalizedInputMode.SingleLine;
+
+    /// <summary>当前语言映射。父组件应保持引用稳定；ValuesChanged 回传后请直接赋回此参数。</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? Values { get; set; }
+
+    /// <summary>值变化回调；emit 一个新的 Dictionary 快照。</summary>
+    [Parameter] public EventCallback<IReadOnlyDictionary<string, string>> ValuesChanged { get; set; }
+
+    /// <summary>主语言代码；主输入框默认绑定到该 key。</summary>
+    [Parameter, EditorRequired] public string PrimaryLanguageCode { get; set; } = "zh-CN";
+
+    /// <summary>站点当前启用语言代码集合（不含主语言时控件会自动跳过去重）。</summary>
+    [Parameter] public IReadOnlyList<string> EnabledLanguageCodes { get; set; } = [];
+
+    /// <summary>语言显示名查找表，用于 popover 与次级行的人类可读名称。</summary>
+    [Parameter] public IReadOnlyList<LanguageRecord> AvailableLanguages { get; set; } = [];
+
+    /// <summary>主输入框 placeholder（次级 placeholder 会回退到主值或本值）。</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>textarea 行数；仅在 MultiLine 模式下生效。</summary>
+    [Parameter] public int? Rows { get; set; }
+
+    /// <summary>无障碍 label；次级行会在后面追加 lang code。</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>本地维护的可写映射；从 Values 引用同步而来。</summary>
+    private Dictionary<string, string> _values = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>次级语言显示顺序（不包含主语言）。</summary>
+    private List<string> _extraLangs = [];
+
+    /// <summary>上一次本控件 emit 出去的字典引用；用于跳过自家触发的回流重置。</summary>
+    private IReadOnlyDictionary<string, string>? _lastEmitted;
+
+    /// <summary>添加语言 popover 当前展开状态。</summary>
+    private bool _menuOpen;
+
+    private string PrimaryValue => GetValue(PrimaryLanguageCode);
+
+    private string TriggerTitle => _extraLangs.Count > 0
+        ? string.Format(CultureInfo.CurrentCulture, I18n["localizedInput.activeFormat"], _extraLangs.Count)
+        : I18n["localizedInput.addLanguage"];
+
+    /// <summary>popover 可添加的语言：已启用且非主语言且未被添加。</summary>
+    private List<LanguageRecord> AddableLanguages => AvailableLanguages
+        .Where(l => EnabledLanguageCodes.Any(c => string.Equals(c, l.Code, StringComparison.OrdinalIgnoreCase)))
+        .Where(l => !string.Equals(l.Code, PrimaryLanguageCode, StringComparison.OrdinalIgnoreCase))
+        .Where(l => !_extraLangs.Any(c => string.Equals(c, l.Code, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+
+    protected override void OnParametersSet()
+    {
+        // 父组件回灌的就是我们刚 emit 的引用：跳过，否则会清空 _menuOpen 等本地状态。
+        if (Values is not null && ReferenceEquals(Values, _lastEmitted))
+        {
+            return;
+        }
+
+        _values = Values is null
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(Values, StringComparer.OrdinalIgnoreCase);
+        _extraLangs = _values.Keys
+            .Where(c => !string.Equals(c, PrimaryLanguageCode, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        _lastEmitted = null;
+    }
+
+    private bool IsStale(string code) =>
+        !EnabledLanguageCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
+
+    private string GetValue(string code) =>
+        _values.TryGetValue(code, out var v) ? v : string.Empty;
+
+    private string DisplayName(LanguageRecord lang) =>
+        !string.IsNullOrWhiteSpace(lang.NativeName)
+            ? lang.NativeName
+            : (!string.IsNullOrWhiteSpace(lang.EnglishName) ? lang.EnglishName : lang.Code);
+
+    private string FindDisplayName(string code)
+    {
+        var match = AvailableLanguages.FirstOrDefault(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase));
+        return match is null ? string.Empty : DisplayName(match);
+    }
+
+    private string SecondaryPlaceholder() =>
+        string.IsNullOrEmpty(PrimaryValue) ? Placeholder ?? string.Empty : PrimaryValue;
+
+    private string SecondaryAriaLabel(string code) =>
+        string.IsNullOrEmpty(AriaLabel) ? code : $"{AriaLabel} ({code})";
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+
+    private void CloseMenu() => _menuOpen = false;
+
+    private async Task UpdateValueAsync(string code, string value)
+    {
+        _values[code] = value;
+        await EmitAsync();
+    }
+
+    private async Task AddLanguageAsync(string code)
+    {
+        if (!_extraLangs.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase)))
+        {
+            _extraLangs.Add(code);
+        }
+
+        if (!_values.ContainsKey(code))
+        {
+            _values[code] = string.Empty;
+        }
+
+        _menuOpen = false;
+        await EmitAsync();
+    }
+
+    private async Task RemoveLanguageAsync(string code)
+    {
+        _extraLangs.RemoveAll(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
+        _values.Remove(code);
+        await EmitAsync();
+    }
+
+    private async Task EmitAsync()
+    {
+        var snapshot = new Dictionary<string, string>(_values, StringComparer.OrdinalIgnoreCase);
+        _lastEmitted = snapshot;
+        await ValuesChanged.InvokeAsync(snapshot);
+    }
+}

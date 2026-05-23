@@ -89,6 +89,7 @@ try
     builder.Services.AddScoped<LocalizationSettingsService>();
     builder.Services.AddScoped<CategoryTreeService>();
     builder.Services.AddScoped<NavigationMenuService>();
+    builder.Services.AddScoped<ThemeMigrationService>();
     builder.Services.AddScoped<DashboardAiClient>();
     builder.Services.AddSingleton<DashboardLocalizationService>();
     builder.Services.AddScoped<ContentEditingService>();

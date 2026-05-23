@@ -4,6 +4,8 @@
 @inject SiteProfileSettingsService SiteProfileSettings
 @inject ExternalLoginSettingsService ExternalLogins
 @inject LocalizationSettingsService LocalizationSettings
+@inject ThemeMigrationService ThemeMigration
+@inject NavigationManager Navigation
 @inject DashboardLocalizationService I18n
 @inject BocchiDataLayout Layout
 
@@ -132,49 +134,58 @@
                                 </select>
                             </label>
 
-                            <label class="bocchi-language-search">
-                                @I18n["settings.localization.searchLanguages"]
-                                <input
-                                    type="search"
-                                    @bind="_languageSearch"
-                                    @bind:event="oninput"
-                                    placeholder='@I18n["settings.localization.searchLanguagesPlaceholder"]' />
-                            </label>
-
-                            <div class="bocchi-language-chip-list bocchi-language-chip-list--selected" aria-label='@I18n["settings.localization.selectedLanguages"]'>
-                                @foreach (var language in enabledLanguages)
-                                {
-                                    <span class="bocchi-language-chip">
-                                        @language.DisplayName
-                                        @if (!IsPrimaryLanguage(language.Code))
-                                        {
-                                            <button type="button" class="secondary" @onclick="() => DisableLanguage(language.Code)">@I18n["settings.localization.disableLanguage"]</button>
-                                        }
-                                    </span>
-                                }
-                            </div>
-
-                            <div class="bocchi-language-list" aria-label='@I18n["settings.localization.enabledLanguages"]'>
-                                <strong>@I18n["settings.localization.enabledLanguages"]</strong>
-                                @if (filteredLanguages.Count == 0)
-                                {
-                                    <p>@I18n["settings.localization.noLanguageResults"]</p>
-                                }
-                                @foreach (var language in filteredLanguages)
-                                {
-                                    <label class="bocchi-language-option">
-                                        <input
-                                            type="checkbox"
-                                            checked="@IsLanguageEnabled(language.Code)"
-                                            disabled="@IsPrimaryLanguage(language.Code)"
-                                            @onchange="args => ToggleEnabledLanguage(language.Code, args)" />
-                                        <span>
+                            <div class="bocchi-language-picker" aria-label='@I18n["settings.localization.enabledLanguages"]'>
+                                <span class="bocchi-language-picker__label">@I18n["settings.localization.enabledLanguages"]</span>
+                                <div class="bocchi-language-picker__chips">
+                                    @foreach (var language in enabledLanguages)
+                                    {
+                                        <span class="bocchi-language-chip @(IsPrimaryLanguage(language.Code) ? "is-primary" : null)">
                                             <strong>@language.NativeName</strong>
-                                            <small>@language.EnglishName · @language.Code</small>
+                                            <code>@language.Code</code>
+                                            @if (!IsPrimaryLanguage(language.Code))
+                                            {
+                                                <button type="button" class="bocchi-language-chip__remove" aria-label='@I18n["settings.localization.disableLanguage"]' @onclick="() => DisableLanguage(language.Code)">
+                                                    <Blazicon Svg="Lucide.X" />
+                                                </button>
+                                            }
                                         </span>
-                                    </label>
-                                }
-                                <p>@I18n["settings.localization.primaryIncluded"]</p>
+                                    }
+                                    <details class="bocchi-language-picker__popover">
+                                        <summary class="bocchi-language-chip bocchi-language-chip--add">
+                                            <Blazicon Svg="Lucide.Plus" />
+                                            <span>@I18n["settings.localization.addLanguage"]</span>
+                                        </summary>
+                                        <div class="bocchi-language-picker__menu" role="dialog">
+                                            <input
+                                                type="search"
+                                                @bind="_languageSearch"
+                                                @bind:event="oninput"
+                                                placeholder='@I18n["settings.localization.searchLanguagesPlaceholder"]'
+                                                aria-label='@I18n["settings.localization.searchLanguages"]' />
+                                            <div class="bocchi-language-picker__list">
+                                                @if (filteredLanguages.Count == 0)
+                                                {
+                                                    <p>@I18n["settings.localization.noLanguageResults"]</p>
+                                                }
+                                                @foreach (var language in filteredLanguages)
+                                                {
+                                                    <label class="bocchi-language-option">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked="@IsLanguageEnabled(language.Code)"
+                                                            disabled="@IsPrimaryLanguage(language.Code)"
+                                                            @onchange="args => ToggleEnabledLanguage(language.Code, args)" />
+                                                        <span>
+                                                            <strong>@language.NativeName</strong>
+                                                            <small>@language.EnglishName · @language.Code</small>
+                                                        </span>
+                                                    </label>
+                                                }
+                                            </div>
+                                            <p class="bocchi-language-picker__hint">@I18n["settings.localization.primaryIncluded"]</p>
+                                        </div>
+                                    </details>
+                                </div>
                             </div>
 
                             <dl class="bocchi-meta-list">
@@ -232,41 +243,69 @@
                         <h3>@I18n["settings.localization.commonTextTitle"]</h3>
                         <p>@I18n["settings.localization.commonTextDescription"]</p>
                         @{
-                            var commonTextLanguages = EnabledLanguagesForDisplay;
+                            var commonKeys = FilteredCommonI18nKeys;
+                            var selectedCommonKey = ResolveSelectedCommonKey(commonKeys);
                         }
-                        <label class="bocchi-language-search">
-                            @I18n["settings.localization.commonTextSearch"]
-                            <input
-                                type="search"
-                                @bind="_commonKeySearch"
-                                @bind:event="oninput"
-                                placeholder='@I18n["settings.localization.commonTextSearchPlaceholder"]' />
-                        </label>
-
-                        <div class="bocchi-common-i18n-list">
-                            @if (FilteredCommonI18nKeys.Count == 0)
-                            {
-                                <p>@I18n["settings.localization.commonTextNoResults"]</p>
-                            }
-                            @foreach (var key in FilteredCommonI18nKeys)
-                            {
-                                <div class="bocchi-common-i18n-row">
-                                    <code>@key</code>
-                                    <div class="bocchi-common-i18n-row__inputs">
-                                        @foreach (var language in commonTextLanguages)
+                        <div class="bocchi-common-i18n">
+                            <aside class="bocchi-common-i18n__list" aria-label='@I18n["settings.localization.commonTextTitle"]'>
+                                <input
+                                    type="search"
+                                    @bind="_commonKeySearch"
+                                    @bind:event="oninput"
+                                    placeholder='@I18n["settings.localization.commonTextSearchPlaceholder"]'
+                                    aria-label='@I18n["settings.localization.commonTextSearch"]' />
+                                @if (commonKeys.Count == 0)
+                                {
+                                    <p class="bocchi-common-i18n__empty">@I18n["settings.localization.commonTextNoResults"]</p>
+                                }
+                                else
+                                {
+                                    <ul>
+                                        @foreach (var key in commonKeys)
                                         {
-                                            <label>
-                                                @language.Code
-                                                <input
-                                                    type="text"
-                                                    value="@GetCommonTextOverride(key, language.Code)"
-                                                    @oninput="args => SetCommonTextOverride(key, language.Code, args.Value?.ToString())"
-                                                    placeholder="@language.NativeName" />
-                                            </label>
+                                            var isActive = string.Equals(key, selectedCommonKey, StringComparison.Ordinal);
+                                            var translated = CountCommonTranslations(key);
+                                            <li>
+                                                <button type="button"
+                                                        class="bocchi-common-i18n__key @(isActive ? "is-active" : null)"
+                                                        @onclick="() => _selectedCommonKey = key">
+                                                    <code>@key</code>
+                                                    @if (translated > 0)
+                                                    {
+                                                        <span class="bocchi-common-i18n__count">
+                                                            <Blazicon Svg="Lucide.Languages" />
+                                                            <span>@translated</span>
+                                                        </span>
+                                                    }
+                                                </button>
+                                            </li>
                                         }
+                                    </ul>
+                                }
+                            </aside>
+
+                            <section class="bocchi-common-i18n__detail">
+                                @if (selectedCommonKey is null)
+                                {
+                                    <div class="bocchi-common-i18n__placeholder">
+                                        <Blazicon Svg="Lucide.Languages" />
+                                        <p>@I18n["settings.localization.commonTextSelectKey"]</p>
                                     </div>
-                                </div>
-                            }
+                                }
+                                else
+                                {
+                                    <header class="bocchi-common-i18n__header">
+                                        <code>@selectedCommonKey</code>
+                                    </header>
+                                    <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.SingleLine"
+                                                          Values="CommonTextValuesFor(selectedCommonKey)"
+                                                          ValuesChanged="dict => OnCommonTextValuesChanged(selectedCommonKey, dict)"
+                                                          PrimaryLanguageCode="@_primaryLanguage"
+                                                          EnabledLanguageCodes="EnabledLanguageCodeList"
+                                                          AvailableLanguages="_availableLanguages"
+                                                          AriaLabel="@selectedCommonKey" />
+                                }
+                            </section>
                         </div>
 
                         <button type="button" class="secondary" @onclick="SaveCommonTextOverridesAsync">@I18n["settings.localization.commonTextSave"]</button>
@@ -461,6 +500,9 @@
     /// <summary>Common i18n key 搜索词，用来让覆盖列表保持低密度。</summary>
     private string _commonKeySearch = string.Empty;
 
+    /// <summary>右侧详情面板当前编辑的 Common i18n key；未选择时回退到列表第一项。</summary>
+    private string? _selectedCommonKey;
+
     /// <summary>Common i18n 覆盖编辑缓冲区，形态为 key -> language -> plain text。</summary>
     private Dictionary<string, Dictionary<string, string>> _commonTextOverrides = new(StringComparer.Ordinal);
 
@@ -537,6 +579,23 @@
     /// <summary>保存站点基础约定；Dashboard 明暗外观已收敛到顶栏客户端控件。</summary>
     private async Task SaveBasicInfoAsync()
     {
+        // 检测 Theme 是否变更；有 Menu 里的 i18n://theme@ 引用时跳转到迁移向导。
+        var current = await SiteProfileSettings.GetAsync();
+        var newTheme = (_siteDefaultThemeId ?? string.Empty).Trim();
+        var oldTheme = current.DefaultThemeId;
+        if (newTheme.Length > 0 && !string.Equals(newTheme, oldTheme, StringComparison.Ordinal))
+        {
+            var plan = await ThemeMigration.ScanAsync(oldTheme, newTheme);
+            if (plan.Entries.Count > 0)
+            {
+                // 迁移向导会在其内部完成 SiteProfile.DefaultThemeId 保存；
+                // 这里先保存其他字段，避免用户填入的内容丢失。
+                _siteDefaultThemeId = oldTheme;
+                await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+                Navigation.NavigateTo($"/Admin/Site/ThemeMigration?from={Uri.EscapeDataString(oldTheme)}&to={Uri.EscapeDataString(newTheme)}");
+                return;
+            }
+        }
         await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
         _basicSaved = true;
     }
@@ -648,15 +707,34 @@
         }
     }
 
-    /// <summary>读取某个 Common key 在某个语言下的编辑值。</summary>
-    private string GetCommonTextOverride(string key, string languageCode)
-        => _commonTextOverrides.TryGetValue(key, out var values)
-            && values.TryGetValue(languageCode, out var value)
-            ? value
-            : string.Empty;
+    /// <summary>启用语言代码的稳定有序列表，嗂给 BocchiLocalizedInput；缓存可视情况引入，目前规模小直接现算。</summary>
+    private IReadOnlyList<string> EnabledLanguageCodeList
+        => EnabledLanguagesForDisplay.Select(language => language.Code).ToArray();
 
-    /// <summary>更新 Common i18n 覆盖编辑缓冲区；空值会移除对应语言覆盖。</summary>
-    private void SetCommonTextOverride(string key, string languageCode, string? value)
+    /// <summary>列表当前应高亮的 key；优先使用用户选择，否则回退到列表第一项。</summary>
+    private string? ResolveSelectedCommonKey(IReadOnlyList<string> visibleKeys)
+    {
+        if (_selectedCommonKey is not null && visibleKeys.Contains(_selectedCommonKey, StringComparer.Ordinal))
+        {
+            return _selectedCommonKey;
+        }
+
+        return visibleKeys.Count > 0 ? visibleKeys[0] : null;
+    }
+
+    /// <summary>统计某个 Common key 已有的翻译条数（仅计已启用语言），用于列表角标。</summary>
+    private int CountCommonTranslations(string key)
+    {
+        if (!_commonTextOverrides.TryGetValue(key, out var values))
+        {
+            return 0;
+        }
+
+        return values.Count(pair => !string.IsNullOrWhiteSpace(pair.Value));
+    }
+
+    /// <summary>给 BocchiLocalizedInput 喂的 key 缓冲；不存在时懒初始化以保持引用稳定。</summary>
+    private IReadOnlyDictionary<string, string> CommonTextValuesFor(string key)
     {
         if (!_commonTextOverrides.TryGetValue(key, out var values))
         {
@@ -664,19 +742,19 @@
             _commonTextOverrides[key] = values;
         }
 
-        if (string.IsNullOrWhiteSpace(value))
+        return values;
+    }
+
+    /// <summary>组件回填时整体替换内部字典，保持引用稳定避免子组件下一轮重置。</summary>
+    private void OnCommonTextValuesChanged(string key, IReadOnlyDictionary<string, string> next)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in next)
         {
-            values.Remove(languageCode);
-            if (values.Count == 0)
-            {
-                _commonTextOverrides.Remove(key);
-            }
-        }
-        else
-        {
-            values[languageCode] = value.Trim();
+            dict[pair.Key] = pair.Value;
         }
 
+        _commonTextOverrides[key] = dict;
         _commonTextSaved = false;
         _commonTextMessage = null;
     }

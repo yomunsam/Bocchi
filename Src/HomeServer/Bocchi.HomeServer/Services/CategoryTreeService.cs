@@ -116,7 +116,34 @@ public sealed class CategoryTreeService
         var children = depth + 1 >= MaxDepth
             ? []
             : NormalizeNodes(node.Children, depth + 1, usedSlugs);
-        return new CategoryTreeNode(id, name, slug, children);
+        var localizedNames = NormalizeLocalizedNames(node.LocalizedNames);
+        return new CategoryTreeNode(id, name, slug, children)
+        {
+            LocalizedNames = localizedNames,
+        };
+    }
+
+    /// <summary>清洗多语言名称：去空白、丢空键、值 Trim；全空时返回 null 以保持 JSON 体积。</summary>
+    private static Dictionary<string, string>? NormalizeLocalizedNames(IReadOnlyDictionary<string, string>? source)
+    {
+        if (source is null || source.Count == 0)
+        {
+            return null;
+        }
+
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in source)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key))
+            {
+                continue;
+            }
+
+            var trimmed = pair.Value?.Trim() ?? string.Empty;
+            result[pair.Key.Trim()] = trimmed;
+        }
+
+        return result.Count == 0 ? null : result;
     }
 
     private static string NormalizeName(string? value)
@@ -161,6 +188,7 @@ public sealed class CategoryTreeService
             Name = node.Name,
             Slug = node.Slug,
             Children = node.Children.Select(ToBuildNode).ToArray(),
+            LocalizedNames = node.LocalizedNames,
         };
 }
 
@@ -175,11 +203,15 @@ public sealed record CategoryTreeView(
 
 /// <summary>分类树节点。节点 id 负责保持 UI 稳定，slug 负责前台 URL 稳定，名称负责后台展示。</summary>
 /// <param name="Id">稳定节点 id。</param>
-/// <param name="Name">类别显示名称。</param>
+/// <param name="Name">类别显示名称（主语言或回退名）。</param>
 /// <param name="Slug">类别稳定 URL slug。</param>
 /// <param name="Children">下一层子类别。</param>
 public sealed record CategoryTreeNode(
     string Id,
     string Name,
     string Slug,
-    IReadOnlyList<CategoryTreeNode> Children);
+    IReadOnlyList<CategoryTreeNode> Children)
+{
+    /// <summary>多语言显示名覆盖（langCode → 显示名）；未配置时为空，前端按当前语言回退到 <see cref="Name"/>。</summary>
+    public IReadOnlyDictionary<string, string>? LocalizedNames { get; init; }
+}

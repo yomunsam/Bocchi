@@ -27,24 +27,15 @@
             @if (HasTaxonomy)
             {
                 <div class="bocchi-kind-action-group" role="group" aria-label='@I18n["kind.index.taxonomy.aria"]'>
-                    <button type="button"
-                            class="@CategoryActionClass"
-                            aria-expanded="@_showCategoryEditor"
-                            aria-controls="@CategoryEditorId"
-                            @onclick="ToggleCategoryEditor">
+                    @* 类别树现在是独立页面（/Admin/Site/Categories），不再在列表页内嵌展开。 *@
+                    <a class="bocchi-kind-action bocchi-kind-action--grouped"
+                       href="@CategoriesUrl">
                         @I18n["kind.index.actions.categories"]
-                    </button>
+                    </a>
                     <button type="button" class="bocchi-kind-action bocchi-kind-action--grouped">@I18n["kind.index.actions.tags"]</button>
                 </div>
             }
         </section>
-
-        @if (HasTaxonomy && _showCategoryEditor)
-        {
-            <div id="@CategoryEditorId">
-                <BocchiCategoryTreeEditor Kind="Kind" />
-            </div>
-        }
     }
 
     @if (_items.Count == 0)
@@ -131,9 +122,6 @@
     /// <summary>正在删除的源文件路径，用于防止重复点击确认按钮。</summary>
     private string? _deletingPath;
 
-    /// <summary>类别编辑器是否展开；它是独立管理面板，不影响文章列表本身。</summary>
-    private bool _showCategoryEditor;
-
     protected override async Task OnInitializedAsync()
     {
         var summaries = await Store.ListContentSummariesAsync(Kind);
@@ -186,11 +174,6 @@
     private bool IsDeleting(string relativePath)
         => string.Equals(_deletingPath, relativePath, StringComparison.Ordinal);
 
-    private void ToggleCategoryEditor()
-    {
-        _showCategoryEditor = !_showCategoryEditor;
-    }
-
     /// <summary>新建入口需要带上 kind，避免从分类型列表进入编辑器时丢失上下文。</summary>
     private string CreateUrl => $"/Admin/Content/Edit?kind={CreateKindValue}";
 
@@ -205,9 +188,6 @@
     /// <summary>只有文章和作品有类别、标签管理；短文保持轻量发布模型。</summary>
     private bool HasTaxonomy => Kind is ContentKind.Post or ContentKind.Work;
 
-    private string CategoryEditorId => $"bocchi-category-editor-host-{KindSlug}";
-
-    private string CategoryActionClass => _showCategoryEditor
-        ? "bocchi-kind-action bocchi-kind-action--grouped bocchi-kind-action--active"
-        : "bocchi-kind-action bocchi-kind-action--grouped";
+    /// <summary>跳转到独立类别树页时，透传当前 kind，让该页默认选中对应分档。</summary>
+    private string CategoriesUrl => $"/Admin/Site/Categories?kind={CreateKindValue}";
 }

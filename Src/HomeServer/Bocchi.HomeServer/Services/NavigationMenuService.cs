@@ -161,12 +161,13 @@ public sealed class NavigationMenuService
             }));
 
         var categories = await _categories.GetAsync(ContentKind.Post, cancellationToken).ConfigureAwait(false);
+        var displayLang = _i18n.CurrentLanguage.Code;
         result.AddRange(FlattenCategories(categories.Roots).Select(category => new NavigationTargetOption
         {
             Type = "postCategory",
             Value = category.Slug,
             GroupLabel = _i18n["siteNavigation.target.group.postCategory"],
-            Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.postCategory"], category.Name),
+            Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.postCategory"], PickLocalizedName(category, displayLang)),
             Available = true,
         }));
 
@@ -322,6 +323,20 @@ public sealed class NavigationMenuService
                 yield return child;
             }
         }
+    }
+
+    /// <summary>按当前 UI 语言取分类的多语言显示名；缺翻译或翻译为空白时回退到原 <see cref="CategoryTreeNode.Name"/>。</summary>
+    private static string PickLocalizedName(CategoryTreeNode node, string langCode)
+    {
+        if (node.LocalizedNames is { Count: > 0 } map
+            && !string.IsNullOrEmpty(langCode)
+            && map.TryGetValue(langCode, out var localized)
+            && !string.IsNullOrWhiteSpace(localized))
+        {
+            return localized.Trim();
+        }
+
+        return node.Name;
     }
 
     private static string NormalizeId(string? value)

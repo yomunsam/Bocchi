@@ -1,0 +1,842 @@
+@using System.Globalization
+@using Bocchi.ContentModel
+@inject CategoryTreeService Categories
+@inject LocalizationSettingsService Localization
+@inject DashboardLocalizationService I18n
+
+@*
+    分类树工作台：左列表（可拖拽、折叠）+ 右详情。
+    - 左：树形列表展示「主语言显示名 + slug + 翻译数量徽标 + ⚠ 遗留语言提示」；
+    - 右：详情面板用 BocchiLocalizedInput 编辑多语言名称，附 slug + 路径 + 添加子 + 删除；
+    - 顶部工具条：添加根 / 保存 / 状态徽标 / 深度上限提示；
+    - 拖拽：原生 HTML5 DnD，支持「放在节点上 = 变成子级」「放在节点上沿 = 同级前后」「放到根投放区 = 升为根」。
+*@
+<section class="bocchi-category-workbench" aria-busy="@(!_loaded)">
+    <header class="bocchi-category-workbench__toolbar">
+        <div class="bocchi-category-workbench__toolbar-main">
+            <button type="button" class="secondary" @onclick="AddRootAsync">
+                <Blazicon Svg="Lucide.Plus" />
+                <span>@I18n["category.editor.addRoot"]</span>
+            </button>
+            <button type="button" disabled="@(!CanSave)" @onclick="SaveAsync">
+                <Blazicon Svg="Lucide.Save" />
+                <span>@(_busy ? I18n["category.editor.saving"] : I18n["category.editor.save"])</span>
+            </button>
+        </div>
+        <div class="bocchi-category-workbench__toolbar-meta">
+            @if (HasInvalidNames)
+            {
+                <BocchiStatusPill Tone="warning">@I18n["category.editor.validation.emptyName"]</BocchiStatusPill>
+            }
+            else if (_dirty)
+            {
+                <BocchiStatusPill Tone="warning">@I18n["category.workbench.unsaved"]</BocchiStatusPill>
+            }
+            else if (_saved)
+            {
+                <BocchiStatusPill Tone="success">@I18n["category.editor.saved"]</BocchiStatusPill>
+            }
+            <span class="bocchi-category-workbench__limit">
+                @string.Format(CultureInfo.CurrentCulture, I18n["category.editor.maxDepthFormat"], CategoryTreeService.MaxDepth)
+            </span>
+        </div>
+    </header>
+
+    @if (!_loaded)
+    {
+        <p class="bocchi-category-workbench__status">@I18n["category.editor.loading"]</p>
+    }
+    else
+    {
+        <div class="bocchi-category-workbench__body">
+            <nav class="bocchi-category-workbench__list" aria-label='@I18n["category.workbench.listAria"]'>
+                @if (_roots.Count == 0)
+                {
+                    <div class="bocchi-category-workbench__list-empty">
+                        <strong>@I18n["category.editor.empty"]</strong>
+                        <button type="button" class="secondary" @onclick="AddRootAsync">
+                            <Blazicon Svg="Lucide.Plus" />
+                            <span>@I18n["category.editor.addRoot"]</span>
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <ul class="bocchi-category-workbench__tree" role="tree">
+                        @foreach (var root in _roots)
+                        {
+                            @RenderNode(root, depth: 0)
+                        }
+                    </ul>
+                    @* 根级 drop 区，把拖拽节点放到根末尾。 *@
+                    <div class="bocchi-category-workbench__root-dropzone @(_dropTargetId == RootDropToken ? "is-active" : null)"
+                         @ondragover="OnRootDragOver"
+                         @ondragover:preventDefault="true"
+                         @ondragleave="() => ClearDropTarget(RootDropToken)"
+                         @ondrop="OnRootDrop">
+                        @I18n["category.editor.addRoot"]
+                    </div>
+                }
+            </nav>
+
+            <article class="bocchi-category-workbench__detail" aria-label='@I18n["category.workbench.detailAria"]'>
+                @if (Selected is null)
+                {
+                    <div class="bocchi-category-workbench__detail-empty">
+                        <p>@I18n["category.workbench.emptySelection"]</p>
+                    </div>
+                }
+                else
+                {
+                    var crumbs = BuildBreadcrumb(Selected);
+                    <header class="bocchi-category-workbench__detail-header">
+                        <span class="bocchi-eyebrow">@I18n["category.workbench.path"]</span>
+                        <nav class="bocchi-category-workbench__crumbs">
+                            @for (var i = 0; i < crumbs.Count; i++)
+                            {
+                                var crumb = crumbs[i];
+                                if (i > 0)
+                                {
+                                    <span aria-hidden="true">/</span>
+                                }
+                                <span class="bocchi-category-workbench__crumb">@DisplayName(crumb)</span>
+                            }
+                        </nav>
+                    </header>
+
+                    <div class="bocchi-category-workbench__field">
+                        <label>@I18n["category.workbench.nameLabel"]</label>
+                        <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.SingleLine"
+                                              Values="Selected.NameValues"
+                                              ValuesChanged="OnNameValuesChanged"
+                                              PrimaryLanguageCode="@_primaryLanguage"
+                                              EnabledLanguageCodes="_enabledCodes"
+                                              AvailableLanguages="_availableLanguages"
+                                              Placeholder='@I18n["category.editor.namePlaceholder"]'
+                                              AriaLabel='@I18n["category.workbench.nameLabel"]' />
+                    </div>
+
+                    <div class="bocchi-category-workbench__field">
+                        <label for="@SlugInputId">@I18n["category.workbench.slugLabel"]</label>
+                        <div class="bocchi-category-workbench__slug-row">
+                            <input id="@SlugInputId"
+                                   type="text"
+                                   value="@Selected.Slug"
+                                   placeholder='@I18n["category.editor.slugPlaceholder"]'
+                                   @oninput="OnSlugInput" />
+                            <button type="button" class="secondary" @onclick="RegenerateSlug">
+                                <Blazicon Svg="Lucide.Repeat2" />
+                                <span>@I18n["category.workbench.regenerateSlug"]</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bocchi-category-workbench__detail-actions">
+                        <button type="button"
+                                class="secondary"
+                                disabled="@(!CanAddChild(Selected))"
+                                @onclick="AddChildAsync">
+                            <Blazicon Svg="Lucide.Plus" />
+                            <span>@I18n["category.workbench.addChild"]</span>
+                        </button>
+                        <button type="button"
+                                class="bocchi-category-workbench__delete"
+                                @onclick="RequestDelete">
+                            <Blazicon Svg="Lucide.Trash2" />
+                            <span>@I18n["category.workbench.deleteTitle"]</span>
+                        </button>
+                    </div>
+                }
+            </article>
+        </div>
+    }
+</section>
+
+<BocchiDialog Open="_pendingDelete is not null"
+              Title='@I18n["category.workbench.deleteTitle"]'
+              PrimaryText='@I18n["category.workbench.deletePrimary"]'
+              SecondaryText='@I18n["category.workbench.deleteSecondary"]'
+              PrimaryClass="bocchi-dialog__danger"
+              OnPrimary="ConfirmDelete"
+              OnSecondary="CancelDelete"
+              OnDismiss="CancelDelete">
+    @if (_pendingDelete is not null)
+    {
+        <p>@string.Format(CultureInfo.CurrentCulture, I18n["category.workbench.deleteBody"], DisplayName(_pendingDelete))</p>
+        @if (CountDescendants(_pendingDelete) is var n and > 0)
+        {
+            <p class="bocchi-category-workbench__danger-note">
+                @string.Format(CultureInfo.CurrentCulture, I18n["category.workbench.deleteWithChildren"], n)
+            </p>
+        }
+    }
+</BocchiDialog>
+
+@code {
+    /// <summary>分类树所属内容类型。</summary>
+    [Parameter, EditorRequired] public ContentKind Kind { get; set; }
+
+    /// <summary>根 drop 区占位 id，避免与真节点 id 冲突。</summary>
+    private const string RootDropToken = "__root__";
+
+    private readonly List<EditorNode> _roots = [];
+    private ContentKind? _loadedKind;
+    private bool _loaded;
+    private bool _dirty;
+    private bool _busy;
+    private bool _saved;
+
+    private string _primaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+    private IReadOnlyList<string> _enabledCodes = [];
+    private IReadOnlyList<LanguageRecord> _availableLanguages = [];
+
+    private string? _selectedId;
+    private EditorNode? _pendingDelete;
+
+    /// <summary>正在被拖动的节点 id；静态字段无所谓，因为 DnD 同时只有一个进行中。</summary>
+    private string? _draggingId;
+
+    /// <summary>当前高亮的 drop target id（节点 id 或 RootDropToken）。</summary>
+    private string? _dropTargetId;
+
+    /// <summary>当前 drop 位置（Before/Inside/After），仅当 _dropTargetId 是真节点时有效。</summary>
+    private DropPosition _dropPosition;
+
+    private string SlugInputId => $"bocchi-cat-slug-{_selectedId}";
+
+    private EditorNode? Selected => _selectedId is null ? null : FindNode(_roots, _selectedId);
+
+    private bool HasInvalidNames => _roots.Any(HasInvalidName);
+
+    private bool CanSave => _loaded && _dirty && !_busy && !HasInvalidNames;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedKind == Kind && _loaded)
+        {
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loaded = false;
+        _saved = false;
+        _roots.Clear();
+        _selectedId = null;
+
+        var settings = await Localization.GetAsync();
+        _primaryLanguage = settings.PrimaryLanguage.Code;
+        _enabledCodes = settings.EnabledLanguages.Select(l => l.Code).ToArray();
+        _availableLanguages = await Localization.ListAvailableLanguagesAsync();
+
+        var tree = await Categories.GetAsync(Kind);
+        _roots.AddRange(tree.Roots.Select(node => ToEditorNode(node, _primaryLanguage)));
+        _loadedKind = Kind;
+        _dirty = false;
+        _loaded = true;
+    }
+
+    private async Task AddRootAsync()
+    {
+        var node = CreateEmptyNode();
+        _roots.Add(node);
+        _selectedId = node.Id;
+        MarkDirty();
+        await Task.CompletedTask;
+    }
+
+    private async Task AddChildAsync()
+    {
+        if (Selected is null || !CanAddChild(Selected))
+        {
+            return;
+        }
+
+        var node = CreateEmptyNode();
+        Selected.Children.Add(node);
+        _selectedId = node.Id;
+        MarkDirty();
+        await Task.CompletedTask;
+    }
+
+    private void RequestDelete()
+    {
+        if (Selected is not null)
+        {
+            _pendingDelete = Selected;
+        }
+    }
+
+    private void CancelDelete() => _pendingDelete = null;
+
+    private void ConfirmDelete()
+    {
+        if (_pendingDelete is null)
+        {
+            return;
+        }
+
+        if (RemoveFrom(_roots, _pendingDelete))
+        {
+            if (string.Equals(_selectedId, _pendingDelete.Id, StringComparison.Ordinal))
+            {
+                _selectedId = null;
+            }
+
+            MarkDirty();
+        }
+
+        _pendingDelete = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Categories.SaveAsync(Kind, _roots.Select(n => ToServiceNode(n, _primaryLanguage)));
+            // 重新加载以拿到服务规整后的 slug / id，保持显示与持久化一致。
+            await LoadAsync();
+            _saved = true;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OnNameValuesChanged(IReadOnlyDictionary<string, string> next)
+    {
+        if (Selected is null)
+        {
+            return;
+        }
+
+        Selected.NameValues = next;
+        var primary = next.TryGetValue(_primaryLanguage, out var v) ? v : string.Empty;
+        var wasSlugFromName = string.IsNullOrWhiteSpace(Selected.Slug)
+            || string.Equals(Selected.Slug, CategorySlug.Normalize(Selected.PrimaryName), StringComparison.Ordinal);
+        Selected.PrimaryName = primary;
+        if (wasSlugFromName)
+        {
+            Selected.Slug = CategorySlug.Normalize(primary);
+        }
+
+        MarkDirty();
+    }
+
+    private void OnSlugInput(ChangeEventArgs args)
+    {
+        if (Selected is null)
+        {
+            return;
+        }
+
+        Selected.Slug = CategorySlug.Normalize(args.Value?.ToString());
+        MarkDirty();
+    }
+
+    private void RegenerateSlug()
+    {
+        if (Selected is null)
+        {
+            return;
+        }
+
+        Selected.Slug = CategorySlug.Normalize(Selected.PrimaryName);
+        MarkDirty();
+    }
+
+    private void Select(EditorNode node) => _selectedId = node.Id;
+
+    private void ToggleCollapse(EditorNode node) => node.Collapsed = !node.Collapsed;
+
+    private bool CanAddChild(EditorNode node) => DepthOf(node) + 1 < CategoryTreeService.MaxDepth;
+
+    private string DisplayName(EditorNode node)
+    {
+        if (!string.IsNullOrWhiteSpace(node.PrimaryName))
+        {
+            return node.PrimaryName;
+        }
+
+        // 主语言为空时回退到任意非空翻译，便于树上仍能识别该节点。
+        foreach (var pair in node.NameValues)
+        {
+            if (!string.IsNullOrWhiteSpace(pair.Value))
+            {
+                return pair.Value;
+            }
+        }
+
+        return I18n["category.editor.namePlaceholder"];
+    }
+
+    private bool HasStaleNames(EditorNode node)
+    {
+        foreach (var key in node.NameValues.Keys)
+        {
+            if (string.Equals(key, _primaryLanguage, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!_enabledCodes.Any(c => string.Equals(c, key, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int TranslationCount(EditorNode node) => node.NameValues
+        .Count(p => !string.Equals(p.Key, _primaryLanguage, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(p.Value));
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _saved = false;
+    }
+
+    private List<EditorNode> BuildBreadcrumb(EditorNode target)
+    {
+        var path = new List<EditorNode>();
+        BuildBreadcrumbInto(_roots, target, path);
+        return path;
+    }
+
+    private static bool BuildBreadcrumbInto(IEnumerable<EditorNode> nodes, EditorNode target, List<EditorNode> acc)
+    {
+        foreach (var node in nodes)
+        {
+            acc.Add(node);
+            if (ReferenceEquals(node, target))
+            {
+                return true;
+            }
+
+            if (BuildBreadcrumbInto(node.Children, target, acc))
+            {
+                return true;
+            }
+
+            acc.RemoveAt(acc.Count - 1);
+        }
+
+        return false;
+    }
+
+    private int DepthOf(EditorNode target) => Math.Max(0, BuildBreadcrumb(target).Count - 1);
+
+    private int CountDescendants(EditorNode node)
+        => node.Children.Count + node.Children.Sum(CountDescendants);
+
+    private int SubtreeHeight(EditorNode node)
+        => node.Children.Count == 0 ? 1 : 1 + node.Children.Max(SubtreeHeight);
+
+    private static bool IsAncestorOf(EditorNode candidate, EditorNode target)
+    {
+        if (ReferenceEquals(candidate, target))
+        {
+            return true;
+        }
+
+        foreach (var child in candidate.Children)
+        {
+            if (IsAncestorOf(child, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static EditorNode? FindNode(IEnumerable<EditorNode> nodes, string id)
+    {
+        foreach (var node in nodes)
+        {
+            if (string.Equals(node.Id, id, StringComparison.Ordinal))
+            {
+                return node;
+            }
+
+            var hit = FindNode(node.Children, id);
+            if (hit is not null)
+            {
+                return hit;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool RemoveFrom(List<EditorNode> list, EditorNode target)
+    {
+        if (list.Remove(target))
+        {
+            return true;
+        }
+
+        foreach (var node in list)
+        {
+            if (RemoveFrom(node.Children, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasInvalidName(EditorNode node)
+        => string.IsNullOrWhiteSpace(node.PrimaryName) || node.Children.Any(HasInvalidName);
+
+    // ===================== 拖拽 =====================
+
+    private void OnDragStart(EditorNode node)
+    {
+        _draggingId = node.Id;
+    }
+
+    private void OnDragEnd()
+    {
+        _draggingId = null;
+        _dropTargetId = null;
+    }
+
+    private void OnNodeDragOver(EditorNode target, DropPosition position)
+    {
+        if (_draggingId is null || string.Equals(_draggingId, target.Id, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var dragging = FindNode(_roots, _draggingId);
+        if (dragging is null || IsAncestorOf(dragging, target))
+        {
+            return;
+        }
+
+        if (position == DropPosition.Inside && !WouldFitDepth(dragging, target, asChild: true))
+        {
+            return;
+        }
+
+        if ((position == DropPosition.Before || position == DropPosition.After)
+            && !WouldFitDepth(dragging, target, asChild: false))
+        {
+            return;
+        }
+
+        _dropTargetId = target.Id;
+        _dropPosition = position;
+    }
+
+    private void OnRootDragOver()
+    {
+        if (_draggingId is null)
+        {
+            return;
+        }
+
+        var dragging = FindNode(_roots, _draggingId);
+        if (dragging is null)
+        {
+            return;
+        }
+
+        if (SubtreeHeight(dragging) > CategoryTreeService.MaxDepth)
+        {
+            return;
+        }
+
+        _dropTargetId = RootDropToken;
+    }
+
+    private void ClearDropTarget(string id)
+    {
+        if (string.Equals(_dropTargetId, id, StringComparison.Ordinal))
+        {
+            _dropTargetId = null;
+        }
+    }
+
+    private void OnNodeDrop(EditorNode target, DropPosition position)
+    {
+        if (_draggingId is null)
+        {
+            return;
+        }
+
+        var dragging = FindNode(_roots, _draggingId);
+        if (dragging is null || ReferenceEquals(dragging, target) || IsAncestorOf(dragging, target))
+        {
+            ResetDragState();
+            return;
+        }
+
+        if (position == DropPosition.Inside && !WouldFitDepth(dragging, target, asChild: true))
+        {
+            ResetDragState();
+            return;
+        }
+
+        if ((position == DropPosition.Before || position == DropPosition.After)
+            && !WouldFitDepth(dragging, target, asChild: false))
+        {
+            ResetDragState();
+            return;
+        }
+
+        RemoveFrom(_roots, dragging);
+
+        if (position == DropPosition.Inside)
+        {
+            target.Children.Add(dragging);
+            target.Collapsed = false;
+        }
+        else
+        {
+            var (siblings, index) = LocateSiblings(_roots, target);
+            if (siblings is null)
+            {
+                _roots.Add(dragging);
+            }
+            else
+            {
+                var insertAt = position == DropPosition.Before ? index : index + 1;
+                siblings.Insert(insertAt, dragging);
+            }
+        }
+
+        MarkDirty();
+        ResetDragState();
+    }
+
+    private void OnRootDrop()
+    {
+        if (_draggingId is null)
+        {
+            ResetDragState();
+            return;
+        }
+
+        var dragging = FindNode(_roots, _draggingId);
+        if (dragging is null || SubtreeHeight(dragging) > CategoryTreeService.MaxDepth)
+        {
+            ResetDragState();
+            return;
+        }
+
+        RemoveFrom(_roots, dragging);
+        _roots.Add(dragging);
+        MarkDirty();
+        ResetDragState();
+    }
+
+    private void ResetDragState()
+    {
+        _draggingId = null;
+        _dropTargetId = null;
+    }
+
+    /// <summary>放置后整棵子树的最深层是否仍 ≤ MaxDepth - 1（0 起算）。</summary>
+    private bool WouldFitDepth(EditorNode dragging, EditorNode target, bool asChild)
+    {
+        var targetDepth = DepthOf(target);
+        var newRootDepth = asChild ? targetDepth + 1 : targetDepth;
+        var subtreeMax = newRootDepth + SubtreeHeight(dragging) - 1;
+        return subtreeMax < CategoryTreeService.MaxDepth;
+    }
+
+    private static (List<EditorNode>? siblings, int index) LocateSiblings(List<EditorNode> list, EditorNode target)
+    {
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (ReferenceEquals(list[i], target))
+            {
+                return (list, i);
+            }
+
+            var deeper = LocateSiblings(list[i].Children, target);
+            if (deeper.siblings is not null)
+            {
+                return deeper;
+            }
+        }
+
+        return (null, -1);
+    }
+
+    // ===================== 渲染 =====================
+
+    private RenderFragment RenderNode(EditorNode node, int depth) => __builder =>
+    {
+        var selected = string.Equals(_selectedId, node.Id, StringComparison.Ordinal);
+        var dropTarget = string.Equals(_dropTargetId, node.Id, StringComparison.Ordinal);
+        var stale = HasStaleNames(node);
+        var translations = TranslationCount(node);
+        var hasChildren = node.Children.Count > 0;
+
+        <li class="bocchi-category-workbench__node" role="treeitem"
+            aria-selected="@(selected ? "true" : "false")">
+            <div class="bocchi-category-workbench__drop-band @(dropTarget && _dropPosition == DropPosition.Before ? "is-active" : null)"
+                 @ondragover="() => OnNodeDragOver(node, DropPosition.Before)"
+                 @ondragover:preventDefault="true"
+                 @ondragleave="() => ClearDropTarget(node.Id)"
+                 @ondrop="() => OnNodeDrop(node, DropPosition.Before)"></div>
+            <div class="bocchi-category-workbench__row @(selected ? "is-selected" : null) @(dropTarget && _dropPosition == DropPosition.Inside ? "is-drop-inside" : null)"
+                 style="@($"--depth: {depth}")"
+                 draggable="true"
+                 @ondragstart="() => OnDragStart(node)"
+                 @ondragend="OnDragEnd"
+                 @ondragover="() => OnNodeDragOver(node, DropPosition.Inside)"
+                 @ondragover:preventDefault="true"
+                 @ondragleave="() => ClearDropTarget(node.Id)"
+                 @ondrop="() => OnNodeDrop(node, DropPosition.Inside)"
+                 @onclick="() => Select(node)">
+                <button type="button"
+                        class="bocchi-category-workbench__toggle"
+                        aria-label='@I18n["category.workbench.toggleExpand"]'
+                        disabled="@(!hasChildren)"
+                        @onclick:stopPropagation="true"
+                        @onclick="() => ToggleCollapse(node)">
+                    @if (hasChildren)
+                    {
+                        <span class="bocchi-category-workbench__chev @(node.Collapsed ? null : "is-open")" aria-hidden="true">▸</span>
+                    }
+                </button>
+                <span class="bocchi-category-workbench__name">@DisplayName(node)</span>
+                @if (!string.IsNullOrWhiteSpace(node.Slug))
+                {
+                    <code class="bocchi-category-workbench__slug">@node.Slug</code>
+                }
+                @if (translations > 0)
+                {
+                    <span class="bocchi-category-workbench__tag" title='@string.Format(CultureInfo.CurrentCulture, I18n["localizedInput.activeFormat"], translations)'>
+                        <Blazicon Svg="Lucide.Languages" />
+                        <span>@translations</span>
+                    </span>
+                }
+                @if (stale)
+                {
+                    <span class="bocchi-category-workbench__warn"
+                          title='@I18n["category.workbench.staleHint"]'
+                          aria-label='@I18n["category.workbench.staleHint"]'>⚠</span>
+                }
+            </div>
+            <div class="bocchi-category-workbench__drop-band @(dropTarget && _dropPosition == DropPosition.After ? "is-active" : null)"
+                 @ondragover="() => OnNodeDragOver(node, DropPosition.After)"
+                 @ondragover:preventDefault="true"
+                 @ondragleave="() => ClearDropTarget(node.Id)"
+                 @ondrop="() => OnNodeDrop(node, DropPosition.After)"></div>
+
+            @if (hasChildren && !node.Collapsed)
+            {
+                <ul class="bocchi-category-workbench__children" role="group">
+                    @foreach (var child in node.Children)
+                    {
+                        @RenderNode(child, depth + 1)
+                    }
+                </ul>
+            }
+        </li>
+    };
+
+    // ===================== 模型 =====================
+
+    /// <summary>编辑器内部可变节点；NameValues 同时承载主语言名与所有翻译，便于直接喂给 BocchiLocalizedInput。</summary>
+    private sealed class EditorNode
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string PrimaryName { get; set; } = string.Empty;
+        public string Slug { get; set; } = string.Empty;
+        public IReadOnlyDictionary<string, string> NameValues { get; set; }
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public List<EditorNode> Children { get; set; } = [];
+        public bool Collapsed { get; set; }
+    }
+
+    private enum DropPosition
+    {
+        Before,
+        Inside,
+        After,
+    }
+
+    private EditorNode CreateEmptyNode()
+    {
+        var node = new EditorNode();
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [_primaryLanguage] = string.Empty,
+        };
+        node.NameValues = dict;
+        return node;
+    }
+
+    private static EditorNode ToEditorNode(CategoryTreeNode source, string primaryLang)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [primaryLang] = source.Name,
+        };
+        if (source.LocalizedNames is not null)
+        {
+            foreach (var pair in source.LocalizedNames)
+            {
+                if (string.Equals(pair.Key, primaryLang, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                dict[pair.Key] = pair.Value;
+            }
+        }
+
+        return new EditorNode
+        {
+            Id = source.Id,
+            PrimaryName = source.Name,
+            Slug = source.Slug,
+            NameValues = dict,
+            Children = source.Children.Select(c => ToEditorNode(c, primaryLang)).ToList(),
+        };
+    }
+
+    private static CategoryTreeNode ToServiceNode(EditorNode node, string primaryLang)
+    {
+        var primary = node.NameValues.TryGetValue(primaryLang, out var v) ? v : node.PrimaryName;
+        Dictionary<string, string>? localized = null;
+        foreach (var pair in node.NameValues)
+        {
+            if (string.Equals(pair.Key, primaryLang, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            localized ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            localized[pair.Key] = pair.Value;
+        }
+
+        return new CategoryTreeNode(
+            node.Id,
+            primary,
+            node.Slug,
+            node.Children.Select(c => ToServiceNode(c, primaryLang)).ToList())
+        {
+            LocalizedNames = localized,
+        };
+    }
+}

@@ -1,0 +1,143 @@
+/* 统一的 i18n 字段组件样式。
+   设计上贴近 Settings/Navigation 详情面板的 field 风格，但把"模式切换"控件放到右上角，
+   避免 fieldset radio 卡片占用过多垂直空间。 */
+
+.bocchi-i18n-field {
+    display: grid;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 10px;
+    background: var(--bocchi-surface);
+    padding: 0.75rem 0.85rem 0.85rem;
+}
+
+.bocchi-i18n-field__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.bocchi-i18n-field__caption {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.bocchi-i18n-field__caption strong {
+    color: var(--bocchi-text);
+    font-size: 0.95rem;
+    font-weight: 780;
+}
+
+.bocchi-i18n-field__caption small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.bocchi-i18n-field__mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
+
+.bocchi-i18n-field__mode select {
+    min-height: 2rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 999px;
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text);
+    padding: 0 1.75rem 0 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.bocchi-i18n-field__body {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.bocchi-i18n-field__hint {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.bocchi-i18n-field__input,
+.bocchi-i18n-field__key input,
+.bocchi-i18n-field__text input {
+    width: 100%;
+    min-height: 2.45rem;
+    min-width: 0;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    padding: 0 0.75rem;
+    font-size: 0.95rem;
+}
+
+.bocchi-i18n-field__row {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.bocchi-i18n-field__key {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.bocchi-i18n-field__texts {
+    display: grid;
+    gap: 0.6rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.7rem 0.8rem;
+}
+
+.bocchi-i18n-field__texts > strong {
+    color: var(--bocchi-text);
+    font-size: 0.88rem;
+}
+
+.bocchi-i18n-field__text {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.bocchi-i18n-field__theme {
+    display: grid;
+    gap: 0.45rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text-muted);
+    padding: 0.7rem 0.8rem;
+}
+
+.bocchi-i18n-field__theme-label {
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 780;
+}
+
+.bocchi-i18n-field__theme code {
+    width: fit-content;
+    color: var(--bocchi-text);
+}
+
+.bocchi-i18n-field__theme p {
+    margin: 0;
+    line-height: 1.5;
+}

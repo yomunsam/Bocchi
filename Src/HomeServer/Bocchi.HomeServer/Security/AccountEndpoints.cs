@@ -694,16 +694,16 @@ public static class AccountEndpoints
             </form>
             """));
 
-        return RenderPage("Login", $$"""
+        return RenderPage("登录", $$"""
             <form class="bocchi-auth-card" method="post" action="/Account/Login?returnUrl={{Uri.EscapeDataString(IsLocalUrl(returnUrl) ? returnUrl! : "/Admin")}}">
-                <p class="bocchi-page-heading__eyebrow">Login</p>
-                <h1>Back to your workspace.</h1>
-                <p>Home Server 默认受保护；登录后进入 `/Admin`，前台 `/` 也只是受保护 Preview。</p>
+                <p class="bocchi-eyebrow">登录</p>
+                <h1>欢迎回到 Bocchi</h1>
+                <p>Home Server 默认受保护；登录后进入 <code>/Admin</code>，前台 <code>/</code> 也是受保护的 Preview。</p>
                 {{(string.IsNullOrWhiteSpace(message) ? string.Empty : $"<p class=\"bocchi-auth-message\">{WebUtility.HtmlEncode(message)}</p>")}}
-                <label>Username<input name="username" type="text" autocomplete="username" required></label>
-                <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
-                <label class="bocchi-checkbox"><input name="remember" type="checkbox">Remember me</label>
-                <button type="submit">Login</button>
+                <label>用户名<input name="username" type="text" autocomplete="username" required></label>
+                <label>密码<input name="password" type="password" autocomplete="current-password" required></label>
+                <label class="bocchi-checkbox"><input name="remember" type="checkbox">记住我</label>
+                <button type="submit">登录</button>
             </form>
             {{providerButtons}}
             """);

@@ -155,10 +155,7 @@
         <div class="bocchi-editor-layout">
             <section class="bocchi-writing-surface" aria-labelledby="writing-heading">
                 <section class="bocchi-writing-card" aria-labelledby="writing-heading">
-                    <div class="bocchi-writing-card__meta">
-                        <span>@EditorKindLabel</span>
-                        <code>@EditorPathLabel</code>
-                    </div>
+                    @* writing-card 不再重复 kind 与路径：页面顶部的 commandbar kicker 已经包含了这些信息。 *@
                     <label class="bocchi-title-field">
                         <span class="bocchi-visually-hidden">标题</span>
                         <input id="writing-heading"
@@ -514,9 +511,24 @@
 
     private string EditorPageTitle => !HasEditorDocument ? "Write" : _title.Length == 0 ? "Write" : _title;
 
-    private string EditorKicker => !HasEditorDocument ? "内容 / Markdown" : $"{EditorKindLabel} / 写作";
+    private string EditorKicker => !HasEditorDocument ? "内容 / Markdown" : $"{EditorKindLabel} · {EditorPathLabel}";
 
-    private string EditorHeading => !HasEditorDocument ? "Markdown 编辑器" : "写作与发布";
+    /// <summary>页面主标题：编辑中以文档实际标题作为 h1，避免出现【写作与发布】这样的样板词。</summary>
+    private string EditorHeading
+    {
+        get
+        {
+            if (!HasEditorDocument)
+            {
+                return "Markdown 编辑器";
+            }
+            if (!string.IsNullOrWhiteSpace(_title))
+            {
+                return _title;
+            }
+            return "未命名草稿";
+        }
+    }
 
     private string EditorDescription => !HasEditorDocument
         ? "新建或打开 Markdown 内容，完成正文、frontmatter 与预览。"

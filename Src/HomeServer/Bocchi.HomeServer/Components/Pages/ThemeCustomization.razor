@@ -49,6 +49,11 @@
                 <BocchiStatusPill Tone="@ConfigStatusTone">@ConfigStatusText</BocchiStatusPill>
                 <BocchiStatusPill Tone="@ThemeI18nStatusTone">@ThemeI18nStatusText</BocchiStatusPill>
             </div>
+            @* 切换 Theme 入口：实际的 Theme 选择字段位于 站点资料；这里给一个显眼的快捷入口，避免用户在多个页面之间盲找。 *@
+            <a class="bocchi-theme-overview__switch" href="/Admin/Settings/Profile" title='@I18n["themeCustomization.meta.switchThemeHint"]'>
+                <Blazicon Svg="Lucide.Repeat2" />
+                <span>@I18n["themeCustomization.meta.switchTheme"]</span>
+            </a>
         </section>
 
         <nav class="bocchi-theme-tabs" role="tablist" aria-label='@I18n["themeCustomization.tabs.aria"]'>
@@ -194,42 +199,25 @@
                                                     </div>
                                                     break;
                                                 case ThemeConfigFieldType.LocalizedText:
-                                                    <div class="bocchi-theme-localized-values" role="group" aria-label="@field.Title">
-                                                        @foreach (var language in EnabledLanguagesForDisplay)
-                                                        {
-                                                            <label class="bocchi-theme-localized-input">
-                                                                <span>
-                                                                    <strong>@language.NativeName</strong>
-                                                                    <code>@language.Code</code>
-                                                                </span>
-                                                                <textarea
-                                                                    rows="2"
-                                                                    placeholder="@GetDefaultLocalizedTextValue(field, language.Code)"
-                                                                    @bind:get="GetLocalizedTextValue(field.Key, language.Code)"
-                                                                    @bind:set="value => SetLocalizedTextValue(field.Key, language.Code, value)"
-                                                                    @bind:event="oninput"></textarea>
-                                                            </label>
-                                                        }
-                                                    </div>
+                                                    <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.SingleLine"
+                                                                          Values="LocalizedTextValuesFor(field.Key)"
+                                                                          ValuesChanged="dict => OnLocalizedTextChanged(field.Key, dict)"
+                                                                          PrimaryLanguageCode="@_primaryLanguageCode"
+                                                                          EnabledLanguageCodes="_enabledLanguageCodeList"
+                                                                          AvailableLanguages="_availableLanguages"
+                                                                          Placeholder="@GetDefaultLocalizedTextValue(field, _primaryLanguageCode)"
+                                                                          AriaLabel="@field.Title" />
                                                     break;
                                                 case ThemeConfigFieldType.LocalizedTextList:
-                                                    <div class="bocchi-theme-localized-values" role="group" aria-label="@field.Title">
-                                                        @foreach (var language in EnabledLanguagesForDisplay)
-                                                        {
-                                                            <label class="bocchi-theme-localized-input">
-                                                                <span>
-                                                                    <strong>@language.NativeName</strong>
-                                                                    <code>@language.Code</code>
-                                                                </span>
-                                                                <textarea
-                                                                    rows="3"
-                                                                    placeholder="@GetDefaultLocalizedTextListValue(field, language.Code)"
-                                                                    @bind:get="GetLocalizedTextListValue(field.Key, language.Code)"
-                                                                    @bind:set="value => SetLocalizedTextListValue(field.Key, language.Code, value)"
-                                                                    @bind:event="oninput"></textarea>
-                                                            </label>
-                                                        }
-                                                    </div>
+                                                    <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.MultiLine"
+                                                                          Values="LocalizedTextListValuesFor(field.Key)"
+                                                                          ValuesChanged="dict => OnLocalizedTextListChanged(field.Key, dict)"
+                                                                          PrimaryLanguageCode="@_primaryLanguageCode"
+                                                                          EnabledLanguageCodes="_enabledLanguageCodeList"
+                                                                          AvailableLanguages="_availableLanguages"
+                                                                          Placeholder="@GetDefaultLocalizedTextListValue(field, _primaryLanguageCode)"
+                                                                          Rows="3"
+                                                                          AriaLabel="@field.Title" />
                                                     break;
                                                 case ThemeConfigFieldType.Color:
                                                     <div class="bocchi-color-field">
@@ -363,22 +351,14 @@
                                 <p class="bocchi-theme-muted">@selectedThemeKey.Description</p>
                             }
 
-                            <div class="bocchi-theme-i18n-inputs" aria-label='@I18n["themeCustomization.text.languageValues"]'>
-                                @foreach (var language in themeI18nLanguages)
-                                {
-                                    <label class="bocchi-theme-i18n-input">
-                                        <span>
-                                            <strong>@language.NativeName</strong>
-                                            <code>@language.Code</code>
-                                        </span>
-                                        <input
-                                            type="text"
-                                            value="@GetThemeI18nTextOverride(selectedThemeKey.Key, language.Code)"
-                                            @oninput="args => SetThemeI18nTextOverride(selectedThemeKey.Key, language.Code, args.Value?.ToString())"
-                                            placeholder="@GetThemeI18nDefaultValue(selectedThemeKey, language.Code)" />
-                                    </label>
-                                }
-                            </div>
+                            <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.SingleLine"
+                                                  Values="ThemeI18nValuesFor(selectedThemeKey.Key)"
+                                                  ValuesChanged="dict => OnThemeI18nValuesChanged(selectedThemeKey.Key, dict)"
+                                                  PrimaryLanguageCode="@_primaryLanguageCode"
+                                                  EnabledLanguageCodes="_enabledLanguageCodeList"
+                                                  AvailableLanguages="_availableLanguages"
+                                                  Placeholder="@GetThemeI18nDefaultValue(selectedThemeKey, _primaryLanguageCode)"
+                                                  AriaLabel="@selectedThemeKey.Title" />
                         }
                     </section>
                 }
@@ -424,8 +404,17 @@
     /// <summary>LocalizedTextList 字段编辑缓冲区，字段 key -> 语言代码 -> 用户覆盖列表。</summary>
     private Dictionary<string, Dictionary<string, List<string>>> _localizedTextListValues = new(StringComparer.Ordinal);
 
+    /// <summary>LocalizedTextList 给 BocchiLocalizedInput 的字符串视图缓冲区，按换行 join；保留对象引用以避免组件重置内部状态。</summary>
+    private Dictionary<string, Dictionary<string, string>> _localizedTextListBuffer = new(StringComparer.Ordinal);
+
     /// <summary>站点启用语言集合，用于 Theme 私有文本输入。</summary>
     private HashSet<string> _enabledLanguageCodes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>当前启用语言按可展示顺序的扁平 code 列表，喂给 BocchiLocalizedInput。</summary>
+    private IReadOnlyList<string> _enabledLanguageCodeList = Array.Empty<string>();
+
+    /// <summary>站点主语言代码；缺失时回退到默认值。</summary>
+    private string _primaryLanguageCode = LocalizationSettingsService.DefaultPrimaryLanguage;
 
     /// <summary>可展示语言列表，内置语言在前，自定义语言在后。</summary>
     private IReadOnlyList<LanguageRecord> _availableLanguages = LocalizationSettingsService.BuiltInLanguages;
@@ -548,6 +537,7 @@
         _multiSelectValues = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         _localizedTextValues = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         _localizedTextListValues = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.Ordinal);
+        _localizedTextListBuffer = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
 
         foreach (var field in _customization.Groups.SelectMany(group => group.Fields))
         {
@@ -572,6 +562,10 @@
                     pair => pair.Key,
                     pair => pair.Value.ToList(),
                     StringComparer.OrdinalIgnoreCase);
+                _localizedTextListBuffer[field.Key] = _localizedTextListValues[field.Key].ToDictionary(
+                    pair => pair.Key,
+                    pair => string.Join(Environment.NewLine, pair.Value),
+                    StringComparer.OrdinalIgnoreCase);
             }
             else
             {
@@ -591,6 +585,8 @@
             localization.EnabledLanguages.Select(language => language.Code),
             StringComparer.OrdinalIgnoreCase);
         _availableLanguages = [.. LocalizationSettingsService.BuiltInLanguages, .. localization.CustomLanguages];
+        _enabledLanguageCodeList = localization.EnabledLanguages.Select(language => language.Code).ToArray();
+        _primaryLanguageCode = localization.PrimaryLanguage.Code;
     }
 
     /// <summary>读取 Theme manifest 声明和用户填写的 Theme 私有 i18n 覆盖。</summary>
@@ -1011,4 +1007,86 @@
            value.Skip(1).All(Uri.IsHexDigit)
             ? value
             : "#000000";
+
+    /// <summary>给 BocchiLocalizedInput 喂的字段缓冲；空缺时按字段 key 懒初始化以保持引用稳定。</summary>
+    private IReadOnlyDictionary<string, string> LocalizedTextValuesFor(string fieldKey)
+    {
+        if (!_localizedTextValues.TryGetValue(fieldKey, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _localizedTextValues[fieldKey] = values;
+        }
+
+        return values;
+    }
+
+    /// <summary>组件回填时直接替换内部字典，保持引用稳定避免下一轮重置子组件状态。</summary>
+    private void OnLocalizedTextChanged(string fieldKey, IReadOnlyDictionary<string, string> next)
+    {
+        _localizedTextValues[fieldKey] = ToOrdinalIgnoreCase(next);
+        MarkConfigDirty();
+    }
+
+    /// <summary>给 BocchiLocalizedInput 喂的列表缓冲；存的是「按换行 join 的字符串视图」。</summary>
+    private IReadOnlyDictionary<string, string> LocalizedTextListValuesFor(string fieldKey)
+    {
+        if (!_localizedTextListBuffer.TryGetValue(fieldKey, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _localizedTextListBuffer[fieldKey] = values;
+        }
+
+        return values;
+    }
+
+    /// <summary>组件回填字符串字典；同步拆分到 List 字典作为持久化形态。</summary>
+    private void OnLocalizedTextListChanged(string fieldKey, IReadOnlyDictionary<string, string> next)
+    {
+        var buffer = ToOrdinalIgnoreCase(next);
+        _localizedTextListBuffer[fieldKey] = buffer;
+
+        var lists = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in buffer)
+        {
+            var list = SplitLocalizedListInput(pair.Value);
+            if (list.Count > 0)
+            {
+                lists[pair.Key] = list;
+            }
+        }
+
+        _localizedTextListValues[fieldKey] = lists;
+        MarkConfigDirty();
+    }
+
+    /// <summary>Theme 私有 i18n key 缓冲；同样懒初始化保持引用稳定。</summary>
+    private IReadOnlyDictionary<string, string> ThemeI18nValuesFor(string key)
+    {
+        if (!_themeI18nTextOverrides.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _themeI18nTextOverrides[key] = values;
+        }
+
+        return values;
+    }
+
+    private void OnThemeI18nValuesChanged(string key, IReadOnlyDictionary<string, string> next)
+    {
+        _themeI18nTextOverrides[key] = ToOrdinalIgnoreCase(next);
+        _themeI18nDirty = true;
+        _themeI18nSaved = false;
+        _themeI18nMessage = null;
+    }
+
+    private static Dictionary<string, string> ToOrdinalIgnoreCase(IReadOnlyDictionary<string, string> source)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in source)
+        {
+            dict[pair.Key] = pair.Value;
+        }
+
+        return dict;
+    }
 }

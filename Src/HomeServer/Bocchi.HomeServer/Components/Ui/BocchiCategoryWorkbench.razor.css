@@ -1,0 +1,418 @@
+/* 分类树工作台：左列表 + 右详情，沿用 bocchi 设计 token；窄屏下纵向堆叠。 */
+.bocchi-category-workbench {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--bocchi-surface);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-lg);
+    box-shadow: var(--bocchi-shadow-sm);
+    padding: 1.1rem 1.2rem 1.2rem;
+}
+
+.bocchi-category-workbench__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px dashed var(--bocchi-border);
+}
+
+.bocchi-category-workbench__toolbar-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bocchi-category-workbench__toolbar-main button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.95rem;
+    border-radius: var(--bocchi-radius-pill);
+    border: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-weight: 620;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bocchi-category-workbench__toolbar-main button:not(.secondary) {
+    background: var(--bocchi-action);
+    border-color: var(--bocchi-action);
+    color: #fff;
+}
+
+.bocchi-category-workbench__toolbar-main button:not(.secondary):hover:not(:disabled) {
+    background: var(--bocchi-action-strong);
+    border-color: var(--bocchi-action-strong);
+}
+
+.bocchi-category-workbench__toolbar-main button.secondary:hover:not(:disabled) {
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text);
+}
+
+.bocchi-category-workbench__toolbar-main button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.bocchi-category-workbench__toolbar-main button ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.bocchi-category-workbench__toolbar-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--bocchi-text-subtle);
+    font-size: 0.82rem;
+}
+
+.bocchi-category-workbench__limit {
+    white-space: nowrap;
+}
+
+.bocchi-category-workbench__status {
+    margin: 0;
+    padding: 1.2rem;
+    color: var(--bocchi-text-muted);
+    text-align: center;
+}
+
+.bocchi-category-workbench__body {
+    display: grid;
+    grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.bocchi-category-workbench__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 18rem;
+    max-height: 28rem;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-md);
+    background: var(--bocchi-surface-muted);
+}
+
+.bocchi-category-workbench__list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    margin: auto;
+    padding: 1rem;
+    color: var(--bocchi-text-muted);
+    text-align: center;
+}
+
+.bocchi-category-workbench__tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.bocchi-category-workbench__node {
+    position: relative;
+    list-style: none;
+}
+
+.bocchi-category-workbench__row {
+    --depth: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.55rem 0.35rem calc(0.45rem + var(--depth) * 0.95rem);
+    border-radius: var(--bocchi-radius-sm);
+    background: transparent;
+    color: var(--bocchi-text);
+    cursor: pointer;
+    user-select: none;
+    transition: background 120ms ease;
+    position: relative;
+}
+
+.bocchi-category-workbench__row:hover {
+    background: var(--bocchi-surface);
+}
+
+.bocchi-category-workbench__row.is-selected {
+    background: var(--bocchi-action-soft);
+    box-shadow: inset 3px 0 0 var(--bocchi-action);
+}
+
+.bocchi-category-workbench__row.is-drop-inside {
+    outline: 2px dashed var(--bocchi-action);
+    outline-offset: -2px;
+}
+
+.bocchi-category-workbench__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: none;
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    cursor: pointer;
+    padding: 0;
+}
+
+.bocchi-category-workbench__toggle:disabled {
+    cursor: default;
+    visibility: hidden;
+}
+
+.bocchi-category-workbench__chev {
+    display: inline-block;
+    transform: rotate(0deg);
+    transition: transform 120ms ease;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.bocchi-category-workbench__chev.is-open {
+    transform: rotate(90deg);
+}
+
+.bocchi-category-workbench__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 580;
+}
+
+.bocchi-category-workbench__slug {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.74rem;
+    color: var(--bocchi-text-subtle);
+    background: var(--bocchi-surface);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-sm);
+    padding: 0.04rem 0.4rem;
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-category-workbench__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--bocchi-radius-pill);
+    background: var(--bocchi-action-soft);
+    color: var(--bocchi-action-strong);
+    font-size: 0.72rem;
+    font-weight: 620;
+}
+
+.bocchi-category-workbench__tag ::deep svg {
+    width: 0.7rem;
+    height: 0.7rem;
+}
+
+.bocchi-category-workbench__warn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    background: var(--bocchi-warning-soft);
+    color: var(--bocchi-warning-strong);
+    font-size: 0.72rem;
+}
+
+.bocchi-category-workbench__children {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.bocchi-category-workbench__drop-band {
+    height: 4px;
+    margin: 0 0.3rem;
+    border-radius: 4px;
+    background: transparent;
+    transition: background 80ms ease;
+}
+
+.bocchi-category-workbench__drop-band.is-active {
+    background: var(--bocchi-action);
+}
+
+.bocchi-category-workbench__root-dropzone {
+    margin-top: 0.4rem;
+    padding: 0.5rem;
+    border: 1px dashed var(--bocchi-border-strong);
+    border-radius: var(--bocchi-radius-sm);
+    color: var(--bocchi-text-subtle);
+    text-align: center;
+    font-size: 0.82rem;
+}
+
+.bocchi-category-workbench__root-dropzone.is-active {
+    border-color: var(--bocchi-action);
+    color: var(--bocchi-action-strong);
+    background: var(--bocchi-action-soft);
+}
+
+.bocchi-category-workbench__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-md);
+    background: var(--bocchi-surface);
+    min-height: 18rem;
+}
+
+.bocchi-category-workbench__detail-empty {
+    margin: auto;
+    color: var(--bocchi-text-muted);
+    text-align: center;
+}
+
+.bocchi-category-workbench__detail-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px dashed var(--bocchi-border);
+}
+
+.bocchi-category-workbench__crumbs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+}
+
+.bocchi-category-workbench__crumb {
+    color: var(--bocchi-text);
+}
+
+.bocchi-category-workbench__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.bocchi-category-workbench__field > label {
+    font-size: 0.82rem;
+    color: var(--bocchi-text-muted);
+    font-weight: 620;
+}
+
+.bocchi-category-workbench__slug-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bocchi-category-workbench__slug-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.bocchi-category-workbench__slug-row button {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--bocchi-radius-pill);
+    border: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    cursor: pointer;
+    transition: background 120ms ease;
+}
+
+.bocchi-category-workbench__slug-row button:hover {
+    background: var(--bocchi-surface-soft);
+}
+
+.bocchi-category-workbench__slug-row button ::deep svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.bocchi-category-workbench__detail-actions {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--bocchi-border);
+}
+
+.bocchi-category-workbench__detail-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.42rem 0.95rem;
+    border-radius: var(--bocchi-radius-pill);
+    border: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bocchi-category-workbench__detail-actions button:hover:not(:disabled) {
+    background: var(--bocchi-surface-soft);
+}
+
+.bocchi-category-workbench__detail-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.bocchi-category-workbench__detail-actions button ::deep svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.bocchi-category-workbench__delete {
+    color: var(--bocchi-danger-strong);
+    border-color: var(--bocchi-danger-soft);
+}
+
+.bocchi-category-workbench__delete:hover {
+    background: var(--bocchi-danger-soft);
+}
+
+.bocchi-category-workbench__danger-note {
+    color: var(--bocchi-danger-strong);
+    margin: 0;
+    font-size: 0.86rem;
+}
+
+@media (max-width: 860px) {
+    .bocchi-category-workbench__body {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-category-workbench__list {
+        max-height: 20rem;
+    }
+}

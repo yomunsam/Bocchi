@@ -7,13 +7,27 @@
 <div class="bocchi-admin-shell">
     <aside id="bocchi-admin-sidebar" class="@SidebarClass" aria-label="Dashboard navigation">
         <div class="bocchi-sidebar__header">
-            <a class="bocchi-logo" href="/Admin" aria-label="Bocchi Admin">Bocchi</a>
-            <button type="button"
-                    class="bocchi-sidebar__close"
-                    aria-label='@I18n["nav.close"]'
-                    @onclick="CloseMobileSidebar">
-                <Blazicon Svg="Lucide.X" />
-            </button>
+            <a class="bocchi-logo" href="/Admin" aria-label="Bocchi Admin">
+                @* 吉他拨片点缀是《孤独摇滚》致敬，纯装饰。 *@
+                <Blazicon Svg="Lucide.Guitar" />
+                <span>Bocchi</span>
+            </a>
+            <div class="bocchi-sidebar__header-actions">
+                <a class="bocchi-sidebar__icon-btn"
+                   href="/"
+                   target="_blank"
+                   rel="noopener"
+                   aria-label='@I18n["sidebar.preview.open"]'
+                   title='@I18n["sidebar.preview.open"]'>
+                    <Blazicon Svg="Lucide.ExternalLink" />
+                </a>
+                <button type="button"
+                        class="bocchi-sidebar__icon-btn bocchi-sidebar__close"
+                        aria-label='@I18n["nav.close"]'
+                        @onclick="CloseMobileSidebar">
+                    <Blazicon Svg="Lucide.X" />
+                </button>
+            </div>
         </div>
 
         <nav class="bocchi-primary-nav">
@@ -80,6 +94,10 @@
                             <Blazicon Svg="Lucide.Menu" />
                             <span>@I18n["nav.siteNavigation"]</span>
                         </a>
+                        <a href="/Admin/Site/Categories" class="@SecondaryNavLinkClass(IsCategoriesActive())" aria-current="@AriaCurrent(IsCategoriesActive())">
+                            <Blazicon Svg="Lucide.FolderTree" />
+                            <span>@I18n["nav.categories"]</span>
+                        </a>
                         <a href="/Admin/Site/Theme" class="@SecondaryNavLinkClass(IsThemeCustomizationActive())" aria-current="@AriaCurrent(IsThemeCustomizationActive())">
                             <Blazicon Svg="Lucide.SunMoon" />
                             <span>@I18n["nav.themeCustomization"]</span>
@@ -98,16 +116,14 @@
             </a>
         </nav>
 
-        <section class="bocchi-sidebar-preview" aria-label='@I18n["sidebar.preview.title"]'>
-            <div class="bocchi-sidebar-preview__title">
-                <Blazicon Svg="Lucide.Monitor" />
-                <span>@I18n["sidebar.preview.title"]</span>
-            </div>
-            <a class="bocchi-sidebar-preview__button" href="/" target="_blank" rel="noopener">
+        @* Sidebar 底部：轻量 footer 取代原本占一大块的预览卡片；预览入口已上提到 header。 *@
+        <div class="bocchi-sidebar__footer">
+            <span>Bocchi Admin</span>
+            <a href="/" target="_blank" rel="noopener">
                 <span>@I18n["sidebar.preview.open"]</span>
-                <Blazicon Svg="Lucide.ExternalLink" />
+                <Blazicon Svg="Lucide.ArrowUpRight" />
             </a>
-        </section>
+        </div>
     </aside>
 
     <div class="bocchi-workbench">
@@ -345,7 +361,7 @@
 
     /// <summary>站点分组是否包含当前页面。</summary>
     private bool IsSiteSectionActive()
-        => IsPagesActive() || IsFriendLinksActive() || IsSiteNavigationActive() || IsThemeCustomizationActive();
+        => IsPagesActive() || IsFriendLinksActive() || IsSiteNavigationActive() || IsCategoriesActive() || IsThemeCustomizationActive();
 
     /// <summary>文章导航项是否为当前页面。</summary>
     private bool IsPostsActive() => IsCurrentPath("/Admin/Posts") || IsEditorFor("post", "posts%2F");
@@ -366,6 +382,9 @@
 
     /// <summary>导航栏设置入口是否为当前页面。</summary>
     private bool IsSiteNavigationActive() => IsCurrentPath("/Admin/Site/Navigation");
+
+    /// <summary>独立类别页：路径以 /Admin/Site/Categories 开头即视为 active。</summary>
+    private bool IsCategoriesActive() => IsCurrentPath("/Admin/Site/Categories");
 
     /// <summary>主题定制入口是否为当前页面。</summary>
     private bool IsThemeCustomizationActive() => IsCurrentPath("/Admin/Site/Theme");

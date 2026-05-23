@@ -45,6 +45,9 @@ public sealed record BuildCategoryNode
 
     /// <summary>下一层子类别。</summary>
     public IReadOnlyList<BuildCategoryNode> Children { get; init; } = [];
+
+    /// <summary>多语言显示名覆盖（langCode → 显示名）；为空表示沿用 <see cref="Name"/>。</summary>
+    public IReadOnlyDictionary<string, string>? LocalizedNames { get; init; }
 }
 
 /// <summary>内容图中的 Post Category 节点，已经带有稳定 URL 与文章数量。</summary>

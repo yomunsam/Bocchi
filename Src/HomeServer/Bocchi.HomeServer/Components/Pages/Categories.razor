@@ -1,0 +1,62 @@
+@page "/Admin/Site/Categories"
+@using Bocchi.ContentModel
+@inject DashboardLocalizationService I18n
+
+@* 独立的「类别树」管理页面：把原本嵌在 BocchiContentKindIndex 内的展开式编辑器抬到 /Admin/Site/Categories。
+   - 类别按 ContentKind 分桶（Post、Work 两种）；本页用顶部 segmented 切换；
+   - 选中哪个 kind 通过 ?kind=post|work 透传，刷新/分享链接能保持位置。 *@
+<article class="bocchi-shell bocchi-shell--dashboard">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["category.page.eyebrow"]</span>
+        <h1>@I18n["category.page.heading"]</h1>
+        <p>@I18n["category.page.description"]</p>
+    </header>
+
+    <div class="bocchi-categories-kind-picker" role="tablist" aria-label='@I18n["category.page.kindAria"]'>
+        <button type="button"
+                role="tab"
+                class="@KindButtonClass(ContentKind.Post)"
+                aria-selected="@(_activeKind == ContentKind.Post ? "true" : "false")"
+                @onclick="() => SelectKind(ContentKind.Post)">
+            <Blazicon Svg="Lucide.FileText" />
+            <span>@I18n["category.page.kindPost"]</span>
+        </button>
+        <button type="button"
+                role="tab"
+                class="@KindButtonClass(ContentKind.Work)"
+                aria-selected="@(_activeKind == ContentKind.Work ? "true" : "false")"
+                @onclick="() => SelectKind(ContentKind.Work)">
+            <Blazicon Svg="Lucide.Sparkles" />
+            <span>@I18n["category.page.kindWork"]</span>
+        </button>
+    </div>
+
+    @* key 强制在切换 kind 时整体重建编辑器，避免树状态串桶。 *@
+    <BocchiCategoryWorkbench @key="_activeKind" Kind="_activeKind" />
+</article>
+
+@code {
+    /// <summary>URL ?kind=post|work；缺省回退到 Post。</summary>
+    [SupplyParameterFromQuery(Name = "kind")] public string? KindQuery { get; set; }
+
+    private ContentKind _activeKind = ContentKind.Post;
+
+    protected override void OnParametersSet()
+    {
+        _activeKind = KindQuery?.ToLowerInvariant() switch
+        {
+            "work" => ContentKind.Work,
+            _ => ContentKind.Post,
+        };
+    }
+
+    private void SelectKind(ContentKind kind)
+    {
+        _activeKind = kind;
+    }
+
+    private string KindButtonClass(ContentKind kind)
+        => _activeKind == kind
+            ? "bocchi-categories-kind-picker__btn bocchi-categories-kind-picker__btn--active"
+            : "bocchi-categories-kind-picker__btn";
+}

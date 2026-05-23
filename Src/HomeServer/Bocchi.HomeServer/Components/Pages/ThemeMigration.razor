@@ -1,0 +1,245 @@
+@page "/Admin/Site/ThemeMigration"
+@using System.Globalization
+@using Bocchi.HomeServer.Services
+@inject DashboardLocalizationService I18n
+@inject ThemeMigrationService Migration
+@inject NavigationManager Navigation
+
+<PageTitle>@I18n["themeMigration.page.title"] · Bocchi</PageTitle>
+
+<article class="bocchi-shell bocchi-shell--dashboard">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["themeMigration.page.eyebrow"]</span>
+        <h1>@I18n["themeMigration.page.heading"]</h1>
+        <p>@string.Format(CultureInfo.CurrentCulture, I18n["themeMigration.page.descriptionFormat"], From, To)</p>
+    </header>
+
+    @if (!_loaded)
+    {
+        <section class="bocchi-panel"><p>@I18n["themeMigration.status.loading"]</p></section>
+    }
+    else if (_plan is null || _plan.Entries.Count == 0)
+    {
+        <section class="bocchi-panel">
+            <p>@I18n["themeMigration.status.noEntries"]</p>
+            <div class="bocchi-inline-actions">
+                <button type="button" @onclick="CancelAsync">@I18n["themeMigration.action.back"]</button>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="bocchi-panel">
+            <table class="bocchi-data-table bocchi-theme-migration-table">
+                <thead>
+                    <tr>
+                        <th>@I18n["themeMigration.column.location"]</th>
+                        <th>@I18n["themeMigration.column.oldKey"]</th>
+                        <th>@I18n["themeMigration.column.preview"]</th>
+                        <th>@I18n["themeMigration.column.decision"]</th>
+                        <th>@I18n["themeMigration.column.detail"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var entry in _plan.Entries)
+                {
+                    var draft = _decisions[entry.ItemId];
+                    <tr>
+                        <td>@entry.Location</td>
+                        <td><code>@entry.OldKey</code></td>
+                        <td>@FormatPreview(entry)</td>
+                        <td>
+                            <select value="@draft.Kind" @onchange="args => OnKindChanged(entry, args.Value?.ToString())">
+                                <option value="@DecisionKind.KeepAsIs">@I18n["themeMigration.decision.keep"]</option>
+                                <option value="@DecisionKind.MapToNewThemeKey">@I18n["themeMigration.decision.mapNew"]</option>
+                                <option value="@DecisionKind.ToCommonI18n">@I18n["themeMigration.decision.common"]</option>
+                                <option value="@DecisionKind.ToPlainText">@I18n["themeMigration.decision.plain"]</option>
+                            </select>
+                        </td>
+                        <td>
+                            @switch (draft.Kind)
+                            {
+                                case DecisionKind.MapToNewThemeKey:
+                                    <select value="@draft.NewKey" @onchange="args => OnNewKeyChanged(entry, args.Value?.ToString())">
+                                        @foreach (var key in _plan.NewThemeKeys)
+                                        {
+                                            <option value="@key">@key</option>
+                                        }
+                                    </select>
+                                    break;
+                                case DecisionKind.ToCommonI18n:
+                                    <input type="text" value="@draft.NewKey" placeholder="menu.custom.about"
+                                           @oninput="args => OnNewKeyChanged(entry, args.Value?.ToString())" />
+                                    break;
+                                case DecisionKind.ToPlainText:
+                                    <select value="@draft.Language" @onchange="args => OnLanguageChanged(entry, args.Value?.ToString())">
+                                        @foreach (var lang in _plan.EnabledLanguages)
+                                        {
+                                            <option value="@lang">@lang</option>
+                                        }
+                                    </select>
+                                    break;
+                                default:
+                                    <span class="bocchi-text-muted">—</span>
+                                    break;
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </section>
+
+        <div class="bocchi-inline-actions">
+            <button type="button" class="secondary" @onclick="CancelAsync" disabled="@_applying">
+                @I18n["themeMigration.action.cancel"]
+            </button>
+            <button type="button" @onclick="ApplyAsync" disabled="@_applying">
+                <Blazicon Svg="Lucide.Check" />
+                <span>@(_applying ? I18n["themeMigration.status.applying"] : I18n["themeMigration.action.apply"])</span>
+            </button>
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>查询参数：源 Theme id。</summary>
+    [SupplyParameterFromQuery(Name = "from")]
+    public string? From { get; set; }
+
+    /// <summary>查询参数：目标 Theme id。</summary>
+    [SupplyParameterFromQuery(Name = "to")]
+    public string? To { get; set; }
+
+    private bool _loaded;
+    private bool _applying;
+    private ThemeMigrationPlan? _plan;
+    private readonly Dictionary<string, DecisionDraft> _decisions = new(StringComparer.Ordinal);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loaded = false;
+        var from = (From ?? string.Empty).Trim();
+        var to = (To ?? string.Empty).Trim();
+        if (from.Length == 0 || to.Length == 0 || string.Equals(from, to, StringComparison.Ordinal))
+        {
+            // 无效入口：直接跳回 Settings，让 Settings 决定如何处理。
+            Navigation.NavigateTo("/Admin/Settings/Profile");
+            return;
+        }
+
+        _plan = await Migration.ScanAsync(from, to);
+        _decisions.Clear();
+        foreach (var entry in _plan.Entries)
+        {
+            _decisions[entry.ItemId] = CreateDefault(entry, _plan);
+        }
+        _loaded = true;
+    }
+
+    private static DecisionDraft CreateDefault(ThemeMigrationEntry entry, ThemeMigrationPlan plan)
+    {
+        // 默认决策：新 Theme 仍声明同 key → 直接保留；否则降级为主语言纯文本，避免悬空引用。
+        if (entry.ExistsInNewTheme)
+        {
+            return new DecisionDraft { Kind = DecisionKind.KeepAsIs };
+        }
+        return new DecisionDraft
+        {
+            Kind = DecisionKind.ToPlainText,
+            Language = plan.PrimaryLanguage,
+        };
+    }
+
+    private string FormatPreview(ThemeMigrationEntry entry)
+    {
+        if (entry.OldValues.TryGetValue(_plan!.PrimaryLanguage, out var preview) && !string.IsNullOrWhiteSpace(preview))
+        {
+            return preview;
+        }
+        var first = entry.OldValues.Values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+        return first ?? entry.OldKey;
+    }
+
+    private void OnKindChanged(ThemeMigrationEntry entry, string? raw)
+    {
+        if (!Enum.TryParse<DecisionKind>(raw, out var kind))
+        {
+            return;
+        }
+        var draft = _decisions[entry.ItemId];
+        draft.Kind = kind;
+        // 切换分支时给出合理默认值，避免空 NewKey 让 Apply 跳过。
+        switch (kind)
+        {
+            case DecisionKind.MapToNewThemeKey:
+                if (string.IsNullOrWhiteSpace(draft.NewKey) || !_plan!.NewThemeKeys.Contains(draft.NewKey))
+                {
+                    draft.NewKey = _plan!.NewThemeKeys.FirstOrDefault() ?? string.Empty;
+                }
+                break;
+            case DecisionKind.ToCommonI18n:
+                if (string.IsNullOrWhiteSpace(draft.NewKey))
+                {
+                    draft.NewKey = "menu.custom." + entry.OldKey.Replace('.', '-');
+                }
+                break;
+            case DecisionKind.ToPlainText:
+                if (string.IsNullOrWhiteSpace(draft.Language))
+                {
+                    draft.Language = _plan!.PrimaryLanguage;
+                }
+                break;
+        }
+    }
+
+    private void OnNewKeyChanged(ThemeMigrationEntry entry, string? value)
+        => _decisions[entry.ItemId].NewKey = value ?? string.Empty;
+
+    private void OnLanguageChanged(ThemeMigrationEntry entry, string? value)
+        => _decisions[entry.ItemId].Language = value ?? string.Empty;
+
+    private async Task ApplyAsync()
+    {
+        if (_plan is null)
+        {
+            return;
+        }
+        _applying = true;
+        var decisions = new Dictionary<string, ThemeMigrationDecision>(StringComparer.Ordinal);
+        foreach (var (itemId, draft) in _decisions)
+        {
+            decisions[itemId] = draft.Kind switch
+            {
+                DecisionKind.KeepAsIs => new ThemeMigrationDecision.KeepAsIs(),
+                DecisionKind.ToPlainText => new ThemeMigrationDecision.ToPlainText(draft.Language),
+                DecisionKind.ToCommonI18n => new ThemeMigrationDecision.ToCommonI18n(draft.NewKey),
+                DecisionKind.MapToNewThemeKey => new ThemeMigrationDecision.MapToNewThemeKey(draft.NewKey),
+                _ => new ThemeMigrationDecision.KeepAsIs(),
+            };
+        }
+        await Migration.ApplyAsync(_plan, decisions);
+        Navigation.NavigateTo("/Admin/Settings/Profile");
+    }
+
+    private Task CancelAsync()
+    {
+        Navigation.NavigateTo("/Admin/Settings/Profile");
+        return Task.CompletedTask;
+    }
+
+    private enum DecisionKind
+    {
+        KeepAsIs,
+        MapToNewThemeKey,
+        ToCommonI18n,
+        ToPlainText,
+    }
+
+    private sealed class DecisionDraft
+    {
+        public DecisionKind Kind { get; set; } = DecisionKind.KeepAsIs;
+        public string NewKey { get; set; } = string.Empty;
+        public string Language { get; set; } = string.Empty;
+    }
+}

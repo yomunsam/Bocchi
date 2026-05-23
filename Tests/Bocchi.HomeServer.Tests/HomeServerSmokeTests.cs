@@ -148,7 +148,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        body.Should().Contain("写作与发布");
+        body.Should().Contain("New Post");
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("bocchi-codemirror-host");
         body.Should().Contain("data-bocchi-codemirror-host");
@@ -333,8 +333,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-page-intro");
         body.Should().Contain("Menu tree");
         body.Should().Contain("Menu item details");
-        body.Should().Contain("Label mode");
-        body.Should().Contain("Site i18n");
+        body.Should().Contain("Text mode");
+        body.Should().Contain("Multi-language");
         body.Should().Contain("Add root item");
         body.Should().Contain("Navigation");
         body.Should().Contain("Theme customization");

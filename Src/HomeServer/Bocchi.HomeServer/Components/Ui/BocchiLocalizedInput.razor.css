@@ -1,0 +1,224 @@
+/* 统一多语言输入控件样式：默认形态视觉等同 BocchiInput；次级行紧凑、可识别。 */
+.bocchi-loc-input {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.bocchi-loc-input__primary {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.bocchi-loc-input__field {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+}
+
+/* 触发按钮：方形 icon button，紧贴输入框右侧。 */
+.bocchi-loc-input__trigger {
+    position: relative;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-width: 2.5rem;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--radius-md);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.bocchi-loc-input__trigger:hover,
+.bocchi-loc-input__trigger:focus-visible {
+    background: var(--bocchi-action-soft);
+    color: var(--bocchi-action);
+    border-color: var(--bocchi-action);
+    outline: none;
+}
+
+/* 已添加翻译数量徽标 */
+.bocchi-loc-input__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.3rem;
+    border-radius: var(--radius-pill);
+    background: var(--bocchi-action);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* popover */
+.bocchi-loc-input__backdrop {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 30;
+}
+
+.bocchi-loc-input__menu {
+    position: absolute;
+    top: calc(100% + var(--space-1));
+    right: 0;
+    z-index: 40;
+    min-width: 16rem;
+    max-width: min(22rem, calc(100vw - var(--space-4)));
+    max-height: 18rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--radius-md);
+    background: var(--bocchi-surface);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.bocchi-loc-input__menu-title {
+    margin: 0 0 var(--space-1);
+    padding: 0 var(--space-2);
+    color: var(--bocchi-text-subtle);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.bocchi-loc-input__menu-empty {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    color: var(--bocchi-text-muted);
+    font-size: 0.85rem;
+}
+
+.bocchi-loc-input__menu-item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--bocchi-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.bocchi-loc-input__menu-item:hover,
+.bocchi-loc-input__menu-item:focus-visible {
+    background: var(--bocchi-action-soft);
+    color: var(--bocchi-action);
+    outline: none;
+}
+
+.bocchi-loc-input__menu-code {
+    flex: 0 0 auto;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.78rem;
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-loc-input__menu-name {
+    flex: 1 1 auto;
+    font-size: 0.9rem;
+}
+
+/* 次级语言行 */
+.bocchi-loc-input__secondary {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+    padding-left: var(--space-4);
+    min-width: 0;
+}
+
+.bocchi-loc-input--multi .bocchi-loc-input__secondary {
+    align-items: flex-start;
+}
+
+.bocchi-loc-input__badge {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 5rem;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--radius-sm);
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text-muted);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    align-self: stretch;
+}
+
+.bocchi-loc-input--multi .bocchi-loc-input__badge {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+}
+
+.bocchi-loc-input__badge-name {
+    font-family: inherit;
+    font-size: 0.7rem;
+    color: var(--bocchi-text-subtle);
+}
+
+.bocchi-loc-input__secondary--stale .bocchi-loc-input__badge {
+    background: var(--bocchi-warning-soft, rgba(217, 119, 6, 0.12));
+    border-color: var(--bocchi-warning, rgba(217, 119, 6, 0.6));
+    color: var(--bocchi-warning, #b45309);
+}
+
+.bocchi-loc-input__warn {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.bocchi-loc-input__remove {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--bocchi-text-subtle);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.bocchi-loc-input__remove:hover,
+.bocchi-loc-input__remove:focus-visible {
+    background: var(--bocchi-danger-soft, rgba(220, 38, 38, 0.12));
+    color: var(--bocchi-danger, #dc2626);
+    border-color: var(--bocchi-danger, #dc2626);
+    outline: none;
+}
+
+@media (max-width: 600px) {
+    .bocchi-loc-input__secondary {
+        flex-wrap: wrap;
+        padding-left: 0;
+    }
+
+    .bocchi-loc-input__badge {
+        order: -1;
+    }
+}

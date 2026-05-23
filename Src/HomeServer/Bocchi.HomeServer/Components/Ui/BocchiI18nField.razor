@@ -1,0 +1,290 @@
+@using System.Globalization
+@using Bocchi.HomeServer.Services
+@inject DashboardLocalizationService I18n
+
+@*
+    统一 i18n 字段输入组件。
+    - 底层 Value 存储约定与 Navigation 现状一致：
+      • Plain：直接存用户输入的文本
+      • Common：`i18n://common@<key>`
+      • Theme：`i18n://theme@<key>`（只读，仅用于保留已有引用）
+      • Auto：空字符串
+    - Common 模式下的语言覆盖通过宿主提供的 ReadOverride / OverrideChanged 回调读写，
+      宿主负责真正的持久化与冲突合并；组件只负责输入与即时反馈。
+*@
+
+<div class="bocchi-i18n-field" data-mode="@_mode">
+    <div class="bocchi-i18n-field__head">
+        <div class="bocchi-i18n-field__caption">
+            @if (!string.IsNullOrWhiteSpace(Label))
+            {
+                <strong>@Label</strong>
+            }
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <small>@Description</small>
+            }
+        </div>
+        <label class="bocchi-i18n-field__mode">
+            <span class="visually-hidden">@I18n["i18nField.mode.label"]</span>
+            <select value="@_mode" @onchange="OnModeChanged">
+                @if (AllowAuto)
+                {
+                    <option value="@ModeAuto">@I18n["i18nField.mode.auto"]</option>
+                }
+                <option value="@ModePlain">@I18n["i18nField.mode.plain"]</option>
+                <option value="@ModeCommon">@I18n["i18nField.mode.common"]</option>
+                @if (_mode == ModeTheme)
+                {
+                    <option value="@ModeTheme">@I18n["i18nField.mode.theme"]</option>
+                }
+            </select>
+        </label>
+    </div>
+
+    <div class="bocchi-i18n-field__body">
+        @switch (_mode)
+        {
+            case ModeAuto:
+                <p class="bocchi-i18n-field__hint">@I18n["i18nField.mode.autoHelp"]</p>
+                break;
+
+            case ModePlain:
+                <input class="bocchi-i18n-field__input"
+                       value="@GetPlainValue()"
+                       placeholder="@Placeholder"
+                       @oninput="OnPlainInput" />
+                break;
+
+            case ModeCommon:
+                var currentKey = GetCommonKey();
+                <div class="bocchi-i18n-field__row">
+                    <label class="bocchi-i18n-field__key">
+                        <span>@I18n["i18nField.keyLabel"]</span>
+                        <input value="@currentKey"
+                               placeholder="@I18n["i18nField.keyPlaceholder"]"
+                               @oninput="OnKeyInput" />
+                    </label>
+                </div>
+                @if (EnabledLanguages.Count > 0)
+                {
+                    <div class="bocchi-i18n-field__texts">
+                        <strong>@I18n["i18nField.textsTitle"]</strong>
+                        @foreach (var language in EnabledLanguages)
+                        {
+                            <label class="bocchi-i18n-field__text">
+                                <span>@language.Code</span>
+                                <input value="@ReadOverrideSafe(currentKey, language.Code)"
+                                       placeholder="@string.Format(CultureInfo.CurrentCulture, I18n["i18nField.textPlaceholderFormat"], language.NativeName)"
+                                       @oninput="args => OnOverrideInput(currentKey, language.Code, args)" />
+                            </label>
+                        }
+                    </div>
+                }
+                break;
+
+            case ModeTheme:
+                <div class="bocchi-i18n-field__theme">
+                    <span class="bocchi-i18n-field__theme-label">@I18n["i18nField.themeRefLabel"]</span>
+                    <code>@GetThemeKey()</code>
+                    <p>@I18n["i18nField.themeRefHelp"]</p>
+                </div>
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    private const string ModeAuto = "auto";
+    private const string ModePlain = "plain";
+    private const string ModeCommon = "common";
+    private const string ModeTheme = "theme";
+
+    private const string CommonPrefix = "i18n://common@";
+    private const string ThemePrefix = "i18n://theme@";
+
+    /// <summary>底层引用字符串，决定写回 YAML 或数据库的实际值。</summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>Value 变更回调。</summary>
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>字段名称，渲染在左上角；为空时不渲染。</summary>
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>字段说明文案，渲染在 Label 下方。</summary>
+    [Parameter]
+    public string? Description { get; set; }
+
+    /// <summary>Plain 模式下 input 的 placeholder。</summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    /// <summary>是否允许 Auto 模式，由 Generator 根据 target 自动填充；默认关闭。</summary>
+    [Parameter]
+    public bool AllowAuto { get; set; }
+
+    /// <summary>切换到 Common 模式且没有现成 key 时使用的建议 key。</summary>
+    [Parameter]
+    public string? KeyHint { get; set; }
+
+    /// <summary>站点启用语言列表，决定 Common 模式下展示哪些语言输入。</summary>
+    [Parameter]
+    public IReadOnlyList<LanguageRecord> EnabledLanguages { get; set; } = [];
+
+    /// <summary>读取宿主 override 缓冲区中某个 (key, language) 的当前值。</summary>
+    [Parameter]
+    public Func<string, string, string?>? ReadOverride { get; set; }
+
+    /// <summary>用户在 Common 模式下编辑某个语言文案时触发，由宿主写入自己的缓冲区。</summary>
+    [Parameter]
+    public EventCallback<BocchiI18nFieldOverrideChange> OverrideChanged { get; set; }
+
+    /// <summary>当前 UI 模式；根据 Value 与 AllowAuto 计算，允许用户临时切换后保留。</summary>
+    private string _mode = ModePlain;
+
+    /// <summary>是否曾被用户手动切过模式；若是则不再根据外部 Value 重新推导，避免覆盖意图。</summary>
+    private bool _modeOverriddenByUser;
+
+    protected override void OnParametersSet()
+    {
+        if (!_modeOverriddenByUser)
+        {
+            _mode = DeriveMode(Value);
+        }
+    }
+
+    private string DeriveMode(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return AllowAuto ? ModeAuto : ModePlain;
+        }
+
+        if (value.StartsWith(CommonPrefix, StringComparison.Ordinal))
+        {
+            return ModeCommon;
+        }
+
+        if (value.StartsWith(ThemePrefix, StringComparison.Ordinal))
+        {
+            return ModeTheme;
+        }
+
+        return ModePlain;
+    }
+
+    private async Task OnModeChanged(ChangeEventArgs args)
+    {
+        var next = args.Value?.ToString() ?? ModePlain;
+        if (string.Equals(next, _mode, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _modeOverriddenByUser = true;
+        _mode = next;
+
+        // 切换到不同模式时调整 Value 形态，保留已有信息（plain → common 时尝试沿用 KeyHint）
+        switch (_mode)
+        {
+            case ModeAuto:
+                await EmitAsync(string.Empty);
+                break;
+
+            case ModePlain:
+                await EmitAsync(GetPlainValue());
+                break;
+
+            case ModeCommon:
+                var key = GetCommonKey();
+                if (string.IsNullOrWhiteSpace(key))
+                {
+                    key = SuggestKey();
+                }
+
+                await EmitAsync(CommonPrefix + key);
+                break;
+
+            // Theme 模式不可由用户主动切入，下拉中只在已是 Theme 引用时显示
+        }
+    }
+
+    private async Task OnPlainInput(ChangeEventArgs args)
+    {
+        await EmitAsync(args.Value?.ToString() ?? string.Empty);
+    }
+
+    private async Task OnKeyInput(ChangeEventArgs args)
+    {
+        var raw = args.Value?.ToString() ?? string.Empty;
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith(CommonPrefix, StringComparison.Ordinal))
+        {
+            trimmed = trimmed[CommonPrefix.Length..].Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            trimmed = SuggestKey();
+        }
+
+        await EmitAsync(CommonPrefix + trimmed);
+    }
+
+    private async Task OnOverrideInput(string key, string languageCode, ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        await OverrideChanged.InvokeAsync(new BocchiI18nFieldOverrideChange
+        {
+            Key = key,
+            LanguageCode = languageCode,
+            Value = value,
+        });
+    }
+
+    private string ReadOverrideSafe(string key, string languageCode)
+        => ReadOverride is null ? string.Empty : ReadOverride(key, languageCode) ?? string.Empty;
+
+    private string GetPlainValue()
+    {
+        if (string.IsNullOrEmpty(Value))
+        {
+            return string.Empty;
+        }
+
+        if (Value.StartsWith(CommonPrefix, StringComparison.Ordinal)
+            || Value.StartsWith(ThemePrefix, StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        return Value;
+    }
+
+    private string GetCommonKey()
+        => Value.StartsWith(CommonPrefix, StringComparison.Ordinal)
+            ? Value[CommonPrefix.Length..]
+            : string.Empty;
+
+    private string GetThemeKey()
+        => Value.StartsWith(ThemePrefix, StringComparison.Ordinal)
+            ? Value[ThemePrefix.Length..]
+            : string.Empty;
+
+    private string SuggestKey()
+    {
+        if (!string.IsNullOrWhiteSpace(KeyHint))
+        {
+            return KeyHint.Trim();
+        }
+
+        return "custom.unnamed-" + Guid.NewGuid().ToString("N")[..8];
+    }
+
+    private Task EmitAsync(string next)
+        => ValueChanged.HasDelegate ? ValueChanged.InvokeAsync(next) : Task.CompletedTask;
+}

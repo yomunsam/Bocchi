@@ -1,76 +1,88 @@
+/* Settings 子页面的纵向二级导航。视觉上与左主 sidebar 同款：
+   - 紧凑、单行、无描述；
+   - active 通过 3px 粉色左竖条 + 8% 粉底体现，不再使用整张粉色卡片，避免与 sidebar 视觉打架。 */
 .bocchi-settings-nav {
     position: sticky;
     top: 5.4rem;
     display: grid;
-    gap: 0.5rem;
+    gap: 0.15rem;
+    padding: 0.35rem 0;
 }
 
 .bocchi-settings-nav__item {
+    position: relative;
     display: grid;
-    grid-template-columns: 2.25rem minmax(0, 1fr);
-    gap: 0.65rem;
+    grid-template-columns: 1.4rem minmax(0, 1fr);
+    gap: 0.6rem;
     align-items: center;
-    border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
-    color: var(--bocchi-text);
-    padding: 0.7rem;
+    border-radius: var(--bocchi-radius-sm);
+    color: var(--bocchi-text-muted);
+    padding: 0.45rem 0.7rem 0.45rem 0.85rem;
     text-decoration: none;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    transition: background 120ms ease, color 120ms ease;
 }
 
 .bocchi-settings-nav__item:hover {
-    border-color: color-mix(in srgb, var(--bocchi-action) 32%, var(--bocchi-border));
-    transform: none;
+    background: var(--bocchi-action-soft);
+    color: var(--bocchi-text);
 }
 
 .bocchi-settings-nav__item--active {
-    border-color: color-mix(in srgb, var(--bocchi-action) 42%, var(--bocchi-border));
-    background: color-mix(in srgb, var(--bocchi-surface-pink) 72%, var(--bocchi-surface));
+    background: var(--bocchi-action-soft-strong);
+    color: var(--bocchi-nav-active-text);
+    font-weight: 680;
 }
 
-.bocchi-settings-nav__item strong,
-.bocchi-settings-nav__item small {
-    display: block;
+.bocchi-settings-nav__item--active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.4rem;
+    bottom: 0.4rem;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--bocchi-nav-active-bar);
+}
+
+.bocchi-settings-nav__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: currentColor;
+    opacity: 0.85;
+}
+
+.bocchi-settings-nav__icon ::deep svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.bocchi-settings-nav__item--active .bocchi-settings-nav__icon {
+    color: var(--bocchi-nav-active-bar);
+    opacity: 1;
+}
+
+.bocchi-settings-nav__label {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.bocchi-settings-nav__item strong {
-    font-size: 0.9rem;
-}
-
-.bocchi-settings-nav__item small {
-    margin-top: 0.12rem;
-    color: var(--bocchi-text-muted);
-    font-size: 0.76rem;
-}
-
-.bocchi-settings-nav__icon {
-    display: inline-flex;
-    width: 2.25rem;
-    height: 2.25rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    background: var(--bocchi-surface-soft);
-    color: var(--bocchi-blue-strong);
-}
-
-.bocchi-settings-nav__icon ::deep svg {
-    width: 1.05rem;
-    height: 1.05rem;
-}
-
 @media (max-width: 900px) {
+    /* 窄屏改成横向滚动条形态，避免占据过多空间。 */
     .bocchi-settings-nav {
         position: static;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        overflow-x: auto;
+        gap: 0.25rem;
+        padding: 0.25rem 0 0.5rem;
+        scrollbar-width: thin;
     }
-}
 
-@media (max-width: 620px) {
-    .bocchi-settings-nav {
-        grid-template-columns: 1fr;
+    .bocchi-settings-nav__item {
+        grid-template-columns: 1.1rem max-content;
     }
 }

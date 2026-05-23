@@ -10,23 +10,23 @@
 <PageTitle>Publish · Bocchi</PageTitle>
 
 <article class="bocchi-shell">
-    <header class="bocchi-page-heading">
-        <span class="bocchi-page-heading__eyebrow">Publish / 构建</span>
-        <h1>Publish looks gentle.</h1>
-        <p>把内容 workspace 生成为静态站点，写入 <code>output/public/</code>。普通入口先显示发布检查状态，高级日志和产物清单仍然保留给排错。</p>
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">站点 / 发布</span>
+        <h1>发布站点</h1>
+        <p>把内容 workspace 生成为静态站点，输出到 <code>output/public/</code>。日常发布只看顶部状态即可，详细日志和产物清单收纳在折叠区。</p>
     </header>
 
     <div class="bocchi-two-column">
         <section aria-labelledby="publish-heading" class="bocchi-panel">
-            <h2 id="publish-heading">Run publish</h2>
+            <h2 id="publish-heading">运行发布</h2>
             <form class="bocchi-form-grid" @onsubmit="RunAsync" @onsubmit:preventDefault>
                 <label>
-                    前台业务 Theme id（可选）
-                    <input type="text" @bind="_frontendThemeId" placeholder="留空使用 site.yaml 的 defaultThemeId" />
+                    前台 Theme id（可选）
+                    <input type="text" @bind="_frontendThemeId" placeholder="留空则使用 site.yaml 的 defaultThemeId" />
                 </label>
 
                 <label>
-                    环境
+                    构建环境
                     <input type="text" @bind="_environmentName" />
                 </label>
 
@@ -36,21 +36,21 @@
                 </label>
 
                 <div class="bocchi-inline-actions">
-                    <button type="submit" disabled="@_busy">@(_busy ? "Publishing..." : "Publish now")</button>
-                    <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">Download zip</a>
+                    <button type="submit" disabled="@_busy">@(_busy ? "发布中..." : "立即发布")</button>
+                    <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">下载 Zip</a>
                 </div>
             </form>
 
             @if (_lastResult is not null)
             {
-                <BocchiListRow Kicker="Last publish" Title="@PublishResultTitle(_lastResult.Status)">
+                <BocchiListRow Kicker="最近一次" Title="@PublishResultTitle(_lastResult.Status)">
                     <ChildContent>
                         <p>@PublishResultDescription(_lastResult)</p>
                     </ChildContent>
                     <Metadata>
                         <BocchiStatusPill Tone="@BuildStatusTone(_lastResult.Status)">@_lastResult.Status</BocchiStatusPill>
                         <span>@_lastResult.Duration.TotalSeconds.ToString("F2")s</span>
-                        <span>@_lastResult.Artifacts.Count artifacts</span>
+                        <span>@_lastResult.Artifacts.Count 个产物</span>
                         @if (_lastResult.Fingerprint is not null)
                         {
                             <span><code>@ShortFingerprint(_lastResult.Fingerprint.Value)</code></span>
@@ -59,17 +59,17 @@
                 </BocchiListRow>
 
                 <details class="bocchi-advanced-details">
-                    <summary>Advanced log (@_lastResult.Logs.Count)</summary>
+                    <summary>详细日志（@_lastResult.Logs.Count）</summary>
                     <pre>@string.Join('\n', _lastResult.Logs.Select(l => $"[{l.OccurredAt:HH:mm:ss}] {l.Level,-7} {l.Stage,-28} {l.Message}"))</pre>
                 </details>
 
                 <details class="bocchi-advanced-details">
-                    <summary>Artifacts (@_lastResult.Artifacts.Count)</summary>
+                    <summary>产物清单（@_lastResult.Artifacts.Count）</summary>
                     @foreach (var artifact in _lastResult.Artifacts)
                     {
                         <BocchiListRow Kicker="@artifact.Kind.ToString()" Title="@artifact.Path">
                             <Metadata>
-                                <span>@artifact.SizeBytes bytes</span>
+                                <span>@artifact.SizeBytes 字节</span>
                             </Metadata>
                         </BocchiListRow>
                     }
@@ -78,7 +78,7 @@
         </section>
 
         <aside class="bocchi-panel bocchi-panel--soft" aria-labelledby="paths-heading">
-            <h2 id="paths-heading">Output</h2>
+            <h2 id="paths-heading">输出路径</h2>
             <dl class="bocchi-meta-list">
                 <div>
                     <dt>Theme 输入</dt>
@@ -93,19 +93,19 @@
     </div>
 
     <section aria-labelledby="history-heading" class="bocchi-panel">
-        <h2 id="history-heading">Recent publishes</h2>
+        <h2 id="history-heading">近期发布记录</h2>
         @if (_recent is null)
         {
             <p>读取中…</p>
         }
         else if (_recent.Count == 0)
         {
-            <BocchiListRow Kicker="Empty" Title="还没有发布记录">
+            <BocchiListRow Kicker="空" Title="还没有发布记录">
                 <ChildContent>
-                    <p>跑一次 Publish 后，这里会用简单列表展示最近结果。</p>
+                    <p>跑一次发布后，这里会用简单列表展示最近结果。</p>
                 </ChildContent>
                 <Metadata>
-                    <BocchiStatusPill Tone="info">Ready when you are</BocchiStatusPill>
+                    <BocchiStatusPill Tone="info">随时可以发布</BocchiStatusPill>
                 </Metadata>
             </BocchiListRow>
         }
@@ -113,9 +113,9 @@
         {
             @foreach (var run in _recent)
             {
-                <BocchiListRow Kicker="@run.Mode" Title="@($"Run #{run.Id}")">
+                <BocchiListRow Kicker="@run.Mode" Title="@($"#{run.Id}")">
                     <ChildContent>
-                        <p>@(run.Reason ?? "Publish run recorded.")</p>
+                        <p>@(run.Reason ?? "一次发布记录。")</p>
                     </ChildContent>
                     <Metadata>
                         <BocchiStatusPill Tone="@BuildStatusTone(run.Status)">@run.Status</BocchiStatusPill>
@@ -192,9 +192,9 @@
     private static string PublishResultTitle(BuildStatus status)
         => status switch
         {
-            BuildStatus.Succeeded => "Publish looks okay",
-            BuildStatus.Skipped => "Nothing changed",
-            _ => "Needs a quick look",
+            BuildStatus.Succeeded => "发布成功",
+            BuildStatus.Skipped => "内容没有变化",
+            _ => "需要检查一下",
         };
 
     /// <summary>为最近一次构建生成轻量说明。</summary>

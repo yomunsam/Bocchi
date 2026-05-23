@@ -4,16 +4,16 @@
 <nav class="bocchi-settings-nav" aria-label='@I18n["settings.nav.aria"]'>
     @foreach (var item in Items)
     {
+        @* 紧凑式 sub-nav：每项 icon + 标题一行，描述移除（hub 才需要解释，进入子页就不再重复）。
+           active 与 sidebar 同款 soft 风格：左侧 3px 粉条 + 8% 粉底。 *@
         <a href="@item.Url"
            class="@ItemClass(item)"
-           aria-current="@AriaCurrent(item)">
+           aria-current="@AriaCurrent(item)"
+           title='@I18n[item.DescriptionKey]'>
             <span class="bocchi-settings-nav__icon" aria-hidden="true">
                 <Blazicon Svg="@item.Icon" />
             </span>
-            <span>
-                <strong>@I18n[item.TitleKey]</strong>
-                <small>@I18n[item.DescriptionKey]</small>
-            </span>
+            <span class="bocchi-settings-nav__label">@I18n[item.TitleKey]</span>
         </a>
     }
 </nav>
