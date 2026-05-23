@@ -92,6 +92,7 @@ try
     builder.Services.AddScoped<DashboardAiClient>();
     builder.Services.AddSingleton<DashboardLocalizationService>();
     builder.Services.AddScoped<ContentEditingService>();
+    builder.Services.AddScoped<EditorDraftService>();
     builder.Services.AddScoped<NoteCreationService>();
     builder.Services.AddScoped<PreviewRouteMapService>();
     builder.Services.AddScoped<PreviewHost>();

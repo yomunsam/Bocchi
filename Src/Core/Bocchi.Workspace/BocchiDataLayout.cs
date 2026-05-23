@@ -54,6 +54,9 @@ public sealed record BocchiDataLayout
     /// <summary>Bocchi / Home Server 状态目录（SQLite、Data Protection keys、Theme 配置等）。</summary>
     public string StateDirectory => Path.Combine(DataRoot, "state");
 
+    /// <summary>编辑器尚未保存到 workspace 的临时草稿目录；它属于 Home Server 状态，不是内容事实源。</summary>
+    public string EditorDraftsDirectory => Path.Combine(StateDirectory, "editor-drafts");
+
     /// <summary>SQLite 状态数据库路径。</summary>
     public string SqliteDatabasePath => Path.Combine(StateDirectory, "bocchi.sqlite");
 

@@ -8,6 +8,7 @@
 @using YamlDotNet.Core
 @using YamlDotNet.RepresentationModel
 @inject ContentEditingService Editor
+@inject EditorDraftService Drafts
 @inject CategoryTreeService Categories
 @inject Bocchi.Workspace.Content.MarkdownPipeline Markdown
 @inject ContentScanner Scanner
@@ -22,7 +23,7 @@
 <PageTitle>@EditorPageTitle · Bocchi</PageTitle>
 
 <article class="bocchi-shell bocchi-editor-page">
-    @if (_file is not null && _error is null)
+    @if (HasEditorDocument && _error is null)
     {
         <header class="bocchi-editor-commandbar">
             <a class="bocchi-editor-commandbar__back" href="@BackUrl" aria-label="返回列表">
@@ -34,14 +35,58 @@
             </div>
             <div class="bocchi-editor-commandbar__actions">
                 <BocchiStatusPill Tone="@(_saved ? "success" : IsDirty ? "warning" : "info")">@EditorStateLabel</BocchiStatusPill>
-                <button type="button" @onclick="SaveAsync" disabled="@_busy">
-                    <Blazicon Svg="Lucide.Save" />
-                    @(_busy ? "保存中..." : "保存")
-                </button>
-                <button type="button" class="secondary" @onclick="PublishAsync" disabled="@_busy">
-                    <Blazicon Svg="Lucide.Send" />
-                    发布
-                </button>
+                @if (IsUnsavedDraft)
+                {
+                    <button type="button" @onclick="SaveDraftAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Save" />
+                        @(_busy ? "保存中..." : "暂存")
+                    </button>
+                    <button type="button" class="secondary" @onclick="PublishAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Send" />
+                        发布
+                    </button>
+                }
+                else if (CurrentStatus == ContentStatus.Published)
+                {
+                    <button type="button" class="secondary" @onclick="WithdrawAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.EyeOff" />
+                        撤下
+                    </button>
+                    <button type="button" @onclick="SaveAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Save" />
+                        @(_busy ? "保存中..." : "更新")
+                    </button>
+                    <button type="button" class="secondary" @onclick="ArchiveAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Archive" />
+                        归档
+                    </button>
+                }
+                else if (CurrentStatus == ContentStatus.Archived)
+                {
+                    <button type="button" @onclick="UpdateArchivedAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Save" />
+                        @(_busy ? "保存中..." : "更新")
+                    </button>
+                    <button type="button" class="secondary bocchi-editor-commandbar__danger" @onclick="OpenPermanentDeleteConfirm" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Trash2" />
+                        彻底删除
+                    </button>
+                }
+                else
+                {
+                    <button type="button" @onclick="SaveAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Save" />
+                        @(_busy ? "保存中..." : "更新")
+                    </button>
+                    <button type="button" class="secondary" @onclick="PublishAsync" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Send" />
+                        发布
+                    </button>
+                    <button type="button" class="secondary bocchi-editor-commandbar__danger" @onclick="OpenDraftDeleteConfirm" disabled="@_busy">
+                        <Blazicon Svg="Lucide.Trash2" />
+                        删除
+                    </button>
+                }
             </div>
         </header>
     }
@@ -54,7 +99,7 @@
         </header>
     }
 
-    @if (string.IsNullOrWhiteSpace(Path) && _file is null)
+    @if (!HasEditorDocument && string.IsNullOrWhiteSpace(Path) && string.IsNullOrWhiteSpace(Draft))
     {
         <section class="bocchi-panel" aria-labelledby="pick-file-heading">
             <h2 id="pick-file-heading">选择要编辑的 Markdown</h2>
@@ -99,7 +144,7 @@
             <a class="bocchi-button secondary" href="@BackUrl">返回</a>
         </section>
     }
-    else if (_file is null)
+    else if (!HasEditorDocument)
     {
         <section class="bocchi-panel">
             <p>正在打开编辑器...</p>
@@ -112,7 +157,7 @@
                 <section class="bocchi-writing-card" aria-labelledby="writing-heading">
                     <div class="bocchi-writing-card__meta">
                         <span>@EditorKindLabel</span>
-                        <code>@_file.RelativePath</code>
+                        <code>@EditorPathLabel</code>
                     </div>
                     <label class="bocchi-title-field">
                         <span class="bocchi-visually-hidden">标题</span>
@@ -153,28 +198,24 @@
                 </details>
             </section>
 
-            <aside class="bocchi-editor-side" aria-label="发布设置">
+            <aside class="bocchi-editor-side" aria-label="内容状态">
                 <details class="bocchi-panel bocchi-panel--soft bocchi-publish-panel" open>
                     <summary class="bocchi-editor-details-summary">
-                        <span>发布状态</span>
+                        <span>内容状态</span>
                         <BocchiStatusPill Tone="@StatusTone(CurrentStatus)">@StatusLabel(CurrentStatus)</BocchiStatusPill>
                     </summary>
-                    <label class="bocchi-editor-field">
-                        状态
-                        <select @bind="_status">
-                            <option value="@ContentStatus.Draft.ToString()">草稿</option>
-                            <option value="@ContentStatus.Published.ToString()">已发布</option>
-                            <option value="@ContentStatus.Archived.ToString()">已归档</option>
-                        </select>
-                    </label>
                     <dl class="bocchi-meta-list">
                         <div>
                             <dt>类型</dt>
                             <dd>@EditorKindLabel</dd>
                         </div>
                         <div>
-                            <dt>状态</dt>
+                            <dt>可见性</dt>
                             <dd>@StatusLabel(CurrentStatus)</dd>
+                        </div>
+                        <div>
+                            <dt>位置</dt>
+                            <dd>@EditorPathLabel</dd>
                         </div>
                         <div>
                             <dt>正文</dt>
@@ -182,7 +223,7 @@
                         </div>
                         <div>
                             <dt>最后保存</dt>
-                            <dd>@_file.LastModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture)</dd>
+                            <dd>@LastSavedLabel</dd>
                         </div>
                     </dl>
                     <p>@DiffSummary</p>
@@ -314,6 +355,19 @@
     <p>AI生成路径标识失败，请手动输入或稍后再试</p>
 </BocchiDialog>
 
+<BocchiDialog Open="@_showDeleteConfirm"
+              Title="@DeleteConfirmTitle"
+              PrimaryText="@DeleteConfirmPrimaryText"
+              SecondaryText="取消"
+              PrimaryClass="bocchi-dialog__danger"
+              PrimaryDisabled="@_busy"
+              CloseOnBackdrop="true"
+              OnPrimary="ConfirmDeleteAsync"
+              OnSecondary="CloseDeleteConfirm"
+              OnDismiss="CloseDeleteConfirm">
+    <p>@DeleteConfirmBody</p>
+</BocchiDialog>
+
 @code {
     /// <summary>查询字符串中的内容 workspace 相对路径。</summary>
     [SupplyParameterFromQuery(Name = "path")]
@@ -323,11 +377,18 @@
     [SupplyParameterFromQuery(Name = "kind")]
     public string? Kind { get; set; }
 
+    /// <summary>尚未保存到 workspace 的编辑器临时草稿 id。</summary>
+    [SupplyParameterFromQuery(Name = "draft")]
+    public string? Draft { get; set; }
+
     /// <summary>未指定 path 时展示的内容候选列表。</summary>
     private IReadOnlyList<ContentSummary> _summaries = [];
 
     /// <summary>当前编辑文件。</summary>
     private EditableContentFile? _file;
+
+    /// <summary>当前临时草稿；为空表示正在编辑已经落盘的内容文件。</summary>
+    private EditorDraftSession? _draftSession;
 
     /// <summary>当前 Theme 声明的 Page template 下拉选项。</summary>
     private IReadOnlyList<ThemePageTemplateOption> _pageTemplates = [];
@@ -416,13 +477,17 @@
     /// <summary>当前编辑缓冲区是否相对载入版本发生变化。</summary>
     private bool IsDirty => CurrentYamlSnapshot != _originalYaml || _markdown != _originalMarkdown;
 
-    private bool IsPageFile => _file?.RelativePath.StartsWith("pages/", StringComparison.OrdinalIgnoreCase) == true;
+    private bool HasEditorDocument => _file is not null || _draftSession is not null;
 
-    private bool IsPostFile => _file?.RelativePath.StartsWith("posts/", StringComparison.OrdinalIgnoreCase) == true;
+    private bool IsUnsavedDraft => _draftSession is not null && _file is null;
 
-    private bool IsWorkFile => _file?.RelativePath.StartsWith("works/", StringComparison.OrdinalIgnoreCase) == true;
+    private bool IsPageFile => CurrentKind() == ContentKind.Page;
 
-    private bool IsSlugManagedContent => IsPostFile || IsPageFile;
+    private bool IsPostFile => CurrentKind() == ContentKind.Post;
+
+    private bool IsWorkFile => CurrentKind() == ContentKind.Work;
+
+    private bool IsSlugManagedContent => IsPostFile || IsPageFile || IsWorkFile;
 
     private bool CanAutoChangeSlug => IsSlugManagedContent && !_pathLocked && CurrentStatus != ContentStatus.Published;
 
@@ -441,13 +506,13 @@
 
     private ContentStatus CurrentStatus => NormalizeStatus(_status);
 
-    private string EditorPageTitle => _file is null ? "Write" : _title.Length == 0 ? "Write" : _title;
+    private string EditorPageTitle => !HasEditorDocument ? "Write" : _title.Length == 0 ? "Write" : _title;
 
-    private string EditorKicker => _file is null ? "内容 / Markdown" : $"{EditorKindLabel} / 写作";
+    private string EditorKicker => !HasEditorDocument ? "内容 / Markdown" : $"{EditorKindLabel} / 写作";
 
-    private string EditorHeading => _file is null ? "Markdown 编辑器" : "写作与发布";
+    private string EditorHeading => !HasEditorDocument ? "Markdown 编辑器" : "写作与发布";
 
-    private string EditorDescription => _file is null
+    private string EditorDescription => !HasEditorDocument
         ? "新建或打开 Markdown 内容，完成正文、frontmatter 与预览。"
         : "先把标题、摘要和正文写清楚，再用右侧设置完成发布。保存后会立刻刷新内容索引。";
 
@@ -467,6 +532,23 @@
     };
 
     private string EditorStateLabel => _saved ? "已保存" : IsDirty ? "有未保存修改" : "正在编辑";
+
+    private string EditorPathLabel => IsUnsavedDraft
+        ? "未保存草稿"
+        : _file?.RelativePath ?? "未选择内容";
+
+    private string LastSavedLabel => IsUnsavedDraft
+        ? "尚未保存"
+        : _file?.LastModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture) ?? "-";
+
+    private string CurrentFallbackSlug => _file is not null
+        ? SlugFromPath(_file.RelativePath)
+        : CurrentKind() switch
+        {
+            ContentKind.Page => "new-page",
+            ContentKind.Work => "new-work",
+            _ => "new-post",
+        };
 
     private string TitlePlaceholder => CurrentKind() switch
     {
@@ -512,175 +594,6 @@
     private string CurrentYamlSnapshot
         => TryBuildYamlFromFields(out var yaml, out _) ? yaml : _yaml;
 
-    protected override async Task OnParametersSetAsync()
-    {
-        _saved = false;
-        _saveMessage = null;
-        _error = null;
-        if (string.IsNullOrWhiteSpace(Path))
-        {
-            if (TryParseCreateKind(Kind, out var createKind))
-            {
-                try
-                {
-                    _file = await Editor.CreateDraftAsync(createKind);
-                    await Scanner.ScanAsync();
-                    await LoadEditorOptionsAsync();
-                    LoadFileIntoEditor(_file);
-                    Path = _file.RelativePath;
-                    Nav.NavigateTo(ContentEditingService.EditUrl(_file.RelativePath), replace: true);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    _error = ex.Message;
-                }
-
-                return;
-            }
-
-            _summaries = (await Store.ListContentSummariesAsync(null))
-                .Where(x => IsMarkdownPath(x.RelativePath))
-                .ToList();
-            _file = null;
-            return;
-        }
-
-        if (!IsMarkdownPath(Path))
-        {
-            _error = "这个入口只编辑 Markdown 内容；站点配置和友链会有独立表单。";
-            return;
-        }
-
-        try
-        {
-            _file = await Editor.ReadAsync(Path);
-            await LoadEditorOptionsAsync();
-            LoadFileIntoEditor(_file);
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
-        {
-            _error = ex.Message;
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender)
-        {
-            return;
-        }
-
-        _aiAvailability = await Ai.GetAvailabilityAsync();
-        _aiAvailabilityChecked = true;
-        StateHasChanged();
-    }
-
-    /// <summary>保存文件、刷新扫描投影，并重算预览。</summary>
-    private async Task SaveAsync()
-    {
-        if (string.IsNullOrWhiteSpace(Path) || _busy)
-        {
-            return;
-        }
-
-        if (!TryPrepareSlugForSave(out var slugError))
-        {
-            _saveMessage = slugError;
-            return;
-        }
-
-        if (IsSlugManagedContent && CurrentStatus == ContentStatus.Published)
-        {
-            _pathLocked = true;
-        }
-
-        if (!TryBuildYamlFromFields(out var yamlToSave, out var yamlError))
-        {
-            _saveMessage = yamlError;
-            return;
-        }
-
-        _busy = true;
-        try
-        {
-            await Editor.SaveAsync(Path, yamlToSave, _markdown);
-            await Scanner.ScanAsync();
-            _yaml = yamlToSave;
-            _originalYaml = yamlToSave;
-            _originalMarkdown = _markdown;
-            RefreshPreview();
-            _saved = true;
-            _saveMessage = "已保存并刷新内容索引。";
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    /// <summary>把当前草稿切到 Published 后保存；Post 缺发布时间时补当前时间。</summary>
-    private async Task PublishAsync()
-    {
-        _status = ContentStatus.Published.ToString();
-        if (IsSlugManagedContent)
-        {
-            _pathLocked = true;
-        }
-
-        if (IsPostFile && string.IsNullOrWhiteSpace(_publishedAt))
-        {
-            _publishedAt = FormatDateTime(Time.GetUtcNow());
-        }
-
-        await SaveAsync();
-    }
-
-    private Task OnMarkdownChangedAsync(string value)
-    {
-        _markdown = value;
-        _saved = false;
-        RefreshPreview();
-        return Task.CompletedTask;
-    }
-
-    /// <summary>用编辑缓冲区重算预览。</summary>
-    private void RefreshPreview()
-    {
-        _previewHtml = Markdown.RenderHtml(_markdown);
-    }
-
-    private void LoadFileIntoEditor(EditableContentFile file)
-    {
-        _yaml = file.Yaml;
-        _markdown = file.Markdown;
-        _originalYaml = file.Yaml;
-        _originalMarkdown = file.Markdown;
-        _previewHtml = file.PreviewHtml;
-        _saved = false;
-        LoadMetadataFromYaml(file);
-    }
-
-    /// <summary>按当前内容类型载入写作页所需的下拉选项。</summary>
-    private async Task LoadEditorOptionsAsync()
-    {
-        _postCategories = IsPostFile
-            ? FlattenCategoryOptions((await Categories.GetAsync(ContentKind.Post)).Roots)
-            : [];
-
-        if (!IsPageFile)
-        {
-            _pageTemplates = [];
-            return;
-        }
-
-        var settings = await SiteProfile.GetAsync();
-        var themeId = string.IsNullOrWhiteSpace(settings.DefaultThemeId)
-            ? (await ThemeSettings.GetDefaultAsync()).ThemeId
-            : settings.DefaultThemeId;
-        var contract = await ThemeSettings.GetPageContractAsync(themeId, I18n.CurrentLanguage.Code);
-        _pageTemplates = contract.PageTemplates;
-    }
-
     /// <summary>把树形分类压平成下拉选项，并保留层级深度用于展示缩进。</summary>
     private static IReadOnlyList<CategoryOption> FlattenCategoryOptions(IEnumerable<CategoryTreeNode> roots)
     {
@@ -710,9 +623,12 @@
 
     /// <summary>从 YAML 载入常用字段；未知字段保留在原始 YAML 中，保存时不会被主动删除。</summary>
     private void LoadMetadataFromYaml(EditableContentFile file)
+        => LoadMetadataFromYaml(file.Yaml, SlugFromPath(file.RelativePath));
+
+    /// <summary>从 YAML 载入常用字段；临时草稿会使用内容类型默认 slug 作为 fallback。</summary>
+    private void LoadMetadataFromYaml(string yaml, string fallbackSlug)
     {
-        var root = ParseYaml(file.Yaml);
-        var fallbackSlug = SlugFromPath(file.RelativePath);
+        var root = ParseYaml(yaml);
         _title = ReadString(root, "title") ?? string.Empty;
         _slug = ReadString(root, "slug") ?? fallbackSlug;
         _status = NormalizeStatus(ReadString(root, "status")).ToString();
@@ -785,17 +701,29 @@
 
     private ContentKind? CurrentKind()
     {
-        if (IsPageFile)
+        if (_draftSession is not null)
+        {
+            return _draftSession.Kind;
+        }
+
+        var relativePath = _file?.RelativePath ?? Path;
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return null;
+        }
+
+        var normalized = relativePath.Replace('\\', '/');
+        if (normalized.StartsWith("pages/", StringComparison.OrdinalIgnoreCase))
         {
             return ContentKind.Page;
         }
 
-        if (IsWorkFile)
+        if (normalized.StartsWith("works/", StringComparison.OrdinalIgnoreCase))
         {
             return ContentKind.Work;
         }
 
-        return IsPostFile ? ContentKind.Post : null;
+        return normalized.StartsWith("posts/", StringComparison.OrdinalIgnoreCase) ? ContentKind.Post : null;
     }
 
     private static bool TryParseCreateKind(string? value, out ContentKind kind)

@@ -45,3 +45,8 @@
     gap: 0.55rem;
     justify-content: flex-end;
 }
+
+.bocchi-dialog__actions .bocchi-dialog__danger {
+    background: var(--bocchi-danger-strong);
+    color: var(--bocchi-surface);
+}

@@ -58,83 +58,6 @@ public sealed class ContentEditingService
             File.GetLastWriteTimeUtc(fullPath));
     }
 
-    /// <summary>创建指定类型的 Markdown 草稿，并返回可编辑内容。</summary>
-    public Task<EditableContentFile> CreateDraftAsync(ContentKind kind, CancellationToken cancellationToken = default)
-        => kind switch
-        {
-            ContentKind.Post => CreatePostDraftAsync(cancellationToken),
-            ContentKind.Page => CreatePageDraftAsync(cancellationToken),
-            ContentKind.Work => CreateWorkDraftAsync(cancellationToken),
-            _ => throw new InvalidOperationException("这个内容类型暂时没有完整 Markdown 编辑器。"),
-        };
-
-    /// <summary>创建一个新的 Post 草稿文件，并返回可编辑内容。</summary>
-    public async Task<EditableContentFile> CreatePostDraftAsync(CancellationToken cancellationToken = default)
-    {
-        var now = _time.GetUtcNow();
-        var year = now.Year.ToString(CultureInfo.InvariantCulture);
-        var slug = CreateUniqueYearScopedSlug(_layout.Workspace.PostsDirectory, year, "new-post");
-        var directory = Path.Combine(_layout.Workspace.PostsDirectory, year, slug);
-        Directory.CreateDirectory(directory);
-        var file = Path.Combine(directory, "index.md");
-        var relativePath = _layout.Workspace.ToRelative(file);
-        var yaml = $"""
-            title: New Post
-            slug: {slug}
-            status: draft
-            updatedAt: {FormatDateTime(now)}
-            category:
-            tags: []
-            summary:
-            """;
-        await SaveNewAsync(relativePath, yaml, "# New Post\n\n", cancellationToken).ConfigureAwait(false);
-        return await ReadAsync(relativePath, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>创建一个新的 Page 草稿文件，并返回可编辑内容。</summary>
-    public async Task<EditableContentFile> CreatePageDraftAsync(CancellationToken cancellationToken = default)
-    {
-        var slug = CreateUniqueSlug(_layout.Workspace.PagesDirectory, "new-page");
-        var directory = Path.Combine(_layout.Workspace.PagesDirectory, slug);
-        Directory.CreateDirectory(directory);
-        var file = Path.Combine(directory, "index.md");
-        var relativePath = _layout.Workspace.ToRelative(file);
-        var yaml = $"""
-            title: New Page
-            slug: {slug}
-            status: draft
-            template: normal
-            order: 0
-            showInNavigation: false
-            """;
-        await SaveNewAsync(relativePath, yaml, string.Empty, cancellationToken).ConfigureAwait(false);
-        return await ReadAsync(relativePath, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>创建一个新的 Work 草稿文件；作品仍然复用 Markdown 编辑器和年份目录约定。</summary>
-    public async Task<EditableContentFile> CreateWorkDraftAsync(CancellationToken cancellationToken = default)
-    {
-        var now = _time.GetUtcNow();
-        var year = now.Year.ToString(CultureInfo.InvariantCulture);
-        var slug = CreateUniqueYearScopedSlug(_layout.Workspace.WorksDirectory, year, "new-work");
-        var directory = Path.Combine(_layout.Workspace.WorksDirectory, year, slug);
-        Directory.CreateDirectory(directory);
-        var file = Path.Combine(directory, "index.md");
-        var relativePath = _layout.Workspace.ToRelative(file);
-        var yaml = $"""
-            title: New Work
-            slug: {slug}
-            status: draft
-            role:
-            period:
-            stack: []
-            summary:
-            featured: false
-            """;
-        await SaveNewAsync(relativePath, yaml, "# New Work\n\n", cancellationToken).ConfigureAwait(false);
-        return await ReadAsync(relativePath, cancellationToken).ConfigureAwait(false);
-    }
-
     /// <summary>保存 frontmatter 与 Markdown 正文，并保持文件仍是单一事实来源。</summary>
     public async Task SaveAsync(string relativePath, string yaml, string markdown, CancellationToken cancellationToken = default)
     {
@@ -147,8 +70,30 @@ public sealed class ContentEditingService
         await File.WriteAllTextAsync(fullPath, content, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>把编辑器临时草稿第一次落到内容 workspace，并把临时资产迁入最终内容目录。</summary>
+    public async Task<EditableContentFile> CreateFromDraftAsync(
+        ContentKind kind,
+        string yaml,
+        string markdown,
+        string? sourceAssetsDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        if (kind is not (ContentKind.Post or ContentKind.Page or ContentKind.Work))
+        {
+            throw new InvalidOperationException("这个内容类型暂时不能从编辑器临时草稿落盘。");
+        }
+
+        var now = _time.GetUtcNow();
+        var normalizedYaml = (yaml ?? string.Empty).Trim();
+        var slug = ReadSlugForNewContent(kind, normalizedYaml);
+        var relativePath = CreateRelativePathForNewContent(kind, slug, now);
+        await SaveNewAsync(relativePath, normalizedYaml, markdown, cancellationToken).ConfigureAwait(false);
+        MoveDraftAssets(sourceAssetsDirectory, ResolveContentFile(relativePath));
+        return await ReadAsync(relativePath, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>规范化候选路径标识，并按最终 URL 作用域检查是否已被其它内容占用。</summary>
-    public ContentSlugValidationResult ValidateUrlSlug(ContentKind kind, string currentRelativePath, string? candidate)
+    public ContentSlugValidationResult ValidateUrlSlug(ContentKind kind, string? currentRelativePath, string? candidate)
     {
         var slug = ContentSlug.Normalize(candidate);
         if (string.IsNullOrWhiteSpace(slug))
@@ -156,11 +101,33 @@ public sealed class ContentEditingService
             return ContentSlugValidationResult.Unavailable(slug, "路径标识不能为空。");
         }
 
-        var currentFullPath = ResolveContentFile(currentRelativePath);
+        var currentFullPath = string.IsNullOrWhiteSpace(currentRelativePath)
+            ? null
+            : ResolveContentFile(currentRelativePath);
         return kind switch
         {
             ContentKind.Page => ValidatePageSlug(currentFullPath, slug),
-            ContentKind.Post => ValidateYearScopedSlug(currentRelativePath, currentFullPath, _layout.Workspace.PostsDirectory, "posts", slug),
+            ContentKind.Post => ValidateYearScopedSlug(currentRelativePath, currentFullPath, _layout.Workspace.PostsDirectory, "posts", "文章", slug),
+            ContentKind.Work => ValidateYearScopedSlug(currentRelativePath, currentFullPath, _layout.Workspace.WorksDirectory, "works", "作品", slug),
+            _ => ContentSlugValidationResult.Available(slug),
+        };
+    }
+
+    /// <summary>校验尚未落盘的新内容 slug；Post/Work 使用当前年份作为最终 URL 作用域。</summary>
+    public ContentSlugValidationResult ValidateNewUrlSlug(ContentKind kind, string? candidate, string? year = null)
+    {
+        var slug = ContentSlug.Normalize(candidate);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return ContentSlugValidationResult.Unavailable(slug, "路径标识不能为空。");
+        }
+
+        year ??= _time.GetUtcNow().Year.ToString(CultureInfo.InvariantCulture);
+        return kind switch
+        {
+            ContentKind.Page => ValidatePageSlug(currentFullPath: null, slug),
+            ContentKind.Post => ValidateNewYearScopedSlug(_layout.Workspace.PostsDirectory, year, "文章", slug),
+            ContentKind.Work => ValidateNewYearScopedSlug(_layout.Workspace.WorksDirectory, year, "作品", slug),
             _ => ContentSlugValidationResult.Available(slug),
         };
     }
@@ -186,8 +153,16 @@ public sealed class ContentEditingService
     {
         cancellationToken.ThrowIfCancellationRequested();
         var fullPath = ResolveContentFile(relativePath);
+        var contentDirectory = Path.GetDirectoryName(fullPath);
+        if (IsIndexMarkdown(fullPath) && contentDirectory is not null)
+        {
+            Directory.Delete(contentDirectory, recursive: true);
+            PruneEmptyDirectories(Path.GetDirectoryName(contentDirectory));
+            return Task.CompletedTask;
+        }
+
         File.Delete(fullPath);
-        PruneEmptyDirectories(Path.GetDirectoryName(fullPath));
+        PruneEmptyDirectories(contentDirectory);
         return Task.CompletedTask;
     }
 
@@ -239,26 +214,64 @@ public sealed class ContentEditingService
         return fullPath;
     }
 
-    private static string CreateUniqueSlug(string root, string prefix)
-    {
-        var candidate = prefix;
-        var index = 2;
-        while (Directory.Exists(Path.Combine(root, candidate)))
-        {
-            candidate = $"{prefix}-{index.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-            index++;
-        }
-
-        return candidate;
-    }
-
-    private static string CreateUniqueYearScopedSlug(string root, string year, string prefix)
-        => CreateUniqueSlug(Path.Combine(root, year), prefix);
-
     private static string FormatDateTime(DateTimeOffset value)
         => value.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
 
-    private ContentSlugValidationResult ValidatePageSlug(string currentFullPath, string slug)
+    private string ReadSlugForNewContent(ContentKind kind, string yaml)
+    {
+        var root = ParseYaml(yaml);
+        var fallback = kind switch
+        {
+            ContentKind.Page => "new-page",
+            ContentKind.Work => "new-work",
+            _ => "new-post",
+        };
+        var slug = ContentSlug.Normalize(ReadYamlString(root, "slug") ?? fallback);
+        var validation = ValidateNewUrlSlug(kind, slug);
+        if (!validation.IsAvailable)
+        {
+            throw new InvalidOperationException(validation.Reason ?? "路径标识不可用。");
+        }
+
+        return validation.Slug;
+    }
+
+    private static string CreateRelativePathForNewContent(ContentKind kind, string slug, DateTimeOffset now)
+    {
+        var year = now.Year.ToString(CultureInfo.InvariantCulture);
+        return kind switch
+        {
+            ContentKind.Page => Path.Combine("pages", slug, "index.md"),
+            ContentKind.Work => Path.Combine("works", year, slug, "index.md"),
+            _ => Path.Combine("posts", year, slug, "index.md"),
+        };
+    }
+
+    private static void MoveDraftAssets(string? sourceAssetsDirectory, string finalContentFile)
+    {
+        if (string.IsNullOrWhiteSpace(sourceAssetsDirectory) || !Directory.Exists(sourceAssetsDirectory))
+        {
+            return;
+        }
+
+        if (!Directory.EnumerateFileSystemEntries(sourceAssetsDirectory).Any())
+        {
+            return;
+        }
+
+        var finalAssetsDirectory = Path.Combine(Path.GetDirectoryName(finalContentFile)!, "assets");
+        if (Directory.Exists(finalAssetsDirectory))
+        {
+            Directory.Delete(finalAssetsDirectory, recursive: true);
+        }
+
+        Directory.Move(sourceAssetsDirectory, finalAssetsDirectory);
+    }
+
+    private static bool IsIndexMarkdown(string fullPath)
+        => string.Equals(Path.GetFileName(fullPath), "index.md", StringComparison.OrdinalIgnoreCase);
+
+    private ContentSlugValidationResult ValidatePageSlug(string? currentFullPath, string slug)
     {
         if (ReservedTopLevelPageSlugs.Contains(slug))
         {
@@ -274,34 +287,48 @@ public sealed class ContentEditingService
     }
 
     private static ContentSlugValidationResult ValidateYearScopedSlug(
-        string currentRelativePath,
-        string currentFullPath,
+        string? currentRelativePath,
+        string? currentFullPath,
         string contentRoot,
         string expectedKindDirectory,
+        string kindLabel,
         string slug)
     {
-        if (!TryReadYearFromRelativePath(currentRelativePath, expectedKindDirectory, out var year))
+        if (string.IsNullOrWhiteSpace(currentRelativePath) ||
+            !TryReadYearFromRelativePath(currentRelativePath, expectedKindDirectory, out var year))
         {
             return ContentSlugValidationResult.Unavailable(slug, "当前内容路径无法判断发布年份。");
         }
 
         var yearRoot = Path.Combine(contentRoot, year);
         return IsSlugTaken(yearRoot, currentFullPath, slug)
-            ? ContentSlugValidationResult.Unavailable(slug, "这个路径标识已经被同一年份的其它文章使用。")
+            ? ContentSlugValidationResult.Unavailable(slug, $"这个路径标识已经被同一年份的其它{kindLabel}使用。")
             : ContentSlugValidationResult.Available(slug);
     }
 
-    private static bool IsSlugTaken(string root, string currentFullPath, string slug)
+    private static ContentSlugValidationResult ValidateNewYearScopedSlug(
+        string contentRoot,
+        string year,
+        string kindLabel,
+        string slug)
+    {
+        var yearRoot = Path.Combine(contentRoot, year);
+        return IsSlugTaken(yearRoot, currentFullPath: null, slug)
+            ? ContentSlugValidationResult.Unavailable(slug, $"这个路径标识已经被同一年份的其它{kindLabel}使用。")
+            : ContentSlugValidationResult.Available(slug);
+    }
+
+    private static bool IsSlugTaken(string root, string? currentFullPath, string slug)
     {
         if (!Directory.Exists(root))
         {
             return false;
         }
 
-        var current = Path.GetFullPath(currentFullPath);
+        var current = string.IsNullOrWhiteSpace(currentFullPath) ? null : Path.GetFullPath(currentFullPath);
         foreach (var indexFile in Directory.EnumerateFiles(root, "index.md", SearchOption.AllDirectories))
         {
-            if (string.Equals(Path.GetFullPath(indexFile), current, StringComparison.OrdinalIgnoreCase))
+            if (current is not null && string.Equals(Path.GetFullPath(indexFile), current, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

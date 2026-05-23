@@ -79,6 +79,11 @@
     gap: 0.42rem;
 }
 
+.bocchi-editor-commandbar__actions .bocchi-editor-commandbar__danger {
+    border-color: color-mix(in srgb, var(--bocchi-danger-strong) 42%, var(--bocchi-border));
+    color: var(--bocchi-danger-strong);
+}
+
 .bocchi-editor-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) clamp(19rem, 25vw, 23rem);

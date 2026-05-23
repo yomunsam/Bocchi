@@ -68,7 +68,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
-    public async Task ContentEditingService_CreatesPostAndPageDrafts()
+    public async Task EditorDraftService_CreatesPostAndPageDraftsWithoutWorkspaceFiles()
     {
         using var factory = new IsolatedDataRootWebApplicationFactory();
         using (await factory.CreateAdminClientAsync())
@@ -76,20 +76,19 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         }
 
         using var scope = factory.Services.CreateScope();
-        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        var drafts = scope.ServiceProvider.GetRequiredService<EditorDraftService>();
 
-        var post = await editor.CreateDraftAsync(ContentKind.Post);
-        var page = await editor.CreateDraftAsync(ContentKind.Page);
+        var post = await drafts.CreateAsync(ContentKind.Post);
+        var page = await drafts.CreateAsync(ContentKind.Page);
 
-        post.RelativePath.Should().StartWith("posts/");
-        post.RelativePath.Should().EndWith("/index.md");
         post.Yaml.Should().Contain("status: draft");
         post.Markdown.Should().Contain("# New Post");
-        File.Exists(Path.Combine(factory.DataRoot, "workspace", post.RelativePath)).Should().BeTrue();
-
-        page.RelativePath.Should().Be("pages/new-page/index.md");
         page.Yaml.Should().Contain("template: normal");
-        File.Exists(Path.Combine(factory.DataRoot, "workspace", page.RelativePath)).Should().BeTrue();
+        File.Exists(Path.Combine(factory.DataRoot, "state", "editor-drafts", post.DraftId, "content.md")).Should().BeTrue();
+        File.Exists(Path.Combine(factory.DataRoot, "state", "editor-drafts", page.DraftId, "content.md")).Should().BeTrue();
+        Directory.EnumerateFiles(Path.Combine(factory.DataRoot, "workspace"), "index.md", SearchOption.AllDirectories)
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -102,20 +101,25 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         using var scope = factory.Services.CreateScope();
         var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
-        var post = await editor.CreateDraftAsync(ContentKind.Post);
-        var page = await editor.CreateDraftAsync(ContentKind.Page);
+        var drafts = scope.ServiceProvider.GetRequiredService<EditorDraftService>();
+        var postDraft = await drafts.CreateAsync(ContentKind.Post);
+        var pageDraft = await drafts.CreateAsync(ContentKind.Page);
+        var post = await editor.CreateFromDraftAsync(
+            ContentKind.Post,
+            "title: 我的第一篇文章\nslug: 我的-第一篇文章\nstatus: draft",
+            postDraft.Markdown,
+            postDraft.AssetsDirectory);
+        var page = await editor.CreateFromDraftAsync(
+            ContentKind.Page,
+            "title: About\nslug: about\nstatus: draft",
+            pageDraft.Markdown,
+            pageDraft.AssetsDirectory);
 
         var normalized = editor.ValidateUrlSlug(ContentKind.Post, post.RelativePath, " 我的 第一篇文章！");
         normalized.IsAvailable.Should().BeTrue();
         normalized.Slug.Should().Be("我的-第一篇文章");
 
-        await editor.SaveAsync(
-            post.RelativePath,
-            "title: 我的第一篇文章\nslug: 我的-第一篇文章\nstatus: draft",
-            post.Markdown);
-        var otherPost = await editor.CreateDraftAsync(ContentKind.Post);
-
-        editor.ValidateUrlSlug(ContentKind.Post, otherPost.RelativePath, "我的 第一篇文章")
+        editor.ValidateNewUrlSlug(ContentKind.Post, "我的 第一篇文章")
             .IsAvailable.Should().BeFalse();
         editor.ValidateUrlSlug(ContentKind.Post, post.RelativePath, "我的 第一篇文章")
             .IsAvailable.Should().BeTrue();
@@ -148,9 +152,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("bocchi-codemirror-host");
         body.Should().Contain("data-bocchi-codemirror-host");
-        body.Should().Contain("posts/");
+        body.Should().Contain("未保存草稿");
+        body.Should().Contain("暂存");
+        body.Should().Contain("发布");
         body.Should().Contain("Frontmatter");
-        body.Should().Contain("发布状态");
+        body.Should().Contain("内容状态");
+        body.Should().NotContain("value=\"Published\"");
+        body.Should().NotContain("value=\"Archived\"");
         body.Should().Contain("内容设置");
         body.Should().Contain("AI助手");
         body.Should().Contain("value=\"Design\"");
@@ -160,7 +168,10 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         using var scope = factory.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IContentStateStore>();
         var posts = await store.ListContentSummariesAsync(ContentKind.Post);
-        posts.Should().ContainSingle(x => x.RelativePath.StartsWith("posts/", StringComparison.Ordinal));
+        posts.Should().BeEmpty();
+        Directory.EnumerateFiles(Path.Combine(factory.DataRoot, "workspace", "posts"), "index.md", SearchOption.AllDirectories)
+            .Should()
+            .BeEmpty();
     }
 
     [Fact]
@@ -329,8 +340,34 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("data-bocchi-codemirror-host");
         body.Should().Contain("Frontmatter");
-        body.Should().Contain("发布状态");
+        body.Should().Contain("内容状态");
+        body.Should().Contain("撤下");
+        body.Should().Contain("更新");
+        body.Should().Contain("归档");
+        body.Should().NotContain("value=\"Published\"");
+        body.Should().NotContain("value=\"Archived\"");
         body.Should().Contain("内容设置");
         body.Should().Contain("AI助手");
+    }
+
+    [Fact]
+    public async Task EditorPage_RendersArchivedContentActions()
+    {
+        var postDir = Path.Combine(_factory.DataRoot, "workspace", "posts", "2026", "old-post");
+        Directory.CreateDirectory(postDir);
+        await File.WriteAllTextAsync(
+            Path.Combine(postDir, "index.md"),
+            "---\ntitle: Old Post\nslug: old-post\nstatus: archived\n---\nArchived body.\n");
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Content/Edit?path=posts%2F2026%2Fold-post%2Findex.md");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("已归档");
+        body.Should().Contain("更新");
+        body.Should().Contain("彻底删除");
+        body.Should().NotContain("撤下");
+        body.Should().NotContain("value=\"Archived\"");
     }
 }

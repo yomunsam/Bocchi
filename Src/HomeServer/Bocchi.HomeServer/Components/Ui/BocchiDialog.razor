@@ -19,7 +19,7 @@
                 }
                 @if (!string.IsNullOrWhiteSpace(PrimaryText))
                 {
-                    <button type="button" @onclick="HandlePrimaryAsync" disabled="@PrimaryDisabled">@PrimaryText</button>
+                    <button type="button" class="@PrimaryClass" @onclick="HandlePrimaryAsync" disabled="@PrimaryDisabled">@PrimaryText</button>
                 }
             </footer>
         </section>
@@ -46,6 +46,10 @@
     /// <summary>主要操作按钮是否禁用。</summary>
     [Parameter]
     public bool PrimaryDisabled { get; set; }
+
+    /// <summary>主要操作按钮额外样式类；用于少量危险操作确认。</summary>
+    [Parameter]
+    public string? PrimaryClass { get; set; }
 
     /// <summary>点击空白遮罩时是否触发关闭。</summary>
     [Parameter]

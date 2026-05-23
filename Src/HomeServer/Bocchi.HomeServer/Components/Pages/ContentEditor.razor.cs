@@ -74,9 +74,8 @@ public partial class ContentEditor
     {
         var kind = CurrentKind();
         if (!CanUseAiSlug ||
-            _file is null ||
             kind is null ||
-            kind.Value is not (ContentKind.Post or ContentKind.Page))
+            kind.Value is not (ContentKind.Post or ContentKind.Page or ContentKind.Work))
         {
             return;
         }
@@ -112,7 +111,9 @@ public partial class ContentEditor
                     continue;
                 }
 
-                var validation = Editor.ValidateUrlSlug(kind.Value, _file.RelativePath, candidate);
+                var validation = IsUnsavedDraft
+                    ? Editor.ValidateNewUrlSlug(kind.Value, candidate)
+                    : Editor.ValidateUrlSlug(kind.Value, _file?.RelativePath, candidate);
                 if (validation.IsAvailable)
                 {
                     _slug = validation.Slug;
@@ -150,16 +151,16 @@ public partial class ContentEditor
     {
         error = null;
         var kind = CurrentKind();
-        if (_file is null || kind is null || kind.Value is not (ContentKind.Post or ContentKind.Page))
+        if (kind is null || kind.Value is not (ContentKind.Post or ContentKind.Page or ContentKind.Work))
         {
             return true;
         }
 
-        var fallback = SlugFromPath(_file.RelativePath);
-        var validation = Editor.ValidateUrlSlug(
-            kind.Value,
-            _file.RelativePath,
-            string.IsNullOrWhiteSpace(_slug) ? fallback : _slug);
+        var fallback = CurrentFallbackSlug;
+        var candidate = string.IsNullOrWhiteSpace(_slug) ? fallback : _slug;
+        var validation = IsUnsavedDraft
+            ? Editor.ValidateNewUrlSlug(kind.Value, candidate)
+            : Editor.ValidateUrlSlug(kind.Value, _file?.RelativePath, candidate);
         if (!validation.IsAvailable)
         {
             error = validation.Reason ?? "路径标识不可用。";
@@ -173,7 +174,7 @@ public partial class ContentEditor
     /// <summary>生成写入 YAML 的 slug；Post/Page 使用 Unicode 内容 slug，其它类型保持既有路径 fallback。</summary>
     private string SlugForYaml()
     {
-        var fallback = SlugFromPath(_file?.RelativePath ?? string.Empty);
+        var fallback = CurrentFallbackSlug;
         if (!IsSlugManagedContent)
         {
             return string.IsNullOrWhiteSpace(_slug) ? fallback : _slug.Trim();

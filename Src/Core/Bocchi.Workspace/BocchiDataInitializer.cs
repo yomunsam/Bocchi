@@ -25,6 +25,7 @@ public sealed class BocchiDataInitializer
             // DataRoot 下的 Bocchi 运行数据。workspace 之外的目录都不进入内容 Git 仓库。
             EnsureDirectory(_layout.DataRoot);
             EnsureDirectory(_layout.StateDirectory);
+            EnsureDirectory(_layout.EditorDraftsDirectory);
             EnsureDirectory(_layout.LogsDirectory);
             EnsureDirectory(_layout.CacheDirectory);
             EnsureDirectory(_layout.DerivativesDirectory);
