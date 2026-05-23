@@ -350,12 +350,15 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("bocchi-page-intro");
+        body.Should().Contain("bocchi-theme-overview");
         body.Should().Contain("Theme customization");
         body.Should().Contain("Bocchi Mono");
+        body.Should().Contain("Settings unchanged");
         body.Should().Contain("visual.accentColor");
-        body.Should().Contain("Save settings");
+        body.Should().Contain("Save changes");
         body.Should().Contain("Theme private text");
-        body.Should().Contain("theme.defaultStatic.colophonBuiltWith");
+        body.Should().Contain("Private text keys");
+        body.Should().Contain("Override Theme-owned labels");
     }
 
     [Fact]
