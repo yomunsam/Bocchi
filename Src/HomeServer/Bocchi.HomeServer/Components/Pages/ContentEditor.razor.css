@@ -116,25 +116,6 @@
     padding: 0.2rem 0 0.1rem;
 }
 
-.bocchi-writing-card__meta {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.7rem;
-}
-
-.bocchi-writing-card__meta span {
-    color: var(--bocchi-blue-strong);
-    font-size: 0.78rem;
-    font-weight: 760;
-}
-
-.bocchi-writing-card__meta code {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-}
-
 .bocchi-title-field,
 .bocchi-summary-field,
 .bocchi-editor-field {
@@ -427,12 +408,6 @@
 
     .bocchi-title-field input {
         font-size: 1.7rem;
-    }
-
-    .bocchi-writing-card__meta {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 0.35rem;
     }
 
     .bocchi-editor-side {

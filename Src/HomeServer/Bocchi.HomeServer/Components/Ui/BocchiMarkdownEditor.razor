@@ -1,75 +1,79 @@
 @implements IAsyncDisposable
 @inject IJSRuntime Js
+@inject DashboardLocalizationService I18n
 
 <section @ref="_root" class="bocchi-markdown-editor" data-view="@ViewModeCss">
     <header class="bocchi-markdown-editor__head">
         <div class="bocchi-markdown-editor__title">
             <span>@ResolvedContentKindLabel</span>
-            <h2>@Title</h2>
+            <h2>@ResolvedTitle</h2>
         </div>
-        <div class="bocchi-markdown-editor__view" role="group" aria-label="编辑视图">
+        <div class="bocchi-markdown-editor__view" role="group" aria-label='@I18n["markdownEditor.view.aria"]'>
             <button type="button"
                     class="@ViewButtonClass(EditorViewMode.Write)"
                     aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Write)"
-                    title="编辑"
+                    title='@I18n["markdownEditor.view.write"]'
+                    aria-label='@I18n["markdownEditor.view.write"]'
                     @onclick="() => SetViewModeAsync(EditorViewMode.Write)">
                 <Blazicon Svg="Lucide.Pencil" />
             </button>
             <button type="button"
                     class="@ViewButtonClass(EditorViewMode.Split)"
                     aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Split)"
-                    title="分屏"
+                    title='@I18n["markdownEditor.view.split"]'
+                    aria-label='@I18n["markdownEditor.view.split"]'
                     @onclick="() => SetViewModeAsync(EditorViewMode.Split)">
                 <Blazicon Svg="Lucide.Columns2" />
             </button>
             <button type="button"
                     class="@ViewButtonClass(EditorViewMode.Preview)"
                     aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Preview)"
-                    title="预览"
+                    title='@I18n["markdownEditor.view.preview"]'
+                    aria-label='@I18n["markdownEditor.view.preview"]'
                     @onclick="() => SetViewModeAsync(EditorViewMode.Preview)">
                 <Blazicon Svg="Lucide.Eye" />
             </button>
         </div>
     </header>
 
-    <div class="bocchi-markdown-toolbar" role="toolbar" aria-label="Markdown 工具">
+    <div class="bocchi-markdown-toolbar" role="toolbar" aria-label='@I18n["markdownEditor.toolbar.aria"]'>
         <div class="bocchi-markdown-toolbar__group">
-            <button type="button" title="二级标题" aria-label="二级标题" @onclick='() => ApplyAsync("heading")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.heading"]' aria-label='@I18n["markdownEditor.toolbar.heading"]' @onclick='() => ApplyAsync("heading")'>
                 <Blazicon Svg="Lucide.Heading2" />
             </button>
-            <button type="button" title="加粗" aria-label="加粗" @onclick='() => ApplyAsync("bold")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.bold"]' aria-label='@I18n["markdownEditor.toolbar.bold"]' @onclick='() => ApplyAsync("bold")'>
                 <Blazicon Svg="Lucide.Bold" />
             </button>
-            <button type="button" title="斜体" aria-label="斜体" @onclick='() => ApplyAsync("italic")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.italic"]' aria-label='@I18n["markdownEditor.toolbar.italic"]' @onclick='() => ApplyAsync("italic")'>
                 <Blazicon Svg="Lucide.Italic" />
             </button>
-            <button type="button" title="引用" aria-label="引用" @onclick='() => ApplyAsync("quote")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.quote"]' aria-label='@I18n["markdownEditor.toolbar.quote"]' @onclick='() => ApplyAsync("quote")'>
                 <Blazicon Svg="Lucide.Quote" />
             </button>
-            <button type="button" title="无序列表" aria-label="无序列表" @onclick='() => ApplyAsync("list")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.list"]' aria-label='@I18n["markdownEditor.toolbar.list"]' @onclick='() => ApplyAsync("list")'>
                 <Blazicon Svg="Lucide.List" />
             </button>
-            <button type="button" title="有序列表" aria-label="有序列表" @onclick='() => ApplyAsync("ordered")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.ordered"]' aria-label='@I18n["markdownEditor.toolbar.ordered"]' @onclick='() => ApplyAsync("ordered")'>
                 <Blazicon Svg="Lucide.ListOrdered" />
             </button>
-            <button type="button" title="代码块" aria-label="代码块" @onclick='() => ApplyAsync("code")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.code"]' aria-label='@I18n["markdownEditor.toolbar.code"]' @onclick='() => ApplyAsync("code")'>
                 <Blazicon Svg="Lucide.Code" />
             </button>
         </div>
         <div class="bocchi-markdown-toolbar__group">
-            <button type="button" title="链接" aria-label="链接" @onclick='() => ApplyAsync("link")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.link"]' aria-label='@I18n["markdownEditor.toolbar.link"]' @onclick='() => ApplyAsync("link")'>
                 <Blazicon Svg="Lucide.Link" />
             </button>
-            <button type="button" title="图片" aria-label="图片" @onclick='() => ApplyAsync("image")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.image"]' aria-label='@I18n["markdownEditor.toolbar.image"]' @onclick='() => ApplyAsync("image")'>
                 <Blazicon Svg="Lucide.Image" />
             </button>
-            <button type="button" title="公式" aria-label="公式" @onclick='() => ApplyAsync("formula")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.formula"]' aria-label='@I18n["markdownEditor.toolbar.formula"]' @onclick='() => ApplyAsync("formula")'>
                 <Blazicon Svg="Lucide.Sigma" />
             </button>
-            <button type="button" title="视频链接" aria-label="视频链接" @onclick='() => ApplyAsync("video")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.video"]' aria-label='@I18n["markdownEditor.toolbar.video"]' @onclick='() => ApplyAsync("video")'>
                 <Blazicon Svg="Lucide.Video" />
             </button>
-            <button type="button" title="链接卡片" aria-label="链接卡片" @onclick='() => ApplyAsync("link-card")'>
+            <button type="button" title='@I18n["markdownEditor.toolbar.linkCard"]' aria-label='@I18n["markdownEditor.toolbar.linkCard"]' @onclick='() => ApplyAsync("link-card")'>
                 <Blazicon Svg="Lucide.SquareDashedText" />
             </button>
         </div>
@@ -77,14 +81,14 @@
 
     <div class="bocchi-markdown-editor__body">
         <div class="bocchi-markdown-editor__pane bocchi-markdown-editor__pane--write">
-            <span class="bocchi-visually-hidden">@Title</span>
+            <span class="bocchi-visually-hidden">@ResolvedTitle</span>
             <div class="bocchi-codemirror-host" data-bocchi-codemirror-host></div>
         </div>
 
-        <aside class="bocchi-markdown-editor__pane bocchi-markdown-editor__pane--preview" aria-label="Markdown preview">
+        <aside class="bocchi-markdown-editor__pane bocchi-markdown-editor__pane--preview" aria-label='@I18n["markdownEditor.preview.aria"]'>
             @if (string.IsNullOrWhiteSpace(PreviewHtml))
             {
-                <div class="bocchi-markdown-editor__empty">还没有可预览内容</div>
+                <div class="bocchi-markdown-editor__empty">@I18n["markdownEditor.preview.empty"]</div>
             }
             else
             {
@@ -105,7 +109,7 @@
 
     /// <summary>编辑器标题。</summary>
     [Parameter]
-    public string Title { get; set; } = "正文";
+    public string? Title { get; set; }
 
     /// <summary>Markdown 正文。</summary>
     [Parameter]
@@ -121,7 +125,7 @@
 
     /// <summary>正文为空时显示的轻提示。</summary>
     [Parameter]
-    public string Placeholder { get; set; } = "从这里开始写 Markdown...";
+    public string? Placeholder { get; set; }
 
     /// <summary>默认视图模式：write、split 或 preview。</summary>
     [Parameter]
@@ -147,6 +151,25 @@
 
     private string ResolvedContentKindLabel => string.IsNullOrWhiteSpace(ContentKindLabel) ? Kicker : ContentKindLabel;
 
+    /// <summary>编辑器标题为空时回退到 Dashboard 当前语言的默认正文标题。</summary>
+    private string ResolvedTitle => string.IsNullOrWhiteSpace(Title) ? I18n["markdownEditor.title"] : Title!;
+
+    /// <summary>CodeMirror placeholder 为空时回退到 Dashboard 当前语言的默认提示。</summary>
+    private string ResolvedPlaceholder => string.IsNullOrWhiteSpace(Placeholder) ? I18n["markdownEditor.placeholder"] : Placeholder!;
+
+    /// <summary>传给 JavaScript 插入命令的本地化占位文本。</summary>
+    private IReadOnlyDictionary<string, string> MarkdownSnippets => new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["heading"] = I18n["markdownEditor.snippet.heading"],
+        ["bold"] = I18n["markdownEditor.snippet.bold"],
+        ["italic"] = I18n["markdownEditor.snippet.italic"],
+        ["quote"] = I18n["markdownEditor.snippet.quote"],
+        ["list"] = I18n["markdownEditor.snippet.list"],
+        ["ordered"] = I18n["markdownEditor.snippet.ordered"],
+        ["link"] = I18n["markdownEditor.snippet.link"],
+        ["image"] = I18n["markdownEditor.snippet.image"],
+    };
+
     private string ViewModeCss => _viewMode switch
     {
         EditorViewMode.Preview => "preview",
@@ -171,8 +194,9 @@
             await Js.InvokeVoidAsync("bocchiMarkdownEditor.mount", _root, _dotNetReference, new
             {
                 value = Value,
-                placeholder = Placeholder,
+                placeholder = ResolvedPlaceholder,
                 defaultViewMode = ViewModeCss,
+                snippets = MarkdownSnippets,
             });
             _lastEditorValue = Value;
             _mounted = true;

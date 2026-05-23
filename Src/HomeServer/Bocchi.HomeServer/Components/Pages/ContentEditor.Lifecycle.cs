@@ -15,7 +15,7 @@ public partial class ContentEditor
         {
             if (!IsMarkdownPath(Path))
             {
-                _error = "这个入口只编辑 Markdown 内容；站点配置和友链会有独立表单。";
+                _error = Text("contentEditor.invalidMarkdownPath");
                 return;
             }
 
@@ -132,11 +132,15 @@ public partial class ContentEditor
             _previewHtml = saved.PreviewHtml;
             _pathLockedAtLoad = _pathLocked;
             _saved = true;
-            _saveMessage = "已保存并刷新内容索引。";
+            _saveMessage = Text("contentEditor.save.saved");
             if (!string.Equals(originalPath, saved.RelativePath, StringComparison.Ordinal))
             {
                 Nav.NavigateTo(ContentEditingService.EditUrl(saved.RelativePath), replace: true);
             }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _saveMessage = SaveFailedMessage(ex);
         }
         finally
         {

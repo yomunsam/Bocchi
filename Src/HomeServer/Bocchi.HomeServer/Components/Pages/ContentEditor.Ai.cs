@@ -8,7 +8,7 @@ using Microsoft.JSInterop;
 
 namespace Bocchi.HomeServer.Components.Pages;
 
-/// <summary>ContentEditor 的交互逻辑扩展；主 .razor 文件保留页面结构和通用编辑状态。</summary>
+/// <summary>ContentEditor 的标题、slug 和 AI slug 生成逻辑。</summary>
 public partial class ContentEditor
 {
     /// <summary>AI slug 生成的最多重试次数；每次都会经过 Home Server 规范化与查重。</summary>
@@ -19,7 +19,9 @@ public partial class ContentEditor
         "You generate short, semantic URL path slugs for blog posts and pages. Return exactly one slug and nothing else. Prefer clear English words. If the title or summary is written in CJK or another non-Latin language, translate the core meaning into concise English instead of returning the original script. Use lowercase ASCII letters and digits separated by single hyphens only. Do not use slashes, punctuation, spaces, quotes, Markdown, JSON, or explanatory text.";
 
     /// <summary>AI slug 按钮文案会随执行状态变化，给等待中的本地模型调用明确反馈。</summary>
-    private string AiSlugButtonLabel => _aiSlugBusy ? "正在生成路径标识" : "AI生成路径标识";
+    private string AiSlugButtonLabel => _aiSlugBusy
+        ? Text("contentEditor.ai.slug.busyLabel")
+        : Text("contentEditor.ai.slug.label");
 
     /// <summary>AI slug 按钮加载态使用旋转动画；普通态保持轻量图标按钮。</summary>
     private string AiSlugButtonClass => _aiSlugBusy
@@ -124,7 +126,7 @@ public partial class ContentEditor
                     _slug = validation.Slug;
                     _slugTouchedInSession = true;
                     _saved = false;
-                    _saveMessage = "已生成路径标识。";
+                    _saveMessage = Text("contentEditor.slug.generated");
                     return;
                 }
 
@@ -174,7 +176,7 @@ public partial class ContentEditor
             : Editor.ValidateUrlSlug(kind.Value, _file?.RelativePath, candidate);
         if (!validation.IsAvailable)
         {
-            error = validation.Reason ?? "路径标识不可用。";
+            error = LocalizeSlugValidation(validation);
             return false;
         }
 

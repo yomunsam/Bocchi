@@ -120,7 +120,7 @@ public sealed class ContentEditingService
         var slug = ContentSlug.Normalize(candidate);
         if (string.IsNullOrWhiteSpace(slug))
         {
-            return ContentSlugValidationResult.Unavailable(slug, "路径标识不能为空。");
+            return ContentSlugValidationResult.Unavailable(slug, "路径标识不能为空。", ContentSlugValidationIssue.Empty);
         }
 
         var currentFullPath = string.IsNullOrWhiteSpace(currentRelativePath)
@@ -141,7 +141,7 @@ public sealed class ContentEditingService
         var slug = ContentSlug.Normalize(candidate);
         if (string.IsNullOrWhiteSpace(slug))
         {
-            return ContentSlugValidationResult.Unavailable(slug, "路径标识不能为空。");
+            return ContentSlugValidationResult.Unavailable(slug, "路径标识不能为空。", ContentSlugValidationIssue.Empty);
         }
 
         year ??= _time.GetUtcNow().Year.ToString(CultureInfo.InvariantCulture);
@@ -413,12 +413,12 @@ public sealed class ContentEditingService
     {
         if (ReservedTopLevelPageSlugs.Contains(slug))
         {
-            return ContentSlugValidationResult.Unavailable(slug, "这个路径标识会与系统路由冲突。");
+            return ContentSlugValidationResult.Unavailable(slug, "这个路径标识会与系统路由冲突。", ContentSlugValidationIssue.ReservedRoute);
         }
 
         if (IsSlugTaken(_layout.Workspace.PagesDirectory, currentFullPath, slug))
         {
-            return ContentSlugValidationResult.Unavailable(slug, "这个路径标识已经被其它页面使用。");
+            return ContentSlugValidationResult.Unavailable(slug, "这个路径标识已经被其它页面使用。", ContentSlugValidationIssue.PageTaken);
         }
 
         return ContentSlugValidationResult.Available(slug);
@@ -435,12 +435,15 @@ public sealed class ContentEditingService
         if (string.IsNullOrWhiteSpace(currentRelativePath) ||
             !TryReadYearFromRelativePath(currentRelativePath, expectedKindDirectory, out var year))
         {
-            return ContentSlugValidationResult.Unavailable(slug, "当前内容路径无法判断发布年份。");
+            return ContentSlugValidationResult.Unavailable(slug, "当前内容路径无法判断发布年份。", ContentSlugValidationIssue.YearUnavailable);
         }
 
         var yearRoot = Path.Combine(contentRoot, year);
         return IsSlugTaken(yearRoot, currentFullPath, slug)
-            ? ContentSlugValidationResult.Unavailable(slug, $"这个路径标识已经被同一年份的其它{kindLabel}使用。")
+            ? ContentSlugValidationResult.Unavailable(
+                slug,
+                $"这个路径标识已经被同一年份的其它{kindLabel}使用。",
+                ContentSlugValidationIssue.YearScopedTaken)
             : ContentSlugValidationResult.Available(slug);
     }
 
@@ -452,7 +455,10 @@ public sealed class ContentEditingService
     {
         var yearRoot = Path.Combine(contentRoot, year);
         return IsSlugTaken(yearRoot, currentFullPath: null, slug)
-            ? ContentSlugValidationResult.Unavailable(slug, $"这个路径标识已经被同一年份的其它{kindLabel}使用。")
+            ? ContentSlugValidationResult.Unavailable(
+                slug,
+                $"这个路径标识已经被同一年份的其它{kindLabel}使用。",
+                ContentSlugValidationIssue.YearScopedTaken)
             : ContentSlugValidationResult.Available(slug);
     }
 

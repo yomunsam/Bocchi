@@ -152,18 +152,29 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("bocchi-codemirror-host");
         body.Should().Contain("data-bocchi-codemirror-host");
-        body.Should().Contain("未保存草稿");
-        body.Should().Contain("暂存");
-        body.Should().Contain("发布");
-        body.Should().Contain("Frontmatter");
-        body.Should().Contain("内容状态");
+        body.Should().Contain("Unsaved draft");
+        body.Should().Contain("Save draft");
+        body.Should().Contain("Publish");
+        body.Should().Contain("Advanced Frontmatter");
+        body.Should().Contain("Content status");
+        body.Should().Contain("Heading 2");
         body.Should().NotContain("value=\"Published\"");
         body.Should().NotContain("value=\"Archived\"");
-        body.Should().Contain("内容设置");
-        body.Should().Contain("AI助手");
+        body.Should().Contain("Content settings");
+        body.Should().Contain("AI assistant");
         body.Should().Contain("value=\"Design\"");
         body.Should().Contain(">Design</option>");
-        body.Should().NotContain("选择要编辑的 Markdown");
+        body.Should().NotContain("Choose Markdown to edit");
+
+        var pageResponse = await client.GetAsync("/Admin/Content/Edit?kind=page");
+        if (pageResponse.StatusCode == HttpStatusCode.Redirect)
+        {
+            pageResponse = await client.GetAsync(pageResponse.Headers.Location!.ToString());
+        }
+
+        pageResponse.EnsureSuccessStatusCode();
+        body = WebUtility.HtmlDecode(await pageResponse.Content.ReadAsStringAsync());
+        body.Should().Contain("Nothing to preview yet");
 
         using var scope = factory.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IContentStateStore>();
@@ -393,6 +404,33 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("打开编辑器，慢慢写一篇长文。");
         body.Should().NotContain("没有事实核对。");
         body.Should().NotContain("Setup 已完成");
+
+        var editor = await client.GetAsync("/Admin/Content/Edit?kind=post");
+        if (editor.StatusCode == HttpStatusCode.Redirect)
+        {
+            editor = await client.GetAsync(editor.Headers.Location!.ToString());
+        }
+
+        editor.EnsureSuccessStatusCode();
+        body = WebUtility.HtmlDecode(await editor.Content.ReadAsStringAsync());
+        body.Should().Contain("未保存草稿");
+        body.Should().Contain("暂存");
+        body.Should().Contain("发布");
+        body.Should().Contain("高级 Frontmatter");
+        body.Should().Contain("内容状态");
+        body.Should().Contain("内容设置");
+        body.Should().Contain("AI 助手");
+        body.Should().Contain("二级标题");
+
+        editor = await client.GetAsync("/Admin/Content/Edit?kind=page");
+        if (editor.StatusCode == HttpStatusCode.Redirect)
+        {
+            editor = await client.GetAsync(editor.Headers.Location!.ToString());
+        }
+
+        editor.EnsureSuccessStatusCode();
+        body = WebUtility.HtmlDecode(await editor.Content.ReadAsStringAsync());
+        body.Should().Contain("还没有可预览内容");
     }
 
     [Fact]
@@ -423,14 +461,14 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("data-bocchi-codemirror-host");
         body.Should().Contain("Frontmatter");
-        body.Should().Contain("内容状态");
-        body.Should().Contain("撤下");
-        body.Should().Contain("更新");
-        body.Should().Contain("归档");
+        body.Should().Contain("Content status");
+        body.Should().Contain("Withdraw");
+        body.Should().Contain("Update");
+        body.Should().Contain("Archive");
         body.Should().NotContain("value=\"Published\"");
         body.Should().NotContain("value=\"Archived\"");
-        body.Should().Contain("内容设置");
-        body.Should().Contain("AI助手");
+        body.Should().Contain("Content settings");
+        body.Should().Contain("AI assistant");
     }
 
     [Fact]
@@ -447,10 +485,10 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        body.Should().Contain("已归档");
-        body.Should().Contain("更新");
-        body.Should().Contain("彻底删除");
-        body.Should().NotContain("撤下");
+        body.Should().Contain("Archived");
+        body.Should().Contain("Update");
+        body.Should().Contain("Delete permanently");
+        body.Should().NotContain("Withdraw");
         body.Should().NotContain("value=\"Archived\"");
     }
 }

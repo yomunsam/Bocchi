@@ -67,27 +67,27 @@ function setRootViewMode(root, mode) {
   }
 }
 
-function createInsertText(action, selected) {
+function createInsertText(action, selected, snippets = {}) {
   const text = selected || "";
   switch (action) {
     case "heading":
-      return prefixLines(text || "标题", "## ");
+      return prefixLines(text || snippets.heading || "Heading", "## ");
     case "bold":
-      return wrap(text, "**", "**", "加粗文本");
+      return wrap(text, "**", "**", snippets.bold || "bold text");
     case "italic":
-      return wrap(text, "_", "_", "斜体文本");
+      return wrap(text, "_", "_", snippets.italic || "italic text");
     case "quote":
-      return prefixLines(text || "引用内容", "> ");
+      return prefixLines(text || snippets.quote || "Quoted text", "> ");
     case "list":
-      return prefixLines(text || "列表项", "- ");
+      return prefixLines(text || snippets.list || "List item", "- ");
     case "ordered":
-      return prefixLines(text || "列表项", "1. ");
+      return prefixLines(text || snippets.ordered || "List item", "1. ");
     case "code":
       return fencedBlock(text || "code");
     case "link":
-      return wrap(text, "[", "](https://example.com)", "链接文字");
+      return wrap(text, "[", "](https://example.com)", snippets.link || "Link text");
     case "image":
-      return wrap(text, "![", "](assets/image.png)", "图片描述");
+      return wrap(text, "![", "](assets/image.png)", snippets.image || "Image description");
     case "formula":
       return `\n$$\n${text || "E = mc^2"}\n$$\n`;
     case "video":
@@ -200,7 +200,7 @@ function mount(root, dotNet, options = {}) {
     }),
   });
 
-  editorByRoot.set(root, { view, dotNet });
+  editorByRoot.set(root, { view, dotNet, snippets: options.snippets ?? {} });
   setRootViewMode(root, options.defaultViewMode);
 }
 
@@ -221,14 +221,14 @@ function setValue(root, value) {
 }
 
 function insert(root, action) {
-  const view = getEditor(root);
-  if (!view) {
+  const current = editorByRoot.get(root);
+  if (!current?.view) {
     return;
   }
 
-  const selection = view.state.selection.main;
-  const selected = view.state.sliceDoc(selection.from, selection.to);
-  replaceSelection(view, createInsertText(action, selected));
+  const selection = current.view.state.selection.main;
+  const selected = current.view.state.sliceDoc(selection.from, selection.to);
+  replaceSelection(current.view, createInsertText(action, selected, current.snippets));
 }
 
 function setViewMode(root, mode) {

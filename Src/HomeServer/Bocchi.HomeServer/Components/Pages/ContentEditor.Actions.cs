@@ -14,18 +14,18 @@ public partial class ContentEditor
 
     /// <summary>删除确认标题，区分草稿删除与归档内容的彻底删除。</summary>
     private string DeleteConfirmTitle => _deleteConfirmMode == DeleteConfirmMode.Permanent
-        ? "彻底删除内容"
-        : "删除草稿";
+        ? Text("contentEditor.delete.title.permanent")
+        : Text("contentEditor.delete.title.draft");
 
     /// <summary>删除确认按钮文案；归档内容使用更明确的不可逆表述。</summary>
     private string DeleteConfirmPrimaryText => _deleteConfirmMode == DeleteConfirmMode.Permanent
-        ? "彻底删除"
-        : "删除";
+        ? Text("contentEditor.delete.primary.permanent")
+        : Text("contentEditor.delete.primary.draft");
 
     /// <summary>删除确认正文，提醒用户这会删除 workspace 源文件和关联资产。</summary>
     private string DeleteConfirmBody => _deleteConfirmMode == DeleteConfirmMode.Permanent
-        ? "这会删除当前内容的源文件、同目录资产和内容索引，删除后无法从 Bocchi 内恢复。"
-        : "这会删除这个已保存草稿的源文件、同目录资产和内容索引。";
+        ? Text("contentEditor.delete.body.permanent")
+        : Text("contentEditor.delete.body.draft");
 
     /// <summary>未保存临时草稿的暂存动作：第一次创建正式 Markdown 文件。</summary>
     private Task SaveDraftAsync()
@@ -89,6 +89,10 @@ public partial class ContentEditor
             _showDeleteConfirm = false;
             Nav.NavigateTo(BackUrl, replace: true);
         }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _saveMessage = SaveFailedMessage(ex);
+        }
         finally
         {
             _busy = false;
@@ -148,9 +152,13 @@ public partial class ContentEditor
             _pathLockedAtLoad = _pathLocked;
             _saved = true;
             _saveMessage = targetStatus == ContentStatus.Published
-                ? "已发布并刷新内容索引。"
-                : "已暂存并刷新内容索引。";
+                ? Text("contentEditor.save.published")
+                : Text("contentEditor.save.draftSaved");
             Nav.NavigateTo(ContentEditingService.EditUrl(saved.RelativePath), replace: true);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            _saveMessage = SaveFailedMessage(ex);
         }
         finally
         {

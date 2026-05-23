@@ -70,39 +70,39 @@
 
 :root[data-bocchi-effective-appearance="dark"] {
     color-scheme: dark;
-    --bocchi-bg: #161220;
-    --bocchi-surface: #221d2d;
-    --bocchi-surface-muted: #2c2638;
-    --bocchi-surface-soft: #242f42;
-    --bocchi-surface-pink: #3a2635;
-    --bocchi-text: #f5f1fb;
-    --bocchi-text-muted: #c3bad1;
-    --bocchi-text-subtle: #948aa6;
-    --bocchi-border: #3a3349;
-    --bocchi-border-strong: #4a4258;
-    --bocchi-blue: #86bdf5;
-    --bocchi-blue-strong: #a9d2ff;
-    --bocchi-pink: #e7a9c4;
-    --bocchi-lavender: #8178b7;
-    --bocchi-success-soft: #173629;
-    --bocchi-success-strong: #8ee2bb;
-    --bocchi-warning-soft: #3c3018;
-    --bocchi-warning-strong: #f0cf82;
-    --bocchi-danger-soft: #412527;
-    --bocchi-danger-strong: #f0a0a0;
-    --bocchi-shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.22);
+    --bocchi-bg: #111316;
+    --bocchi-surface: #181b20;
+    --bocchi-surface-muted: #20242a;
+    --bocchi-surface-soft: #1d2730;
+    --bocchi-surface-pink: #241d22;
+    --bocchi-text: #f2f5f7;
+    --bocchi-text-muted: #b6bec8;
+    --bocchi-text-subtle: #808995;
+    --bocchi-border: #303640;
+    --bocchi-border-strong: #414a55;
+    --bocchi-blue: #75a7d8;
+    --bocchi-blue-strong: #9cc6ee;
+    --bocchi-pink: #d98aa8;
+    --bocchi-lavender: #8f98bb;
+    --bocchi-success-soft: #173226;
+    --bocchi-success-strong: #84d2ac;
+    --bocchi-warning-soft: #332a18;
+    --bocchi-warning-strong: #e6c276;
+    --bocchi-danger-soft: #392123;
+    --bocchi-danger-strong: #ec8f93;
+    --bocchi-shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.28);
     --bocchi-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
     --bocchi-shadow-pop: 0 18px 36px rgba(0, 0, 0, 0.4);
-    --bocchi-focus-ring: 0 0 0 3px rgba(255, 153, 191, 0.34);
-    /* 深色下粉色更亮才能撑住 */
-    --bocchi-action: #ff7aa6;
-    --bocchi-action-strong: #ff99bf;
-    --bocchi-action-soft: rgba(255, 122, 166, 0.14);
-    --bocchi-action-soft-strong: rgba(255, 122, 166, 0.22);
+    --bocchi-focus-ring: 0 0 0 3px rgba(232, 95, 145, 0.28);
+    /* 深色下粉色只作为品牌点缀，不再把大面积 surface 染成 Night Mode。 */
+    --bocchi-action: #e85f91;
+    --bocchi-action-strong: #f28ab0;
+    --bocchi-action-soft: rgba(232, 95, 145, 0.07);
+    --bocchi-action-soft-strong: rgba(232, 95, 145, 0.1);
     --bocchi-nav-active-bg: var(--bocchi-action-soft);
     --bocchi-nav-active-bar: var(--bocchi-action);
-    --bocchi-nav-active-text: var(--bocchi-action-strong);
-    --bocchi-avatar-bg: #4d4166;
+    --bocchi-nav-active-text: var(--bocchi-text);
+    --bocchi-avatar-bg: #28303a;
 }
 
 html {
@@ -147,7 +147,7 @@ button,
     background: var(--bocchi-text);
     color: var(--bocchi-surface);
     cursor: pointer;
-    font-weight: 660;
+    /* font-weight: 660; */
     padding: 0 0.78rem;
     text-decoration: none;
     transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
