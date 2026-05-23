@@ -2,52 +2,56 @@
 @using Bocchi.HomeServer.Services
 @inject DashboardLocalizationService I18n
 
-<article class="bocchi-menu-node">
+<article class="@NodeClass">
     <div class="bocchi-menu-node__row">
-        <span class="bocchi-menu-node__level">@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.editor.levelFormat"], Level)</span>
-        <input value="@Node.Label"
-               @oninput="OnLabelInputAsync"
-               placeholder='@I18n["siteNavigation.editor.labelPlaceholder"]'
-               aria-label='@I18n["siteNavigation.editor.labelPlaceholder"]' />
-        <select value="@Node.TargetKey"
-                @onchange="OnTargetChangedAsync"
-                aria-label='@I18n["siteNavigation.editor.targetLabel"]'>
-            @foreach (var option in TargetOptions)
+        <button type="button"
+                class="bocchi-menu-node__summary"
+                aria-current="@(IsSelected ? "true" : null)"
+                @onclick="() => Select.InvokeAsync(Node)">
+            <span class="bocchi-menu-node__level">@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.editor.levelFormat"], Level)</span>
+            <span class="bocchi-menu-node__body">
+                <strong>@PreviewLabel</strong>
+                <small>@TargetSummary</small>
+            </span>
+            @if (IsSelected)
             {
-                <option value="@option.Key">@option.Label</option>
+                <Blazicon Svg="Lucide.Check" />
             }
-        </select>
-        <button type="button"
-                class="bocchi-menu-node__icon"
-                disabled="@IsFirst"
-                title='@I18n["siteNavigation.editor.moveUp"]'
-                aria-label='@I18n["siteNavigation.editor.moveUp"]'
-                @onclick="() => MoveUp.InvokeAsync(Node)">
-            <Blazicon Svg="Lucide.ArrowUp" />
         </button>
-        <button type="button"
-                class="bocchi-menu-node__icon"
-                disabled="@IsLast"
-                title='@I18n["siteNavigation.editor.moveDown"]'
-                aria-label='@I18n["siteNavigation.editor.moveDown"]'
-                @onclick="() => MoveDown.InvokeAsync(Node)">
-            <Blazicon Svg="Lucide.ArrowDown" />
-        </button>
-        <button type="button"
-                class="bocchi-menu-node__icon"
-                disabled="@(!CanAddChild)"
-                title="@AddChildTitle"
-                aria-label="@AddChildTitle"
-                @onclick="() => AddChild.InvokeAsync(Node)">
-            <Blazicon Svg="Lucide.Plus" />
-        </button>
-        <button type="button"
-                class="bocchi-menu-node__icon bocchi-menu-node__icon--danger"
-                title='@I18n["siteNavigation.editor.remove"]'
-                aria-label='@I18n["siteNavigation.editor.remove"]'
-                @onclick="() => Remove.InvokeAsync(Node)">
-            <Blazicon Svg="Lucide.Trash2" />
-        </button>
+
+        <div class="bocchi-menu-node__actions">
+            <button type="button"
+                    class="bocchi-menu-node__icon"
+                    disabled="@IsFirst"
+                    title='@I18n["siteNavigation.editor.moveUp"]'
+                    aria-label='@I18n["siteNavigation.editor.moveUp"]'
+                    @onclick="() => MoveUp.InvokeAsync(Node)">
+                <Blazicon Svg="Lucide.ArrowUp" />
+            </button>
+            <button type="button"
+                    class="bocchi-menu-node__icon"
+                    disabled="@IsLast"
+                    title='@I18n["siteNavigation.editor.moveDown"]'
+                    aria-label='@I18n["siteNavigation.editor.moveDown"]'
+                    @onclick="() => MoveDown.InvokeAsync(Node)">
+                <Blazicon Svg="Lucide.ArrowDown" />
+            </button>
+            <button type="button"
+                    class="bocchi-menu-node__icon"
+                    disabled="@(!CanAddChild)"
+                    title="@AddChildTitle"
+                    aria-label="@AddChildTitle"
+                    @onclick="() => AddChild.InvokeAsync(Node)">
+                <Blazicon Svg="Lucide.Plus" />
+            </button>
+            <button type="button"
+                    class="bocchi-menu-node__icon bocchi-menu-node__icon--danger"
+                    title='@I18n["siteNavigation.editor.remove"]'
+                    aria-label='@I18n["siteNavigation.editor.remove"]'
+                    @onclick="() => Remove.InvokeAsync(Node)">
+                <Blazicon Svg="Lucide.Trash2" />
+            </button>
+        </div>
     </div>
 
     @if (Node.Children.Count > 0)
@@ -61,11 +65,13 @@
                                       Level="@(Level + 1)"
                                       IsFirst="@(i == 0)"
                                       IsLast="@(i == Node.Children.Count - 1)"
+                                      IsSelected="@(SelectedItemId == child.Id)"
+                                      SelectedItemId="SelectedItemId"
+                                      Select="Select"
                                       AddChild="AddChild"
                                       Remove="Remove"
                                       MoveUp="MoveUp"
-                                      MoveDown="MoveDown"
-                                      Changed="Changed" />
+                                      MoveDown="MoveDown" />
             }
         </div>
     }
@@ -75,7 +81,7 @@
     /// <summary>当前正在编辑的 Menu 节点。</summary>
     [Parameter, EditorRequired] public NavigationEditorItem Node { get; set; } = default!;
 
-    /// <summary>当前可选 Menu target。</summary>
+    /// <summary>当前可选 Menu target，用于在树节点上展示人类可读摘要。</summary>
     [Parameter, EditorRequired] public IReadOnlyList<NavigationTargetOption> TargetOptions { get; set; } = [];
 
     /// <summary>当前节点层级；根节点为 0。</summary>
@@ -86,6 +92,15 @@
 
     /// <summary>当前节点是否为同级最后一项。</summary>
     [Parameter] public bool IsLast { get; set; }
+
+    /// <summary>当前节点是否为详情面板选中的节点。</summary>
+    [Parameter] public bool IsSelected { get; set; }
+
+    /// <summary>当前选中节点 id；递归子节点用它判断自己的选中态。</summary>
+    [Parameter] public string? SelectedItemId { get; set; }
+
+    /// <summary>选中节点回调。</summary>
+    [Parameter] public EventCallback<NavigationEditorItem> Select { get; set; }
 
     /// <summary>添加子节点回调。</summary>
     [Parameter] public EventCallback<NavigationEditorItem> AddChild { get; set; }
@@ -99,24 +114,51 @@
     /// <summary>下移节点回调。</summary>
     [Parameter] public EventCallback<NavigationEditorItem> MoveDown { get; set; }
 
-    /// <summary>节点内容变化回调。</summary>
-    [Parameter] public EventCallback Changed { get; set; }
-
     private bool CanAddChild => Level + 1 < NavigationMenuService.MaxDepth;
+
+    private string NodeClass => IsSelected ? "bocchi-menu-node bocchi-menu-node--selected" : "bocchi-menu-node";
 
     private string AddChildTitle => CanAddChild
         ? I18n["siteNavigation.editor.addChild"]
         : I18n["siteNavigation.editor.depthLimit"];
 
-    private async Task OnLabelInputAsync(ChangeEventArgs args)
+    private string TargetSummary => TargetOptions.FirstOrDefault(option => option.Key == Node.TargetKey)?.Label
+        ?? string.Format(CultureInfo.CurrentCulture, "{0}:{1}", Node.TargetType, Node.TargetValue);
+
+    private string PreviewLabel
     {
-        Node.Label = args.Value?.ToString() ?? string.Empty;
-        await Changed.InvokeAsync();
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Node.Label))
+            {
+                return I18n["siteNavigation.editor.autoLabel"];
+            }
+
+            return TryParseDisplayRef(Node.Label, out var scope, out var key)
+                ? string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.editor.i18nPreviewFormat"], scope, key)
+                : Node.Label;
+        }
     }
 
-    private async Task OnTargetChangedAsync(ChangeEventArgs args)
+    private static bool TryParseDisplayRef(string value, out string scope, out string key)
     {
-        Node.TargetKey = args.Value?.ToString() ?? string.Empty;
-        await Changed.InvokeAsync();
+        scope = string.Empty;
+        key = string.Empty;
+        const string prefix = "i18n://";
+        if (string.IsNullOrWhiteSpace(value) || !value.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var body = value[prefix.Length..];
+        var separator = body.IndexOf('@', StringComparison.Ordinal);
+        if (separator <= 0 || separator >= body.Length - 1)
+        {
+            return false;
+        }
+
+        scope = body[..separator].Trim();
+        key = body[(separator + 1)..].Trim();
+        return !string.IsNullOrWhiteSpace(scope) && !string.IsNullOrWhiteSpace(key);
     }
 }

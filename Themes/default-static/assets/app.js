@@ -37,6 +37,11 @@ const primaryLanguage = findLanguageCode(i18n.primaryLanguage)
 const normalizeLanguage = (value) => findLanguageCode(value) ?? primaryLanguage;
 const normalizeAppearance = (value) => value === "light" || value === "dark" || value === "auto" ? value : "auto";
 const getEffectiveAppearance = (mode) => mode === "dark" || (mode === "auto" && appearanceQuery?.matches) ? "dark" : "light";
+const getLanguage = (code) => languages.find((language) => language.code === code) ?? null;
+const getLanguageDisplayName = (code) => {
+  const language = getLanguage(code);
+  return language?.nativeName || language?.englishName || code;
+};
 
 const resolveText = (key, language = currentLanguage) => {
   const values = i18n.text?.[key];
@@ -68,7 +73,7 @@ const syncLanguageControls = () => {
   });
 
   document.querySelectorAll("[data-bocchi-current-language],[data-bocchi-language-summary]").forEach((element) => {
-    element.textContent = currentLanguage;
+    element.textContent = getLanguageDisplayName(currentLanguage);
   });
 
   document.querySelectorAll("[data-bocchi-language-option]").forEach((option) => {

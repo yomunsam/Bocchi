@@ -146,7 +146,6 @@
                                         value="@language.Code"
                                         class="@LanguageOptionClass(language.Code)"
                                         aria-current="@AriaCurrent(IsCurrentDashboardLanguage(language.Code))">
-                                    <Blazicon Svg="Lucide.Languages" />
                                     <span>@language.NativeName</span>
                                 </button>
                             }
@@ -252,11 +251,11 @@
     private bool IsCurrentDashboardLanguage(string code)
         => string.Equals(I18n.CurrentLanguage.Code, code, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>生成语言菜单选项 class，当前语言需要显示 check 图标。</summary>
+    /// <summary>生成语言菜单选项 class；语言列表项不再重复显示与按钮相同的 icon。</summary>
     private string LanguageOptionClass(string code)
         => IsCurrentDashboardLanguage(code)
-            ? "bocchi-menu-control__option bocchi-menu-control__option--active"
-            : "bocchi-menu-control__option";
+            ? "bocchi-menu-control__option bocchi-menu-control__option--text bocchi-menu-control__option--active"
+            : "bocchi-menu-control__option bocchi-menu-control__option--text";
 
     /// <summary>侧栏在移动端是否以覆盖层方式显示。</summary>
     private string SidebarClass => _mobileSidebarOpen ? "bocchi-sidebar bocchi-sidebar--open" : "bocchi-sidebar";

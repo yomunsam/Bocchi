@@ -1,94 +1,259 @@
 @page "/Admin/Site/Navigation"
 @using System.Globalization
+@using Bocchi.ContentModel
 @using Bocchi.HomeServer.Services
 @inject DashboardLocalizationService I18n
 @inject NavigationMenuService Menu
 
 <PageTitle>@I18n["siteNavigation.page.title"] · Bocchi</PageTitle>
 
-<article class="bocchi-shell">
-    <header class="bocchi-page-heading">
+<article class="bocchi-shell bocchi-navigation-shell">
+    <header class="bocchi-page-heading bocchi-page-heading--with-actions">
         <span class="bocchi-page-heading__eyebrow">@I18n["siteNavigation.page.eyebrow"]</span>
         <h1>@I18n["siteNavigation.page.heading"]</h1>
         <p>@I18n["siteNavigation.page.description"]</p>
+        <div class="bocchi-page-heading__actions">
+            <button type="button" class="secondary" @onclick="AddRoot">
+                <Blazicon Svg="Lucide.Plus" />
+                <span>@I18n["siteNavigation.editor.addRoot"]</span>
+            </button>
+            <button type="button" disabled="@(!CanSave)" @onclick="SaveAsync">
+                <Blazicon Svg="Lucide.Save" />
+                <span>@(_busy ? I18n["siteNavigation.editor.saving"] : I18n["siteNavigation.editor.save"])</span>
+            </button>
+        </div>
     </header>
 
-    <section class="bocchi-panel bocchi-panel--soft">
-        <div class="bocchi-inline-actions">
-            <h2>@I18n["siteNavigation.editor.title"]</h2>
-            <div class="bocchi-inline-actions">
-                <button type="button" class="secondary" @onclick="AddRoot">
-                    <Blazicon Svg="Lucide.Plus" />
-                    <span>@I18n["siteNavigation.editor.addRoot"]</span>
-                </button>
-                <button type="button" disabled="@(!CanSave)" @onclick="SaveAsync">
-                    <Blazicon Svg="Lucide.Save" />
-                    <span>@(_busy ? I18n["siteNavigation.editor.saving"] : I18n["siteNavigation.editor.save"])</span>
-                </button>
+    @if (!_loaded)
+    {
+        <section class="bocchi-panel">
+            <p class="bocchi-navigation-status">@I18n["siteNavigation.editor.loading"]</p>
+        </section>
+    }
+    else
+    {
+        @if (_warnings.Count > 0)
+        {
+            <div class="bocchi-navigation-warning">
+                <strong>@I18n["siteNavigation.warning.title"]</strong>
+                @foreach (var warning in _warnings)
+                {
+                    <p>@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.warning.unresolvedFormat"], warning.Label, warning.TargetType, warning.TargetValue)</p>
+                }
             </div>
+        }
+
+        <div class="bocchi-navigation-workbench">
+            <section class="bocchi-panel bocchi-navigation-tree-panel" aria-labelledby="navigation-tree-heading">
+                <div class="bocchi-navigation-panel-heading">
+                    <div>
+                        <span>@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.editor.countFormat"], CountItems(_items))</span>
+                        <h2 id="navigation-tree-heading">@I18n["siteNavigation.editor.treeTitle"]</h2>
+                    </div>
+                    <button type="button" class="secondary" @onclick="AddRoot">
+                        <Blazicon Svg="Lucide.Plus" />
+                        <span>@I18n["siteNavigation.editor.addRoot"]</span>
+                    </button>
+                </div>
+
+                @if (_items.Count == 0)
+                {
+                    <div class="bocchi-navigation-empty">
+                        <strong>@I18n["siteNavigation.editor.empty"]</strong>
+                        <button type="button" class="secondary" @onclick="AddRoot">@I18n["siteNavigation.editor.addRoot"]</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="bocchi-navigation-tree">
+                        @for (var i = 0; i < _items.Count; i++)
+                        {
+                            var item = _items[i];
+                            <BocchiMenuNodeEditor Node="item"
+                                                  TargetOptions="_targetOptions"
+                                                  Level="0"
+                                                  IsFirst="@(i == 0)"
+                                                  IsLast="@(i == _items.Count - 1)"
+                                                  IsSelected="@IsSelected(item)"
+                                                  SelectedItemId="_selectedItemId"
+                                                  Select="SelectNode"
+                                                  AddChild="AddChild"
+                                                  Remove="RemoveNode"
+                                                  MoveUp="MoveUp"
+                                                  MoveDown="MoveDown" />
+                        }
+                    </div>
+                }
+            </section>
+
+            <aside class="bocchi-panel bocchi-navigation-detail" aria-labelledby="navigation-detail-heading">
+                @{
+                    var selected = SelectedItem;
+                }
+                @if (selected is null)
+                {
+                    <div class="bocchi-navigation-detail__empty">
+                        <Blazicon Svg="Lucide.PanelRight" />
+                        <h2 id="navigation-detail-heading">@I18n["siteNavigation.editor.detailEmptyTitle"]</h2>
+                        <p>@I18n["siteNavigation.editor.detailEmptyDescription"]</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="bocchi-navigation-panel-heading">
+                        <div>
+                            <span>@I18n["siteNavigation.editor.selected"]</span>
+                            <h2 id="navigation-detail-heading">@I18n["siteNavigation.editor.detailTitle"]</h2>
+                        </div>
+                    </div>
+
+                    <div class="bocchi-navigation-detail-form">
+                        <label class="bocchi-navigation-field">
+                            <span>@I18n["siteNavigation.editor.targetLabel"]</span>
+                            <select value="@selected.TargetKey" @onchange="args => OnSelectedTargetChanged(selected, args)">
+                                @foreach (var group in _targetOptions.GroupBy(option => option.GroupLabel))
+                                {
+                                    <optgroup label="@group.Key">
+                                        @foreach (var option in group)
+                                        {
+                                            <option value="@option.Key">@option.Label</option>
+                                        }
+                                    </optgroup>
+                                }
+                            </select>
+                        </label>
+
+                        <fieldset class="bocchi-navigation-label-mode">
+                            <legend>@I18n["siteNavigation.editor.labelMode"]</legend>
+                            <label>
+                                <input type="radio"
+                                       name="@($"label-mode-{selected.Id}")"
+                                       checked="@IsLabelMode(selected, LabelModeAuto)"
+                                       @onchange="() => SetLabelMode(selected, LabelModeAuto)" />
+                                <span>
+                                    <strong>@I18n["siteNavigation.editor.labelMode.auto"]</strong>
+                                    <small>@I18n["siteNavigation.editor.labelMode.autoHelp"]</small>
+                                </span>
+                            </label>
+                            <label>
+                                <input type="radio"
+                                       name="@($"label-mode-{selected.Id}")"
+                                       checked="@IsLabelMode(selected, LabelModePlain)"
+                                       @onchange="() => SetLabelMode(selected, LabelModePlain)" />
+                                <span>
+                                    <strong>@I18n["siteNavigation.editor.labelMode.plain"]</strong>
+                                    <small>@I18n["siteNavigation.editor.labelMode.plainHelp"]</small>
+                                </span>
+                            </label>
+                            <label>
+                                <input type="radio"
+                                       name="@($"label-mode-{selected.Id}")"
+                                       checked="@IsLabelMode(selected, LabelModeSiteI18n)"
+                                       @onchange="() => SetLabelMode(selected, LabelModeSiteI18n)" />
+                                <span>
+                                    <strong>@I18n["siteNavigation.editor.labelMode.siteI18n"]</strong>
+                                    <small>@I18n["siteNavigation.editor.labelMode.siteI18nHelp"]</small>
+                                </span>
+                            </label>
+                            @if (IsLabelMode(selected, LabelModeThemeI18n))
+                            {
+                                <label>
+                                    <input type="radio"
+                                           name="@($"label-mode-{selected.Id}")"
+                                           checked
+                                           disabled />
+                                    <span>
+                                        <strong>@I18n["siteNavigation.editor.labelMode.themeI18n"]</strong>
+                                        <small>@I18n["siteNavigation.editor.labelMode.themeI18nHelp"]</small>
+                                    </span>
+                                </label>
+                            }
+                        </fieldset>
+
+                        @switch (GetLabelMode(selected))
+                        {
+                            case LabelModePlain:
+                                <label class="bocchi-navigation-field">
+                                    <span>@I18n["siteNavigation.editor.plainLabel"]</span>
+                                    <input value="@GetPlainLabel(selected)"
+                                           @oninput="args => OnPlainLabelInput(selected, args)"
+                                           placeholder='@I18n["siteNavigation.editor.labelPlaceholder"]' />
+                                </label>
+                                break;
+                            case LabelModeSiteI18n:
+                                var i18nKey = EnsureCommonI18nKey(selected);
+                                <label class="bocchi-navigation-field">
+                                    <span>@I18n["siteNavigation.editor.i18nKey"]</span>
+                                    <input value="@i18nKey"
+                                           @oninput="args => OnCommonI18nKeyInput(selected, args)"
+                                           placeholder='@I18n["siteNavigation.editor.i18nKeyPlaceholder"]' />
+                                </label>
+                                <div class="bocchi-navigation-i18n-values" aria-label='@I18n["siteNavigation.editor.i18nTextTitle"]'>
+                                    <strong>@I18n["siteNavigation.editor.i18nTextTitle"]</strong>
+                                    @foreach (var language in EnabledLanguagesForDisplay)
+                                    {
+                                        <label>
+                                            <span>@language.Code</span>
+                                            <input value="@GetCommonTextOverride(i18nKey, language.Code)"
+                                                   @oninput="args => SetCommonTextOverride(i18nKey, language.Code, args.Value?.ToString())"
+                                                   placeholder="@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.editor.i18nTextPlaceholder"], language.NativeName)" />
+                                        </label>
+                                    }
+                                </div>
+                                break;
+                            case LabelModeThemeI18n:
+                                <div class="bocchi-navigation-readonly-ref">
+                                    <span>@I18n["siteNavigation.editor.themeI18nKey"]</span>
+                                    <code>@GetI18nKey(selected.Label)</code>
+                                    <p>@I18n["siteNavigation.editor.labelMode.themeI18nHelp"]</p>
+                                </div>
+                                break;
+                        }
+                    </div>
+                }
+            </aside>
         </div>
 
-        @if (!_loaded)
+        @if (_saved)
         {
-            <p>@I18n["siteNavigation.editor.loading"]</p>
+            <p class="bocchi-navigation-status bocchi-navigation-status--success">@I18n["siteNavigation.editor.saved"]</p>
         }
-        else
-        {
-            @if (_warnings.Count > 0)
-            {
-                <div class="bocchi-navigation-warning">
-                    <strong>@I18n["siteNavigation.warning.title"]</strong>
-                    @foreach (var warning in _warnings)
-                    {
-                        <p>@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.warning.unresolvedFormat"], warning.Label, warning.TargetType, warning.TargetValue)</p>
-                    }
-                </div>
-            }
-
-            @if (_items.Count == 0)
-            {
-                <div class="bocchi-navigation-empty">
-                    <strong>@I18n["siteNavigation.editor.empty"]</strong>
-                    <button type="button" class="secondary" @onclick="AddRoot">@I18n["siteNavigation.editor.addRoot"]</button>
-                </div>
-            }
-            else
-            {
-                <div class="bocchi-navigation-tree">
-                    @for (var i = 0; i < _items.Count; i++)
-                    {
-                        var item = _items[i];
-                        <BocchiMenuNodeEditor Node="item"
-                                              TargetOptions="_targetOptions"
-                                              Level="0"
-                                              IsFirst="@(i == 0)"
-                                              IsLast="@(i == _items.Count - 1)"
-                                              AddChild="AddChild"
-                                              Remove="RemoveNode"
-                                              MoveUp="MoveUp"
-                                              MoveDown="MoveDown"
-                                              Changed="MarkDirty" />
-                    }
-                </div>
-            }
-
-            @if (_saved)
-            {
-                <p class="bocchi-navigation-status bocchi-navigation-status--success">@I18n["siteNavigation.editor.saved"]</p>
-            }
-        }
-    </section>
+    }
 </article>
 
 @code {
+    /// <summary>自动模式：保存空 label，让 Generator 使用 target 默认文案。</summary>
+    private const string LabelModeAuto = "auto";
+
+    /// <summary>普通文本模式：label 保存用户输入的 plain text。</summary>
+    private const string LabelModePlain = "plain";
+
+    /// <summary>站点 i18n 模式：label 保存 <c>i18n://common@key</c>，文本覆盖保存在 Localization settings。</summary>
+    private const string LabelModeSiteI18n = "site-i18n";
+
+    /// <summary>Theme 私有 i18n 模式：只用于保留已有 <c>i18n://theme@key</c> 引用。</summary>
+    private const string LabelModeThemeI18n = "theme-i18n";
+
     /// <summary>当前编辑中的 Menu root 节点。</summary>
     private readonly List<NavigationEditorItem> _items = [];
+
+    /// <summary>当前节点的 label 模式草稿；允许用户先切模式再输入内容。</summary>
+    private readonly Dictionary<string, string> _labelModeDrafts = new(StringComparer.Ordinal);
 
     /// <summary>当前可选择 target；包含 unavailable 保留项。</summary>
     private IReadOnlyList<NavigationTargetOption> _targetOptions = [];
 
     /// <summary>当前 Menu 的 unresolved target warning。</summary>
     private IReadOnlyList<NavigationMenuWarning> _warnings = [];
+
+    /// <summary>站点启用语言，决定本页展示哪些 i18n 文本输入。</summary>
+    private IReadOnlyList<LanguageRecord> _enabledLanguages = [];
+
+    /// <summary>Common i18n 覆盖编辑缓冲区；保存时完整提交，避免丢掉 Settings 页面中的其他 key。</summary>
+    private Dictionary<string, Dictionary<string, string>> _commonTextOverrides = new(StringComparer.Ordinal);
+
+    /// <summary>当前右侧详情面板选中的 Menu item id。</summary>
+    private string? _selectedItemId;
 
     /// <summary>页面数据是否加载完成。</summary>
     private bool _loaded;
@@ -104,6 +269,12 @@
 
     private bool CanSave => _loaded && _dirty && !_busy;
 
+    private NavigationEditorItem? SelectedItem => string.IsNullOrWhiteSpace(_selectedItemId)
+        ? null
+        : FindById(_items, _selectedItemId);
+
+    private IReadOnlyList<LanguageRecord> EnabledLanguagesForDisplay => _enabledLanguages;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
@@ -112,24 +283,43 @@
     private async Task LoadAsync()
     {
         var view = await Menu.GetEditorAsync();
-        _items.Clear();
-        _items.AddRange(view.Items);
-        _targetOptions = view.TargetOptions;
-        _warnings = view.Warnings;
+        ApplyView(view, selectedItemId: null);
         _dirty = false;
         _saved = false;
         _loaded = true;
     }
 
+    /// <summary>把服务层视图复制进页面状态；保存后会尽量保留用户当前选中节点。</summary>
+    private void ApplyView(NavigationMenuEditorView view, string? selectedItemId)
+    {
+        _items.Clear();
+        _items.AddRange(view.Items);
+        _targetOptions = view.TargetOptions;
+        _warnings = view.Warnings;
+        _enabledLanguages = view.EnabledLanguages;
+        _commonTextOverrides = view.CommonTextOverrides.ToDictionary(
+            item => item.Key,
+            item => new Dictionary<string, string>(item.Values, StringComparer.OrdinalIgnoreCase),
+            StringComparer.Ordinal);
+        _labelModeDrafts.Clear();
+        _selectedItemId = !string.IsNullOrWhiteSpace(selectedItemId) && FindById(_items, selectedItemId) is not null
+            ? selectedItemId
+            : FirstNode(_items)?.Id;
+    }
+
     private void AddRoot()
     {
-        _items.Add(CreateDefaultItem());
+        var item = CreateDefaultItem();
+        _items.Add(item);
+        SelectNode(item);
         MarkDirty();
     }
 
     private void AddChild(NavigationEditorItem parent)
     {
-        parent.Children.Add(CreateDefaultItem());
+        var item = CreateDefaultItem();
+        parent.Children.Add(item);
+        SelectNode(item);
         MarkDirty();
     }
 
@@ -137,6 +327,12 @@
     {
         if (RemoveFrom(_items, node))
         {
+            _labelModeDrafts.Remove(node.Id);
+            if (SelectedItem is null)
+            {
+                _selectedItemId = FirstNode(_items)?.Id;
+            }
+
             MarkDirty();
         }
     }
@@ -157,6 +353,14 @@
         }
     }
 
+    private void SelectNode(NavigationEditorItem node)
+    {
+        _selectedItemId = node.Id;
+    }
+
+    private bool IsSelected(NavigationEditorItem node)
+        => string.Equals(node.Id, _selectedItemId, StringComparison.Ordinal);
+
     private void MarkDirty()
     {
         _dirty = true;
@@ -171,12 +375,12 @@
         }
 
         _busy = true;
+        var selectedItemId = _selectedItemId;
         try
         {
-            await Menu.SaveAsync(_items);
+            await Menu.SaveAsync(_items, BuildCommonTextOverrides());
             var view = await Menu.GetEditorAsync();
-            _targetOptions = view.TargetOptions;
-            _warnings = view.Warnings;
+            ApplyView(view, selectedItemId);
             _dirty = false;
             _saved = true;
         }
@@ -186,15 +390,243 @@
         }
     }
 
+    private void OnSelectedTargetChanged(NavigationEditorItem item, ChangeEventArgs args)
+    {
+        item.TargetKey = args.Value?.ToString() ?? string.Empty;
+        MarkDirty();
+    }
+
+    private void SetLabelMode(NavigationEditorItem item, string mode)
+    {
+        _labelModeDrafts[item.Id] = mode;
+        if (mode == LabelModeAuto)
+        {
+            item.Label = string.Empty;
+        }
+        else if (mode == LabelModeSiteI18n)
+        {
+            item.Label = BuildCommonI18nRef(EnsureCommonI18nKey(item));
+        }
+
+        MarkDirty();
+    }
+
+    private void OnPlainLabelInput(NavigationEditorItem item, ChangeEventArgs args)
+    {
+        _labelModeDrafts[item.Id] = LabelModePlain;
+        item.Label = args.Value?.ToString() ?? string.Empty;
+        MarkDirty();
+    }
+
+    private void OnCommonI18nKeyInput(NavigationEditorItem item, ChangeEventArgs args)
+    {
+        var previous = GetCommonI18nKey(item.Label);
+        var next = NormalizeCommonI18nKey(args.Value?.ToString());
+        if (string.IsNullOrWhiteSpace(next))
+        {
+            next = CreateDefaultCommonI18nKey(item);
+        }
+
+        if (!string.IsNullOrWhiteSpace(previous)
+            && !string.Equals(previous, next, StringComparison.Ordinal)
+            && _commonTextOverrides.TryGetValue(previous, out var values)
+            && !_commonTextOverrides.ContainsKey(next))
+        {
+            _commonTextOverrides[next] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
+        }
+
+        _labelModeDrafts[item.Id] = LabelModeSiteI18n;
+        item.Label = BuildCommonI18nRef(next);
+        MarkDirty();
+    }
+
+    private string EnsureCommonI18nKey(NavigationEditorItem item)
+    {
+        var key = GetCommonI18nKey(item.Label);
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            return key;
+        }
+
+        key = CreateDefaultCommonI18nKey(item);
+        item.Label = BuildCommonI18nRef(key);
+        _labelModeDrafts[item.Id] = LabelModeSiteI18n;
+        return key;
+    }
+
+    private bool IsLabelMode(NavigationEditorItem item, string mode)
+        => string.Equals(GetLabelMode(item), mode, StringComparison.Ordinal);
+
+    private string GetLabelMode(NavigationEditorItem item)
+    {
+        if (_labelModeDrafts.TryGetValue(item.Id, out var draft))
+        {
+            return draft;
+        }
+
+        if (string.IsNullOrWhiteSpace(item.Label))
+        {
+            return LabelModeAuto;
+        }
+
+        if (TryParseDisplayRef(item.Label, out var scope, out _))
+        {
+            return string.Equals(scope, "common", StringComparison.Ordinal)
+                ? LabelModeSiteI18n
+                : LabelModeThemeI18n;
+        }
+
+        return LabelModePlain;
+    }
+
+    private static string GetPlainLabel(NavigationEditorItem item)
+        => TryParseDisplayRef(item.Label, out _, out _) ? string.Empty : item.Label;
+
+    private static string GetCommonI18nKey(string label)
+        => TryParseDisplayRef(label, out var scope, out var key)
+            && string.Equals(scope, "common", StringComparison.Ordinal)
+            ? key
+            : string.Empty;
+
+    private static string GetI18nKey(string label)
+        => TryParseDisplayRef(label, out _, out var key) ? key : label;
+
+    private string GetCommonTextOverride(string key, string languageCode)
+        => _commonTextOverrides.TryGetValue(key, out var values)
+            && values.TryGetValue(languageCode, out var value)
+            ? value
+            : string.Empty;
+
+    private void SetCommonTextOverride(string key, string languageCode, string? value)
+    {
+        if (!_commonTextOverrides.TryGetValue(key, out var values))
+        {
+            values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _commonTextOverrides[key] = values;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            values.Remove(languageCode);
+            if (values.Count == 0)
+            {
+                _commonTextOverrides.Remove(key);
+            }
+        }
+        else
+        {
+            values[languageCode] = value.Trim();
+        }
+
+        MarkDirty();
+    }
+
+    private IEnumerable<CommonI18nTextOverride> BuildCommonTextOverrides()
+        => _commonTextOverrides.Select(item => new CommonI18nTextOverride
+        {
+            Key = item.Key,
+            Values = item.Value,
+        });
+
     private NavigationEditorItem CreateDefaultItem()
     {
         var first = _targetOptions.FirstOrDefault(option => option.Available) ??
-            new NavigationTargetOption { Type = "builtin", Value = "home", Label = "Home", Available = true };
+            new NavigationTargetOption
+            {
+                Type = "builtin",
+                Value = "home",
+                GroupLabel = I18n["siteNavigation.target.group.builtin"],
+                Label = "Home",
+                Available = true,
+            };
         return new NavigationEditorItem
         {
             TargetType = first.Type,
             TargetValue = first.Value,
         };
+    }
+
+    private static string BuildCommonI18nRef(string key)
+        => "i18n://common@" + key;
+
+    private static string NormalizeCommonI18nKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("i18n://common@", StringComparison.Ordinal)
+            ? trimmed["i18n://common@".Length..].Trim()
+            : trimmed;
+    }
+
+    private static string CreateDefaultCommonI18nKey(NavigationEditorItem item)
+    {
+        var source = string.IsNullOrWhiteSpace(item.TargetValue) ? item.TargetType : item.TargetValue;
+        var slug = CategorySlug.Normalize(source);
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            slug = "item";
+        }
+
+        var idPart = item.Id.Length > 8 ? item.Id[..8] : item.Id;
+        return $"menu.custom.{slug}-{idPart}";
+    }
+
+    private static bool TryParseDisplayRef(string value, out string scope, out string key)
+    {
+        scope = string.Empty;
+        key = string.Empty;
+        const string prefix = "i18n://";
+        if (string.IsNullOrWhiteSpace(value) || !value.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var body = value[prefix.Length..];
+        var separator = body.IndexOf('@', StringComparison.Ordinal);
+        if (separator <= 0 || separator >= body.Length - 1)
+        {
+            return false;
+        }
+
+        scope = body[..separator].Trim();
+        key = body[(separator + 1)..].Trim();
+        return !string.IsNullOrWhiteSpace(scope) && !string.IsNullOrWhiteSpace(key);
+    }
+
+    private static int CountItems(IEnumerable<NavigationEditorItem> nodes)
+        => nodes.Sum(node => 1 + CountItems(node.Children));
+
+    private static NavigationEditorItem? FirstNode(IEnumerable<NavigationEditorItem> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            return node;
+        }
+
+        return null;
+    }
+
+    private static NavigationEditorItem? FindById(IEnumerable<NavigationEditorItem> nodes, string id)
+    {
+        foreach (var node in nodes)
+        {
+            if (string.Equals(node.Id, id, StringComparison.Ordinal))
+            {
+                return node;
+            }
+
+            var child = FindById(node.Children, id);
+            if (child is not null)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     private static bool RemoveFrom(List<NavigationEditorItem> nodes, NavigationEditorItem target)

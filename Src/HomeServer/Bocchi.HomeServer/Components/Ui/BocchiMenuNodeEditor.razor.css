@@ -1,49 +1,106 @@
 .bocchi-menu-node {
     display: grid;
     gap: 0.55rem;
-    border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
-    background: var(--bocchi-surface);
-    padding: 0.65rem;
+    min-width: 0;
 }
 
 .bocchi-menu-node__row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(12rem, 1.3fr) repeat(4, 2rem);
-    gap: 0.45rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.4rem;
     align-items: center;
-}
-
-.bocchi-menu-node__level {
-    display: inline-flex;
-    min-width: 2.4rem;
-    justify-content: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--bocchi-surface-soft) 72%, var(--bocchi-surface));
-    color: var(--bocchi-blue-strong);
-    font-size: 0.72rem;
-    font-weight: 780;
-    padding: 0.28rem 0.45rem;
-}
-
-.bocchi-menu-node input,
-.bocchi-menu-node select {
-    width: 100%;
-    min-height: 2.25rem;
     min-width: 0;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
+    padding: 0.32rem 0.38rem;
+}
+
+.bocchi-menu-node--selected > .bocchi-menu-node__row {
+    border-color: color-mix(in srgb, var(--bocchi-action) 52%, var(--bocchi-border));
+    background: color-mix(in srgb, var(--bocchi-surface-pink) 42%, var(--bocchi-surface));
+}
+
+.bocchi-menu-node__summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 2rem;
+    min-width: 0;
+    align-items: center;
+    gap: 0.45rem;
+    border: 0;
+    background: transparent;
     color: var(--bocchi-text);
-    padding: 0 0.65rem;
+    padding: 0;
+    text-align: left;
+}
+
+.bocchi-menu-node__summary:hover:not(:disabled) {
+    transform: none;
+}
+
+.bocchi-menu-node__summary ::deep svg {
+    display: block;
+    justify-self: center;
+    width: 0.95rem;
+    height: 0.95rem;
+    color: var(--bocchi-action);
+}
+
+.bocchi-menu-node__level {
+    display: inline-flex;
+    min-width: 2.25rem;
+    justify-content: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bocchi-surface-soft) 72%, var(--bocchi-surface));
+    color: var(--bocchi-blue-strong);
+    font-size: 0.68rem;
+    font-weight: 780;
+    padding: 0.18rem 0.36rem;
+}
+
+.bocchi-menu-node__body {
+    display: grid;
+    gap: 0.12rem;
+    min-width: 0;
+}
+
+.bocchi-menu-node__body strong,
+.bocchi-menu-node__body small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-menu-node__body strong {
+    color: var(--bocchi-text);
+    font-size: 0.88rem;
+}
+
+.bocchi-menu-node__body small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.74rem;
+    font-weight: 620;
+}
+
+.bocchi-menu-node__actions {
+    display: grid;
+    grid-template-columns: repeat(4, 2rem);
+    grid-auto-rows: 2rem;
+    gap: 0.28rem;
+    align-items: center;
 }
 
 .bocchi-menu-node__icon {
+    display: inline-grid;
     width: 2rem;
+    height: 2rem;
     min-height: 2rem;
+    place-items: center;
     border: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
     color: var(--bocchi-text-muted);
+    line-height: 0;
     padding: 0;
 }
 
@@ -63,6 +120,7 @@
 }
 
 .bocchi-menu-node__icon ::deep svg {
+    display: block;
     width: 0.9rem;
     height: 0.9rem;
 }
@@ -70,24 +128,19 @@
 .bocchi-menu-node__children {
     display: grid;
     gap: 0.55rem;
+    min-width: 0;
     margin-left: 0.45rem;
     padding-left: 0.65rem;
     border-left: 2px solid color-mix(in srgb, var(--bocchi-blue) 36%, var(--bocchi-border));
 }
 
-@media (max-width: 760px) {
+@media (max-width: 620px) {
     .bocchi-menu-node__row {
-        grid-template-columns: minmax(0, 1fr) repeat(4, 2rem);
+        grid-template-columns: 1fr;
     }
 
-    .bocchi-menu-node__level,
-    .bocchi-menu-node input,
-    .bocchi-menu-node select {
-        grid-column: 1 / -1;
-    }
-
-    .bocchi-menu-node__level {
-        justify-content: flex-start;
-        width: fit-content;
+    .bocchi-menu-node__actions {
+        display: flex;
+        justify-content: flex-end;
     }
 }

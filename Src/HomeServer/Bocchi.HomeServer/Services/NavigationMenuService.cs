@@ -19,6 +19,7 @@ public sealed class NavigationMenuService
     private readonly CategoryTreeService _categories;
     private readonly ThemeSettingsService _themeSettings;
     private readonly SiteProfileSettingsService _siteProfile;
+    private readonly LocalizationSettingsService _localization;
     private readonly DashboardLocalizationService _i18n;
 
     /// <summary>构造前台 Menu 编辑服务。</summary>
@@ -28,6 +29,7 @@ public sealed class NavigationMenuService
         CategoryTreeService categories,
         ThemeSettingsService themeSettings,
         SiteProfileSettingsService siteProfile,
+        LocalizationSettingsService localization,
         DashboardLocalizationService i18n)
     {
         _layout = layout;
@@ -35,6 +37,7 @@ public sealed class NavigationMenuService
         _categories = categories;
         _themeSettings = themeSettings;
         _siteProfile = siteProfile;
+        _localization = localization;
         _i18n = i18n;
     }
 
@@ -43,6 +46,7 @@ public sealed class NavigationMenuService
     {
         var items = await ReadItemsAsync(cancellationToken).ConfigureAwait(false);
         var targets = await BuildTargetOptionsAsync(items, cancellationToken).ConfigureAwait(false);
+        var localization = await _localization.GetAsync(cancellationToken).ConfigureAwait(false);
         var targetKeys = targets.Select(target => target.Key).ToHashSet(StringComparer.Ordinal);
         var warnings = Flatten(items)
             .Where(item => !targetKeys.Contains(item.TargetKey))
@@ -59,11 +63,16 @@ public sealed class NavigationMenuService
             Items = items,
             TargetOptions = targets,
             Warnings = warnings,
+            EnabledLanguages = localization.EnabledLanguages,
+            CommonTextOverrides = localization.CommonTextOverrides,
         };
     }
 
     /// <summary>保存编辑器提交的 Menu tree。服务层统一裁剪深度、清理空 id，并写回 YAML。</summary>
-    public async Task SaveAsync(IEnumerable<NavigationEditorItem> items, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(
+        IEnumerable<NavigationEditorItem> items,
+        IEnumerable<CommonI18nTextOverride>? commonTextOverrides = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(items);
 
@@ -78,6 +87,11 @@ public sealed class NavigationMenuService
         await using var writer = new StreamWriter(output);
         stream.Save(writer, assignAnchors: false);
         await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+        if (commonTextOverrides is not null)
+        {
+            await _localization.SaveCommonTextOverridesAsync(commonTextOverrides, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task<List<NavigationEditorItem>> ReadItemsAsync(CancellationToken cancellationToken)
@@ -129,6 +143,7 @@ public sealed class NavigationMenuService
         {
             Type = "themePage",
             Value = page.Name,
+            GroupLabel = _i18n["siteNavigation.target.group.themePage"],
             Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.themePage"], page.DisplayName),
             Available = true,
         }));
@@ -140,6 +155,7 @@ public sealed class NavigationMenuService
             {
                 Type = "page",
                 Value = page.ContentId,
+                GroupLabel = _i18n["siteNavigation.target.group.page"],
                 Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.page"], page.Title ?? page.ContentId),
                 Available = true,
             }));
@@ -149,6 +165,7 @@ public sealed class NavigationMenuService
         {
             Type = "postCategory",
             Value = category.Slug,
+            GroupLabel = _i18n["siteNavigation.target.group.postCategory"],
             Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.postCategory"], category.Name),
             Available = true,
         }));
@@ -162,6 +179,7 @@ public sealed class NavigationMenuService
                 {
                     Type = item.TargetType,
                     Value = item.TargetValue,
+                    GroupLabel = _i18n["siteNavigation.target.group.unavailable"],
                     Label = string.Format(CultureInfo.CurrentCulture, "{0}:{1} · {2}", item.TargetType, item.TargetValue, _i18n["siteNavigation.target.unavailable"]),
                     Available = false,
                 });
@@ -174,6 +192,7 @@ public sealed class NavigationMenuService
         {
             Type = "builtin",
             Value = name,
+            GroupLabel = _i18n["siteNavigation.target.group.builtin"],
             Label = _i18n[$"siteNavigation.target.builtin.{name}"],
             Available = true,
         };
@@ -331,6 +350,12 @@ public sealed class NavigationMenuEditorView
 
     /// <summary>当前 Menu 中无法解析到有效内容或 Theme special page 的 target。</summary>
     public required IReadOnlyList<NavigationMenuWarning> Warnings { get; init; }
+
+    /// <summary>站点当前启用语言，用于在导航页内编辑 Common i18n 文案。</summary>
+    public required IReadOnlyList<LanguageRecord> EnabledLanguages { get; init; }
+
+    /// <summary>已保存的 Common i18n 覆盖；导航页保存时会完整带回，避免清掉其他页面维护的 key。</summary>
+    public required IReadOnlyList<CommonI18nTextOverride> CommonTextOverrides { get; init; }
 }
 
 /// <summary>Blazor 编辑器使用的可变 Menu 节点。</summary>
@@ -375,6 +400,9 @@ public sealed class NavigationTargetOption
 
     /// <summary>Dashboard 展示标签。</summary>
     public required string Label { get; init; }
+
+    /// <summary>Dashboard 下拉分组标签。</summary>
+    public required string GroupLabel { get; init; }
 
     /// <summary>该 target 在当前内容和 Theme 下是否可解析。</summary>
     public required bool Available { get; init; }

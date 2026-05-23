@@ -1,6 +1,67 @@
+.bocchi-navigation-shell {
+    gap: 1rem;
+}
+
+.bocchi-navigation-workbench {
+    display: grid;
+    grid-template-columns: minmax(20rem, 0.92fr) minmax(20rem, 0.72fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.bocchi-navigation-tree-panel,
+.bocchi-navigation-detail {
+    display: grid;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.bocchi-navigation-detail {
+    position: sticky;
+    top: 5.4rem;
+}
+
+.bocchi-navigation-panel-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bocchi-navigation-panel-heading div {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.bocchi-navigation-panel-heading span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 780;
+}
+
+.bocchi-navigation-panel-heading h2 {
+    margin: 0;
+    color: var(--bocchi-text);
+    font-size: 1.16rem;
+    letter-spacing: 0;
+}
+
+.bocchi-navigation-panel-heading button {
+    gap: 0.38rem;
+}
+
+.bocchi-navigation-panel-heading button ::deep svg,
+.bocchi-page-heading__actions button ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
 .bocchi-navigation-tree {
     display: grid;
     gap: 0.7rem;
+    min-width: 0;
 }
 
 .bocchi-navigation-empty {
@@ -22,20 +83,177 @@
 .bocchi-navigation-warning {
     display: grid;
     gap: 0.25rem;
-    border: 1px solid color-mix(in srgb, var(--bocchi-warning) 44%, var(--bocchi-border));
+    border: 1px solid color-mix(in srgb, var(--bocchi-warning-strong) 44%, var(--bocchi-border));
     border-radius: 8px;
-    background: color-mix(in srgb, var(--bocchi-warning) 10%, var(--bocchi-surface));
+    background: color-mix(in srgb, var(--bocchi-warning-soft) 72%, var(--bocchi-surface));
     color: var(--bocchi-warning-strong);
     padding: 0.8rem;
 }
 
 .bocchi-navigation-warning p,
-.bocchi-navigation-status {
+.bocchi-navigation-status,
+.bocchi-navigation-detail__empty p,
+.bocchi-navigation-readonly-ref p {
     margin: 0;
     font-size: 0.86rem;
     line-height: 1.5;
 }
 
+.bocchi-navigation-status {
+    color: var(--bocchi-text-muted);
+}
+
 .bocchi-navigation-status--success {
     color: var(--bocchi-success-strong);
+}
+
+.bocchi-navigation-detail__empty {
+    display: grid;
+    min-height: 14rem;
+    place-items: center;
+    align-content: center;
+    gap: 0.55rem;
+    border: 1px dashed var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface-muted) 45%, transparent);
+    color: var(--bocchi-text-muted);
+    padding: 1rem;
+    text-align: center;
+}
+
+.bocchi-navigation-detail__empty ::deep svg {
+    width: 1.8rem;
+    height: 1.8rem;
+    color: var(--bocchi-blue-strong);
+}
+
+.bocchi-navigation-detail__empty h2 {
+    margin: 0;
+    color: var(--bocchi-text);
+    font-size: 1.05rem;
+}
+
+.bocchi-navigation-detail-form {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.bocchi-navigation-field {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.bocchi-navigation-field input,
+.bocchi-navigation-field select,
+.bocchi-navigation-i18n-values input {
+    width: 100%;
+    min-height: 2.45rem;
+    min-width: 0;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    padding: 0 0.75rem;
+}
+
+.bocchi-navigation-label-mode {
+    display: grid;
+    gap: 0.55rem;
+    min-width: 0;
+    margin: 0;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 94%, var(--bocchi-bg));
+    padding: 0.75rem;
+}
+
+.bocchi-navigation-label-mode legend {
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 780;
+    padding: 0 0.25rem;
+}
+
+.bocchi-navigation-label-mode label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: start;
+    color: var(--bocchi-text);
+}
+
+.bocchi-navigation-label-mode span {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.bocchi-navigation-label-mode small {
+    color: var(--bocchi-text-muted);
+    line-height: 1.45;
+}
+
+.bocchi-navigation-i18n-values {
+    display: grid;
+    gap: 0.65rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.75rem;
+}
+
+.bocchi-navigation-i18n-values > strong {
+    color: var(--bocchi-text);
+}
+
+.bocchi-navigation-i18n-values label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.bocchi-navigation-readonly-ref {
+    display: grid;
+    gap: 0.45rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text-muted);
+    padding: 0.75rem;
+}
+
+.bocchi-navigation-readonly-ref span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 780;
+}
+
+.bocchi-navigation-readonly-ref code {
+    width: fit-content;
+}
+
+@media (max-width: 980px) {
+    .bocchi-navigation-workbench {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-navigation-detail {
+        position: static;
+    }
+}
+
+@media (max-width: 620px) {
+    .bocchi-navigation-panel-heading {
+        align-items: stretch;
+    }
+
+    .bocchi-navigation-panel-heading button,
+    .bocchi-page-heading__actions button {
+        justify-content: center;
+    }
 }

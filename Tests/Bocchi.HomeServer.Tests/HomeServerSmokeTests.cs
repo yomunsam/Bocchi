@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
+
+using Bocchi.HomeServer.Services;
 
 namespace Bocchi.HomeServer.Tests;
 
@@ -123,13 +126,30 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     [Fact]
     public async Task SiteNavigationPage_RendersEditorAndSiteSidebarLinks()
     {
-        using var client = await _factory.CreateAdminClientAsync();
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var menu = scope.ServiceProvider.GetRequiredService<NavigationMenuService>();
+            await menu.SaveAsync(
+            [
+                new NavigationEditorItem
+                {
+                    Id = "home",
+                    TargetType = "builtin",
+                    TargetValue = "home",
+                },
+            ]);
+        }
 
         var response = await client.GetAsync("/Admin/Site/Navigation");
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        body.Should().Contain("Primary Menu");
+        body.Should().Contain("Menu tree");
+        body.Should().Contain("Menu item details");
+        body.Should().Contain("Label mode");
+        body.Should().Contain("Site i18n");
         body.Should().Contain("Add root item");
         body.Should().Contain("Navigation");
         body.Should().Contain("Theme customization");

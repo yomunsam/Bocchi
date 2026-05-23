@@ -395,7 +395,9 @@ public sealed class GeneratorPipelineEndToEndTests
         visibleHtml.Should().Contain("theme.defaultStatic.homeSelectedWriting\">精选写作</h2>");
         visibleHtml.Should().Contain("由测试构建。");
         visibleHtml.Should().Contain("""data-bocchi-language-control""");
+        visibleHtml.Should().Contain("""data-bocchi-language-summary>简体中文</span>""");
         visibleHtml.Should().Contain("data-bocchi-language-option=\"zh-CN\" aria-current=\"true\"");
+        visibleHtml.Should().NotContain("<small>zh-CN</small>");
         visibleHtml.Should().Contain("""data-bocchi-appearance-control""");
         visibleHtml.Should().Contain("data-bocchi-appearance-option=\"auto\" aria-current=\"true\"");
         visibleHtml.Should().Contain(">自动</span></button>");

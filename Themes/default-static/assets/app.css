@@ -30,8 +30,10 @@ html[data-theme="dark"] .nav__children{box-shadow:0 18px 38px rgba(0,0,0,.35)}
 .theme-menu summary::-webkit-details-marker{display:none}
 .theme-menu summary:hover,.theme-menu[open] summary{background:var(--surface-soft)}
 .theme-menu__icon{font-weight:700;font-size:14px;line-height:1}
-.theme-menu__current{font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1}
-.theme-menu__chevron{font-size:12px;line-height:1;color:var(--text-faint);transition:transform 140ms ease}
+.theme-menu__icon--language svg{display:block;width:16px;height:16px;stroke:currentColor;stroke-width:1.8;fill:none}
+.theme-menu__current{font-size:13px;color:var(--text-muted);line-height:1}
+.theme-menu__chevron{display:inline-flex;align-items:center;justify-content:center;color:var(--text-faint);transition:transform 140ms ease}
+.theme-menu__chevron svg{display:block;width:15px;height:15px;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none}
 .theme-menu[open] .theme-menu__chevron{transform:rotate(180deg)}
 .theme-menu__appearance-icon{display:none;font-size:16px;line-height:1}
 .theme-menu:not([data-bocchi-appearance-mode]) .theme-menu__appearance-icon--auto,.theme-menu[data-bocchi-appearance-mode="auto"] .theme-menu__appearance-icon--auto,.theme-menu[data-bocchi-appearance-mode="light"] .theme-menu__appearance-icon--light,.theme-menu[data-bocchi-appearance-mode="dark"] .theme-menu__appearance-icon--dark{display:inline-block}

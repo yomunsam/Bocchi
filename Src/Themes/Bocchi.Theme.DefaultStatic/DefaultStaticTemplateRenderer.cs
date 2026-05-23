@@ -613,9 +613,13 @@ public sealed class DefaultStaticTemplateRenderer
     /// <summary>创建模板可访问的站点本地化模型；默认 Theme 目前只展示当前语言，路径切换留给内容多语言页生成。</summary>
     private static Dictionary<string, object?> CreateLocalizationModel(DefaultStaticThemeText text)
     {
+        var currentLanguage = text.EnabledLanguages.FirstOrDefault(
+            language => string.Equals(language.Code, text.CurrentLanguage, StringComparison.OrdinalIgnoreCase));
+
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["currentLanguage"] = text.CurrentLanguage,
+            ["currentLanguageName"] = currentLanguage?.NativeName ?? currentLanguage?.EnglishName ?? text.CurrentLanguage,
             ["primaryLanguage"] = text.PrimaryLanguage,
             ["textJson"] = text.BuildClientJson(ClientI18nKeys),
             ["languages"] = text.EnabledLanguages

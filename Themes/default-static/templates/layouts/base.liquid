@@ -19,15 +19,25 @@
       <div class="toolbar">
         <details class="theme-menu" data-bocchi-language-control>
           <summary aria-label="{{ text.languageLabel }}" title="{{ text.languageLabel }}">
-            <span class="theme-menu__icon" aria-hidden="true">文</span>
-            <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguage }}</span>
-            <span class="theme-menu__chevron" aria-hidden="true">⌄</span>
+            <span class="theme-menu__icon theme-menu__icon--language" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M3 12h18"></path>
+                <path d="M12 3a13 13 0 0 1 0 18"></path>
+                <path d="M12 3a13 13 0 0 0 0 18"></path>
+              </svg>
+            </span>
+            <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguageName }}</span>
+            <span class="theme-menu__chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
           </summary>
           <div class="theme-menu__menu" role="menu" aria-label="{{ text.languageLabel }}">
             {% for language in localization.languages %}
             <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-language-option="{{ language.code }}" aria-current="{% if language.code == localization.currentLanguage %}true{% else %}false{% endif %}">
               <span>{{ language.nativeName }}</span>
-              <small>{{ language.code }}</small>
             </button>
             {% endfor %}
           </div>
@@ -37,7 +47,11 @@
             <span class="theme-menu__appearance-icon theme-menu__appearance-icon--auto" aria-hidden="true">◐</span>
             <span class="theme-menu__appearance-icon theme-menu__appearance-icon--light" aria-hidden="true">☀</span>
             <span class="theme-menu__appearance-icon theme-menu__appearance-icon--dark" aria-hidden="true">☾</span>
-            <span class="theme-menu__chevron" aria-hidden="true">⌄</span>
+            <span class="theme-menu__chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </span>
           </summary>
           <div class="theme-menu__menu" role="menu" aria-label="{{ text.appearanceLabel }}">
             <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="auto" aria-current="true"><span data-bocchi-i18n="theme.defaultStatic.appearanceAuto">{{ text.appearanceAuto }}</span></button>
