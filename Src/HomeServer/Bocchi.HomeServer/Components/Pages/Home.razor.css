@@ -4,6 +4,10 @@
 }
 
 .bocchi-guide-stack__top {
+    --bocchi-guide-padding-block: 1.1rem;
+    --bocchi-guide-padding-inline: 1.3rem;
+    --bocchi-guide-dismiss-size: 2rem;
+
     position: relative;
     display: grid;
     gap: 0.65rem;
@@ -13,13 +17,13 @@
         color-mix(in srgb, var(--bocchi-surface-pink) 90%, var(--bocchi-surface)) 0%,
         color-mix(in srgb, var(--bocchi-lavender) 35%, var(--bocchi-surface)) 100%);
     box-shadow: var(--bocchi-shadow-soft);
-    padding: 1.1rem 1.3rem;
+    padding: var(--bocchi-guide-padding-block) var(--bocchi-guide-padding-inline);
 }
 
 .bocchi-guide-stack__body {
     display: grid;
     gap: 0.45rem;
-    padding-right: 2.5rem; /* 给右上角的关闭按钮让位。 */
+    padding-right: calc(var(--bocchi-guide-dismiss-size) + 0.8rem); /* 给右上角的关闭按钮让位。 */
 }
 
 .bocchi-guide-stack__body strong {
@@ -39,10 +43,11 @@
 
 .bocchi-guide-stack__dismiss {
     position: absolute;
-    top: 0.65rem;
-    right: 0.7rem;
-    min-height: 2rem;
-    width: 2rem;
+    top: var(--bocchi-guide-padding-block);
+    right: var(--bocchi-guide-padding-inline);
+    min-height: var(--bocchi-guide-dismiss-size);
+    width: var(--bocchi-guide-dismiss-size);
+    justify-content: center;
     background: transparent;
     color: var(--bocchi-text-muted);
     padding: 0;
