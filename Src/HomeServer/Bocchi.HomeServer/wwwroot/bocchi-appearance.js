@@ -224,8 +224,10 @@
                 setRule(name, ok);
             }
 
-            const score = Object.values(checks).filter(Boolean).length;
-            const strength = score >= 4 ? "strong" : score >= 2 ? "medium" : "weak";
+            const strengthScore = [checks.length, checks.letter, checks.numberOrSymbol]
+                .filter(Boolean)
+                .length;
+            const strength = strengthScore >= 3 ? "strong" : strengthScore >= 2 ? "medium" : "weak";
             if (meter instanceof HTMLElement) {
                 meter.dataset.strength = strength;
                 const label = meter.querySelector("[data-bocchi-password-strength-label]");

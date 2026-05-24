@@ -321,7 +321,7 @@ public static class AccountEndpoints
                                         <button class="bocchi-password-toggle" type="button" data-bocchi-password-toggle="setup-password" aria-label="{{Attr(SetupText(localization, "setup.password.toggle", "显示或隐藏密码", "Show or hide password"))}}" title="{{Attr(SetupText(localization, "setup.password.toggle", "显示或隐藏密码", "Show or hide password"))}}">{{Icon("eye")}}</button>
                                     </span>
                                 </label>
-                                <div class="bocchi-password-meter" data-bocchi-password-meter data-label-weak="{{Attr(SetupText(localization, "setup.passwordStrength.weak", "弱", "Weak"))}}" data-label-medium="{{Attr(SetupText(localization, "setup.passwordStrength.medium", "中", "Medium"))}}" data-label-strong="{{Attr(SetupText(localization, "setup.passwordStrength.strong", "强", "Strong"))}}">
+                                <div class="bocchi-password-meter" data-strength="weak" data-bocchi-password-meter data-label-weak="{{Attr(SetupText(localization, "setup.passwordStrength.weak", "弱", "Weak"))}}" data-label-medium="{{Attr(SetupText(localization, "setup.passwordStrength.medium", "中", "Medium"))}}" data-label-strong="{{Attr(SetupText(localization, "setup.passwordStrength.strong", "强", "Strong"))}}">
                                     <span>{{Html(SetupText(localization, "setup.passwordStrength.label", "密码强度:", "Password strength:"))}} <strong data-bocchi-password-strength-label>{{Html(SetupText(localization, "setup.passwordStrength.weak", "弱", "Weak"))}}</strong></span>
                                     <div aria-hidden="true"><i></i><i></i><i></i></div>
                                 </div>
@@ -337,10 +337,10 @@ public static class AccountEndpoints
                             </div>
                         </div>
                         <ul class="bocchi-setup-checklist bocchi-setup-checklist--panel" aria-label="{{Attr(localization["setup.passwordChecklist.aria"])}}">
-                            <li data-bocchi-password-rule="length">{{Icon("check")}}{{Html(localization["setup.passwordChecklist.length"])}}</li>
-                            <li data-bocchi-password-rule="letter">{{Icon("check")}}{{Html(SetupText(localization, "setup.passwordChecklist.letter", "包含字母。", "Includes a letter."))}}</li>
-                            <li data-bocchi-password-rule="numberOrSymbol">{{Icon("check")}}{{Html(SetupText(localization, "setup.passwordChecklist.numberOrSymbol", "包含数字或特殊字符。", "Includes a number or symbol."))}}</li>
-                            <li data-bocchi-password-rule="match">{{Icon("check")}}{{Html(SetupText(localization, "setup.passwordChecklist.match", "两次输入一致。", "Both entries match."))}}</li>
+                            <li data-ok="false" data-bocchi-password-rule="length">{{Icon("check")}}{{Html(localization["setup.passwordChecklist.length"])}}</li>
+                            <li data-ok="false" data-bocchi-password-rule="letter">{{Icon("check")}}{{Html(SetupText(localization, "setup.passwordChecklist.letter", "包含字母。", "Includes a letter."))}}</li>
+                            <li data-ok="false" data-bocchi-password-rule="numberOrSymbol">{{Icon("check")}}{{Html(SetupText(localization, "setup.passwordChecklist.numberOrSymbol", "包含数字或特殊字符。", "Includes a number or symbol."))}}</li>
+                            <li data-ok="false" data-bocchi-password-rule="match">{{Icon("check")}}{{Html(SetupText(localization, "setup.passwordChecklist.match", "两次输入一致。", "Both entries match."))}}</li>
                         </ul>
                     </div>
                 </section>
@@ -717,6 +717,13 @@ public static class AccountEndpoints
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>{{WebUtility.HtmlEncode(title)}} · Bocchi</title>
+                <link rel="icon" href="/favicon.ico" sizes="any">
+                <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+                <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+                <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+                <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+                <link rel="manifest" href="/site.webmanifest">
+                <meta name="theme-color" content="#f8f7fc">
                 <link rel="stylesheet" href="/app.css">
                 <script src="/bocchi-appearance.js"></script>
             </head>

@@ -3,6 +3,7 @@ using System.IO.Compression;
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.Generator.State;
+using Bocchi.HomeServer.Services.Publishing;
 using Bocchi.Workspace;
 
 using Microsoft.AspNetCore.Builder;
@@ -28,6 +29,7 @@ public static class BuildEndpoints
         var publish = endpoints.MapGroup("/Admin/Publish").RequireAuthorization("Admin");
         publish.MapGet("/download", DownloadPublicZipAsync);
         publish.MapPost("/run", RunBuildAsync).DisableAntiforgery();
+        publish.MapPost("/github/run", RunGitHubPublishAsync).DisableAntiforgery();
         endpoints.MapGet("/_bocchi/preview/{**path}", PreviewAsync).RequireAuthorization();
         return endpoints;
     }
@@ -46,6 +48,26 @@ public static class BuildEndpoints
             Fingerprint = result.Fingerprint?.Value,
             result.Reason,
             ArtifactCount = result.Artifacts.Count,
+        });
+    }
+
+    /// <summary>执行最近的 GitHub Pages 发布方案，并返回脱敏结果 JSON。</summary>
+    private static async Task<IResult> RunGitHubPublishAsync(PublishExecutionService publisher, CancellationToken cancellationToken)
+    {
+        var result = await publisher.PublishLatestGitHubPagesAsync(cancellationToken).ConfigureAwait(false);
+        return Results.Json(new
+        {
+            result.PublishRunId,
+            Status = result.Status.ToString(),
+            result.Channel,
+            result.DisplayName,
+            BuildStatus = result.BuildStatus?.ToString(),
+            result.BuildSessionId,
+            result.BuildFingerprint,
+            result.ArtifactCount,
+            result.RemoteCommitSha,
+            result.RemoteUrl,
+            result.ErrorMessage,
         });
     }
 

@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
 
+using Microsoft.AspNetCore.Mvc.Testing;
+
 namespace Bocchi.HomeServer.Tests;
 
 public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicationFactory>
@@ -23,6 +25,8 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("Generate site files");
         body.Should().Contain("Generate static site");
+        body.Should().Contain("GitHub Pages");
+        body.Should().Contain("Publish to GitHub Pages");
         body.Should().NotContain("Publish targets");
         body.Should().NotContain("Current target");
         body.Should().NotContain("Local static output");
@@ -30,7 +34,6 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         body.Should().NotContain("Frontend Theme id");
         body.Should().NotContain("Build environment");
         body.Should().NotContain("Include drafts");
-        body.Should().NotContain("GitHub Pages");
         body.Should().NotContain("Cloudflare Pages");
         body.Should().NotContain("Local directory");
         body.Should().Contain("Local output");
@@ -79,5 +82,17 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         var response = await client.GetAsync("/Admin/Publish/download");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GitHubPublishEndpoint_RequiresAdminAuthorization()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var admin = await factory.CreateAdminClientAsync();
+        using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await anonymous.PostAsync("/Admin/Publish/github/run", content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
     }
 }

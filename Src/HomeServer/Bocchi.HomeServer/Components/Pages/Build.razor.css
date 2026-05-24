@@ -34,6 +34,7 @@
 
 .bocchi-publish-output-card,
 .bocchi-publish-history,
+.bocchi-publish-github,
 .bocchi-publish-local-output,
 .bocchi-publish-loading {
     display: grid;
@@ -42,6 +43,7 @@
 
 .bocchi-publish-output-card h2,
 .bocchi-publish-history h2,
+.bocchi-publish-github h2,
 .bocchi-publish-local-output h2 {
     margin: 0;
     font-size: 1.08rem;
@@ -78,11 +80,86 @@
 
 .bocchi-publish-output-heading p,
 .bocchi-publish-local-output p,
+.bocchi-publish-github p,
 .bocchi-publish-ready p {
     margin: 0.18rem 0 0;
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
     line-height: 1.45;
+}
+
+.bocchi-publish-github-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.62rem;
+}
+
+.bocchi-publish-github-check {
+    margin-top: 0.1rem;
+}
+
+.bocchi-publish-remote-message {
+    border-radius: 8px;
+    background: var(--bocchi-success-soft);
+    color: var(--bocchi-success-strong);
+    font-size: 0.84rem;
+    padding: 0.55rem 0.65rem;
+}
+
+.bocchi-publish-remote-message--danger {
+    background: var(--bocchi-danger-soft);
+    color: var(--bocchi-danger-strong);
+}
+
+.bocchi-publish-remote-result {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+}
+
+.bocchi-publish-remote-result a {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+    color: var(--bocchi-action-strong);
+    font-weight: 680;
+    text-decoration: none;
+}
+
+.bocchi-publish-remote-result a ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.bocchi-publish-remote-history {
+    display: grid;
+    gap: 0.45rem;
+    border-top: 1px solid var(--bocchi-border);
+    padding-top: 0.75rem;
+}
+
+.bocchi-publish-remote-history h3 {
+    margin: 0;
+    color: var(--bocchi-text);
+    font-size: 0.92rem;
+    line-height: 1.25;
+}
+
+.bocchi-publish-remote-history-list {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.bocchi-publish-remote-history-list > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    color: var(--bocchi-text-muted);
+    font-size: 0.82rem;
 }
 
 .bocchi-publish-ready {
@@ -306,5 +383,9 @@
     .bocchi-publish-output-heading,
     .bocchi-publish-local-output {
         grid-template-columns: 2.35rem minmax(0, 1fr);
+    }
+
+    .bocchi-publish-github-fields {
+        grid-template-columns: 1fr;
     }
 }

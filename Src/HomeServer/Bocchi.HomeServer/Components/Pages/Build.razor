@@ -4,9 +4,13 @@
 @using Bocchi.Generator.Pipeline
 @using Bocchi.Generator.State
 @using Bocchi.HomeServer.Build
+@using Bocchi.HomeServer.Data
+@using Bocchi.HomeServer.Services.Publishing
 @inject BuildOrchestrator Orchestrator
 @inject IBuildStateStore Store
 @inject DashboardLocalizationService I18n
+@inject PublishPlanService PublishPlans
+@inject PublishExecutionService PublishExecution
 
 <PageTitle>@CurrentPageTitle · Bocchi</PageTitle>
 
@@ -50,17 +54,6 @@
 @code {
     private const string LocalOutputSection = "LocalOutput";
 
-    /// <summary>
-    /// 后续远端发布目标接入后再恢复为用户可配置的发布方案入口；当前阶段不要在 UI 中展示未实现渠道。
-    /// </summary>
-    // private static readonly IReadOnlyList<string> FuturePublishTargetChannels =
-    // [
-    //     PublishPlanService.GitHubPagesChannel,
-    //     PublishPlanService.CloudflarePagesChannel,
-    //     PublishPlanService.LocalDirectoryChannel,
-    //     PublishPlanService.CustomChannel,
-    // ];
-
     /// <summary>发布中心子路由片段；为空时展示默认“发布”子页。</summary>
     [Parameter]
     public string? Section { get; set; }
@@ -73,6 +66,42 @@
 
     /// <summary>历史构建投影，来自 SQLite 状态库。</summary>
     private IReadOnlyList<BuildRunSummary>? _recent;
+
+    /// <summary>最近发布运行投影，来自 Home Server EF 状态库。</summary>
+    private IReadOnlyList<PublishRunRecord>? _publishRuns;
+
+    /// <summary>当前 GitHub Pages 发布方案 id；为空表示尚未保存配置。</summary>
+    private int? _githubPlanId;
+
+    /// <summary>GitHub repository owner。</summary>
+    private string _githubOwner = string.Empty;
+
+    /// <summary>GitHub repository name。</summary>
+    private string _githubRepository = string.Empty;
+
+    /// <summary>GitHub Pages 输出 branch。</summary>
+    private string _githubBranch = "gh-pages";
+
+    /// <summary>是否发布后自动确保 GitHub Pages source 指向 branch 根目录。</summary>
+    private bool _githubEnsurePagesSource = true;
+
+    /// <summary>用户本次输入的新 token；保存后立即清空。</summary>
+    private string _githubToken = string.Empty;
+
+    /// <summary>当前方案是否已有受保护 token。</summary>
+    private bool _githubHasSavedToken;
+
+    /// <summary>保存 GitHub Pages 配置时禁用按钮。</summary>
+    private bool _githubSaving;
+
+    /// <summary>发布 GitHub Pages 时禁用按钮。</summary>
+    private bool _githubPublishing;
+
+    /// <summary>GitHub Pages 面板的短状态消息。</summary>
+    private string? _githubMessage;
+
+    /// <summary>当前页面触发的最近一次远端发布结果。</summary>
+    private PublishExecutionResult? _lastPublishResult;
 
     /// <summary>规范化后的发布中心子页面。</summary>
     private string CurrentSection => string.Equals(Section, LocalOutputSection, StringComparison.OrdinalIgnoreCase)
@@ -97,12 +126,14 @@
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
+        await LoadGitHubPlanAsync();
     }
 
-    /// <summary>读取近期生成记录；当前页面不读取发布方案，因为本地静态输出是内置产物。</summary>
+    /// <summary>读取近期生成记录和发布运行记录。</summary>
     private async Task RefreshAsync()
     {
         _recent = await Store.ListRecentRunsAsync(20, default);
+        _publishRuns = await PublishExecution.ListRecentRunsAsync(20, default);
     }
 
     /// <summary>当前发布页主工作台：只暴露真实可执行的本地静态输出能力。</summary>
@@ -144,11 +175,120 @@
             @RenderLastPublishMeta()
         </section>
 
+        @RenderGitHubPagesWorkbench()
+
         <section class="bocchi-panel bocchi-publish-history" aria-labelledby="history-heading">
             <h2 id="history-heading">@I18n["publish.history.title"]</h2>
             @RenderHistory()
             @RenderLastResult()
         </section>
+    </div>;
+
+    /// <summary>渲染 GitHub Pages 真实发布面板。</summary>
+    private RenderFragment RenderGitHubPagesWorkbench() => @<section class="bocchi-panel bocchi-publish-github" aria-labelledby="publish-github-heading">
+        <div class="bocchi-publish-output-heading">
+            <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
+                <Blazicon Svg="Lucide.GitBranch" />
+            </span>
+            <div>
+                <h2 id="publish-github-heading">@I18n["publish.github.title"]</h2>
+                <p>@I18n["publish.github.description"]</p>
+            </div>
+        </div>
+
+        <form class="bocchi-form-grid bocchi-publish-github-form" @onsubmit="SaveGitHubPlanAsync" @onsubmit:preventDefault>
+            <div class="bocchi-publish-github-fields">
+                <label>@I18n["publish.github.owner"]
+                    <input type="text" @bind="_githubOwner" autocomplete="off" />
+                </label>
+                <label>@I18n["publish.github.repository"]
+                    <input type="text" @bind="_githubRepository" autocomplete="off" />
+                </label>
+                <label>@I18n["publish.github.branch"]
+                    <input type="text" @bind="_githubBranch" placeholder='@I18n["publish.github.branchPlaceholder"]' autocomplete="off" />
+                </label>
+                <label>@I18n["publish.github.token"]
+                    <input type="password" @bind="_githubToken" placeholder='@GitHubTokenPlaceholder()' autocomplete="off" />
+                </label>
+            </div>
+            <label class="bocchi-checkbox bocchi-publish-github-check">
+                <input type="checkbox" @bind="_githubEnsurePagesSource" />
+                @I18n["publish.github.ensurePagesSource"]
+            </label>
+            <div class="bocchi-publish-quick-actions">
+                <button type="submit" class="bocchi-button secondary" disabled="@(_githubSaving || _githubPublishing)">
+                    <Blazicon Svg="Lucide.Save" />
+                    <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.github.save"])</span>
+                </button>
+                <button type="button" class="bocchi-publish-primary-action" disabled="@(_githubSaving || _githubPublishing)" @onclick="PublishGitHubAsync">
+                    <Blazicon Svg="Lucide.Send" />
+                    <span>@(_githubPublishing ? I18n["publish.github.publishing"] : I18n["publish.github.publish"])</span>
+                </button>
+            </div>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(_githubMessage))
+        {
+            <p class="@GitHubMessageClass()">@_githubMessage</p>
+        }
+
+        @RenderLastGitHubPublishResult()
+        @RenderGitHubPublishHistory()
+    </section>;
+
+    /// <summary>渲染当前页面最近一次 GitHub Pages 发布结果。</summary>
+    private RenderFragment RenderLastGitHubPublishResult() => @<div>
+        @if (_lastPublishResult is not null)
+        {
+            <div class="bocchi-publish-remote-result">
+                <BocchiStatusPill Tone="@PublishStatusTone(_lastPublishResult.Status)">@PublishStatusText(_lastPublishResult.Status)</BocchiStatusPill>
+                <span>@RemotePublishSummary(_lastPublishResult)</span>
+                @if (!string.IsNullOrWhiteSpace(_lastPublishResult.RemoteUrl))
+                {
+                    <a href="@_lastPublishResult.RemoteUrl" target="_blank" rel="noopener">
+                        <Blazicon Svg="Lucide.ExternalLink" />
+                        <span>@I18n["publish.github.openRemote"]</span>
+                    </a>
+                }
+            </div>
+        }
+    </div>;
+
+    /// <summary>渲染近期 GitHub Pages 发布历史。</summary>
+    private RenderFragment RenderGitHubPublishHistory() => @<div class="bocchi-publish-remote-history">
+        <h3>@I18n["publish.github.historyTitle"]</h3>
+        @if (_publishRuns is null)
+        {
+            <p>@I18n["publish.history.loading"]</p>
+        }
+        else
+        {
+            var githubRuns = _publishRuns
+                .Where(x => string.Equals(x.Channel, PublishPlanService.GitHubPagesChannel, StringComparison.Ordinal))
+                .Take(5)
+                .ToArray();
+            @if (githubRuns.Length == 0)
+            {
+                <p>@I18n["publish.github.historyEmpty"]</p>
+            }
+            else
+            {
+                <div class="bocchi-publish-remote-history-list">
+                    @foreach (var run in githubRuns)
+                    {
+                        <div>
+                            <BocchiStatusPill Tone="@PublishStatusTone(run.Status)">@PublishStatusText(run.Status)</BocchiStatusPill>
+                            <span>@run.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture)</span>
+                            <span>@string.Format(CultureInfo.CurrentCulture, I18n["publish.result.artifactCountFormat"], run.ArtifactCount)</span>
+                            @if (!string.IsNullOrWhiteSpace(run.RemoteCommitSha))
+                            {
+                                <code>@run.RemoteCommitSha[..Math.Min(8, run.RemoteCommitSha.Length)]</code>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
     </div>;
 
     /// <summary>渲染最近一次生成的轻量状态条，让用户知道主按钮上次是否成功。</summary>
@@ -268,12 +408,137 @@
                 options,
                 themeId: null,
                 default);
-            _recent = await Store.ListRecentRunsAsync(20, default);
+            await RefreshAsync();
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    /// <summary>从已有发布方案恢复 GitHub Pages 表单。</summary>
+    private async Task LoadGitHubPlanAsync()
+    {
+        var plan = await PublishPlans.GetLatestByChannelAsync(PublishPlanService.GitHubPagesChannel, default);
+        if (plan is null)
+        {
+            return;
+        }
+
+        var config = GitHubPagesPublishConfiguration.FromJson(plan.ConfigurationJson).Normalize();
+        _githubPlanId = plan.Id;
+        _githubOwner = config.Owner;
+        _githubRepository = config.Repository;
+        _githubBranch = config.Branch;
+        _githubEnsurePagesSource = config.EnsurePagesSource;
+        _githubHasSavedToken = !string.IsNullOrWhiteSpace(plan.ProtectedCredentialJson);
+        _githubToken = string.Empty;
+    }
+
+    /// <summary>保存 GitHub Pages 发布方案；token 留空时保留已有受保护凭据。</summary>
+    private async Task SaveGitHubPlanAsync()
+    {
+        if (!ValidateGitHubPlan())
+        {
+            return;
+        }
+
+        _githubSaving = true;
+        try
+        {
+            var config = new GitHubPagesPublishConfiguration
+            {
+                Owner = _githubOwner,
+                Repository = _githubRepository,
+                Branch = _githubBranch,
+                EnsurePagesSource = _githubEnsurePagesSource,
+            }.Normalize();
+            var credentialJson = string.IsNullOrWhiteSpace(_githubToken)
+                ? null
+                : new GitHubPagesPublishCredential { Token = _githubToken.Trim() }.ToJson();
+            var saved = await PublishPlans.SaveAsync(
+                new PublishPlanSaveInput(
+                    _githubPlanId,
+                    I18n["publish.github.defaultPlanName"],
+                    PublishPlanService.GitHubPagesChannel,
+                    config.ToJson(),
+                    credentialJson,
+                    SetAsDefault: true),
+                default);
+
+            _githubPlanId = saved.Id;
+            _githubOwner = config.Owner;
+            _githubRepository = config.Repository;
+            _githubBranch = config.Branch;
+            _githubHasSavedToken = !string.IsNullOrWhiteSpace(saved.ProtectedCredentialJson);
+            _githubToken = string.Empty;
+            _githubMessage = I18n["publish.github.saved"];
+        }
+        finally
+        {
+            _githubSaving = false;
+        }
+    }
+
+    /// <summary>保存必要配置后执行 GitHub Pages 发布。</summary>
+    private async Task PublishGitHubAsync()
+    {
+        if (_githubPlanId is null || !string.IsNullOrWhiteSpace(_githubToken))
+        {
+            await SaveGitHubPlanAsync();
+            if (_githubPlanId is null)
+            {
+                return;
+            }
+        }
+        else if (!ValidateGitHubPlan())
+        {
+            return;
+        }
+
+        _githubPublishing = true;
+        try
+        {
+            _lastPublishResult = await PublishExecution.PublishAsync(_githubPlanId.Value, default);
+            _githubMessage = _lastPublishResult.Status == PublishRunStatus.Succeeded
+                ? I18n["publish.github.publishSucceeded"]
+                : _lastPublishResult.ErrorMessage;
+            await RefreshAsync();
+        }
+        finally
+        {
+            _githubPublishing = false;
+        }
+    }
+
+    /// <summary>校验 GitHub Pages 表单；错误文案全部来自 i18n。</summary>
+    private bool ValidateGitHubPlan()
+    {
+        if (string.IsNullOrWhiteSpace(_githubOwner))
+        {
+            _githubMessage = I18n["publish.github.errorOwnerRequired"];
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_githubRepository))
+        {
+            _githubMessage = I18n["publish.github.errorRepositoryRequired"];
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(_githubBranch))
+        {
+            _githubMessage = I18n["publish.github.errorBranchRequired"];
+            return false;
+        }
+
+        if (!_githubHasSavedToken && string.IsNullOrWhiteSpace(_githubToken))
+        {
+            _githubMessage = I18n["publish.github.errorTokenRequired"];
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>最近一次生成摘要；没有历史时保持安静，不制造虚假的成功状态。</summary>
@@ -338,4 +603,47 @@
             BuildStatus.Skipped => I18n["publish.status.skipped"],
             _ => I18n["publish.status.failed"],
         };
+
+    /// <summary>GitHub token 输入框 placeholder；不把受保护凭据回显给用户。</summary>
+    private string GitHubTokenPlaceholder()
+        => _githubHasSavedToken ? I18n["publish.github.tokenSavedPlaceholder"] : I18n["publish.github.tokenPlaceholder"];
+
+    /// <summary>GitHub Pages 面板消息 class。</summary>
+    private string GitHubMessageClass()
+        => _lastPublishResult?.Status == PublishRunStatus.Failed
+            ? "bocchi-publish-remote-message bocchi-publish-remote-message--danger"
+            : "bocchi-publish-remote-message";
+
+    /// <summary>把发布状态映射为柔和状态色。</summary>
+    private static string PublishStatusTone(PublishRunStatus status)
+        => status switch
+        {
+            PublishRunStatus.Succeeded => "success",
+            PublishRunStatus.Running => "info",
+            _ => "danger",
+        };
+
+    /// <summary>把发布状态映射为本地化文案。</summary>
+    private string PublishStatusText(PublishRunStatus status)
+        => status switch
+        {
+            PublishRunStatus.Succeeded => I18n["publish.status.succeeded"],
+            PublishRunStatus.Running => I18n["publish.status.running"],
+            _ => I18n["publish.status.failed"],
+        };
+
+    /// <summary>生成远端发布结果摘要。</summary>
+    private string RemotePublishSummary(PublishExecutionResult result)
+    {
+        if (result.Status == PublishRunStatus.Failed)
+        {
+            return result.ErrorMessage ?? I18n["publish.github.publishFailed"];
+        }
+
+        return string.Format(
+            CultureInfo.CurrentCulture,
+            I18n["publish.github.publishSummaryFormat"],
+            result.ArtifactCount,
+            result.RemoteCommitSha?[..Math.Min(8, result.RemoteCommitSha.Length)] ?? I18n["publish.history.unavailable"]);
+    }
 }

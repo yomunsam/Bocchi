@@ -42,6 +42,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>发布方案配置；凭据字段只保存受保护后的字符串。</summary>
     public DbSet<PublishPlanRecord> PublishPlans => Set<PublishPlanRecord>();
 
+    /// <summary>发布运行历史；只保存脱敏后的执行摘要。</summary>
+    public DbSet<PublishRunRecord> PublishRuns => Set<PublishRunRecord>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -153,6 +156,26 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.IsDefault).IsRequired();
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        builder.Entity<PublishRunRecord>(entity =>
+        {
+            entity.ToTable("PublishRuns");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.StartedAt);
+            entity.HasOne<PublishPlanRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.PublishPlanId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.Property(x => x.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Channel).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.StartedAt).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(x => x.BuildSessionId).HasMaxLength(64);
+            entity.Property(x => x.BuildFingerprint).HasMaxLength(128);
+            entity.Property(x => x.RemoteCommitSha).HasMaxLength(128);
+            entity.Property(x => x.RemoteUrl).HasMaxLength(2048);
+            entity.Property(x => x.ErrorMessage).HasMaxLength(2048);
         });
     }
 }

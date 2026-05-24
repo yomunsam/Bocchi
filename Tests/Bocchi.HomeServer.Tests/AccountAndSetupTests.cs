@@ -69,6 +69,11 @@ public sealed class AccountAndSetupTests
         var adminBody = await adminStep.Content.ReadAsStringAsync();
         adminBody.Should().Contain("name=\"username\"");
         adminBody.Should().Contain("name=\"email\"");
+        adminBody.Should().Contain("<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">");
+        adminBody.Should().Contain("<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-touch-icon.png\">");
+        adminBody.Should().Contain("class=\"bocchi-password-meter\" data-strength=\"weak\"");
+        adminBody.Should().Contain("data-ok=\"false\" data-bocchi-password-rule=\"length\"");
+        adminBody.Should().Contain("data-ok=\"false\" data-bocchi-password-rule=\"match\"");
         adminBody.Should().NotContain("name=\"siteName\"");
 
         var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -91,6 +96,21 @@ public sealed class AccountAndSetupTests
         siteBody.Should().NotContain("workspace/site/site.yaml");
         siteBody.Should().NotContain("http://127.0.0.1");
         siteBody.Should().NotContain("name=\"password\"");
+    }
+
+    [Fact]
+    public async Task SetupGate_AllowsDefaultIconAssetsBeforeSetup()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var favicon = await client.GetAsync("/favicon.ico");
+        var manifest = await client.GetAsync("/site.webmanifest");
+        var webAppIcon = await client.GetAsync("/icons/bocchi-icon-192.png");
+
+        favicon.EnsureSuccessStatusCode();
+        manifest.EnsureSuccessStatusCode();
+        webAppIcon.EnsureSuccessStatusCode();
     }
 
     [Fact]

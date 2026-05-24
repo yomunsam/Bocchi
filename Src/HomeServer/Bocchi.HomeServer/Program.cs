@@ -8,6 +8,7 @@ using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Security;
 using Bocchi.HomeServer.Services;
 using Bocchi.HomeServer.Services.Ai;
+using Bocchi.HomeServer.Services.Publishing;
 using Bocchi.Workspace;
 using Bocchi.Workspace.DependencyInjection;
 using Bocchi.Workspace.State;
@@ -89,6 +90,10 @@ try
     builder.Services.AddScoped<LocalizationSettingsService>();
     builder.Services.AddScoped<CategoryTreeService>();
     builder.Services.AddScoped<PublishPlanService>();
+    builder.Services.AddScoped<PublishExecutionService>();
+    builder.Services.AddScoped<IStaticSiteBuildRunner, StaticSiteBuildRunner>();
+    builder.Services.AddHttpClient<GitHubPagesPublisher>();
+    builder.Services.AddScoped<IPublishTargetPublisher>(sp => sp.GetRequiredService<GitHubPagesPublisher>());
     builder.Services.AddScoped<NavigationMenuService>();
     builder.Services.AddScoped<ThemeMigrationService>();
     builder.Services.AddScoped<DashboardAiClient>();

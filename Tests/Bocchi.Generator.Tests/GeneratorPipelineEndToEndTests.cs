@@ -33,6 +33,7 @@ public sealed class GeneratorPipelineEndToEndTests
         result.Artifacts.Should().Contain(a => a.Path == "/theme-context.json");
         result.Artifacts.Should().Contain(a => a.Path == "/build-context.json");
         result.Artifacts.Should().Contain(a => a.Path == "/robots.txt");
+        result.Artifacts.Should().Contain(a => a.Path == "/.nojekyll");
         result.Artifacts.Should().Contain(a => a.Path == "/sitemap.xml");
         result.Artifacts.Should().Contain(a => a.Path == "/feed.xml");
         result.Artifacts.Should().Contain(a => a.Path == "/.bocchi-manifest.json");
@@ -44,6 +45,7 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(fixture.Layout.ThemeInputDirectory, "site.json")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "robots.txt")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, ".nojekyll")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "sitemap.xml")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "feed.xml")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, ".bocchi-manifest.json")).Should().BeTrue();

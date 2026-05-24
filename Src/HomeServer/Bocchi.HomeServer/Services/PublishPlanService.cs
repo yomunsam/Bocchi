@@ -8,18 +8,18 @@ using Microsoft.EntityFrameworkCore;
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// 发布方案服务。它只管理发布目标配置与默认方案，不负责真正执行远端 push；
-/// 当前发布执行仍由 BuildOrchestrator 产出本地静态文件。
+/// 发布方案服务。它管理发布目标配置、默认方案和受保护凭据；
+/// 真正的远端发布由 PublishExecutionService 调度。
 /// </summary>
 public sealed class PublishPlanService
 {
-    /// <summary>静态文件生成渠道：当前唯一可执行的发布方案。</summary>
+    /// <summary>静态文件生成渠道：内置本地输出能力，不需要远端凭据。</summary>
     public const string StaticFilesChannel = "static-files";
 
     /// <summary>本地目录发布渠道：M7 目标，当前仅作为方案类型保留。</summary>
     public const string LocalDirectoryChannel = "local-directory";
 
-    /// <summary>GitHub Pages 发布渠道：M7 目标，当前仅作为方案类型保留。</summary>
+    /// <summary>GitHub Pages 发布渠道：M7 首个真实远端发布目标。</summary>
     public const string GitHubPagesChannel = "github-pages";
 
     /// <summary>Cloudflare Pages 发布渠道：M7 目标，当前仅作为方案类型保留。</summary>
@@ -38,10 +38,16 @@ public sealed class PublishPlanService
         CustomChannel,
     ];
 
+    /// <summary>发布配置 JSON 的统一序列化选项。</summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>Home Server 状态数据库。</summary>
     private readonly BocchiDbContext _db;
+
+    /// <summary>发布凭据保护器；只保存保护后的 credential JSON。</summary>
     private readonly IDataProtector _protector;
+
+    /// <summary>时间来源，测试可替换。</summary>
     private readonly TimeProvider _time;
 
     /// <summary>构造发布方案服务。</summary>
@@ -69,6 +75,27 @@ public sealed class PublishPlanService
                .ThenBy(x => x.Id)
                .FirstOrDefaultAsync(cancellationToken)
                .ConfigureAwait(false);
+
+    /// <summary>按 id 读取发布方案；执行发布时使用 no-tracking 快照，避免长时间持有 EF tracking 状态。</summary>
+    public async Task<PublishPlanRecord?> GetAsync(int id, CancellationToken cancellationToken = default)
+        => await _db.PublishPlans
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>读取某个渠道最近保存的方案；发布页用它恢复 GitHub Pages 表单。</summary>
+    public async Task<PublishPlanRecord?> GetLatestByChannelAsync(string channel, CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeChannel(channel);
+        return await _db.PublishPlans
+            .AsNoTracking()
+            .Where(x => x.Channel == normalized)
+            .OrderByDescending(x => x.IsDefault)
+            // SQLite 不能直接按 DateTimeOffset 排序；保存顺序由自增 Id 表达。
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     /// <summary>
     /// 新增或更新发布方案。第一条方案会自动成为默认方案；credentialJson 为 null 时保留已有凭据。
@@ -115,6 +142,18 @@ public sealed class PublishPlanService
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return record;
+    }
+
+    /// <summary>读取发布方案凭据明文；只在执行发布或判断表单状态时短暂使用。</summary>
+    public string? UnprotectCredentialJson(PublishPlanRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        if (string.IsNullOrWhiteSpace(record.ProtectedCredentialJson))
+        {
+            return null;
+        }
+
+        return _protector.Unprotect(record.ProtectedCredentialJson);
     }
 
     /// <summary>把指定方案设置为一键发布默认方案。</summary>
