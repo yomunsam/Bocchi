@@ -99,51 +99,7 @@
     justify-content: flex-end;
 }
 
-/* Theme 编辑双 tab 【配置项】/【Theme 私有文本】改为单行 segmented pill：
-   - 占据更少纵向空间，避免起稿页面被两个巨型卡片出现快是恶心ソ
-   - 隐藏在备份里的 small 描述，仅保留 strong 作为 label；
-   - 控制低质地商商上不使用整卡块出现。 */
-.bocchi-theme-tabs {
-    display: inline-flex;
-    align-self: flex-start;
-    gap: 0.25rem;
-    padding: 0.25rem;
-    border: 1px solid var(--bocchi-border);
-    border-radius: var(--bocchi-radius-pill);
-    background: var(--bocchi-surface-soft);
-}
-
-.bocchi-theme-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    border: none;
-    border-radius: var(--bocchi-radius-pill);
-    background: transparent;
-    color: var(--bocchi-text-muted);
-    padding: 0.42rem 0.95rem;
-    font-size: 0.88rem;
-    font-weight: 620;
-    cursor: pointer;
-    transition: background 120ms ease, color 120ms ease;
-}
-
-.bocchi-theme-tab:hover:not(:disabled) {
-    color: var(--bocchi-text);
-}
-
-.bocchi-theme-tab--active {
-    background: var(--bocchi-surface);
-    color: var(--bocchi-text);
-    box-shadow: var(--bocchi-shadow-sm);
-}
-
-.bocchi-theme-tab ::deep svg {
-    width: 0.95rem;
-    height: 0.95rem;
-    color: currentColor;
-}
-
+/* Theme tab 的视觉 primitive 在 app.css 中统一维护；这里仅保留本页内部文字结构。 */
 .bocchi-theme-tab span {
     display: inline-flex;
     min-width: 0;

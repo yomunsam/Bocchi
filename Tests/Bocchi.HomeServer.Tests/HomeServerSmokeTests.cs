@@ -296,6 +296,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("bocchi-settings-nav");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Settings/Profile\"[^>]*class=\"bocchi-settings-nav__item bocchi-settings-nav__item--active\"[^>]*aria-current=\"page\"");
         body.Should().Contain("Site profile");
         body.Should().Contain("Site name");
         body.Should().Contain("Default frontend URL");
@@ -314,6 +315,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("bocchi-settings-nav");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Settings/Localization\"[^>]*class=\"bocchi-settings-nav__item bocchi-settings-nav__item--active\"[^>]*aria-current=\"page\"");
+        body.Should().NotMatchRegex("<a[^>]*href=\"/Admin/Settings/Profile\"[^>]*class=\"bocchi-settings-nav__item bocchi-settings-nav__item--active\"");
         body.Should().Contain("Site primary language");
         body.Should().Contain("Common theme text");
         body.Should().Contain("menu.home");
@@ -481,6 +484,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("bocchi-page-intro");
         body.Should().Contain("bocchi-settings-nav");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Users\"[^>]*class=\"bocchi-settings-nav__item bocchi-settings-nav__item--active\"[^>]*aria-current=\"page\"");
         body.Should().Contain("Remove Admin");
         body.Should().Contain("No external login bound.");
     }

@@ -64,6 +64,20 @@
     --bocchi-radius-lg: var(--radius-lg);
     --bocchi-radius-xl: var(--radius-xl);
     --bocchi-radius-pill: var(--radius-pill);
+    /* 紧凑控件：segmented 与轻量 action button 共用的尺寸 token。 */
+    --bocchi-segmented-gap: 0.18rem;
+    --bocchi-segmented-padding: 0.2rem;
+    --bocchi-segmented-item-min-height: 1.9rem;
+    --bocchi-segmented-item-padding-x: 0.78rem;
+    --bocchi-segmented-item-font-size: 0.84rem;
+    --bocchi-segmented-item-font-weight: 580;
+    --bocchi-segmented-icon-size: 0.88rem;
+    --bocchi-action-control-min-height: 2.05rem;
+    --bocchi-action-control-padding-x: 0.78rem;
+    --bocchi-action-control-font-size: 0.84rem;
+    --bocchi-action-control-font-weight: 560;
+    --bocchi-action-control-gap: 0.35rem;
+    --bocchi-action-control-icon-size: 0.88rem;
     /* spacing scale */
     --space-1: 0.25rem; /* 4 */
     --space-2: 0.5rem;  /* 8 */
@@ -194,6 +208,58 @@ button:disabled {
 
 .bocchi-button--primary:hover {
     background: color-mix(in srgb, var(--bocchi-action) 85%, #000);
+}
+
+/* Admin segmented control：用于页面级二选一/少量任务切换。
+   统一在全局层维护体积、active 对比和 icon 尺寸，避免各页面自行复制后漂移。 */
+.bocchi-theme-tabs,
+.bocchi-categories-kind-picker {
+    display: inline-flex;
+    align-self: flex-start;
+    justify-self: start;
+    gap: var(--bocchi-segmented-gap);
+    padding: var(--bocchi-segmented-padding);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-pill);
+    background: color-mix(in srgb, var(--bocchi-surface) 82%, var(--bocchi-bg));
+}
+
+.bocchi-theme-tab,
+.bocchi-categories-kind-picker__btn {
+    display: inline-flex;
+    min-height: var(--bocchi-segmented-item-min-height);
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    border-radius: var(--bocchi-radius-pill);
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    font-size: var(--bocchi-segmented-item-font-size);
+    font-weight: var(--bocchi-segmented-item-font-weight);
+    line-height: 1.2;
+    padding: 0 var(--bocchi-segmented-item-padding-x);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+
+.bocchi-theme-tab:hover:not(:disabled),
+.bocchi-categories-kind-picker__btn:hover:not(:disabled) {
+    color: var(--bocchi-text);
+}
+
+.bocchi-theme-tab--active,
+.bocchi-categories-kind-picker__btn--active {
+    background: color-mix(in srgb, var(--bocchi-action) 14%, var(--bocchi-surface));
+    color: var(--bocchi-action-strong);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bocchi-action) 18%, transparent), var(--bocchi-shadow-sm);
+}
+
+.bocchi-theme-tab svg,
+.bocchi-categories-kind-picker__btn svg {
+    width: var(--bocchi-segmented-icon-size);
+    height: var(--bocchi-segmented-icon-size);
+    color: currentColor;
 }
 
 /* Auth / Setup endpoints

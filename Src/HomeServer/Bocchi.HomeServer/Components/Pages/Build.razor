@@ -4,10 +4,8 @@
 @using Bocchi.Generator.Pipeline
 @using Bocchi.Generator.State
 @using Bocchi.HomeServer.Build
-@using Bocchi.HomeServer.Data
 @inject BuildOrchestrator Orchestrator
 @inject IBuildStateStore Store
-@inject PublishPlanService PublishPlans
 @inject DashboardLocalizationService I18n
 
 <PageTitle>@CurrentPageTitle · Bocchi</PageTitle>
@@ -25,7 +23,7 @@
         <div class="bocchi-publish-stack">
             @if (IsLocalOutputSection)
             {
-                <section class="bocchi-panel bocchi-publish-section bocchi-publish-local-output" aria-labelledby="publish-local-output-heading">
+                <section class="bocchi-panel bocchi-publish-local-output" aria-labelledby="publish-local-output-heading">
                     <span class="bocchi-publish-local-output__icon" aria-hidden="true">
                         <Blazicon Svg="Lucide.FolderOpen" />
                     </span>
@@ -35,19 +33,15 @@
                     </div>
                 </section>
             }
-            else if (_plans is null)
+            else if (_recent is null)
             {
-                <section class="bocchi-panel bocchi-publish-section">
+                <section class="bocchi-panel bocchi-publish-loading">
                     <p>@I18n["publish.loading"]</p>
                 </section>
             }
-            else if (_plans.Count == 0)
-            {
-                @RenderEmptyPublishState()
-            }
             else
             {
-                @RenderConfiguredPublishState()
+                @RenderStaticOutputWorkbench()
             }
         </div>
     </div>
@@ -55,51 +49,30 @@
 
 @code {
     private const string LocalOutputSection = "LocalOutput";
-    private const string StaticFilesConfigurationJson = """{"outputDirectory":"output/public"}""";
 
-    /// <summary>发布目标展示顺序贴近用户预期：先远端上线目标，再放本地和高级能力。</summary>
-    private static readonly IReadOnlyList<string> PublishTargetChannels =
-    [
-        PublishPlanService.GitHubPagesChannel,
-        PublishPlanService.CloudflarePagesChannel,
-        PublishPlanService.LocalDirectoryChannel,
-        PublishPlanService.StaticFilesChannel,
-        PublishPlanService.CustomChannel,
-    ];
+    /// <summary>
+    /// 后续远端发布目标接入后再恢复为用户可配置的发布方案入口；当前阶段不要在 UI 中展示未实现渠道。
+    /// </summary>
+    // private static readonly IReadOnlyList<string> FuturePublishTargetChannels =
+    // [
+    //     PublishPlanService.GitHubPagesChannel,
+    //     PublishPlanService.CloudflarePagesChannel,
+    //     PublishPlanService.LocalDirectoryChannel,
+    //     PublishPlanService.CustomChannel,
+    // ];
 
     /// <summary>发布中心子路由片段；为空时展示默认“发布”子页。</summary>
     [Parameter]
     public string? Section { get; set; }
 
-    /// <summary>前台业务 Theme id，属于 Theme Contract，不是 Dashboard 明暗外观。</summary>
-    private string? _frontendThemeId;
-
-    /// <summary>构建环境名称。</summary>
-    private string _environmentName = "production";
-
-    /// <summary>是否把草稿纳入本次构建。</summary>
-    private bool _includeDrafts;
-
-    /// <summary>发布运行中时禁用主操作。</summary>
+    /// <summary>静态输出生成中时禁用主操作。</summary>
     private bool _busy;
-
-    /// <summary>创建发布方案时禁用配置按钮。</summary>
-    private bool _creatingPlan;
-
-    /// <summary>正在切换默认方案的 id；用于禁用对应按钮。</summary>
-    private int? _settingDefaultPlanId;
 
     /// <summary>当前页面触发的最近一次构建结果。</summary>
     private BuildResult? _lastResult;
 
     /// <summary>历史构建投影，来自 SQLite 状态库。</summary>
     private IReadOnlyList<BuildRunSummary>? _recent;
-
-    /// <summary>发布方案列表；为空时展示首次配置引导。</summary>
-    private IReadOnlyList<PublishPlanRecord>? _plans;
-
-    /// <summary>默认发布方案；一键发布按钮始终指向它。</summary>
-    private PublishPlanRecord? DefaultPlan => _plans?.FirstOrDefault(x => x.IsDefault) ?? _plans?.FirstOrDefault();
 
     /// <summary>规范化后的发布中心子页面。</summary>
     private string CurrentSection => string.Equals(Section, LocalOutputSection, StringComparison.OrdinalIgnoreCase)
@@ -126,169 +99,50 @@
         await RefreshAsync();
     }
 
-    /// <summary>读取发布方案与近期发布记录。</summary>
+    /// <summary>读取近期生成记录；当前页面不读取发布方案，因为本地静态输出是内置产物。</summary>
     private async Task RefreshAsync()
     {
-        _plans = await PublishPlans.ListAsync(default);
         _recent = await Store.ListRecentRunsAsync(20, default);
     }
 
-    /// <summary>未配置状态：首屏聚焦“选择目标”，让新手先理解发布流程，再看到可扩展渠道。</summary>
-    private RenderFragment RenderEmptyPublishState() => @<div class="bocchi-publish-empty-page">
-        <section class="bocchi-panel bocchi-publish-empty-card" aria-labelledby="publish-empty-heading">
-            <span class="bocchi-publish-empty-card__icon" aria-hidden="true">
-                <Blazicon Svg="Lucide.Send" />
-            </span>
-            <h2 id="publish-empty-heading">@I18n["publish.empty.title"]</h2>
-            <p>@I18n["publish.empty.description"]</p>
-
-            <ol class="bocchi-publish-stepper" aria-label='@I18n["publish.empty.stepsAria"]'>
-                <li>
-                    <span>1</span>
-                    <strong>@I18n["publish.empty.stepBuild"]</strong>
-                    <small>@I18n["publish.empty.stepBuildDescription"]</small>
-                </li>
-                <li>
-                    <span>2</span>
-                    <strong>@I18n["publish.empty.stepPlan"]</strong>
-                    <small>@I18n["publish.empty.stepPlanDescription"]</small>
-                </li>
-                <li>
-                    <span>3</span>
-                    <strong>@I18n["publish.empty.stepPublish"]</strong>
-                    <small>@I18n["publish.empty.stepPublishDescription"]</small>
-                </li>
-            </ol>
-
-            <button type="button" class="bocchi-publish-primary-action" @onclick="() => CreatePlanAsync(PublishPlanService.StaticFilesChannel)" disabled="@_creatingPlan">
-                <Blazicon Svg="Lucide.Send" />
-                <span>@(_creatingPlan ? I18n["publish.action.creatingPlan"] : I18n["publish.action.chooseTarget"])</span>
-            </button>
-        </section>
-
-        <section class="bocchi-panel bocchi-publish-target-panel" aria-labelledby="publish-targets-heading">
-            <div class="bocchi-publish-section-heading">
-                <h2 id="publish-targets-heading">@I18n["publish.targets.availableTitle"]</h2>
-                <Blazicon Svg="Lucide.ChevronDown" />
+    /// <summary>当前发布页主工作台：只暴露真实可执行的本地静态输出能力。</summary>
+    private RenderFragment RenderStaticOutputWorkbench() => @<div class="bocchi-publish-workbench">
+        <section class="bocchi-panel bocchi-publish-output-card" aria-labelledby="publish-run-heading">
+            <div class="bocchi-publish-output-heading">
+                <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
+                    <Blazicon Svg="Lucide.FolderOpen" />
+                </span>
+                <div>
+                    <h2 id="publish-run-heading">@I18n["publish.output.title"]</h2>
+                    <p>@I18n["publish.output.description"]</p>
+                </div>
             </div>
 
-            <div class="bocchi-publish-target-list" aria-label='@I18n["publish.channelList.aria"]'>
-                @foreach (var channel in PublishTargetChannels)
-                {
-                    @RenderTargetOption(channel, isDefault: false, savedPlan: null)
-                }
+            <div class="bocchi-publish-ready">
+                <span aria-hidden="true"><Blazicon Svg="Lucide.Check" /></span>
+                <div>
+                    <strong>@I18n["publish.output.readyTitle"]</strong>
+                    <p>@I18n["publish.output.readyDescription"]</p>
+                </div>
             </div>
 
-            <details class="bocchi-publish-advanced-strip">
-                <summary>
-                    <span>@I18n["publish.advanced.staticOnly"]</span>
-                    <Blazicon Svg="Lucide.ChevronDown" />
-                </summary>
-                <div class="bocchi-inline-actions">
+            <form class="bocchi-publish-run-form" @onsubmit="RunAsync" @onsubmit:preventDefault>
+                <button type="submit" class="bocchi-publish-primary-action" disabled="@_busy">
+                    <Blazicon Svg="Lucide.Send" />
+                    <span>@(_busy ? I18n["publish.action.generating"] : I18n["publish.action.generateStaticSite"])</span>
+                </button>
+                <div class="bocchi-publish-quick-actions">
+                    <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
+                        <Blazicon Svg="Lucide.Eye" />
+                        <span>@I18n["publish.action.preview"]</span>
+                    </a>
                     <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">@I18n["publish.action.downloadZip"]</a>
                 </div>
-            </details>
+
+            </form>
+
+            @RenderLastPublishMeta()
         </section>
-    </div>;
-
-    /// <summary>已配置状态：默认方案变成工作台中心，管理入口降级到右侧目标面板。</summary>
-    private RenderFragment RenderConfiguredPublishState() => @<div class="bocchi-publish-configured-page">
-        @if (DefaultPlan is { } defaultPlan)
-        {
-            <section class="bocchi-panel bocchi-publish-current-card" aria-labelledby="publish-run-heading">
-                <h2>@I18n["publish.current.title"]</h2>
-                <article class="bocchi-publish-current-target">
-                    <span class="bocchi-publish-current-target__icon" aria-hidden="true">
-                        <Blazicon Svg="@ChannelIcon(defaultPlan.Channel)" />
-                    </span>
-                    <div>
-                        <h3 id="publish-run-heading">@defaultPlan.DisplayName</h3>
-                        <p>@ChannelInlineSummary(defaultPlan)</p>
-                    </div>
-                    <button type="button" class="secondary bocchi-publish-icon-button" title='@I18n["publish.action.copyConfig"]' disabled>
-                        <Blazicon Svg="Lucide.Copy" />
-                    </button>
-                </article>
-
-                <div class="bocchi-publish-ready">
-                    <span aria-hidden="true"><Blazicon Svg="Lucide.Check" /></span>
-                    <div>
-                        <strong>@I18n["publish.ready.title"]</strong>
-                        <p>@I18n["publish.ready.description"]</p>
-                    </div>
-                </div>
-
-                <form class="bocchi-publish-run-form" @onsubmit="RunAsync" @onsubmit:preventDefault>
-                    <button type="submit" class="bocchi-publish-primary-action" disabled="@(_busy || !CanRunPlan(defaultPlan))">
-                        <Blazicon Svg="Lucide.Send" />
-                        <span>@(_busy ? I18n["publish.action.publishing"] : string.Format(CultureInfo.CurrentCulture, I18n["publish.action.publishToFormat"], defaultPlan.DisplayName))</span>
-                    </button>
-                    <div class="bocchi-publish-quick-actions">
-                        <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
-                            <Blazicon Svg="Lucide.Eye" />
-                            <span>@I18n["publish.action.preview"]</span>
-                        </a>
-                        <button type="submit" class="secondary" disabled="@(_busy || !CanRunPlan(defaultPlan))">
-                            <Blazicon Svg="Lucide.FileText" />
-                            <span>@I18n["publish.action.staticOnly"]</span>
-                        </button>
-                        <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">@I18n["publish.action.downloadZip"]</a>
-                    </div>
-
-                    <details class="bocchi-publish-advanced-strip">
-                        <summary>
-                            <span>@I18n["publish.advanced.options"]</span>
-                            <Blazicon Svg="Lucide.ChevronDown" />
-                        </summary>
-                        <div class="bocchi-form-grid bocchi-publish-options">
-                            <label>
-                                @I18n["publish.field.frontendThemeId"]
-                                <input type="text" @bind="_frontendThemeId" placeholder='@I18n["publish.field.frontendThemeIdPlaceholder"]' />
-                            </label>
-
-                            <label>
-                                @I18n["publish.field.environment"]
-                                <input type="text" @bind="_environmentName" />
-                            </label>
-
-                            <label class="bocchi-checkbox">
-                                <input type="checkbox" @bind="_includeDrafts" />
-                                @I18n["publish.field.includeDrafts"]
-                            </label>
-                        </div>
-                    </details>
-                </form>
-
-                @RenderLastPublishMeta()
-            </section>
-
-            <aside class="bocchi-panel bocchi-publish-target-panel" aria-labelledby="publish-plans-heading">
-                <h2 id="publish-plans-heading">@I18n["publish.targets.title"]</h2>
-                <div class="bocchi-publish-target-list">
-                    @foreach (var plan in _plans ?? [])
-                    {
-                        @RenderTargetOption(plan.Channel, plan.IsDefault, plan)
-                    }
-                    @foreach (var channel in MissingTargetChannels())
-                    {
-                        @RenderTargetOption(channel, isDefault: false, savedPlan: null)
-                    }
-                </div>
-
-                <div class="bocchi-publish-management-actions">
-                    <a class="bocchi-button secondary" href="#publish-plans-heading">
-                        <Blazicon Svg="Lucide.Repeat2" />
-                        <span>@I18n["publish.action.changeTarget"]</span>
-                    </a>
-                    <button type="button" class="secondary" disabled>
-                        <Blazicon Svg="Lucide.KeyRound" />
-                        <span>@I18n["publish.action.manageCredentials"]</span>
-                    </button>
-                </div>
-
-                <p class="bocchi-publish-credential-note">@I18n["publish.credentialNote"]</p>
-            </aside>
-        }
 
         <section class="bocchi-panel bocchi-publish-history" aria-labelledby="history-heading">
             <h2 id="history-heading">@I18n["publish.history.title"]</h2>
@@ -297,47 +151,7 @@
         </section>
     </div>;
 
-    /// <summary>发布目标行。已实现渠道允许创建方案，规划中渠道只显示状态与禁用操作。</summary>
-    private RenderFragment RenderTargetOption(string channel, bool isDefault, PublishPlanRecord? savedPlan) => @<article class="bocchi-publish-target-row @(isDefault ? "bocchi-publish-target-row--active" : null)">
-        <span class="bocchi-publish-target-row__icon bocchi-publish-target-row__icon--@ChannelCssName(channel)" aria-hidden="true">
-            <Blazicon Svg="@ChannelIcon(channel)" />
-        </span>
-        <div class="bocchi-publish-target-row__body">
-            <strong>@(savedPlan?.DisplayName ?? ChannelName(channel))</strong>
-            <span>@ChannelDescription(channel)</span>
-        </div>
-        <div class="bocchi-publish-target-row__meta">
-            @if (isDefault)
-            {
-                <BocchiStatusPill Tone="danger">@I18n["publish.plan.default"]</BocchiStatusPill>
-            }
-            else
-            {
-                <BocchiStatusPill Tone="@ChannelTone(channel)">@ChannelStatus(channel)</BocchiStatusPill>
-            }
-
-            @if (savedPlan is not null && !savedPlan.IsDefault)
-            {
-                <button type="button"
-                        class="secondary"
-                        disabled="@(_settingDefaultPlanId == savedPlan.Id)"
-                        @onclick="() => SetDefaultPlanAsync(savedPlan.Id)">
-                    @I18n["publish.action.setDefault"]
-                </button>
-            }
-            else if (savedPlan is null)
-            {
-                <button type="button"
-                        class="secondary"
-                        disabled="@(_creatingPlan || !CanCreatePlan(channel))"
-                        @onclick="() => CreatePlanAsync(channel)">
-                    @ChannelAction(channel)
-                </button>
-            }
-        </div>
-    </article>;
-
-    /// <summary>渲染最近一次发布的轻量状态条，让用户知道主按钮上次是否成功。</summary>
+    /// <summary>渲染最近一次生成的轻量状态条，让用户知道主按钮上次是否成功。</summary>
     private RenderFragment RenderLastPublishMeta() => @<div class="bocchi-publish-run-meta">
         <span>@LatestPublishSummary()</span>
         <span>@LatestPublishArtifactSummary()</span>
@@ -374,7 +188,7 @@
         }
     </details>;
 
-    /// <summary>渲染近期发布记录；表格形态更接近发布后台，而不是内容列表。</summary>
+    /// <summary>渲染近期生成记录；表格形态更接近发布后台，而不是内容列表。</summary>
     private RenderFragment RenderHistory() => @<div class="bocchi-publish-history-table-wrap">
         @if (_recent is null)
         {
@@ -385,7 +199,7 @@
             <table class="bocchi-publish-history-table">
                 <thead>
                     <tr>
-                        <th>@I18n["publish.history.columnTarget"]</th>
+                        <th>@I18n["publish.history.columnOutput"]</th>
                         <th>@I18n["publish.history.columnStatus"]</th>
                         <th>@I18n["publish.history.columnTime"]</th>
                         <th>@I18n["publish.history.columnDuration"]</th>
@@ -406,9 +220,9 @@
                         {
                             <tr>
                                 <td>
-                                    <span class="bocchi-publish-history-target">
-                                        <Blazicon Svg="@ChannelIcon(DefaultPlan?.Channel ?? PublishPlanService.StaticFilesChannel)" />
-                                        @ChannelName(DefaultPlan?.Channel ?? PublishPlanService.StaticFilesChannel)
+                                    <span class="bocchi-publish-history-output">
+                                        <Blazicon Svg="Lucide.FolderOpen" />
+                                        @I18n["publish.output.historyLabel"]
                                     </span>
                                 </td>
                                 <td><BocchiStatusPill Tone="@BuildStatusTone(run.Status)">@BuildStatusText(run.Status)</BocchiStatusPill></td>
@@ -433,54 +247,10 @@
         }
     </div>;
 
-    /// <summary>创建当前唯一真实可执行的静态文件发布方案。</summary>
-    private async Task CreatePlanAsync(string channel)
-    {
-        if (_creatingPlan || !CanCreatePlan(channel))
-        {
-            return;
-        }
-
-        _creatingPlan = true;
-        try
-        {
-            await PublishPlans.SaveAsync(
-                new PublishPlanSaveInput(
-                    Id: null,
-                    DisplayName: I18n["publish.plan.defaultStaticName"],
-                    Channel: channel,
-                    ConfigurationJson: StaticFilesConfigurationJson,
-                    CredentialJson: null,
-                    SetAsDefault: true),
-                default);
-            await RefreshAsync();
-        }
-        finally
-        {
-            _creatingPlan = false;
-        }
-    }
-
-    /// <summary>把某个发布方案设为默认方案。</summary>
-    private async Task SetDefaultPlanAsync(int planId)
-    {
-        _settingDefaultPlanId = planId;
-        try
-        {
-            await PublishPlans.SetDefaultAsync(planId, default);
-            await RefreshAsync();
-        }
-        finally
-        {
-            _settingDefaultPlanId = null;
-        }
-    }
-
     /// <summary>触发一次 Full Build，并刷新发布历史。</summary>
     private async Task RunAsync()
     {
-        var plan = DefaultPlan;
-        if (_busy || plan is null || !CanRunPlan(plan))
+        if (_busy)
         {
             return;
         }
@@ -491,12 +261,12 @@
             var options = new BuildOptions
             {
                 Mode = BuildMode.FullBuild,
-                Environment = string.IsNullOrWhiteSpace(_environmentName) ? "production" : _environmentName,
-                IncludeDrafts = _includeDrafts,
+                Environment = "production",
+                IncludeDrafts = false,
             };
             _lastResult = await Orchestrator.RunFullBuildAsync(
                 options,
-                string.IsNullOrWhiteSpace(_frontendThemeId) ? null : _frontendThemeId,
+                themeId: null,
                 default);
             _recent = await Store.ListRecentRunsAsync(20, default);
         }
@@ -506,26 +276,7 @@
         }
     }
 
-    /// <summary>返回还没有被保存成方案的发布目标，右侧面板用它补齐未来扩展入口。</summary>
-    private IEnumerable<string> MissingTargetChannels()
-    {
-        var existing = new HashSet<string>(_plans?.Select(x => x.Channel) ?? [], StringComparer.OrdinalIgnoreCase);
-        foreach (var channel in PublishTargetChannels)
-        {
-            if (!existing.Contains(channel))
-            {
-                yield return channel;
-            }
-        }
-    }
-
-    /// <summary>生成当前方案在目标卡片中的短说明，避免暴露过长的绝对路径。</summary>
-    private string ChannelInlineSummary(PublishPlanRecord plan)
-        => string.Equals(plan.Channel, PublishPlanService.StaticFilesChannel, StringComparison.OrdinalIgnoreCase)
-            ? string.Format(CultureInfo.CurrentCulture, I18n["publish.current.staticSummaryFormat"], "output/public")
-            : ChannelName(plan.Channel);
-
-    /// <summary>最近一次发布摘要；没有历史时保持安静，不制造虚假的成功状态。</summary>
+    /// <summary>最近一次生成摘要；没有历史时保持安静，不制造虚假的成功状态。</summary>
     private string LatestPublishSummary()
     {
         if (_lastResult is not null)
@@ -550,7 +301,7 @@
             latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture));
     }
 
-    /// <summary>最近一次发布产物摘要；历史投影没有文件数量时展示稳定占位。</summary>
+    /// <summary>最近一次生成产物摘要；历史投影没有文件数量时展示稳定占位。</summary>
     private string LatestPublishArtifactSummary()
     {
         if (_lastResult is not null)
@@ -560,83 +311,6 @@
 
         return I18n["publish.last.artifactsPending"];
     }
-
-    /// <summary>当前阶段只允许创建真实可执行的静态文件发布方案。</summary>
-    private static bool CanCreatePlan(string channel)
-        => string.Equals(channel, PublishPlanService.StaticFilesChannel, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>当前阶段只有静态文件方案会执行本地 Full Build。</summary>
-    private static bool CanRunPlan(PublishPlanRecord plan)
-        => string.Equals(plan.Channel, PublishPlanService.StaticFilesChannel, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>返回渠道名称。</summary>
-    private string ChannelName(string channel)
-        => channel switch
-        {
-            PublishPlanService.StaticFilesChannel => I18n["publish.channel.staticFiles"],
-            PublishPlanService.LocalDirectoryChannel => I18n["publish.channel.localDirectory"],
-            PublishPlanService.GitHubPagesChannel => I18n["publish.channel.githubPages"],
-            PublishPlanService.CloudflarePagesChannel => I18n["publish.channel.cloudflarePages"],
-            PublishPlanService.CustomChannel => I18n["publish.channel.custom"],
-            _ => channel,
-        };
-
-    /// <summary>返回渠道说明。</summary>
-    private string ChannelDescription(string channel)
-        => channel switch
-        {
-            PublishPlanService.StaticFilesChannel => string.Format(CultureInfo.CurrentCulture, I18n["publish.channel.staticFilesDescription"], "output/public/"),
-            PublishPlanService.LocalDirectoryChannel => I18n["publish.channel.localDirectoryDescription"],
-            PublishPlanService.GitHubPagesChannel => I18n["publish.channel.githubPagesDescription"],
-            PublishPlanService.CloudflarePagesChannel => I18n["publish.channel.cloudflarePagesDescription"],
-            PublishPlanService.CustomChannel => I18n["publish.channel.customDescription"],
-            _ => I18n["publish.channel.unknownDescription"],
-        };
-
-    /// <summary>返回渠道状态文案。</summary>
-    private string ChannelStatus(string channel)
-        => CanCreatePlan(channel) ? I18n["publish.channel.available"] : I18n["publish.channel.planned"];
-
-    /// <summary>返回渠道状态颜色。</summary>
-    private static string ChannelTone(string channel)
-        => CanCreatePlan(channel) ? "success" : "neutral";
-
-    /// <summary>返回渠道操作文案。</summary>
-    private string ChannelAction(string channel)
-        => CanCreatePlan(channel) ? I18n["publish.channel.enable"] : I18n["publish.channel.configure"];
-
-    /// <summary>把渠道 key 映射成 CSS 后缀，只用于图标色彩区分。</summary>
-    private static string ChannelCssName(string channel)
-        => channel switch
-        {
-            PublishPlanService.GitHubPagesChannel => "github",
-            PublishPlanService.CloudflarePagesChannel => "cloudflare",
-            PublishPlanService.LocalDirectoryChannel => "local",
-            PublishPlanService.StaticFilesChannel => "static",
-            PublishPlanService.CustomChannel => "custom",
-            _ => "custom",
-        };
-
-    /// <summary>返回渠道 icon。</summary>
-    private static SvgIcon ChannelIcon(string channel)
-        => channel switch
-        {
-            PublishPlanService.StaticFilesChannel => Lucide.FolderOpen,
-            PublishPlanService.LocalDirectoryChannel => Lucide.FolderOpen,
-            PublishPlanService.GitHubPagesChannel => Lucide.GitBranch,
-            PublishPlanService.CloudflarePagesChannel => Lucide.Cloud,
-            PublishPlanService.CustomChannel => Lucide.Settings,
-            _ => Lucide.Send,
-        };
-
-    /// <summary>把构建状态映射为普通发布语言。</summary>
-    private string PublishResultTitle(BuildStatus status)
-        => status switch
-        {
-            BuildStatus.Succeeded => I18n["publish.result.succeededTitle"],
-            BuildStatus.Skipped => I18n["publish.result.skippedTitle"],
-            _ => I18n["publish.result.failedTitle"],
-        };
 
     /// <summary>为最近一次构建生成轻量说明。</summary>
     private string PublishResultDescription(BuildResult result)
@@ -664,8 +338,4 @@
             BuildStatus.Skipped => I18n["publish.status.skipped"],
             _ => I18n["publish.status.failed"],
         };
-
-    /// <summary>把 SHA-256 构建指纹缩短到适合列表展示的长度。</summary>
-    private static string ShortFingerprint(BuildFingerprint fingerprint)
-        => fingerprint.Value[..Math.Min(12, fingerprint.Value.Length)];
 }

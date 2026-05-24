@@ -19,15 +19,19 @@
 </nav>
 
 @code {
+    /// <summary>宿主页面显式传入的 active section；Settings 页路由参数比子组件自行读取 Navigation.Uri 更稳定。</summary>
+    [Parameter]
+    public string? ActiveSection { get; set; }
+
     /// <summary>Settings 导航项的固定定义；Users 是设置体系的一部分，但保留独立路由。</summary>
     private static readonly SettingsNavItem[] Items =
     [
-        new("/Admin/Settings", "settings.nav.overview", "settings.nav.overviewDescription", Lucide.LayoutGrid),
-        new("/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal),
-        new("/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages),
-        new("/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound),
-        new("/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users),
-        new("/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database),
+        new("overview", "/Admin/Settings", "settings.nav.overview", "settings.nav.overviewDescription", Lucide.LayoutGrid),
+        new("profile", "/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal),
+        new("localization", "/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages),
+        new("login", "/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound),
+        new("users", "/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users),
+        new("system", "/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database),
     ];
 
     /// <summary>当前 Dashboard 路径，用于设置导航 active 状态。</summary>
@@ -51,6 +55,11 @@
     /// <summary>判断 Settings 导航项是否命中当前路由。</summary>
     private bool IsActive(SettingsNavItem item)
     {
+        if (!string.IsNullOrWhiteSpace(ActiveSection))
+        {
+            return string.Equals(item.Section, ActiveSection.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
         var normalized = NormalizePath(item.Url);
         if (string.Equals(normalized, "/Admin/Settings", StringComparison.OrdinalIgnoreCase))
         {
@@ -65,5 +74,5 @@
         => "/" + value.Trim('/').TrimEnd('/');
 
     /// <summary>Settings 导航项定义。</summary>
-    private sealed record SettingsNavItem(string Url, string TitleKey, string DescriptionKey, SvgIcon Icon);
+    private sealed record SettingsNavItem(string Section, string Url, string TitleKey, string DescriptionKey, SvgIcon Icon);
 }

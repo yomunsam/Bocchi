@@ -21,7 +21,18 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("publish target");
+        body.Should().Contain("Generate site files");
+        body.Should().Contain("Generate static site");
+        body.Should().NotContain("Publish targets");
+        body.Should().NotContain("Current target");
+        body.Should().NotContain("Local static output");
+        body.Should().NotContain("Advanced options");
+        body.Should().NotContain("Frontend Theme id");
+        body.Should().NotContain("Build environment");
+        body.Should().NotContain("Include drafts");
+        body.Should().NotContain("GitHub Pages");
+        body.Should().NotContain("Cloudflare Pages");
+        body.Should().NotContain("Local directory");
         body.Should().Contain("Local output");
         body.Should().Contain("/Admin/Publish/download");
     }

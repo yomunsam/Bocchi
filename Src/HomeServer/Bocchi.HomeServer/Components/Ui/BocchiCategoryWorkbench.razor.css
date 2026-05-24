@@ -28,14 +28,17 @@
 
 .bocchi-category-workbench__toolbar-main button {
     display: inline-flex;
+    min-height: var(--bocchi-action-control-min-height);
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.95rem;
+    gap: var(--bocchi-action-control-gap);
+    padding: 0 var(--bocchi-action-control-padding-x);
     border-radius: var(--bocchi-radius-pill);
     border: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
-    font-weight: 620;
+    font-size: var(--bocchi-action-control-font-size);
+    font-weight: var(--bocchi-action-control-font-weight);
+    line-height: 1.2;
     cursor: pointer;
     transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
@@ -62,8 +65,8 @@
 }
 
 .bocchi-category-workbench__toolbar-main button ::deep svg {
-    width: 0.95rem;
-    height: 0.95rem;
+    width: var(--bocchi-action-control-icon-size);
+    height: var(--bocchi-action-control-icon-size);
 }
 
 .bocchi-category-workbench__toolbar-meta {
@@ -336,13 +339,17 @@
 .bocchi-category-workbench__slug-row button {
     flex: 0 0 auto;
     display: inline-flex;
+    min-height: var(--bocchi-action-control-min-height);
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.4rem 0.85rem;
+    gap: var(--bocchi-action-control-gap);
+    padding: 0 var(--bocchi-action-control-padding-x);
     border-radius: var(--bocchi-radius-pill);
     border: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
+    font-size: var(--bocchi-action-control-font-size);
+    font-weight: var(--bocchi-action-control-font-weight);
+    line-height: 1.2;
     cursor: pointer;
     transition: background 120ms ease;
 }
@@ -352,8 +359,8 @@
 }
 
 .bocchi-category-workbench__slug-row button ::deep svg {
-    width: 0.85rem;
-    height: 0.85rem;
+    width: var(--bocchi-action-control-icon-size);
+    height: var(--bocchi-action-control-icon-size);
 }
 
 .bocchi-category-workbench__detail-actions {
@@ -367,13 +374,17 @@
 
 .bocchi-category-workbench__detail-actions button {
     display: inline-flex;
+    min-height: var(--bocchi-action-control-min-height);
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.42rem 0.95rem;
+    gap: var(--bocchi-action-control-gap);
+    padding: 0 var(--bocchi-action-control-padding-x);
     border-radius: var(--bocchi-radius-pill);
     border: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
+    font-size: var(--bocchi-action-control-font-size);
+    font-weight: var(--bocchi-action-control-font-weight);
+    line-height: 1.2;
     cursor: pointer;
     transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
@@ -388,8 +399,8 @@
 }
 
 .bocchi-category-workbench__detail-actions button ::deep svg {
-    width: 0.85rem;
-    height: 0.85rem;
+    width: var(--bocchi-action-control-icon-size);
+    height: var(--bocchi-action-control-icon-size);
 }
 
 .bocchi-category-workbench__delete {
