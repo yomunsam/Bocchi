@@ -58,6 +58,12 @@
     --radius-lg: 14px;
     --radius-xl: 20px;
     --radius-pill: 999px;
+    /* 组件 CSS 使用 bocchi 前缀 token；这里统一映射到全局 radius 阶梯。 */
+    --bocchi-radius-sm: var(--radius-sm);
+    --bocchi-radius-md: var(--radius-md);
+    --bocchi-radius-lg: var(--radius-lg);
+    --bocchi-radius-xl: var(--radius-xl);
+    --bocchi-radius-pill: var(--radius-pill);
     /* spacing scale */
     --space-1: 0.25rem; /* 4 */
     --space-2: 0.5rem;  /* 8 */
@@ -1012,12 +1018,12 @@ h1:focus {
 .bocchi-kind-action--primary {
     border-color: color-mix(in srgb, var(--bocchi-action) 45%, var(--bocchi-border));
     background: var(--bocchi-action);
-    color: var(--bocchi-nav-text-active);
+    color: #fff;
 }
 
 .bocchi-kind-action--primary:hover {
     background: color-mix(in srgb, var(--bocchi-action) 88%, #000);
-    color: var(--bocchi-nav-text-active);
+    color: #fff;
 }
 
 .bocchi-kind-action svg {

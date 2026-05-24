@@ -2,11 +2,12 @@
 .bocchi-categories-kind-picker {
     display: inline-flex;
     align-self: flex-start;
+    justify-self: start;
     gap: 0.25rem;
     padding: 0.25rem;
     border: 1px solid var(--bocchi-border);
     border-radius: var(--bocchi-radius-pill);
-    background: var(--bocchi-surface-soft);
+    background: color-mix(in srgb, var(--bocchi-surface) 82%, var(--bocchi-bg));
 }
 
 .bocchi-categories-kind-picker__btn {

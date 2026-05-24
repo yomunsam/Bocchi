@@ -21,9 +21,23 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("构建");
-        body.Should().Contain("output/public/");
+        body.Should().Contain("publish target");
+        body.Should().Contain("Local output");
         body.Should().Contain("/Admin/Publish/download");
+    }
+
+    [Fact]
+    public async Task LocalOutputPage_RendersPublishSubNavigation()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Publish/LocalOutput");
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Local output");
+        body.Should().Contain("aria-current=\"page\"");
+        body.Should().Contain("/Admin/Publish");
     }
 
     [Fact]

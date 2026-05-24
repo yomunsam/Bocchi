@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Bocchi.HomeServer.Data.Migrations
 {
     [DbContext(typeof(BocchiDbContext))]
-    [Migration("20260517062703_AddSiteProfileSettings")]
-    partial class AddSiteProfileSettings
+    [Migration("20260524042237_InitialHomeServerSchema")]
+    partial class InitialHomeServerSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -95,6 +95,60 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.CategoryTreeRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TreeJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope")
+                        .IsUnique();
+
+                    b.ToTable("CategoryTrees", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.DashboardGuideCardRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("DismissedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("DashboardGuideCards", (string)null);
                 });
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.DashboardSettings", b =>
@@ -217,6 +271,44 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("LocalizationSettings", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.PublishPlanRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProtectedCredentialJson")
+                        .HasMaxLength(8192)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PublishPlans", (string)null);
                 });
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.SetupState", b =>

@@ -1,0 +1,70 @@
+@inject DashboardLocalizationService I18n
+@inject NavigationManager Navigation
+
+<nav class="bocchi-publish-nav" aria-label='@I18n["publish.nav.aria"]'>
+    @foreach (var item in Items)
+    {
+        @* 发布中心使用与 Settings 同款的二级导航，避免把未来发布目标扩展塞进 tabbar。 *@
+        <a href="@item.Url"
+           class="@ItemClass(item)"
+           aria-current="@AriaCurrent(item)"
+           title='@I18n[item.DescriptionKey]'>
+            <span class="bocchi-publish-nav__icon" aria-hidden="true">
+                <Blazicon Svg="@item.Icon" />
+            </span>
+            <span class="bocchi-publish-nav__label">@I18n[item.TitleKey]</span>
+        </a>
+    }
+</nav>
+
+@code {
+    /// <summary>由发布页显式传入的 active 子页面；SSR 下比依赖 Navigation.Uri 更稳定。</summary>
+    [Parameter]
+    public string? ActiveSection { get; set; }
+
+    /// <summary>发布中心子页面定义；当前只开放发布和本地输出两个入口。</summary>
+    private static readonly PublishNavItem[] Items =
+    [
+        new("/Admin/Publish", "publish.nav.publish", "publish.nav.publishDescription", Lucide.Send),
+        new("/Admin/Publish/LocalOutput", "publish.nav.localOutput", "publish.nav.localOutputDescription", Lucide.FolderOpen),
+    ];
+
+    /// <summary>当前 Dashboard 路径，用于判断发布中心二级导航 active 状态。</summary>
+    private string CurrentPath
+    {
+        get
+        {
+            var relative = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', 2)[0];
+            var path = "/" + relative.Trim('/').TrimEnd('/');
+            return string.Equals(path, "/", StringComparison.Ordinal) ? "/Admin" : path;
+        }
+    }
+
+    /// <summary>生成导航项 class；active 只影响视觉状态。</summary>
+    private string ItemClass(PublishNavItem item)
+        => IsActive(item) ? "bocchi-publish-nav__item bocchi-publish-nav__item--active" : "bocchi-publish-nav__item";
+
+    /// <summary>当前项 active 时输出 aria-current。</summary>
+    private string? AriaCurrent(PublishNavItem item) => IsActive(item) ? "page" : null;
+
+    /// <summary>判断发布中心导航项是否命中当前路由。</summary>
+    private bool IsActive(PublishNavItem item)
+    {
+        var normalized = NormalizePath(item.Url);
+        if (!string.IsNullOrWhiteSpace(ActiveSection))
+        {
+            return string.Equals(ActiveSection, "LocalOutput", StringComparison.OrdinalIgnoreCase)
+                ? string.Equals(normalized, "/Admin/Publish/LocalOutput", StringComparison.OrdinalIgnoreCase)
+                : string.Equals(normalized, "/Admin/Publish", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>统一去掉尾斜杠，避免 URL 细节影响 active 状态。</summary>
+    private static string NormalizePath(string value)
+        => "/" + value.Trim('/').TrimEnd('/');
+
+    /// <summary>发布中心二级导航项定义。</summary>
+    private sealed record PublishNavItem(string Url, string TitleKey, string DescriptionKey, SvgIcon Icon);
+}

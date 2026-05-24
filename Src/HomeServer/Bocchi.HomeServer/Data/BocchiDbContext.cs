@@ -39,6 +39,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>后台维护的分类树；当前不参与前台 Menu。</summary>
     public DbSet<CategoryTreeRecord> CategoryTrees => Set<CategoryTreeRecord>();
 
+    /// <summary>发布方案配置；凭据字段只保存受保护后的字符串。</summary>
+    public DbSet<PublishPlanRecord> PublishPlans => Set<PublishPlanRecord>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -136,6 +139,19 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.HasIndex(x => x.Scope).IsUnique();
             entity.Property(x => x.Scope).HasMaxLength(64).IsRequired();
             entity.Property(x => x.TreeJson).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        builder.Entity<PublishPlanRecord>(entity =>
+        {
+            entity.ToTable("PublishPlans");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Channel).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ConfigurationJson).IsRequired();
+            entity.Property(x => x.ProtectedCredentialJson).HasMaxLength(8192);
+            entity.Property(x => x.IsDefault).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
         });
     }

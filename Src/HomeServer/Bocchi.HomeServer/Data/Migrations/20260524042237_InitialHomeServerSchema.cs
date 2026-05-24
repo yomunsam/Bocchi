@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bocchi.HomeServer.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialHomeServerIdentity : Migration
+    public partial class InitialHomeServerSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -55,13 +55,42 @@ namespace Bocchi.HomeServer.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CategoryTrees",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Scope = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    TreeJson = table.Column<string>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CategoryTrees", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DashboardGuideCards",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Key = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
+                    DismissedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DashboardGuideCards", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "DashboardSettings",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    SiteTitle = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
-                    SiteDescription = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
                     AppearanceMode = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },
@@ -112,6 +141,64 @@ namespace Bocchi.HomeServer.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "LocalizationSettings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    PrimaryLanguage = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    EnabledLanguagesJson = table.Column<string>(type: "TEXT", nullable: false),
+                    CustomLanguagesJson = table.Column<string>(type: "TEXT", nullable: false),
+                    CommonTextOverridesJson = table.Column<string>(type: "TEXT", nullable: false),
+                    UrlPolicy = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LocalizationSettings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PublishPlans",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
+                    Channel = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    ConfigurationJson = table.Column<string>(type: "TEXT", nullable: false),
+                    ProtectedCredentialJson = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: true),
+                    IsDefault = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PublishPlans", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SiteProfileSettings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    SiteName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
+                    DefaultTitle = table.Column<string>(type: "TEXT", maxLength: 220, nullable: false),
+                    Description = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    PublicBaseUrl = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
+                    CopyrightNotice = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    Language = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    TimeZone = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    DefaultThemeId = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SiteProfileSettings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ThemeConfigurationRecords",
                 columns: table => new
                 {
@@ -119,6 +206,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     ThemeId = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
                     ConfigurationJson = table.Column<string>(type: "TEXT", nullable: false),
+                    I18nTextOverridesJson = table.Column<string>(type: "TEXT", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
@@ -270,6 +358,18 @@ namespace Bocchi.HomeServer.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_CategoryTrees_Scope",
+                table: "CategoryTrees",
+                column: "Scope",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DashboardGuideCards_Key",
+                table: "DashboardGuideCards",
+                column: "Key",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ExternalLoginProviderSettings_ProviderKey",
                 table: "ExternalLoginProviderSettings",
                 column: "ProviderKey",
@@ -301,6 +401,12 @@ namespace Bocchi.HomeServer.Data.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "CategoryTrees");
+
+            migrationBuilder.DropTable(
+                name: "DashboardGuideCards");
+
+            migrationBuilder.DropTable(
                 name: "DashboardSettings");
 
             migrationBuilder.DropTable(
@@ -308,6 +414,15 @@ namespace Bocchi.HomeServer.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "HomeServerSetupStates");
+
+            migrationBuilder.DropTable(
+                name: "LocalizationSettings");
+
+            migrationBuilder.DropTable(
+                name: "PublishPlans");
+
+            migrationBuilder.DropTable(
+                name: "SiteProfileSettings");
 
             migrationBuilder.DropTable(
                 name: "ThemeConfigurationRecords");

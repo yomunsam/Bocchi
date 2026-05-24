@@ -106,7 +106,7 @@
                 }
             </div>
 
-            <a href="/Admin/Publish" class="@PrimaryNavLinkClass(IsCurrentPath("/Admin/Publish"))" aria-current="@AriaCurrent(IsCurrentPath("/Admin/Publish"))">
+            <a href="/Admin/Publish" class="@PrimaryNavLinkClass(IsPublishSectionActive())" aria-current="@AriaCurrent(IsPublishSectionActive())">
                 <Blazicon Svg="Lucide.Send" />
                 <span>@I18n["nav.publish"]</span>
             </a>
@@ -388,6 +388,11 @@
 
     /// <summary>主题定制入口是否为当前页面。</summary>
     private bool IsThemeCustomizationActive() => IsCurrentPath("/Admin/Site/Theme");
+
+    /// <summary>发布主导航是否包含当前页面。</summary>
+    private bool IsPublishSectionActive()
+        => IsCurrentPath("/Admin/Publish")
+           || _currentPath.StartsWith("/Admin/Publish/", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>设置主导航是否包含当前页面；Users 独立路由也属于设置体系。</summary>
     private bool IsSettingsSectionActive()
