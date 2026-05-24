@@ -150,6 +150,7 @@ public partial class ContentEditor
             _originalMarkdown = saved.Markdown;
             _previewHtml = saved.PreviewHtml;
             _pathLockedAtLoad = _pathLocked;
+            await LoadLanguageVersionsAsync();
             _saved = true;
             _saveMessage = targetStatus == ContentStatus.Published
                 ? Text("contentEditor.save.published")

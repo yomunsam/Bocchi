@@ -25,6 +25,7 @@ public partial class ContentEditor
                 _file = await Editor.ReadAsync(Path);
                 await LoadEditorOptionsAsync();
                 LoadFileIntoEditor(_file);
+                await LoadLanguageVersionsAsync();
             }
             catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
             {
@@ -42,6 +43,7 @@ public partial class ContentEditor
                 _draftSession = await Drafts.ReadAsync(Draft);
                 await LoadEditorOptionsAsync();
                 LoadDraftIntoEditor(_draftSession);
+                await LoadLanguageVersionsAsync();
             }
             catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
             {
@@ -131,6 +133,7 @@ public partial class ContentEditor
             _originalMarkdown = saved.Markdown;
             _previewHtml = saved.PreviewHtml;
             _pathLockedAtLoad = _pathLocked;
+            await LoadLanguageVersionsAsync();
             _saved = true;
             _saveMessage = Text("contentEditor.save.saved");
             if (!string.Equals(originalPath, saved.RelativePath, StringComparison.Ordinal))

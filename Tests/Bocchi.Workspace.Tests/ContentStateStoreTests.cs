@@ -97,6 +97,43 @@ public sealed class ContentStateStoreTests
     }
 
     [Fact]
+    public async Task UpsertContentItem_PersistsLocalizationMetadata()
+    {
+        var (temp, store) = NewStore();
+        using (temp)
+        {
+            var fileId = await store.UpsertFileAsync(new FileUpsert(
+                "posts/2025/hello/index.zh-TW.md", ContentKind.Post, "abc", DateTimeOffset.UtcNow));
+
+            await store.UpsertContentItemAsync(new ContentItemUpsert(
+                ContentKind.Post,
+                "posts/2025/hello@zh-TW",
+                "hello",
+                "你好繁中",
+                ContentStatus.Published,
+                "2025",
+                null,
+                null,
+                null,
+                "posts/2025/hello/index.zh-TW.md",
+                Language: "zh-TW",
+                LocalizationGroup: "posts/2025/hello",
+                IsTranslation: true,
+                SourceLanguage: "zh-CN",
+                SourceContentId: "posts/2025/hello@zh-CN"), fileId);
+
+            var items = await store.ListContentSummariesAsync(ContentKind.Post);
+
+            items.Should().ContainSingle();
+            items[0].Language.Should().Be("zh-TW");
+            items[0].LocalizationGroup.Should().Be("posts/2025/hello");
+            items[0].IsTranslation.Should().BeTrue();
+            items[0].SourceLanguage.Should().Be("zh-CN");
+            items[0].SourceContentId.Should().Be("posts/2025/hello@zh-CN");
+        }
+    }
+
+    [Fact]
     public async Task ScanRunFlow_RecordsMetadataAndErrors()
     {
         var (temp, store) = NewStore();

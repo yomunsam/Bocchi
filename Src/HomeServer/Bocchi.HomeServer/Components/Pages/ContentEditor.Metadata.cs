@@ -160,6 +160,19 @@ public partial class ContentEditor
     private static bool IsMarkdownPath(string? path)
         => path?.EndsWith(".md", StringComparison.OrdinalIgnoreCase) == true;
 
+    /// <summary>判断路径是否是 <c>index.{language}.md</c> 形态的非默认语言版本文件。</summary>
+    private static bool IsVariantIndexMarkdownPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var fileName = System.IO.Path.GetFileName(path.Replace('\\', '/'));
+        return fileName.StartsWith("index.", StringComparison.OrdinalIgnoreCase) &&
+            fileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>从目录型内容路径推导 slug fallback。</summary>
     private static string SlugFromPath(string relativePath)
     {

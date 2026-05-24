@@ -57,9 +57,12 @@ public sealed record NavigationTargetInput
 /// <summary>Theme 输入数据中通用的 Post 表达。包含三态正文。</summary>
 public sealed record PostInput
 {
+    public required string Id { get; init; }
     public required string Slug { get; init; }
     public required string Year { get; init; }
     public required string Title { get; init; }
+    public required string Language { get; init; }
+    public required ContentLocalizationInput Localization { get; init; }
     public required string Status { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
     public DateTimeOffset? UpdatedAt { get; init; }
@@ -81,8 +84,11 @@ public sealed record PostInput
 /// <summary>独立页面。</summary>
 public sealed record PageInput
 {
+    public required string Id { get; init; }
     public required string Slug { get; init; }
     public required string Title { get; init; }
+    public required string Language { get; init; }
+    public required ContentLocalizationInput Localization { get; init; }
     public required string Status { get; init; }
     public required int Order { get; init; }
     public required bool ShowInNavigation { get; init; }
@@ -101,9 +107,12 @@ public sealed record PageInput
 /// <summary>作品。</summary>
 public sealed record WorkInput
 {
+    public required string Id { get; init; }
     public required string Slug { get; init; }
     public required string Year { get; init; }
     public required string Title { get; init; }
+    public required string Language { get; init; }
+    public required ContentLocalizationInput Localization { get; init; }
     public required string Status { get; init; }
     public string? Role { get; init; }
     public string? Period { get; init; }
@@ -120,6 +129,25 @@ public sealed record WorkInput
     public required string Html { get; init; }
     public string? Excerpt { get; init; }
     public required IReadOnlyList<MediaReferenceInput> Media { get; init; }
+}
+
+/// <summary>Theme 输入中通用的内容多语言关系。</summary>
+public sealed record ContentLocalizationInput
+{
+    public required string GroupId { get; init; }
+    public required bool IsTranslation { get; init; }
+    public string? SourceLanguage { get; init; }
+    public string? SourceContentId { get; init; }
+    public required IReadOnlyList<ContentAlternateInput> Alternates { get; init; }
+}
+
+/// <summary>Theme 输入中同一 localization group 的一个可切换语言版本。</summary>
+public sealed record ContentAlternateInput
+{
+    public required string ContentId { get; init; }
+    public required string Language { get; init; }
+    public required string Title { get; init; }
+    public required string Url { get; init; }
 }
 
 /// <summary>短文。</summary>

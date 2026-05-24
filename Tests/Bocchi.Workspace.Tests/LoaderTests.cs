@@ -42,6 +42,62 @@ public sealed class LoaderTests
     }
 
     [Fact]
+    public void PostLoader_ParsesLanguageAndTranslationSource()
+    {
+        var raw = """
+            ---
+            title: 你好
+            slug: hello
+            language: zh-TW
+            localization:
+              group: posts/2025/hello
+              translationOf:
+                language: zh-CN
+            ---
+            你好。
+            """;
+        var loader = new PostLoader(Markdown);
+
+        var result = loader.Load(
+            Loc("posts/2025/hello/index.zh-TW.md"),
+            "2025",
+            "hello",
+            raw,
+            TimeSpan.FromHours(8),
+            fileLanguage: "zh-TW",
+            defaultLanguage: "zh-CN");
+
+        result.Errors.Should().BeEmpty();
+        result.Document!.Frontmatter.Language.Should().Be("zh-TW");
+        result.Document.Frontmatter.Localization!.GroupId.Should().Be("posts/2025/hello");
+        result.Document.Frontmatter.Localization.TranslationOf!.Language.Should().Be("zh-CN");
+    }
+
+    [Fact]
+    public void PageLoader_ReportsLanguageFilenameMismatch()
+    {
+        var raw = """
+            ---
+            title: About
+            slug: about
+            language: en-US
+            ---
+            About.
+            """;
+        var loader = new PageLoader(Markdown);
+
+        var result = loader.Load(
+            Loc("pages/about/index.zh-CN.md"),
+            "about",
+            raw,
+            fileLanguage: "zh-CN",
+            defaultLanguage: "zh-CN");
+
+        result.Document.Should().BeNull();
+        result.Errors.Should().Contain(e => e.Code == "CONTENT_LANGUAGE_FILENAME_MISMATCH");
+    }
+
+    [Fact]
     public void PostLoader_ReportsMissingTitleAsError()
     {
         var raw = "---\nslug: x\n---\nbody\n";

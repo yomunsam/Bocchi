@@ -89,6 +89,7 @@ public sealed partial class ContentScanner
         IReadOnlyList<FriendLink> friendLinks = [];
         SiteSettings? siteSettings = null;
         var filesScanned = 0;
+        var seenContentVariants = new HashSet<(ContentKind Kind, string GroupId, string Language)>();
 
         var cs = _layout.Workspace;
 
@@ -106,21 +107,31 @@ public sealed partial class ContentScanner
                 fallbackOffset = ResolveTimeZoneOffset(siteSettings.TimeZone, warnings, cs.SiteSettingsFile);
             }
 
+            var primaryLanguage = siteSettings?.Language ?? "zh-CN";
+
             // Posts
             filesScanned += await ScanYearScopedDirectoryAsync(
                 cs.PostsDirectory, ContentKind.Post, errors,
-                async (year, slug, file, location) =>
+                async (year, slug, file, location, fileLanguage) =>
                 {
                     var raw = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-                    var result = _postLoader.Load(location, year, slug, raw, fallbackOffset);
+                    var result = _postLoader.Load(location, year, slug, raw, fallbackOffset, fileLanguage, primaryLanguage);
                     DispatchErrors(result.Errors, errors, warnings, infos);
                     if (result.Document is not null)
                     {
+                        var variant = CreateContentVariant(ContentKind.Post, year, slug, result.Document.Frontmatter.Language, result.Document.Frontmatter.Localization, primaryLanguage);
+                        if (!TryRegisterContentVariant(seenContentVariants, variant, location, errors))
+                        {
+                            return;
+                        }
+
                         posts.Add(result.Document);
                         await PersistFileAndItemAsync(file, location, ContentKind.Post,
-                            result.Document.Frontmatter.Slug, result.Document.Frontmatter.Title,
+                            variant.ContentId, result.Document.Frontmatter.Slug, result.Document.Frontmatter.Title,
                             result.Document.Frontmatter.Status, year,
                             result.Document.Frontmatter.PublishedAt, result.Document.Frontmatter.UpdatedAt,
+                            variant.Language, variant.GroupId, variant.IsTranslation,
+                            variant.SourceLanguage, variant.SourceContentId,
                             cancellationToken).ConfigureAwait(false);
                         ValidateAssets(file, location, result.Document.Body.ReferencedMedia, errors, warnings, infos);
                     }
@@ -131,18 +142,26 @@ public sealed partial class ContentScanner
             // Pages（无年份层）
             filesScanned += await ScanFlatDirectoryAsync(
                 cs.PagesDirectory, ContentKind.Page,
-                async (slug, file, location) =>
+                async (slug, file, location, fileLanguage) =>
                 {
                     var raw = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-                    var result = _pageLoader.Load(location, slug, raw);
+                    var result = _pageLoader.Load(location, slug, raw, fileLanguage, primaryLanguage);
                     DispatchErrors(result.Errors, errors, warnings, infos);
                     if (result.Document is not null)
                     {
+                        var variant = CreateContentVariant(ContentKind.Page, year: null, slug, result.Document.Frontmatter.Language, result.Document.Frontmatter.Localization, primaryLanguage);
+                        if (!TryRegisterContentVariant(seenContentVariants, variant, location, errors))
+                        {
+                            return;
+                        }
+
                         pages.Add(result.Document);
                         await PersistFileAndItemAsync(file, location, ContentKind.Page,
-                            result.Document.Frontmatter.Slug, result.Document.Frontmatter.Title,
+                            variant.ContentId, result.Document.Frontmatter.Slug, result.Document.Frontmatter.Title,
                             result.Document.Frontmatter.Status, year: null,
                             publishedAt: null, updatedAt: null,
+                            variant.Language, variant.GroupId, variant.IsTranslation,
+                            variant.SourceLanguage, variant.SourceContentId,
                             cancellationToken).ConfigureAwait(false);
                         ValidateAssets(file, location, result.Document.Body.ReferencedMedia, errors, warnings, infos);
                     }
@@ -152,18 +171,26 @@ public sealed partial class ContentScanner
             // Works
             filesScanned += await ScanYearScopedDirectoryAsync(
                 cs.WorksDirectory, ContentKind.Work, errors,
-                async (year, slug, file, location) =>
+                async (year, slug, file, location, fileLanguage) =>
                 {
                     var raw = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-                    var result = _workLoader.Load(location, year, slug, raw);
+                    var result = _workLoader.Load(location, year, slug, raw, fileLanguage, primaryLanguage);
                     DispatchErrors(result.Errors, errors, warnings, infos);
                     if (result.Document is not null)
                     {
+                        var variant = CreateContentVariant(ContentKind.Work, year, slug, result.Document.Frontmatter.Language, result.Document.Frontmatter.Localization, primaryLanguage);
+                        if (!TryRegisterContentVariant(seenContentVariants, variant, location, errors))
+                        {
+                            return;
+                        }
+
                         works.Add(result.Document);
                         await PersistFileAndItemAsync(file, location, ContentKind.Work,
-                            result.Document.Frontmatter.Slug, result.Document.Frontmatter.Title,
+                            variant.ContentId, result.Document.Frontmatter.Slug, result.Document.Frontmatter.Title,
                             result.Document.Frontmatter.Status, year,
                             publishedAt: null, updatedAt: null,
+                            variant.Language, variant.GroupId, variant.IsTranslation,
+                            variant.SourceLanguage, variant.SourceContentId,
                             cancellationToken).ConfigureAwait(false);
                         ValidateAssets(file, location, result.Document.Body.ReferencedMedia, errors, warnings, infos);
                     }
@@ -180,9 +207,11 @@ public sealed partial class ContentScanner
                     {
                         notes.Add(doc);
                         await PersistFileAndItemAsync(file, location, ContentKind.Note,
-                            doc.Frontmatter.Id, title: doc.Body.Excerpt,
+                            doc.Frontmatter.Id, slug: doc.Frontmatter.Id, title: doc.Body.Excerpt,
                             doc.Frontmatter.Status, year,
                             doc.Frontmatter.PublishedAt, updatedAt: null,
+                            language: null, localizationGroup: null, isTranslation: false,
+                            sourceLanguage: null, sourceContentId: null,
                             cancellationToken).ConfigureAwait(false);
                     }
                 },
@@ -283,7 +312,7 @@ public sealed partial class ContentScanner
         string root,
         ContentKind kind,
         List<ContentValidationError> errors,
-        Func<string, string, string, ContentLocation, Task> handle,
+        Func<string, string, string, ContentLocation, string?, Task> handle,
         bool isDirectoryItem,
         CancellationToken ct)
     {
@@ -309,8 +338,8 @@ public sealed partial class ContentScanner
             foreach (var entryDir in Directory.EnumerateDirectories(yearDir))
             {
                 var slug = Path.GetFileName(entryDir);
-                var indexFile = Path.Combine(entryDir, "index.md");
-                if (!File.Exists(indexFile))
+                var variantFiles = EnumerateIndexVariantFiles(entryDir);
+                if (!variantFiles.Any(file => file.Language is null))
                 {
                     errors.Add(new ContentValidationError(
                         cs.ToRelative(entryDir), kind, null,
@@ -319,9 +348,12 @@ public sealed partial class ContentScanner
                     continue;
                 }
 
-                fileCount++;
-                var location = new ContentLocation(cs.Root, cs.ToRelative(indexFile));
-                await handle(yearName, slug, indexFile, location).ConfigureAwait(false);
+                foreach (var variant in variantFiles)
+                {
+                    fileCount++;
+                    var location = new ContentLocation(cs.Root, cs.ToRelative(variant.AbsolutePath));
+                    await handle(yearName, slug, variant.AbsolutePath, location, variant.Language).ConfigureAwait(false);
+                }
             }
         }
 
@@ -329,7 +361,10 @@ public sealed partial class ContentScanner
     }
 
     private async Task<int> ScanFlatDirectoryAsync(
-        string root, ContentKind kind, Func<string, string, ContentLocation, Task> handle, CancellationToken ct)
+        string root,
+        ContentKind kind,
+        Func<string, string, ContentLocation, string?, Task> handle,
+        CancellationToken ct)
     {
         if (!Directory.Exists(root))
         {
@@ -341,15 +376,18 @@ public sealed partial class ContentScanner
         foreach (var entryDir in Directory.EnumerateDirectories(root))
         {
             var slug = Path.GetFileName(entryDir);
-            var indexFile = Path.Combine(entryDir, "index.md");
-            if (!File.Exists(indexFile))
+            var variantFiles = EnumerateIndexVariantFiles(entryDir);
+            if (!variantFiles.Any(file => file.Language is null))
             {
                 continue;
             }
 
-            fileCount++;
-            var location = new ContentLocation(cs.Root, cs.ToRelative(indexFile));
-            await handle(slug, indexFile, location).ConfigureAwait(false);
+            foreach (var variant in variantFiles)
+            {
+                fileCount++;
+                var location = new ContentLocation(cs.Root, cs.ToRelative(variant.AbsolutePath));
+                await handle(slug, variant.AbsolutePath, location, variant.Language).ConfigureAwait(false);
+            }
         }
 
         return fileCount;
@@ -466,14 +504,88 @@ public sealed partial class ContentScanner
 
     private async Task PersistFileAndItemAsync(
         string filePath, ContentLocation location, ContentKind kind,
-        string contentId, string? title, ContentStatus status, string? year,
-        DateTimeOffset? publishedAt, DateTimeOffset? updatedAt, CancellationToken ct)
+        string contentId, string? slug, string? title, ContentStatus status, string? year,
+        DateTimeOffset? publishedAt, DateTimeOffset? updatedAt,
+        string? language, string? localizationGroup, bool isTranslation,
+        string? sourceLanguage, string? sourceContentId, CancellationToken ct)
     {
         var fileId = await UpsertFileRecordAsync(filePath, location, kind, ct).ConfigureAwait(false);
         await _store.UpsertContentItemAsync(new ContentItemUpsert(
-            kind, contentId, Slug: contentId, title, status, year, publishedAt, updatedAt,
-            FrontmatterJson: null, location.RelativePath), fileId, ct).ConfigureAwait(false);
+            kind, contentId, slug, title, status, year, publishedAt, updatedAt,
+            FrontmatterJson: null, location.RelativePath,
+            language, localizationGroup, isTranslation, sourceLanguage, sourceContentId), fileId, ct).ConfigureAwait(false);
     }
+
+    private static VariantContentFile[] EnumerateIndexVariantFiles(string entryDirectory)
+    {
+        return Directory.EnumerateFiles(entryDirectory, "index*.md", SearchOption.TopDirectoryOnly)
+            .Select(TryCreateVariantContentFile)
+            .OfType<VariantContentFile>()
+            .OrderBy(file => file.Language is null ? 0 : 1)
+            .ThenBy(file => file.Language, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static VariantContentFile? TryCreateVariantContentFile(string path)
+    {
+        var match = IndexVariantRegex().Match(Path.GetFileName(path));
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var language = match.Groups["language"].Success ? match.Groups["language"].Value : null;
+        return new VariantContentFile(path, language);
+    }
+
+    private static ContentVariantIndex CreateContentVariant(
+        ContentKind kind,
+        string? year,
+        string folderSlug,
+        string? language,
+        ContentLocalization? localization,
+        string primaryLanguage)
+    {
+        var groupId = localization?.GroupId ?? kind switch
+        {
+            ContentKind.Page => $"pages/{folderSlug}",
+            ContentKind.Work => $"works/{year}/{folderSlug}",
+            _ => $"posts/{year}/{folderSlug}",
+        };
+        var effectiveLanguage = string.IsNullOrWhiteSpace(language) ? primaryLanguage : language.Trim();
+        var sourceLanguage = localization?.TranslationOf?.Language;
+        var sourceContentId = localization?.TranslationOf?.ContentId ??
+            (string.IsNullOrWhiteSpace(sourceLanguage) ? null : CreateVariantContentId(groupId, sourceLanguage));
+        return new ContentVariantIndex(
+            kind,
+            groupId,
+            effectiveLanguage,
+            CreateVariantContentId(groupId, effectiveLanguage),
+            localization?.TranslationOf is not null,
+            sourceLanguage,
+            sourceContentId);
+    }
+
+    private static bool TryRegisterContentVariant(
+        HashSet<(ContentKind Kind, string GroupId, string Language)> seen,
+        ContentVariantIndex variant,
+        ContentLocation location,
+        List<ContentValidationError> errors)
+    {
+        if (seen.Add((variant.Kind, variant.GroupId, variant.Language)))
+        {
+            return true;
+        }
+
+        errors.Add(new ContentValidationError(
+            location.RelativePath, variant.Kind, "language",
+            ContentErrorSeverity.Error, "CONTENT_VARIANT_DUPLICATE_LANGUAGE",
+            $"localization group '{variant.GroupId}' 中已经存在 language='{variant.Language}' 的内容版本。"));
+        return false;
+    }
+
+    private static string CreateVariantContentId(string groupId, string language)
+        => $"{groupId}@{language}";
 
     private async Task<long> UpsertFileRecordAsync(string filePath, ContentLocation location, ContentKind kind, CancellationToken ct)
     {
@@ -531,7 +643,23 @@ public sealed partial class ContentScanner
     [GeneratedRegex(@"^\d{4}$", RegexOptions.CultureInvariant)]
     private static partial Regex YearRegex();
 
+    [GeneratedRegex(@"^index(?:\.(?<language>[^.]+))?\.md$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex IndexVariantRegex();
+
     [LoggerMessage(EventId = 2001, Level = LogLevel.Warning,
         Message = "无法读取内容 workspace Git 状态，将忽略 Git 信息继续扫描。")]
     private static partial void LogGitStatusFailed(ILogger logger, Exception exception);
+
+    /// <summary>目录型内容中的一个 index 语言变体文件。</summary>
+    private sealed record VariantContentFile(string AbsolutePath, string? Language);
+
+    /// <summary>扫描阶段写入 state store 前使用的 variant 索引信息。</summary>
+    private sealed record ContentVariantIndex(
+        ContentKind Kind,
+        string GroupId,
+        string Language,
+        string ContentId,
+        bool IsTranslation,
+        string? SourceLanguage,
+        string? SourceContentId);
 }

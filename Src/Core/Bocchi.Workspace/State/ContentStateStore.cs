@@ -122,8 +122,12 @@ public sealed class ContentStateStore : IContentStateStore
                     AND Kind = $kind
                     AND ContentId <> $cid;
 
-                INSERT INTO ContentItems (FileId, Kind, ContentId, Slug, Title, Status, Year, PublishedAtUtc, UpdatedAtUtc, FrontmatterJson, LastSeenUtc)
-                VALUES ($file, $kind, $cid, $slug, $title, $status, $year, $published, $updated, $fm, $seen)
+                INSERT INTO ContentItems (
+                    FileId, Kind, ContentId, Slug, Title, Status, Year, PublishedAtUtc, UpdatedAtUtc,
+                    FrontmatterJson, Language, LocalizationGroup, IsTranslation, SourceLanguage, SourceContentId, LastSeenUtc)
+                VALUES (
+                    $file, $kind, $cid, $slug, $title, $status, $year, $published, $updated,
+                    $fm, $language, $group, $isTranslation, $sourceLanguage, $sourceContentId, $seen)
                 ON CONFLICT(Kind, ContentId) DO UPDATE SET
                     FileId = excluded.FileId,
                     Slug = excluded.Slug,
@@ -133,6 +137,11 @@ public sealed class ContentStateStore : IContentStateStore
                     PublishedAtUtc = excluded.PublishedAtUtc,
                     UpdatedAtUtc = excluded.UpdatedAtUtc,
                     FrontmatterJson = excluded.FrontmatterJson,
+                    Language = excluded.Language,
+                    LocalizationGroup = excluded.LocalizationGroup,
+                    IsTranslation = excluded.IsTranslation,
+                    SourceLanguage = excluded.SourceLanguage,
+                    SourceContentId = excluded.SourceContentId,
                     LastSeenUtc = excluded.LastSeenUtc;
             """;
             cmd.Parameters.AddWithValue("$replaceSingleFileItem", IsSingleItemPerSourceFile(item.Kind) ? 1 : 0);
@@ -146,6 +155,11 @@ public sealed class ContentStateStore : IContentStateStore
             cmd.Parameters.AddWithValue("$published", item.PublishedAt is null ? DBNull.Value : FormatUtc(item.PublishedAt.Value));
             cmd.Parameters.AddWithValue("$updated", item.UpdatedAt is null ? DBNull.Value : FormatUtc(item.UpdatedAt.Value));
             cmd.Parameters.AddWithValue("$fm", (object?)item.FrontmatterJson ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$language", (object?)item.Language ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$group", (object?)item.LocalizationGroup ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$isTranslation", item.IsTranslation ? 1 : 0);
+            cmd.Parameters.AddWithValue("$sourceLanguage", (object?)item.SourceLanguage ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$sourceContentId", (object?)item.SourceContentId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$seen", FormatUtc(DateTimeOffset.UtcNow));
             cmd.ExecuteNonQuery();
             return Task.CompletedTask;
@@ -280,7 +294,9 @@ public sealed class ContentStateStore : IContentStateStore
             if (kind is null)
             {
                 cmd.CommandText = """
-                    SELECT ci.Kind, ci.ContentId, ci.Title, ci.Status, ci.Year, ci.PublishedAtUtc, ci.UpdatedAtUtc, COALESCE(f.RelativePath, '')
+                    SELECT ci.Kind, ci.ContentId, ci.Title, ci.Status, ci.Year, ci.PublishedAtUtc, ci.UpdatedAtUtc,
+                           COALESCE(f.RelativePath, ''), ci.Language, ci.LocalizationGroup, ci.IsTranslation,
+                           ci.SourceLanguage, ci.SourceContentId
                     FROM ContentItems ci LEFT JOIN Files f ON ci.FileId = f.Id
                     ORDER BY ci.Kind ASC, ci.PublishedAtUtc DESC NULLS LAST;
                     """;
@@ -288,7 +304,9 @@ public sealed class ContentStateStore : IContentStateStore
             else
             {
                 cmd.CommandText = """
-                    SELECT ci.Kind, ci.ContentId, ci.Title, ci.Status, ci.Year, ci.PublishedAtUtc, ci.UpdatedAtUtc, COALESCE(f.RelativePath, '')
+                    SELECT ci.Kind, ci.ContentId, ci.Title, ci.Status, ci.Year, ci.PublishedAtUtc, ci.UpdatedAtUtc,
+                           COALESCE(f.RelativePath, ''), ci.Language, ci.LocalizationGroup, ci.IsTranslation,
+                           ci.SourceLanguage, ci.SourceContentId
                     FROM ContentItems ci LEFT JOIN Files f ON ci.FileId = f.Id
                     WHERE ci.Kind = $kind
                     ORDER BY ci.PublishedAtUtc DESC NULLS LAST;
@@ -308,7 +326,12 @@ public sealed class ContentStateStore : IContentStateStore
                     reader.IsDBNull(4) ? null : reader.GetString(4),
                     reader.IsDBNull(5) ? null : ParseUtc(reader.GetString(5)),
                     reader.IsDBNull(6) ? null : ParseUtc(reader.GetString(6)),
-                    reader.GetString(7)));
+                    reader.GetString(7),
+                    reader.IsDBNull(8) ? null : reader.GetString(8),
+                    reader.IsDBNull(9) ? null : reader.GetString(9),
+                    !reader.IsDBNull(10) && reader.GetInt32(10) != 0,
+                    reader.IsDBNull(11) ? null : reader.GetString(11),
+                    reader.IsDBNull(12) ? null : reader.GetString(12)));
             }
 
             return Task.FromResult<IReadOnlyList<ContentSummary>>(list);

@@ -6,12 +6,12 @@ namespace Bocchi.Workspace.State;
 
 /// <summary>
 /// SQLite schema 显式迁移器。基于 <c>PRAGMA user_version</c>。
-/// 历史：v1 → M2 内容扫描相关表；v2 预留；v3 → M3 构建记录表。
+/// 历史：v1 → M2 内容扫描相关表；v2 预留；v3 → M3 构建记录表；v4 → M6 内容语言 variant 索引。
 /// </summary>
 public sealed class SchemaMigrator
 {
     private readonly SqliteConnectionFactory _factory;
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public SchemaMigrator(SqliteConnectionFactory factory)
     {
@@ -40,6 +40,11 @@ public sealed class SchemaMigrator
             if (current < 3)
             {
                 ApplyV3(connection, tx);
+            }
+
+            if (current < 4)
+            {
+                ApplyV4(connection, tx);
             }
 
             SetUserVersion(connection, tx, CurrentVersion);
@@ -190,6 +195,25 @@ public sealed class SchemaMigrator
 
             CREATE INDEX IX_BuildStageLogs_Run ON BuildStageLogs(BuildRunId);
             CREATE INDEX IX_BuildStageLogs_Level ON BuildStageLogs(Level);
+            """;
+
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+
+    private static void ApplyV4(SqliteConnection conn, SqliteTransaction tx)
+    {
+        const string sql = """
+            ALTER TABLE ContentItems ADD COLUMN Language TEXT NULL;
+            ALTER TABLE ContentItems ADD COLUMN LocalizationGroup TEXT NULL;
+            ALTER TABLE ContentItems ADD COLUMN IsTranslation INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE ContentItems ADD COLUMN SourceLanguage TEXT NULL;
+            ALTER TABLE ContentItems ADD COLUMN SourceContentId TEXT NULL;
+
+            CREATE INDEX IX_ContentItems_Kind_Group_Language
+                ON ContentItems(Kind, LocalizationGroup, Language);
             """;
 
         using var cmd = conn.CreateCommand();

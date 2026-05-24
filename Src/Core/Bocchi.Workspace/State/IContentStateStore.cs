@@ -12,6 +12,11 @@ namespace Bocchi.Workspace.State;
 /// <param name="PublishedAt">发布时间，可空。</param>
 /// <param name="UpdatedAt">更新时间，可空。</param>
 /// <param name="RelativePath">源文件相对内容 workspace 根的路径。</param>
+/// <param name="Language">内容 variant 的有效语言；非多语言内容为空。</param>
+/// <param name="LocalizationGroup">内容 localization group id；非多语言内容为空。</param>
+/// <param name="IsTranslation">是否为 Translation variant。</param>
+/// <param name="SourceLanguage">Translation variant 的来源语言。</param>
+/// <param name="SourceContentId">Translation variant 的来源内容 id。</param>
 public sealed record ContentSummary(
     ContentKind Kind,
     string ContentId,
@@ -20,7 +25,12 @@ public sealed record ContentSummary(
     string? Year,
     DateTimeOffset? PublishedAt,
     DateTimeOffset? UpdatedAt,
-    string RelativePath);
+    string RelativePath,
+    string? Language = null,
+    string? LocalizationGroup = null,
+    bool IsTranslation = false,
+    string? SourceLanguage = null,
+    string? SourceContentId = null);
 
 /// <summary>一次扫描运行的元数据。</summary>
 /// <param name="Id">数据库主键。</param>
@@ -54,7 +64,12 @@ public sealed record ContentItemUpsert(
     DateTimeOffset? PublishedAt,
     DateTimeOffset? UpdatedAt,
     string? FrontmatterJson,
-    string SourceRelativePath);
+    string SourceRelativePath,
+    string? Language = null,
+    string? LocalizationGroup = null,
+    bool IsTranslation = false,
+    string? SourceLanguage = null,
+    string? SourceContentId = null);
 
 /// <summary>一份要写入 <see cref="IContentStateStore"/> 的源文件记录。</summary>
 public sealed record FileUpsert(

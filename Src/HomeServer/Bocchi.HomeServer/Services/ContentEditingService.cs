@@ -114,6 +114,23 @@ public sealed class ContentEditingService
         return await ReadAsync(relativePath, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>创建一个已经确定路径的语言 variant 文件；调用方负责决定语言、group 与来源关系。</summary>
+    public async Task<EditableContentFile> CreateLanguageVariantAsync(
+        string relativePath,
+        string yaml,
+        string markdown,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedRelativePath = NormalizeContentRelativePath(relativePath);
+        if (!IsLanguageVariantRelativePath(normalizedRelativePath))
+        {
+            throw new InvalidOperationException("语言版本必须写入 index.{language}.md 文件。");
+        }
+
+        await SaveNewAsync(normalizedRelativePath, yaml, markdown, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(normalizedRelativePath, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>规范化候选路径标识，并按最终 URL 作用域检查是否已被其它内容占用。</summary>
     public ContentSlugValidationResult ValidateUrlSlug(ContentKind kind, string? currentRelativePath, string? candidate)
     {
@@ -408,6 +425,14 @@ public sealed class ContentEditingService
 
     private static bool IsIndexMarkdown(string fullPath)
         => string.Equals(Path.GetFileName(fullPath), "index.md", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLanguageVariantRelativePath(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return fileName.StartsWith("index.", StringComparison.OrdinalIgnoreCase) &&
+            fileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(fileName, "index.md", StringComparison.OrdinalIgnoreCase);
+    }
 
     private ContentSlugValidationResult ValidatePageSlug(string? currentFullPath, string slug)
     {

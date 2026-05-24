@@ -177,6 +177,53 @@ public sealed class GeneratorPipelineEndToEndTests
         var post = postsDoc.RootElement.GetProperty("data").EnumerateArray().Single();
         post.GetProperty("siteRelativeUrl").GetString().Should().Be("/posts/2025/hello/");
         post.GetProperty("url").GetString().Should().Be("/posts/2025/hello/");
+        post.GetProperty("id").GetString().Should().Be("posts/2025/hello@zh-CN");
+        post.GetProperty("language").GetString().Should().Be("zh-CN");
+        post.GetProperty("localization").GetProperty("groupId").GetString().Should().Be("posts/2025/hello");
+    }
+
+    [Fact]
+    public async Task ThemeInput_IncludesContentLanguageVariants()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var variantPath = Path.Combine(fixture.Layout.Workspace.PostsDirectory, "2025", "hello", "index.zh-TW.md");
+        await File.WriteAllTextAsync(variantPath, """
+            ---
+            title: Hello Traditional
+            slug: hello
+            status: Published
+            language: zh-TW
+            localization:
+              translationOf:
+                language: zh-CN
+            ---
+            Body in Traditional Chinese.
+            """);
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var sink = new FileSystemBuildSink(fixture.Layout);
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            sink,
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var postsJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "posts.json"));
+        using var postsDoc = JsonDocument.Parse(postsJson);
+        var posts = postsDoc.RootElement.GetProperty("data").EnumerateArray().ToArray();
+        posts.Should().HaveCount(2);
+
+        var zhTw = posts.Single(post => post.GetProperty("language").GetString() == "zh-TW");
+        zhTw.GetProperty("id").GetString().Should().Be("posts/2025/hello@zh-TW");
+        zhTw.GetProperty("siteRelativeUrl").GetString().Should().Be("/zh-TW/posts/2025/hello/");
+        var localization = zhTw.GetProperty("localization");
+        localization.GetProperty("isTranslation").GetBoolean().Should().BeTrue();
+        localization.GetProperty("sourceContentId").GetString().Should().Be("posts/2025/hello@zh-CN");
+        localization.GetProperty("alternates").EnumerateArray().Should().Contain(alternate =>
+            alternate.GetProperty("language").GetString() == "zh-CN" &&
+            alternate.GetProperty("url").GetString() == "/posts/2025/hello/");
     }
 
     [Fact]

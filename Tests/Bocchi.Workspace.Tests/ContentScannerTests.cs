@@ -74,10 +74,46 @@ public sealed class ContentScannerTests
             result.HasErrors.Should().BeFalse();
 
             var summaries = await store.ListContentSummariesAsync(null);
-            summaries.Should().Contain(s => s.Kind == ContentKind.Post && s.ContentId == "hello");
-            summaries.Should().Contain(s => s.Kind == ContentKind.Page && s.ContentId == "about");
-            summaries.Should().Contain(s => s.Kind == ContentKind.Work && s.ContentId == "alpha");
+            summaries.Should().Contain(s => s.Kind == ContentKind.Post && s.ContentId == "posts/2025/hello@zh-CN");
+            summaries.Should().Contain(s => s.Kind == ContentKind.Page && s.ContentId == "pages/about@zh-CN");
+            summaries.Should().Contain(s => s.Kind == ContentKind.Work && s.ContentId == "works/2024/alpha@zh-CN");
             summaries.Should().Contain(s => s.Kind == ContentKind.SiteSettings && s.RelativePath.EndsWith("site.yaml", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task Scan_LoadsLanguageVariantsAndPersistsLocalizationState()
+    {
+        var (temp, scanner, store) = await NewScannerAsync();
+        using (temp)
+        {
+            var postDir = Path.Combine(temp.Layout.Workspace.PostsDirectory, "2025", "hello");
+            await WriteAsync(Path.Combine(postDir, "index.md"),
+                "---\ntitle: 你好\nslug: hello\nstatus: Published\n---\n中文正文。\n");
+            await WriteAsync(Path.Combine(postDir, "index.zh-TW.md"),
+                "---\ntitle: 你好繁中\nslug: hello\nstatus: Published\nlanguage: zh-TW\nlocalization:\n  translationOf:\n    language: zh-CN\n---\n繁中正文。\n");
+
+            var result = await scanner.ScanAsync();
+
+            result.HasErrors.Should().BeFalse();
+            result.Posts.Should().HaveCount(2);
+            result.Posts.Should().Contain(post => post.Frontmatter.Language == "zh-CN");
+            result.Posts.Should().Contain(post =>
+                post.Frontmatter.Language == "zh-TW" &&
+                post.Frontmatter.Localization!.TranslationOf!.Language == "zh-CN");
+
+            var summaries = await store.ListContentSummariesAsync(ContentKind.Post);
+            summaries.Should().Contain(summary =>
+                summary.ContentId == "posts/2025/hello@zh-CN" &&
+                summary.Language == "zh-CN" &&
+                summary.LocalizationGroup == "posts/2025/hello" &&
+                !summary.IsTranslation);
+            summaries.Should().Contain(summary =>
+                summary.ContentId == "posts/2025/hello@zh-TW" &&
+                summary.Language == "zh-TW" &&
+                summary.LocalizationGroup == "posts/2025/hello" &&
+                summary.IsTranslation &&
+                summary.SourceContentId == "posts/2025/hello@zh-CN");
         }
     }
 

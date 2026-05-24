@@ -164,7 +164,7 @@ public partial class ContentEditor
         }
 
         var fallback = CurrentFallbackSlug;
-        if (_pathLockedAtLoad)
+        if (_pathLockedAtLoad || IsLanguageVariantFile)
         {
             _slug = fallback;
             return true;
@@ -188,7 +188,7 @@ public partial class ContentEditor
     private string SlugForYaml()
     {
         var fallback = CurrentFallbackSlug;
-        if (_pathLockedAtLoad)
+        if (_pathLockedAtLoad || IsLanguageVariantFile)
         {
             return fallback;
         }

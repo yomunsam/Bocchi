@@ -207,6 +207,12 @@
     line-height: 1.2;
 }
 
+.bocchi-editor-details-summary ::deep svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--bocchi-text-muted);
+}
+
 .bocchi-publish-panel .bocchi-meta-list {
     font-size: 0.86rem;
     padding-top: 0;
@@ -233,11 +239,153 @@
     overflow: hidden;
 }
 
+.bocchi-editor-language {
+    display: grid;
+    min-width: 0;
+    gap: 0.62rem;
+    overflow: hidden;
+}
+
 .bocchi-editor-ai__empty {
     margin: 0;
     color: var(--bocchi-text-muted);
     font-size: 0.84rem;
     line-height: 1.35;
+}
+
+.bocchi-editor-language__empty,
+.bocchi-editor-language__message,
+.bocchi-editor-language-form__hint {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.bocchi-editor-language__message {
+    color: var(--bocchi-warning-strong);
+}
+
+.bocchi-editor-language__current {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--bocchi-border) 72%, transparent);
+    padding-bottom: 0.58rem;
+}
+
+.bocchi-editor-language__current > span:first-child {
+    overflow: hidden;
+    color: var(--bocchi-text);
+    font-size: 0.94rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-editor-language__source {
+    display: grid;
+    gap: 0.38rem;
+    border: 1px solid color-mix(in srgb, var(--bocchi-action) 22%, var(--bocchi-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-action) 6%, var(--bocchi-surface));
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.35;
+    padding: 0.58rem 0.62rem;
+}
+
+.bocchi-editor-language__source a {
+    display: inline-flex;
+    gap: 0.3rem;
+    align-items: center;
+    color: var(--bocchi-action);
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.bocchi-editor-language__source a ::deep svg,
+.bocchi-editor-language button ::deep svg {
+    width: 0.94rem;
+    height: 0.94rem;
+}
+
+.bocchi-editor-language__variants {
+    display: grid;
+    gap: 0.32rem;
+}
+
+.bocchi-editor-language__variant {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.62rem;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: var(--bocchi-text);
+    min-height: 2.7rem;
+    padding: 0.42rem 0.5rem;
+    text-decoration: none;
+}
+
+.bocchi-editor-language__variant:hover {
+    border-color: color-mix(in srgb, var(--bocchi-action) 24%, var(--bocchi-border));
+    background: color-mix(in srgb, var(--bocchi-action) 4%, transparent);
+}
+
+.bocchi-editor-language__variant.is-current {
+    border-color: color-mix(in srgb, var(--bocchi-border) 88%, transparent);
+    background: color-mix(in srgb, var(--bocchi-surface) 78%, var(--bocchi-bg));
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--bocchi-action) 62%, var(--bocchi-text-muted));
+}
+
+.bocchi-editor-language__variant span {
+    display: grid;
+    min-width: 0;
+    gap: 0.12rem;
+}
+
+.bocchi-editor-language__variant strong,
+.bocchi-editor-language__variant small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-editor-language__variant strong {
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.bocchi-editor-language__variant small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.76rem;
+    font-weight: 520;
+}
+
+.bocchi-editor-language__badge {
+    display: inline-flex;
+    max-width: 8.5rem;
+    min-height: 1.42rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 72%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bocchi-bg) 62%, var(--bocchi-surface));
+    color: var(--bocchi-text-muted);
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1;
+    padding: 0.14rem 0.46rem;
+    white-space: nowrap;
+}
+
+.bocchi-editor-language-form {
+    display: grid;
+    gap: 0.75rem;
 }
 
 .bocchi-editor-slug-control {

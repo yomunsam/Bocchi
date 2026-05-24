@@ -16,7 +16,13 @@ public sealed class PageLoader
         _markdown = markdown;
     }
 
-    public LoadResult<PageDocument> Load(ContentLocation location, string folderSlug, string rawContent)
+    public LoadResult<PageDocument> Load(
+        ContentLocation location,
+        string folderSlug,
+        string rawContent,
+        string? fileLanguage = null,
+        string? defaultLanguage = null,
+        string? defaultGroupId = null)
     {
         ArgumentNullException.ThrowIfNull(location);
         ArgumentException.ThrowIfNullOrWhiteSpace(folderSlug);
@@ -67,6 +73,10 @@ public sealed class PageLoader
         }
 
         var slug = YamlAccess.GetString(mapping, "slug") ?? folderSlug;
+        defaultGroupId ??= $"pages/{folderSlug}";
+        var localization = ContentLocalizationFrontmatter.Read(
+            mapping, fileLanguage, defaultLanguage, defaultGroupId, location, ContentKind.Page, errors);
+
         var status = PostLoader.ParseStatus(YamlAccess.GetString(mapping, "status"), errors, location, ContentKind.Page);
         var order = YamlAccess.GetInt(mapping, "order") ?? 0;
         var showInNavigation = YamlAccess.GetBool(mapping, "showInNavigation") ?? false;
@@ -86,6 +96,8 @@ public sealed class PageLoader
         {
             Slug = slug,
             Title = title!,
+            Language = localization.Language,
+            Localization = localization.Localization,
             Status = status,
             Order = order,
             ShowInNavigation = showInNavigation,

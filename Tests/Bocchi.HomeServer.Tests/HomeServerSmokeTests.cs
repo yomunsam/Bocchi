@@ -157,6 +157,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Publish");
         body.Should().Contain("Advanced Frontmatter");
         body.Should().Contain("Content status");
+        body.Should().Contain("Language & versions");
+        body.Should().Contain("Save this draft before adding language versions.");
         body.Should().Contain("Heading 2");
         body.Should().NotContain("value=\"Published\"");
         body.Should().NotContain("value=\"Archived\"");
@@ -183,6 +185,41 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         Directory.EnumerateFiles(Path.Combine(factory.DataRoot, "workspace", "posts"), "index.md", SearchOption.AllDirectories)
             .Should()
             .BeEmpty();
+    }
+
+    [Fact]
+    public async Task ContentEditor_SavedPostRendersLanguageVersionsWidget()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        EditableContentFile saved;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            await services.GetRequiredService<LocalizationSettingsService>()
+                .SaveAsync("zh-CN", ["zh-CN", "zh-TW"], []);
+            var drafts = services.GetRequiredService<EditorDraftService>();
+            var editor = services.GetRequiredService<ContentEditingService>();
+            var scanner = services.GetRequiredService<Bocchi.Workspace.Scanning.ContentScanner>();
+            var draft = await drafts.CreateAsync(ContentKind.Post);
+            saved = await editor.CreateFromDraftAsync(
+                ContentKind.Post,
+                "title: Saved Language\nslug: saved-language\nstatus: draft",
+                "Body\n",
+                draft.AssetsDirectory);
+            await scanner.ScanAsync();
+        }
+
+        var response = await client.GetAsync(ContentEditingService.EditUrl(saved.RelativePath));
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("Language & versions");
+        body.Should().Contain("Current language");
+        body.Should().Contain("Native");
+        body.Should().Contain("Add language version");
+        body.Should().Contain("简体中文 / Simplified Chinese");
+        body.Should().NotContain("Simplified Chinese (zh-CN)");
     }
 
     [Fact]

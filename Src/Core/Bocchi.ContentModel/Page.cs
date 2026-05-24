@@ -9,6 +9,12 @@ public sealed record Page
     /// <summary>页面标题。</summary>
     public required string Title { get; init; }
 
+    /// <summary>当前页面 variant 的语言代码；未显式声明时由扫描阶段填入 Site primary language。</summary>
+    public string? Language { get; init; }
+
+    /// <summary>当前页面的 localization group 与翻译来源信息。</summary>
+    public ContentLocalization? Localization { get; init; }
+
     /// <summary>发布状态。Generator 默认只输出 published 页面，预览可包含 draft。</summary>
     public ContentStatus Status { get; init; } = ContentStatus.Draft;
 

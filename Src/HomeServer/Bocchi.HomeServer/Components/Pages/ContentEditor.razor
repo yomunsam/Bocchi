@@ -13,6 +13,7 @@
 @inject ThemeSettingsService ThemeSettings
 @inject SiteProfileSettingsService SiteProfile
 @inject DashboardAiClient Ai
+@inject ContentLanguageVersionService LanguageVersions
 @inject DashboardLocalizationService I18n
 @inject TimeProvider Time
 @inject NavigationManager Nav
@@ -229,6 +230,69 @@
                     }
                 </details>
 
+                @if (SupportsLanguageVersions)
+                {
+                    <details class="bocchi-panel bocchi-editor-language" open>
+                        <summary class="bocchi-editor-details-summary">
+                            <span>@Text("contentEditor.language.title")</span>
+                        </summary>
+                        @if (IsUnsavedDraft)
+                        {
+                            <p class="bocchi-editor-language__empty">@Text("contentEditor.language.unsavedDraft")</p>
+                            <button type="button" class="secondary" @onclick="OpenLanguageVersionDialog" disabled="@_busy">
+                                <Blazicon Svg="Lucide.Plus" />
+                                @Text("contentEditor.language.add")
+                            </button>
+                        }
+                        else if (_languageVersions is null)
+                        {
+                            <p class="bocchi-editor-language__empty">@(_languageVersionMessage ?? Text("contentEditor.language.unavailable"))</p>
+                        }
+                        else
+                        {
+                            <div class="bocchi-editor-language__current" aria-label='@Text("contentEditor.language.current")'>
+                                <span>@_languageVersions.Current.LanguageLabel</span>
+                                <span class="bocchi-editor-language__badge">@LanguageVariantKindLabel(_languageVersions.Current)</span>
+                            </div>
+                            @if (_languageVersions.TranslationSource is not null)
+                            {
+                                <div class="bocchi-editor-language__source">
+                                    <span>@FormatText("contentEditor.language.sourceFormat", _languageVersions.TranslationSource.LanguageLabel)</span>
+                                    <a href="@ContentEditingService.EditUrl(_languageVersions.TranslationSource.RelativePath)">
+                                        <Blazicon Svg="Lucide.ExternalLink" />
+                                        @Text("contentEditor.language.openSource")
+                                    </a>
+                                </div>
+                            }
+                            @if (_languageVersions.Variants.Count > 1)
+                            {
+                                <div class="bocchi-editor-language__variants" aria-label='@Text("contentEditor.language.variants")'>
+                                    @foreach (var variant in _languageVersions.Variants)
+                                    {
+                                        <a class="bocchi-editor-language__variant @(variant.IsCurrent ? "is-current" : null)"
+                                           href="@ContentEditingService.EditUrl(variant.RelativePath)"
+                                           aria-current="@(variant.IsCurrent ? "page" : null)">
+                                            <span>
+                                                <strong>@variant.LanguageLabel</strong>
+                                                <small>@LanguageVariantTitle(variant)</small>
+                                            </span>
+                                            <span class="bocchi-editor-language__badge">@LanguageVariantKindLabel(variant)</span>
+                                        </a>
+                                    }
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_languageVersionMessage))
+                            {
+                                <p class="bocchi-editor-language__message">@_languageVersionMessage</p>
+                            }
+                            <button type="button" class="secondary" @onclick="OpenLanguageVersionDialog" disabled="@(_busy || _languageVersionBusy)">
+                                <Blazicon Svg="Lucide.Plus" />
+                                @Text("contentEditor.language.add")
+                            </button>
+                        }
+                    </details>
+                }
+
                 <details class="bocchi-panel bocchi-editor-inspector" open>
                     <summary class="bocchi-editor-details-summary">
                         <span>@Text("contentEditor.settings.title")</span>
@@ -358,6 +422,65 @@
               CloseOnBackdrop="false"
               OnPrimary="CloseAiSlugFailure">
     <p>@Text("contentEditor.ai.failure.body")</p>
+</BocchiDialog>
+
+<BocchiDialog Open="@_showLanguageVersionSaveReminder"
+              Title='@Text("contentEditor.language.saveReminder.title")'
+              PrimaryText='@Text("contentEditor.action.acknowledge")'
+              CloseOnBackdrop="true"
+              OnPrimary="CloseLanguageVersionSaveReminder"
+              OnDismiss="CloseLanguageVersionSaveReminder">
+    <p>@Text("contentEditor.language.saveReminder.body")</p>
+</BocchiDialog>
+
+<BocchiDialog Open="@_showLanguageVersionDialog"
+              Title='@Text("contentEditor.language.create.title")'
+              PrimaryText="@CreateLanguageVersionPrimaryText"
+              SecondaryText='@Text("contentEditor.action.cancel")'
+              PrimaryDisabled="@(!CanCreateLanguageVersion)"
+              CloseOnBackdrop="true"
+              OnPrimary="CreateLanguageVersionAsync"
+              OnSecondary="CloseLanguageVersionDialog"
+              OnDismiss="CloseLanguageVersionDialog">
+    @if (_languageVersions is null || _languageVersions.AvailableLanguages.Count == 0)
+    {
+        <p>@Text("contentEditor.language.create.empty")</p>
+    }
+    else
+    {
+        <div class="bocchi-editor-language-form">
+            <label class="bocchi-editor-field">
+                @Text("contentEditor.language.create.language")
+                <select @bind="_languageVersionTargetLanguage">
+                    @foreach (var language in _languageVersions.AvailableLanguages)
+                    {
+                        <option value="@language.Code">@LanguageOptionLabel(language)</option>
+                    }
+                </select>
+            </label>
+            <label class="bocchi-checkbox bocchi-editor-checkbox">
+                <input type="checkbox" @bind="_copyCurrentContentToLanguageVersion" />
+                @Text("contentEditor.language.create.copy")
+            </label>
+            <label class="bocchi-checkbox bocchi-editor-checkbox">
+                <input type="checkbox" @bind="_languageVersionIsTranslation" />
+                @Text("contentEditor.language.create.translation")
+            </label>
+            @if (_languageVersionIsTranslation)
+            {
+                <label class="bocchi-editor-field">
+                    @Text("contentEditor.language.create.source")
+                    <select @bind="_languageVersionSourceContentId">
+                        @foreach (var variant in _languageVersions.Variants)
+                        {
+                            <option value="@variant.ContentId">@FormatText("contentEditor.language.create.sourceOptionFormat", variant.LanguageLabel, LanguageVariantTitle(variant))</option>
+                        }
+                    </select>
+                </label>
+            }
+            <p class="bocchi-editor-language-form__hint">@Text("contentEditor.language.create.statusHint")</p>
+        </div>
+    }
 </BocchiDialog>
 
 <BocchiDialog Open="@_showDeleteConfirm"

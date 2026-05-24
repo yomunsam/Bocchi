@@ -2,12 +2,56 @@ using Bocchi.ContentModel;
 
 namespace Bocchi.Generator.ContentGraph;
 
+/// <summary>内容图中通用的多语言 variant 关系。</summary>
+public sealed record GraphContentLocalization
+{
+    /// <summary>同一内容在不同语言下共享的逻辑分组 id。</summary>
+    public required string GroupId { get; init; }
+
+    /// <summary>当前 variant 是否声明自己翻译自另一个 variant。</summary>
+    public required bool IsTranslation { get; init; }
+
+    /// <summary>Translation variant 的来源语言。</summary>
+    public string? SourceLanguage { get; init; }
+
+    /// <summary>Translation variant 的来源内容 id。</summary>
+    public string? SourceContentId { get; init; }
+
+    /// <summary>同一 localization group 中实际进入当前内容图的语言版本。</summary>
+    public IReadOnlyList<GraphContentAlternate> Alternates { get; init; } = [];
+}
+
+/// <summary>同一 localization group 中可切换的另一个内容版本。</summary>
+public sealed record GraphContentAlternate
+{
+    /// <summary>目标 variant 的内容 id。</summary>
+    public required string ContentId { get; init; }
+
+    /// <summary>目标 variant 的语言代码。</summary>
+    public required string Language { get; init; }
+
+    /// <summary>目标 variant 的标题。</summary>
+    public required string Title { get; init; }
+
+    /// <summary>目标 variant 的站点根相对 URL。</summary>
+    public required string Url { get; init; }
+}
+
 /// <summary>独立页面在 <see cref="ContentGraph"/> 中的视图。</summary>
 public sealed record GraphPage
 {
+    /// <summary>内容 variant id，形态为 <c>{localizationGroup}@{language}</c>。</summary>
+    public required string ContentId { get; init; }
+
     public required string Slug { get; init; }
 
     public required string Title { get; init; }
+
+    /// <summary>当前页面 variant 的有效语言。</summary>
+    public required string Language { get; init; }
+
+    /// <summary>当前页面的 localization group、翻译来源和同组 alternates。</summary>
+    public required GraphContentLocalization Localization { get; init; }
 
     public ContentStatus Status { get; init; } = ContentStatus.Published;
 
@@ -72,11 +116,20 @@ public sealed record GraphPostCategory
 /// <summary>作品视图。</summary>
 public sealed record GraphWork
 {
+    /// <summary>内容 variant id，形态为 <c>{localizationGroup}@{language}</c>。</summary>
+    public required string ContentId { get; init; }
+
     public required string Slug { get; init; }
 
     public required string Year { get; init; }
 
     public required string Title { get; init; }
+
+    /// <summary>当前作品 variant 的有效语言。</summary>
+    public required string Language { get; init; }
+
+    /// <summary>当前作品的 localization group、翻译来源和同组 alternates。</summary>
+    public required GraphContentLocalization Localization { get; init; }
 
     public ContentStatus Status { get; init; } = ContentStatus.Published;
 

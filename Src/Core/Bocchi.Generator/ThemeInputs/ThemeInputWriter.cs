@@ -736,9 +736,12 @@ public sealed class ThemeInputWriter
 
     private static PostInput MapPost(GraphPost p) => new()
     {
+        Id = p.ContentId,
         Slug = p.Slug,
         Year = p.Year,
         Title = p.Title,
+        Language = p.Language,
+        Localization = MapContentLocalization(p.Localization),
         Status = StatusToString(p.Status),
         PublishedAt = p.PublishedAt,
         UpdatedAt = p.UpdatedAt,
@@ -757,8 +760,11 @@ public sealed class ThemeInputWriter
 
     private static PageInput MapPage(GraphPage p) => new()
     {
+        Id = p.ContentId,
         Slug = p.Slug,
         Title = p.Title,
+        Language = p.Language,
+        Localization = MapContentLocalization(p.Localization),
         Status = StatusToString(p.Status),
         Order = p.Order,
         ShowInNavigation = p.ShowInNavigation,
@@ -774,9 +780,12 @@ public sealed class ThemeInputWriter
 
     private static WorkInput MapWork(GraphWork w) => new()
     {
+        Id = w.ContentId,
         Slug = w.Slug,
         Year = w.Year,
         Title = w.Title,
+        Language = w.Language,
+        Localization = MapContentLocalization(w.Localization),
         Status = StatusToString(w.Status),
         Role = w.Role,
         Period = w.Period,
@@ -791,6 +800,23 @@ public sealed class ThemeInputWriter
         Html = w.BodyHtml,
         Excerpt = w.Excerpt,
         Media = w.Media.Select(MapMediaRequired).ToArray(),
+    };
+
+    private static ContentLocalizationInput MapContentLocalization(GraphContentLocalization localization) => new()
+    {
+        GroupId = localization.GroupId,
+        IsTranslation = localization.IsTranslation,
+        SourceLanguage = localization.SourceLanguage,
+        SourceContentId = localization.SourceContentId,
+        Alternates = localization.Alternates.Select(MapContentAlternate).ToArray(),
+    };
+
+    private static ContentAlternateInput MapContentAlternate(GraphContentAlternate alternate) => new()
+    {
+        ContentId = alternate.ContentId,
+        Language = alternate.Language,
+        Title = alternate.Title,
+        Url = alternate.Url,
     };
 
     private static NoteInput MapNote(GraphNote n) => new()

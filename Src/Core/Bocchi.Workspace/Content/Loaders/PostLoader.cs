@@ -23,7 +23,10 @@ public sealed class PostLoader
         string year,
         string folderSlug,
         string rawContent,
-        TimeSpan fallbackOffset)
+        TimeSpan fallbackOffset,
+        string? fileLanguage = null,
+        string? defaultLanguage = null,
+        string? defaultGroupId = null)
     {
         ArgumentNullException.ThrowIfNull(location);
         ArgumentException.ThrowIfNullOrWhiteSpace(year);
@@ -76,6 +79,10 @@ public sealed class PostLoader
 
         var slug = YamlAccess.GetString(mapping, "slug") ?? folderSlug;
 
+        defaultGroupId ??= $"posts/{year}/{folderSlug}";
+        var localization = ContentLocalizationFrontmatter.Read(
+            mapping, fileLanguage, defaultLanguage, defaultGroupId, location, ContentKind.Post, errors);
+
         var status = ParseStatus(YamlAccess.GetString(mapping, "status"), errors, location, ContentKind.Post);
         var publishedAt = ParseDateTime(mapping, "publishedAt", fallbackOffset, errors, location, ContentKind.Post);
         var updatedAt = ParseDateTime(mapping, "updatedAt", fallbackOffset, errors, location, ContentKind.Post);
@@ -101,6 +108,8 @@ public sealed class PostLoader
         {
             Slug = slug,
             Title = title!,
+            Language = localization.Language,
+            Localization = localization.Localization,
             Status = status,
             PublishedAt = publishedAt,
             UpdatedAt = updatedAt,

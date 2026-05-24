@@ -53,7 +53,7 @@ public sealed class ComputeFingerprintStage : IBuildStage
         // 内容：每篇按 site-relative-url 排序后 hash 关键字段
         foreach (var post in session.Graph.Posts.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
         {
-            AppendLine(sha, $"post:{post.SiteRelativeUrl}|st={post.Status}|cat={post.Category}|catSlug={post.CategorySlug}|pub={post.PublishedAt?.UtcTicks}|up={post.UpdatedAt?.UtcTicks}");
+            AppendLine(sha, $"post:{post.ContentId}|url={post.SiteRelativeUrl}|lang={post.Language}|group={post.Localization.GroupId}|src={post.Localization.SourceContentId}|st={post.Status}|cat={post.Category}|catSlug={post.CategorySlug}|pub={post.PublishedAt?.UtcTicks}|up={post.UpdatedAt?.UtcTicks}");
             AppendBodyHash(sha, post.BodyMarkdown);
         }
 
@@ -64,13 +64,13 @@ public sealed class ComputeFingerprintStage : IBuildStage
 
         foreach (var page in session.Graph.Pages.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
         {
-            AppendLine(sha, $"page:{page.SiteRelativeUrl}|st={page.Status}|template={page.Template}");
+            AppendLine(sha, $"page:{page.ContentId}|url={page.SiteRelativeUrl}|lang={page.Language}|group={page.Localization.GroupId}|src={page.Localization.SourceContentId}|st={page.Status}|template={page.Template}");
             AppendBodyHash(sha, page.BodyMarkdown);
         }
 
         foreach (var work in session.Graph.Works.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
         {
-            AppendLine(sha, $"work:{work.SiteRelativeUrl}|st={work.Status}|featured={work.Featured}");
+            AppendLine(sha, $"work:{work.ContentId}|url={work.SiteRelativeUrl}|lang={work.Language}|group={work.Localization.GroupId}|src={work.Localization.SourceContentId}|st={work.Status}|featured={work.Featured}");
             AppendBodyHash(sha, work.BodyMarkdown);
         }
 

@@ -121,6 +121,33 @@ public partial class ContentEditor
     /// <summary>AI slug 生成流程是否正在运行。</summary>
     private bool _aiSlugBusy;
 
+    /// <summary>当前已保存内容所在 localization group 的语言版本视图。</summary>
+    private ContentLanguageVersionsView? _languageVersions;
+
+    /// <summary>语言版本小组件的错误或提示信息。</summary>
+    private string? _languageVersionMessage;
+
+    /// <summary>添加语言版本弹窗是否打开。</summary>
+    private bool _showLanguageVersionDialog;
+
+    /// <summary>未保存时点击添加语言版本展示的保存提醒弹窗。</summary>
+    private bool _showLanguageVersionSaveReminder;
+
+    /// <summary>添加语言版本时选择的目标语言代码。</summary>
+    private string _languageVersionTargetLanguage = string.Empty;
+
+    /// <summary>是否把当前正文复制到新语言版本中。</summary>
+    private bool _copyCurrentContentToLanguageVersion = true;
+
+    /// <summary>新语言版本是否标记为 Translation variant。</summary>
+    private bool _languageVersionIsTranslation;
+
+    /// <summary>Translation variant 的来源内容 id。</summary>
+    private string _languageVersionSourceContentId = string.Empty;
+
+    /// <summary>语言版本创建流程是否正在运行。</summary>
+    private bool _languageVersionBusy;
+
     /// <summary>当前编辑缓冲区是否相对载入版本发生变化。</summary>
     private bool IsDirty => CurrentYamlSnapshot != _originalYaml || _markdown != _originalMarkdown;
 
@@ -142,8 +169,14 @@ public partial class ContentEditor
     /// <summary>当前内容是否使用目录型 slug 管理 URL。</summary>
     private bool IsSlugManagedContent => IsPostFile || IsPageFile || IsWorkFile;
 
+    /// <summary>当前文件是否是非默认语言 variant 文件。</summary>
+    private bool IsLanguageVariantFile => IsVariantIndexMarkdownPath(_file?.RelativePath ?? Path);
+
+    /// <summary>当前内容类型是否支持 M6 语言版本编辑体验。</summary>
+    private bool SupportsLanguageVersions => CurrentKind() is ContentKind.Post or ContentKind.Page or ContentKind.Work;
+
     /// <summary>当前 slug 是否仍允许自动变化。</summary>
-    private bool CanAutoChangeSlug => IsSlugManagedContent && !_pathLocked && CurrentStatus != ContentStatus.Published;
+    private bool CanAutoChangeSlug => IsSlugManagedContent && !IsLanguageVariantFile && !_pathLocked && CurrentStatus != ContentStatus.Published;
 
     /// <summary>标题变化是否应继续带动 slug 变化。</summary>
     private bool CanFollowTitleSlug => CanAutoChangeSlug && !_slugTouchedInSession;

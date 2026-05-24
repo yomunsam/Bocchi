@@ -21,7 +21,10 @@ public sealed class WorkLoader
         ContentLocation location,
         string year,
         string folderSlug,
-        string rawContent)
+        string rawContent,
+        string? fileLanguage = null,
+        string? defaultLanguage = null,
+        string? defaultGroupId = null)
     {
         ArgumentNullException.ThrowIfNull(location);
         ArgumentException.ThrowIfNullOrWhiteSpace(year);
@@ -73,6 +76,10 @@ public sealed class WorkLoader
         }
 
         var slug = YamlAccess.GetString(mapping, "slug") ?? folderSlug;
+        defaultGroupId ??= $"works/{year}/{folderSlug}";
+        var localization = ContentLocalizationFrontmatter.Read(
+            mapping, fileLanguage, defaultLanguage, defaultGroupId, location, ContentKind.Work, errors);
+
         var status = PostLoader.ParseStatus(YamlAccess.GetString(mapping, "status"), errors, location, ContentKind.Work);
         var role = YamlAccess.GetString(mapping, "role");
         var period = YamlAccess.GetString(mapping, "period");
@@ -96,6 +103,8 @@ public sealed class WorkLoader
         {
             Slug = slug,
             Title = title!,
+            Language = localization.Language,
+            Localization = localization.Localization,
             Status = status,
             Role = role,
             Period = period,

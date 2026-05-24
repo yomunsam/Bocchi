@@ -7,11 +7,20 @@ namespace Bocchi.Generator.ContentGraph;
 /// </summary>
 public sealed record GraphPost
 {
+    /// <summary>内容 variant id，形态为 <c>{localizationGroup}@{language}</c>。</summary>
+    public required string ContentId { get; init; }
+
     public required string Slug { get; init; }
 
     public required string Year { get; init; }
 
     public required string Title { get; init; }
+
+    /// <summary>当前文章 variant 的有效语言。</summary>
+    public required string Language { get; init; }
+
+    /// <summary>当前文章的 localization group、翻译来源和同组 alternates。</summary>
+    public required GraphContentLocalization Localization { get; init; }
 
     public ContentStatus Status { get; init; } = ContentStatus.Published;
 

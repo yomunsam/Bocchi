@@ -60,15 +60,19 @@ public sealed class ContentGraphBuilder
             rewriter,
             configuredPostCategoryLookup,
             derivedPostCategories,
-            usedPostCategorySlugs);
-        EnsureUniqueSlugs(posts.Select(p => (Year: p.Year, Slug: p.Slug)), "post");
+            usedPostCategorySlugs,
+            site.Settings.Language);
+        EnsureUniqueContentVariants(posts.Select(p => (p.Localization.GroupId, p.Language)), "post");
+        EnsureUniqueSiteUrls(posts.Select(p => p.SiteRelativeUrl), "post");
         var postCategories = BuildPostCategories(configuredPostCategories, derivedPostCategories, posts);
 
-        var pages = BuildPages(scan.Pages, options, rewriter);
-        EnsureUniqueSlugs(pages.Select(p => (Year: string.Empty, Slug: p.Slug)), "page");
+        var pages = BuildPages(scan.Pages, options, rewriter, site.Settings.Language);
+        EnsureUniqueContentVariants(pages.Select(p => (p.Localization.GroupId, p.Language)), "page");
+        EnsureUniqueSiteUrls(pages.Select(p => p.SiteRelativeUrl), "page");
 
-        var works = BuildWorks(scan.Works, options, rewriter);
-        EnsureUniqueSlugs(works.Select(w => (Year: w.Year, Slug: w.Slug)), "work");
+        var works = BuildWorks(scan.Works, options, rewriter, site.Settings.Language);
+        EnsureUniqueContentVariants(works.Select(w => (w.Localization.GroupId, w.Language)), "work");
+        EnsureUniqueSiteUrls(works.Select(w => w.SiteRelativeUrl), "work");
 
         var notes = BuildNotes(scan.Notes, options, rewriter);
         EnsureUniqueSlugs(notes.Select(n => (Year: n.Year, Slug: n.Id)), "note");
@@ -109,7 +113,8 @@ public sealed class ContentGraphBuilder
         MediaPathRewriter rewriter,
         IReadOnlyDictionary<string, string> configuredCategoryLookup,
         Dictionary<string, string> derivedCategories,
-        HashSet<string> usedCategorySlugs)
+        HashSet<string> usedCategorySlugs,
+        string primaryLanguage)
     {
         var list = new List<GraphPost>(docs.Count);
         foreach (var doc in docs)
@@ -134,12 +139,19 @@ public sealed class ContentGraphBuilder
             var rewrittenMedia = doc.Body.ReferencedMedia
                 .Select(m => rewriter.RewriteReference(m, ownerDir, siteMediaPrefix, descriptor))
                 .ToList();
+            var language = ResolveContentLanguage(doc.Frontmatter.Language, primaryLanguage);
+            var groupId = ResolveContentGroup(doc.Frontmatter.Localization, $"posts/{doc.Year}/{doc.Frontmatter.Slug}");
+            var contentId = CreateVariantContentId(groupId, language);
+            var baseUrl = SiteUrlResolver.PostUrl(doc.Year, doc.Frontmatter.Slug);
 
             list.Add(new GraphPost
             {
+                ContentId = contentId,
                 Slug = doc.Frontmatter.Slug,
                 Year = doc.Year,
                 Title = doc.Frontmatter.Title,
+                Language = language,
+                Localization = CreateGraphLocalization(groupId, doc.Frontmatter.Localization),
                 Status = doc.Frontmatter.Status,
                 PublishedAt = doc.Frontmatter.PublishedAt,
                 UpdatedAt = doc.Frontmatter.UpdatedAt,
@@ -152,7 +164,7 @@ public sealed class ContentGraphBuilder
                 Tags = doc.Frontmatter.Tags,
                 Summary = doc.Frontmatter.Summary,
                 Cover = rewrittenCover,
-                SiteRelativeUrl = SiteUrlResolver.PostUrl(doc.Year, doc.Frontmatter.Slug),
+                SiteRelativeUrl = ApplyPrimaryUnprefixedUrlPolicy(baseUrl, language, primaryLanguage),
                 BodyMarkdown = rewrittenMarkdown,
                 BodyHtml = rewrittenHtml,
                 Excerpt = doc.Body.Excerpt,
@@ -160,9 +172,20 @@ public sealed class ContentGraphBuilder
             });
         }
 
-        return list
+        var ordered = list
             .OrderByDescending(p => p.PublishedAt ?? DateTimeOffset.MinValue)
             .ThenBy(p => p.Slug, StringComparer.Ordinal)
+            .ToList();
+        return ordered
+            .Select(post => post with
+            {
+                Localization = post.Localization with
+                {
+                    Alternates = CreateAlternates(
+                        ordered.Where(other => string.Equals(other.Localization.GroupId, post.Localization.GroupId, StringComparison.Ordinal))
+                            .Select(other => (other.ContentId, other.Language, other.Title, other.SiteRelativeUrl))),
+                },
+            })
             .ToList();
     }
 
@@ -324,7 +347,7 @@ public sealed class ContentGraphBuilder
     }
 
     private List<GraphPage> BuildPages(
-        IReadOnlyList<PageDocument> docs, ContentGraphOptions opts, MediaPathRewriter rewriter)
+        IReadOnlyList<PageDocument> docs, ContentGraphOptions opts, MediaPathRewriter rewriter, string primaryLanguage)
     {
         var list = new List<GraphPage>(docs.Count);
         foreach (var doc in docs)
@@ -346,17 +369,24 @@ public sealed class ContentGraphBuilder
             var rewrittenMedia = doc.Body.ReferencedMedia
                 .Select(m => rewriter.RewriteReference(m, ownerDir, siteMediaPrefix, descriptor))
                 .ToList();
+            var language = ResolveContentLanguage(doc.Frontmatter.Language, primaryLanguage);
+            var groupId = ResolveContentGroup(doc.Frontmatter.Localization, $"pages/{doc.Frontmatter.Slug}");
+            var contentId = CreateVariantContentId(groupId, language);
+            var baseUrl = SiteUrlResolver.PageUrl(doc.Frontmatter.Slug);
 
             list.Add(new GraphPage
             {
+                ContentId = contentId,
                 Slug = doc.Frontmatter.Slug,
                 Title = doc.Frontmatter.Title,
+                Language = language,
+                Localization = CreateGraphLocalization(groupId, doc.Frontmatter.Localization),
                 Status = doc.Frontmatter.Status,
                 Order = doc.Frontmatter.Order,
                 ShowInNavigation = doc.Frontmatter.ShowInNavigation,
                 Summary = doc.Frontmatter.Summary,
                 Template = doc.Frontmatter.Template,
-                SiteRelativeUrl = SiteUrlResolver.PageUrl(doc.Frontmatter.Slug),
+                SiteRelativeUrl = ApplyPrimaryUnprefixedUrlPolicy(baseUrl, language, primaryLanguage),
                 BodyMarkdown = rewrittenMarkdown,
                 BodyHtml = rewrittenHtml,
                 Excerpt = doc.Body.Excerpt,
@@ -364,14 +394,25 @@ public sealed class ContentGraphBuilder
             });
         }
 
-        return list
+        var ordered = list
             .OrderBy(p => p.Order)
             .ThenBy(p => p.Title, StringComparer.Ordinal)
+            .ToList();
+        return ordered
+            .Select(page => page with
+            {
+                Localization = page.Localization with
+                {
+                    Alternates = CreateAlternates(
+                        ordered.Where(other => string.Equals(other.Localization.GroupId, page.Localization.GroupId, StringComparison.Ordinal))
+                            .Select(other => (other.ContentId, other.Language, other.Title, other.SiteRelativeUrl))),
+                },
+            })
             .ToList();
     }
 
     private List<GraphWork> BuildWorks(
-        IReadOnlyList<WorkDocument> docs, ContentGraphOptions opts, MediaPathRewriter rewriter)
+        IReadOnlyList<WorkDocument> docs, ContentGraphOptions opts, MediaPathRewriter rewriter, string primaryLanguage)
     {
         var list = new List<GraphWork>(docs.Count);
         foreach (var doc in docs)
@@ -396,12 +437,19 @@ public sealed class ContentGraphBuilder
             var rewrittenMedia = doc.Body.ReferencedMedia
                 .Select(m => rewriter.RewriteReference(m, ownerDir, siteMediaPrefix, descriptor))
                 .ToList();
+            var language = ResolveContentLanguage(doc.Frontmatter.Language, primaryLanguage);
+            var groupId = ResolveContentGroup(doc.Frontmatter.Localization, $"works/{doc.Year}/{doc.Frontmatter.Slug}");
+            var contentId = CreateVariantContentId(groupId, language);
+            var baseUrl = SiteUrlResolver.WorkUrl(doc.Year, doc.Frontmatter.Slug);
 
             list.Add(new GraphWork
             {
+                ContentId = contentId,
                 Slug = doc.Frontmatter.Slug,
                 Year = doc.Year,
                 Title = doc.Frontmatter.Title,
+                Language = language,
+                Localization = CreateGraphLocalization(groupId, doc.Frontmatter.Localization),
                 Status = doc.Frontmatter.Status,
                 Role = doc.Frontmatter.Role,
                 Period = doc.Frontmatter.Period,
@@ -410,7 +458,7 @@ public sealed class ContentGraphBuilder
                 Stack = doc.Frontmatter.Stack,
                 Summary = doc.Frontmatter.Summary,
                 Featured = doc.Frontmatter.Featured,
-                SiteRelativeUrl = SiteUrlResolver.WorkUrl(doc.Year, doc.Frontmatter.Slug),
+                SiteRelativeUrl = ApplyPrimaryUnprefixedUrlPolicy(baseUrl, language, primaryLanguage),
                 BodyMarkdown = rewrittenMarkdown,
                 BodyHtml = rewrittenHtml,
                 Excerpt = doc.Body.Excerpt,
@@ -418,11 +466,76 @@ public sealed class ContentGraphBuilder
             });
         }
 
-        return list
+        var ordered = list
             .OrderByDescending(w => w.Featured)
             .ThenByDescending(w => w.Year, StringComparer.Ordinal)
             .ThenBy(w => w.Title, StringComparer.Ordinal)
             .ToList();
+        return ordered
+            .Select(work => work with
+            {
+                Localization = work.Localization with
+                {
+                    Alternates = CreateAlternates(
+                        ordered.Where(other => string.Equals(other.Localization.GroupId, work.Localization.GroupId, StringComparison.Ordinal))
+                            .Select(other => (other.ContentId, other.Language, other.Title, other.SiteRelativeUrl))),
+                },
+            })
+            .ToList();
+    }
+
+    private static string ResolveContentLanguage(string? language, string primaryLanguage)
+        => string.IsNullOrWhiteSpace(language) ? primaryLanguage : language.Trim();
+
+    private static string ResolveContentGroup(ContentLocalization? localization, string fallbackGroupId)
+        => string.IsNullOrWhiteSpace(localization?.GroupId) ? fallbackGroupId : localization.GroupId;
+
+    private static string CreateVariantContentId(string groupId, string language)
+        => string.Format(CultureInfo.InvariantCulture, "{0}@{1}", groupId, language);
+
+    private static GraphContentLocalization CreateGraphLocalization(
+        string groupId,
+        ContentLocalization? localization)
+    {
+        var sourceLanguage = localization?.TranslationOf?.Language;
+        var sourceContentId = localization?.TranslationOf?.ContentId ??
+            (string.IsNullOrWhiteSpace(sourceLanguage) ? null : CreateVariantContentId(groupId, sourceLanguage));
+        return new GraphContentLocalization
+        {
+            GroupId = groupId,
+            IsTranslation = localization?.TranslationOf is not null,
+            SourceLanguage = sourceLanguage,
+            SourceContentId = sourceContentId,
+        };
+    }
+
+    private static GraphContentAlternate[] CreateAlternates(
+        IEnumerable<(string ContentId, string Language, string Title, string Url)> variants)
+        => variants
+            .OrderBy(variant => variant.Language, StringComparer.OrdinalIgnoreCase)
+            .Select(variant => new GraphContentAlternate
+            {
+                ContentId = variant.ContentId,
+                Language = variant.Language,
+                Title = variant.Title,
+                Url = variant.Url,
+            })
+            .ToArray();
+
+    private static string ApplyPrimaryUnprefixedUrlPolicy(
+        string siteRelativeUrl,
+        string language,
+        string primaryLanguage)
+    {
+        if (string.Equals(language, primaryLanguage, StringComparison.OrdinalIgnoreCase))
+        {
+            return siteRelativeUrl;
+        }
+
+        var normalized = siteRelativeUrl.StartsWith('/') ? siteRelativeUrl : "/" + siteRelativeUrl;
+        return normalized == "/"
+            ? string.Format(CultureInfo.InvariantCulture, "/{0}/", language)
+            : string.Format(CultureInfo.InvariantCulture, "/{0}{1}", language, normalized);
     }
 
     private List<GraphNote> BuildNotes(
@@ -551,6 +664,32 @@ public sealed class ContentGraphBuilder
             .ToList();
 
         return new GraphIndices(latest, byYear, byTag, byCategory, worksByYear);
+    }
+
+    private static void EnsureUniqueContentVariants(IEnumerable<(string GroupId, string Language)> keys, string kind)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in keys)
+        {
+            var stableKey = string.Format(CultureInfo.InvariantCulture, "{0}\u001f{1}", key.GroupId, key.Language);
+            if (!seen.Add(stableKey))
+            {
+                throw new ContentGraphException(
+                    $"{kind} localization group '{key.GroupId}' 中 language='{key.Language}' 重复。");
+            }
+        }
+    }
+
+    private static void EnsureUniqueSiteUrls(IEnumerable<string> urls, string kind)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var url in urls)
+        {
+            if (!seen.Add(url))
+            {
+                throw new ContentGraphException($"{kind} URL '{url}' 重复。");
+            }
+        }
     }
 
     private static void EnsureUniqueSlugs(IEnumerable<(string Year, string Slug)> keys, string kind)
