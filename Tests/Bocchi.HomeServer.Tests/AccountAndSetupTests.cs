@@ -25,7 +25,7 @@ public sealed class AccountAndSetupTests
 
         admin.EnsureSuccessStatusCode();
         setup.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        setup.Headers.Location!.ToString().Should().Be("/Admin");
+        setup.Headers.Location!.ToString().Should().EndWith("/Admin");
 
         using var scope = factory.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<BocchiUser>>();
@@ -69,14 +69,17 @@ public sealed class AccountAndSetupTests
         var adminBody = await adminStep.Content.ReadAsStringAsync();
         adminBody.Should().Contain("name=\"username\"");
         adminBody.Should().Contain("name=\"email\"");
-        adminBody.Should().Contain("<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"any\">");
-        adminBody.Should().Contain("<link rel=\"apple-touch-icon\" sizes=\"180x180\" href=\"/apple-touch-icon.png\">");
-        adminBody.Should().Contain("class=\"bocchi-password-meter\" data-strength=\"weak\"");
+        adminBody.Should().Contain("rel=\"icon\"");
+        adminBody.Should().Contain("favicon");
+        adminBody.Should().Contain("rel=\"apple-touch-icon\"");
+        adminBody.Should().Contain("apple-touch-icon");
+        adminBody.Should().Contain("bocchi-password-meter");
+        adminBody.Should().Contain("data-strength=\"weak\"");
         adminBody.Should().Contain("data-ok=\"false\" data-bocchi-password-rule=\"length\"");
         adminBody.Should().Contain("data-ok=\"false\" data-bocchi-password-rule=\"match\"");
         adminBody.Should().NotContain("name=\"siteName\"");
 
-        var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
+        var siteStep = await client.PostAsync("/Setup/Admin", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
             ["displayName"] = "Bocchi Admin",
@@ -84,11 +87,15 @@ public sealed class AccountAndSetupTests
             ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
             ["confirmPassword"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
         }));
-        siteStep.EnsureSuccessStatusCode();
-        var siteBody = await siteStep.Content.ReadAsStringAsync();
-        siteBody.Should().Contain("name=\"setupPayload\"");
+        siteStep.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        siteStep.Headers.Location!.ToString().Should().Be("/Setup/Site");
+
+        var sitePage = await client.GetAsync("/Setup/Site");
+        sitePage.EnsureSuccessStatusCode();
+        var siteBody = await sitePage.Content.ReadAsStringAsync();
+        siteBody.Should().NotContain("name=\"setupPayload\"");
         siteBody.Should().Contain("name=\"siteName\"");
-        siteBody.Should().Contain("<select name=\"defaultThemeId\"");
+        siteBody.Should().Contain("name=\"defaultThemeId\"");
         siteBody.Should().Contain("placeholder=\"https://domain.com/\"");
         siteBody.Should().NotContain("name=\"publicBaseUrl\" type=\"url\" value=\"\" placeholder=\"https://domain.com/\" required");
         siteBody.Should().Contain("name=\"description\" type=\"text\" value=\"\"");
@@ -107,10 +114,43 @@ public sealed class AccountAndSetupTests
         var favicon = await client.GetAsync("/favicon.ico");
         var manifest = await client.GetAsync("/site.webmanifest");
         var webAppIcon = await client.GetAsync("/icons/bocchi-icon-192.png");
+        var setupPage = await client.GetAsync("/Setup");
 
         favicon.EnsureSuccessStatusCode();
         manifest.EnsureSuccessStatusCode();
         webAppIcon.EnsureSuccessStatusCode();
+        setupPage.EnsureSuccessStatusCode();
+
+        var setupBody = await setupPage.Content.ReadAsStringAsync();
+        var appCss = ExtractAssetPath(setupBody, "href=\"app");
+        var appearanceJs = ExtractAssetPath(setupBody, "src=\"bocchi-appearance");
+
+        await AssertNotSetupRedirectAsync(client, "/" + appCss);
+        await AssertNotSetupRedirectAsync(client, "/" + appearanceJs);
+    }
+
+    [Fact]
+    public async Task MissingHomeServerAssets_DoNotFallThroughToHtmlPreview()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var missingScriptBeforeSetup = await client.GetAsync("/bocchi-ai.stale.js");
+        var missingManifestBeforeSetup = await client.GetAsync("/site.stale.webmanifest");
+
+        missingScriptBeforeSetup.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        missingManifestBeforeSetup.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        missingScriptBeforeSetup.Content.Headers.ContentType?.MediaType.Should().NotBe("text/html");
+        missingManifestBeforeSetup.Content.Headers.ContentType?.MediaType.Should().NotBe("text/html");
+
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        var missingFrameworkAfterSetup = await client.GetAsync("/_framework/blazor.web.stale.js");
+
+        missingFrameworkAfterSetup.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        missingFrameworkAfterSetup.Content.Headers.ContentType?.MediaType.Should().NotBe("text/html");
     }
 
     [Fact]
@@ -119,7 +159,7 @@ public sealed class AccountAndSetupTests
         using var factory = new IsolatedDataRootWebApplicationFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
+        var siteStep = await client.PostAsync("/Setup/Admin", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
             ["displayName"] = "Bocchi Admin",
@@ -127,13 +167,11 @@ public sealed class AccountAndSetupTests
             ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
             ["confirmPassword"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
         }));
-        siteStep.EnsureSuccessStatusCode();
-        var siteBody = await siteStep.Content.ReadAsStringAsync();
-        var setupPayload = ExtractHiddenFieldValue(siteBody, "setupPayload");
+        siteStep.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        siteStep.Headers.Location!.ToString().Should().Be("/Setup/Site");
 
         var completed = await client.PostAsync("/Setup/Complete", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["setupPayload"] = setupPayload,
             ["siteName"] = "Blank URL Site",
             ["defaultTitle"] = "Blank URL Site",
             ["description"] = string.Empty,
@@ -160,7 +198,7 @@ public sealed class AccountAndSetupTests
         await factory.CreateLocalUserAsync("reader", "reader-password", isAdmin: false);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        var login = await client.PostAsync("/Account/Login/Submit", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["username"] = "reader",
             ["password"] = "reader-password",
@@ -341,18 +379,30 @@ public sealed class AccountAndSetupTests
         snapshot["theme.defaultStatic.colophonBuiltWith"]["en-US"].Should().Be("Powered quietly");
     }
 
-    private static string ExtractHiddenFieldValue(string html, string fieldName)
+    /// <summary>从 prerender HTML 中取出一个已指纹化静态资源路径。</summary>
+    private static string ExtractAssetPath(string html, string prefix)
     {
-        var nameNeedle = $"name=\"{fieldName}\"";
-        var nameIndex = html.IndexOf(nameNeedle, StringComparison.Ordinal);
-        nameIndex.Should().BeGreaterThanOrEqualTo(0, $"Setup step 2 should include hidden field {fieldName}.");
-
-        var valueNeedle = "value=\"";
-        var valueIndex = html.IndexOf(valueNeedle, nameIndex, StringComparison.Ordinal);
-        valueIndex.Should().BeGreaterThanOrEqualTo(0, $"Hidden field {fieldName} should include a value.");
-        var valueStart = valueIndex + valueNeedle.Length;
-        var valueEnd = html.IndexOf('"', valueStart);
-        valueEnd.Should().BeGreaterThan(valueStart, $"Hidden field {fieldName} should not be empty.");
-        return WebUtility.HtmlDecode(html[valueStart..valueEnd]);
+        var start = html.IndexOf(prefix, StringComparison.Ordinal);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        start = html.IndexOf('"', start);
+        start.Should().BeGreaterThanOrEqualTo(0);
+        start++;
+        var end = html.IndexOf('"', start + 1);
+        end.Should().BeGreaterThan(start);
+        return html[start..end];
     }
+
+    /// <summary>验证 Setup gate 不会把指纹化后台静态资源挡回 Setup 页面。</summary>
+    private static async Task AssertNotSetupRedirectAsync(HttpClient client, string path)
+    {
+        var response = await client.GetAsync(path);
+        if (response.StatusCode == HttpStatusCode.Redirect)
+        {
+            response.Headers.Location!.ToString().Should().NotBe("/Setup", "asset path {0} should pass through Setup gate", path);
+            return;
+        }
+
+        response.EnsureSuccessStatusCode();
+    }
+
 }

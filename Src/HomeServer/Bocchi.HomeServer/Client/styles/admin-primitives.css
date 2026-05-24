@@ -1,0 +1,105 @@
+.bocchi-admin-shell button,
+.bocchi-button {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: var(--bocchi-text);
+    color: var(--bocchi-surface);
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0 0.78rem;
+    text-decoration: none;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.bocchi-admin-shell button.secondary,
+.bocchi-button.secondary {
+    border: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+}
+
+.bocchi-admin-shell button:hover:not(:disabled),
+.bocchi-button:hover {
+    transform: translateY(-1px);
+}
+
+.bocchi-admin-shell button:focus-visible,
+.bocchi-button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: none;
+    box-shadow: var(--bocchi-focus-ring);
+}
+
+.bocchi-admin-shell button:disabled,
+.bocchi-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+}
+
+.bocchi-button--primary {
+    background: var(--bocchi-action);
+    color: #fff;
+    padding: 0 1.15rem;
+}
+
+.bocchi-button--primary:hover {
+    background: color-mix(in srgb, var(--bocchi-action) 85%, #000);
+}
+
+/* Admin segmented control：用于页面级二选一/少量任务切换。
+   统一在全局层维护体积、active 对比和 icon 尺寸，避免各页面自行复制后漂移。 */
+.bocchi-theme-tabs,
+.bocchi-categories-kind-picker {
+    display: inline-flex;
+    align-self: flex-start;
+    justify-self: start;
+    gap: var(--bocchi-segmented-gap);
+    padding: var(--bocchi-segmented-padding);
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-pill);
+    background: color-mix(in srgb, var(--bocchi-surface) 82%, var(--bocchi-bg));
+}
+
+.bocchi-theme-tab,
+.bocchi-categories-kind-picker__btn {
+    display: inline-flex;
+    min-height: var(--bocchi-segmented-item-min-height);
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    border-radius: var(--bocchi-radius-pill);
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    font-size: var(--bocchi-segmented-item-font-size);
+    font-weight: var(--bocchi-segmented-item-font-weight);
+    line-height: 1.2;
+    padding: 0 var(--bocchi-segmented-item-padding-x);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+
+.bocchi-theme-tab:hover:not(:disabled),
+.bocchi-categories-kind-picker__btn:hover:not(:disabled) {
+    color: var(--bocchi-text);
+}
+
+.bocchi-theme-tab--active,
+.bocchi-categories-kind-picker__btn--active {
+    background: color-mix(in srgb, var(--bocchi-action) 14%, var(--bocchi-surface));
+    color: var(--bocchi-action-strong);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bocchi-action) 18%, transparent), var(--bocchi-shadow-sm);
+}
+
+.bocchi-theme-tab svg,
+.bocchi-categories-kind-picker__btn svg {
+    width: var(--bocchi-segmented-icon-size);
+    height: var(--bocchi-segmented-icon-size);
+    color: currentColor;
+}

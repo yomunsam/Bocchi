@@ -6,7 +6,7 @@ using Bocchi.HomeServer.Services.Ai;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
-namespace Bocchi.HomeServer.Components.Pages;
+namespace Bocchi.HomeServer.Components.Pages.Admin;
 
 /// <summary>ContentEditor 的标题、slug 和 AI slug 生成逻辑。</summary>
 public partial class ContentEditor

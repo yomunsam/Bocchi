@@ -1,0 +1,43 @@
+@layer theme, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+
+@source "../Components/**/*.razor";
+@source "../Security/**/*.cs";
+
+/* Dashboard dark mode 继续由 bocchi-appearance.js 写入 data attribute，Tailwind 只复用这个公共状态。 */
+@custom-variant dark (&:where([data-bocchi-effective-appearance="dark"], [data-bocchi-effective-appearance="dark"] *));
+
+@import "./styles/fonts.css";
+
+@theme {
+    --font-sans: "Sora", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --color-bocchi-bg: var(--bocchi-bg);
+    --color-bocchi-surface: var(--bocchi-surface);
+    --color-bocchi-surface-muted: var(--bocchi-surface-muted);
+    --color-bocchi-surface-soft: var(--bocchi-surface-soft);
+    --color-bocchi-text: var(--bocchi-text);
+    --color-bocchi-muted: var(--bocchi-text-muted);
+    --color-bocchi-subtle: var(--bocchi-text-subtle);
+    --color-bocchi-border: var(--bocchi-border);
+    --color-bocchi-action: var(--bocchi-action);
+    --color-bocchi-action-strong: var(--bocchi-action-strong);
+    --color-bocchi-action-soft: var(--bocchi-action-soft);
+    --color-bocchi-danger: var(--bocchi-danger-strong);
+    --color-bocchi-success: var(--bocchi-success-strong);
+    --shadow-bocchi-soft: var(--bocchi-shadow-soft);
+    --shadow-bocchi-pop: var(--bocchi-shadow-pop);
+    --radius-bocchi-sm: var(--radius-sm);
+    --radius-bocchi-md: var(--radius-md);
+    --radius-bocchi-lg: var(--radius-lg);
+    --radius-bocchi-xl: var(--radius-xl);
+}
+
+@import "./styles/tokens.css";
+@import "./styles/base.css";
+@import "./styles/admin-primitives.css";
+@import "./styles/auth-setup.css";
+@import "./styles/admin-legacy.css";
+@import "./styles/responsive.css";
+
+@import "tailwindcss/utilities.css" layer(utilities);

@@ -1,0 +1,113 @@
+@page "/Account/Login"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@inject DashboardLocalizationService I18n
+@inject ExternalLoginSettingsService ExternalLogins
+
+<PageTitle>@I18n["login.page.title"] · Bocchi</PageTitle>
+
+<section class="grid min-h-[calc(100vh-6rem)] items-center gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <form class="grid gap-6 rounded-bocchi-xl bg-bocchi-surface p-6 shadow-bocchi-soft sm:p-8" method="post" action="@LoginAction">
+        <header class="grid gap-2">
+            <p class="m-0 inline-flex w-fit items-center gap-2 rounded-full bg-bocchi-action-soft px-3 py-1 text-xs font-semibold text-bocchi-action">
+                <Blazicon Svg="Lucide.ShieldCheck" />
+                <span>@I18n["login.page.eyebrow"]</span>
+            </p>
+            <h1 class="m-0 text-3xl font-semibold leading-tight text-bocchi-text sm:text-4xl">@I18n["login.page.heading"]</h1>
+            <p class="m-0 max-w-2xl text-base leading-7 text-bocchi-muted">@I18n["login.page.description"]</p>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <p class="m-0 rounded-bocchi-md border border-bocchi-border bg-bocchi-surface-muted px-4 py-3 text-sm leading-6 text-bocchi-danger">@Message</p>
+        }
+
+        <div class="grid gap-4">
+            <label class="grid gap-2 text-sm font-semibold text-bocchi-muted">
+                <span>@I18n["login.field.username"]</span>
+                <input class="min-h-12 rounded-bocchi-md border border-bocchi-border bg-bocchi-bg px-4 text-bocchi-text outline-none transition focus:border-bocchi-action focus:ring-2 focus:ring-bocchi-action-soft"
+                       name="username"
+                       type="text"
+                       autocomplete="username"
+                       placeholder='@I18n["login.field.username.placeholder"]'
+                       required />
+            </label>
+            <label class="grid gap-2 text-sm font-semibold text-bocchi-muted">
+                <span>@I18n["login.field.password"]</span>
+                <input class="min-h-12 rounded-bocchi-md border border-bocchi-border bg-bocchi-bg px-4 text-bocchi-text outline-none transition focus:border-bocchi-action focus:ring-2 focus:ring-bocchi-action-soft"
+                       name="password"
+                       type="password"
+                       autocomplete="current-password"
+                       placeholder='@I18n["login.field.password.placeholder"]'
+                       required />
+            </label>
+            <label class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-bocchi-muted">
+                <input class="size-4 accent-bocchi-action" name="remember" type="checkbox" />
+                <span>@I18n["login.field.remember"]</span>
+            </label>
+        </div>
+
+        <button class="inline-flex min-h-12 items-center justify-center gap-2 rounded-bocchi-md bg-bocchi-action px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-bocchi-action-strong dark:text-bocchi-bg" type="submit">
+            <span>@I18n["login.action.submit"]</span>
+            <Blazicon Svg="Lucide.ArrowRight" />
+        </button>
+    </form>
+
+    <aside class="grid gap-4 rounded-bocchi-xl border border-bocchi-border bg-bocchi-surface-muted p-6">
+        <div class="flex items-center gap-3 border-b border-bocchi-border pb-4">
+            <span class="inline-flex size-10 items-center justify-center rounded-full bg-bocchi-action-soft text-bocchi-action">
+                <Blazicon Svg="Lucide.KeyRound" />
+            </span>
+            <h2 class="m-0 text-xl font-semibold text-bocchi-text">@I18n["login.external.title"]</h2>
+        </div>
+        @if (_providers.Count == 0)
+        {
+            <p class="m-0 text-sm leading-6 text-bocchi-muted">@I18n["login.external.empty"]</p>
+        }
+        else
+        {
+            <div class="grid gap-2">
+                @foreach (var provider in _providers)
+                {
+                    <form method="post" action="/Account/ExternalLogin" class="m-0">
+                        <input type="hidden" name="provider" value="@provider.ProviderKey" />
+                        <input type="hidden" name="returnUrl" value="@SafeReturnUrl" />
+                        <button class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-bocchi-md border border-bocchi-border bg-bocchi-surface px-4 text-sm font-semibold text-bocchi-text transition hover:border-bocchi-action hover:text-bocchi-action"
+                                type="submit">
+                            <Blazicon Svg="Lucide.LogIn" />
+                            <span>@string.Format(I18n["login.external.continueWith"], provider.DisplayName)</span>
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </aside>
+</section>
+
+@code {
+    /// <summary>登录成功后返回的本地 URL。</summary>
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    /// <summary>认证端点回传的本地化错误或提示。</summary>
+    [SupplyParameterFromQuery(Name = "message")]
+    public string? Message { get; set; }
+
+    /// <summary>可用于 Login 页的第三方登录入口。</summary>
+    private IReadOnlyList<ExternalLoginProviderSettings> _providers = [];
+
+    private string SafeReturnUrl => IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/Admin";
+
+    private string LoginAction => "/Account/Login/Submit?returnUrl=" + Uri.EscapeDataString(SafeReturnUrl);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _providers = await ExternalLogins.ListReadyForLoginAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>只允许站内相对跳转，避免 returnUrl 成为开放重定向入口。</summary>
+    private static bool IsLocalUrl(string? returnUrl)
+        => !string.IsNullOrWhiteSpace(returnUrl)
+            && returnUrl.StartsWith('/')
+            && !returnUrl.StartsWith("//", StringComparison.Ordinal);
+}

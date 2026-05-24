@@ -1,0 +1,15 @@
+@if (Errors.Count > 0)
+{
+    <ul class="bocchi-auth-errors">
+        @foreach (var error in Errors)
+        {
+            <li>@error</li>
+        }
+    </ul>
+}
+
+@code {
+    /// <summary>认证与 Setup 表单需要展示的错误列表。</summary>
+    [Parameter]
+    public IReadOnlyList<string> Errors { get; set; } = [];
+}

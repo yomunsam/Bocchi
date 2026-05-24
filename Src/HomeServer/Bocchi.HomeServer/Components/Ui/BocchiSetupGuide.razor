@@ -1,0 +1,27 @@
+@inject DashboardLocalizationService I18n
+
+<aside class="bocchi-setup-guide" aria-label='@I18n["setup.helper.aria"]'>
+    <header class="bocchi-setup-guide__header">
+        <span class="bocchi-setup-guide__mark">
+            <span class="bocchi-material-symbol bocchi-material-symbol--filled" aria-hidden="true">lightbulb</span>
+        </span>
+        <h2>@I18n["setup.helper.title"]</h2>
+    </header>
+    <div class="bocchi-setup-guide__items">
+        @GuideItem("database", "setup.helper.database", "setup.helper.databaseText")
+        @GuideItem("security", "setup.helper.permissions", "setup.helper.permissionsText")
+    </div>
+</aside>
+
+@code {
+    /// <summary>Setup guide 中的一行说明。</summary>
+    private RenderFragment GuideItem(string iconName, string titleKey, string textKey) => @<div class="bocchi-setup-guide__item">
+        <span class="bocchi-setup-guide__item-icon">
+            <span class="bocchi-material-symbol" aria-hidden="true">@iconName</span>
+        </span>
+        <div>
+            <h3>@I18n[titleKey]</h3>
+            <p>@I18n[textKey]</p>
+        </div>
+    </div>;
+}

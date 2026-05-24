@@ -1,6 +1,6 @@
 using Bocchi.HomeServer.Services;
 
-namespace Bocchi.HomeServer.Components.Pages;
+namespace Bocchi.HomeServer.Components.Pages.Admin;
 
 /// <summary>ContentEditor 的语言版本小组件与添加版本弹窗逻辑。</summary>
 public partial class ContentEditor

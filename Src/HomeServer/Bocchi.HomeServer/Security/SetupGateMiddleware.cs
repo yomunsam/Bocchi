@@ -39,21 +39,6 @@ public sealed class SetupGateMiddleware
             return true;
         }
 
-        return value.Equals("/app.css", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/favicon.ico", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/favicon-16x16.png", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/favicon-32x32.png", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/favicon-48x48.png", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/apple-touch-icon.png", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/site.webmanifest", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/icons/bocchi-icon-192.png", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/icons/bocchi-icon-512.png", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/bocchi-appearance.js", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/bocchi-appearance.", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("/bocchi-markdown-editor.js", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/bocchi-markdown-editor.", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/_framework/", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/_content/", StringComparison.OrdinalIgnoreCase)
-            || value.EndsWith(".styles.css", StringComparison.OrdinalIgnoreCase);
+        return HomeServerStaticAssetPaths.IsHomeServerAsset(path);
     }
 }

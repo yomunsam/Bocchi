@@ -1,0 +1,22 @@
+@page "/Account/Denied"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@inject DashboardLocalizationService I18n
+
+<PageTitle>@I18n["denied.page.title"] · Bocchi</PageTitle>
+
+<section class="grid min-h-[calc(100vh-6rem)] place-items-center py-8">
+    <div class="grid w-full max-w-xl gap-5 rounded-bocchi-xl bg-bocchi-surface p-8 text-center shadow-bocchi-soft">
+        <span class="mx-auto inline-flex size-12 items-center justify-center rounded-full bg-bocchi-action-soft text-bocchi-action">
+            <Blazicon Svg="Lucide.ShieldAlert" />
+        </span>
+        <div class="grid gap-2">
+            <h1 class="m-0 text-3xl font-semibold text-bocchi-text">@I18n["denied.page.heading"]</h1>
+            <p class="m-0 text-sm leading-6 text-bocchi-muted">@I18n["denied.page.description"]</p>
+        </div>
+        <a class="inline-flex min-h-11 items-center justify-center gap-2 rounded-bocchi-md border border-bocchi-border bg-bocchi-surface px-4 text-sm font-semibold text-bocchi-text no-underline transition hover:border-bocchi-action hover:text-bocchi-action" href="/Account/Login">
+            <Blazicon Svg="Lucide.LogIn" />
+            <span>@I18n["denied.action.login"]</span>
+        </a>
+    </div>
+</section>

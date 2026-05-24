@@ -31,6 +31,10 @@
 
   <ItemGroup>
     <Content Update="Localization\Dashboard\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 前端包管理文件只参与 Vite/NPM 构建，不是 HomeServer 运行时或发布资产。 -->
+    <Content Update="package.json;package-lock.json"
+             CopyToOutputDirectory="Never"
+             CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup>

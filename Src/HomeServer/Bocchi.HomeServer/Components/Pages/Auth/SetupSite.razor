@@ -1,0 +1,187 @@
+@page "/Setup/Site"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@inject AuthenticationStateProvider AuthenticationState
+@inject DashboardLocalizationService I18n
+@inject HomeServerSetupService SetupService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IDataProtectionProvider Protection
+@inject NavigationManager Navigation
+@inject SiteProfileSettingsService SiteProfile
+@inject ThemeSettingsService ThemeSettings
+
+<PageTitle>@I18n["setup.page.title"] · Bocchi</PageTitle>
+
+@if (_ready)
+{
+    <section class="bocchi-setup-frame">
+        <form class="bocchi-setup-card bocchi-setup-card--main" method="post" action="/Setup/Complete">
+            <header class="bocchi-setup-heading">
+                <p class="bocchi-setup-eyebrow">
+                    <span class="bocchi-material-symbol bocchi-material-symbol--filled" aria-hidden="true">settings</span>
+                    <span>@I18n["setup.site.eyebrow"]</span>
+                </p>
+                <h1 id="setup-title">@I18n["setup.site.title"]</h1>
+                <p>@I18n["setup.site.description"]</p>
+            </header>
+
+            <BocchiAuthErrors Errors="VisibleErrors" />
+
+            <div class="bocchi-setup-fields">
+                <label class="bocchi-setup-field">
+                    <span>@I18n["setup.field.siteName"]</span>
+                    <input name="siteName"
+                           type="text"
+                           value="@SiteName"
+                           placeholder='@I18n["setup.field.siteName.placeholder"]'
+                           required />
+                </label>
+                <label class="bocchi-setup-field">
+                    <span>@I18n["setup.field.defaultTitle"]</span>
+                    <input name="defaultTitle"
+                           type="text"
+                           value="@DefaultTitle"
+                           placeholder='@I18n["setup.field.defaultTitle.placeholder"]' />
+                </label>
+                <label class="bocchi-setup-field">
+                    <span>@I18n["setup.field.publicBaseUrl"]</span>
+                    <input name="publicBaseUrl"
+                           type="url"
+                           value="@PublicBaseUrl"
+                           placeholder='@I18n["setup.field.publicBaseUrl.placeholder"]' />
+                </label>
+                <label class="bocchi-setup-field">
+                    <span>@I18n["setup.field.defaultThemeId"]</span>
+                    <select name="defaultThemeId"
+                            required>
+                        @foreach (var option in _themeOptions)
+                        {
+                            <option value="@option.Id" selected="@IsSelectedTheme(option.Id)">@option.Name (@option.Id)</option>
+                        }
+                    </select>
+                </label>
+                <label class="bocchi-setup-field bocchi-setup-field--full">
+                    <span>@I18n["setup.field.description"]</span>
+                    <input name="description"
+                           type="text"
+                           value="@Description"
+                           placeholder='@I18n["setup.field.description.placeholder"]' />
+                </label>
+                <label class="bocchi-setup-field bocchi-setup-field--full">
+                    <span>@I18n["setup.field.copyright"]</span>
+                    <input name="copyrightNotice"
+                           type="text"
+                           value="@CopyrightNotice"
+                           placeholder='@I18n["setup.field.copyright.placeholder"]' />
+                </label>
+            </div>
+
+            <p class="bocchi-setup-note">
+                <span class="bocchi-material-symbol" aria-hidden="true">lock</span>
+                <span>@I18n["setup.site.note"]</span>
+            </p>
+
+            <div class="bocchi-setup-card-actions">
+                <a class="bocchi-setup-secondary" href="/Setup">
+                    <span class="bocchi-material-symbol" aria-hidden="true">arrow_back</span>
+                    <span>@I18n["setup.action.back"]</span>
+                </a>
+                <button class="bocchi-setup-submit" type="submit">
+                    <span>@I18n["setup.action.finish"]</span>
+                    <span class="bocchi-material-symbol" aria-hidden="true">arrow_forward</span>
+                </button>
+            </div>
+        </form>
+
+        <BocchiSetupGuide />
+    </section>
+}
+
+@code {
+    /// <summary>POST validation 回传的错误列表。</summary>
+    [Parameter]
+    public IReadOnlyList<string>? Errors { get; set; }
+
+    /// <summary>是否使用 POST 回显值，而不是读取站点默认值。</summary>
+    [Parameter]
+    public bool HasSubmittedValues { get; set; }
+
+    /// <summary>站点名称。</summary>
+    [Parameter]
+    public string SiteName { get; set; } = "Bocchi";
+
+    /// <summary>默认前台标题。</summary>
+    [Parameter]
+    public string DefaultTitle { get; set; } = "Bocchi";
+
+    /// <summary>站点描述。</summary>
+    [Parameter]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>公开前台 URL。</summary>
+    [Parameter]
+    public string PublicBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>版权文案。</summary>
+    [Parameter]
+    public string CopyrightNotice { get; set; } = string.Empty;
+
+    /// <summary>默认前台 Theme id。</summary>
+    [Parameter]
+    public string DefaultThemeId { get; set; } = "default-static";
+
+    /// <summary>页面是否可以渲染；Setup 已完成或 pending cookie 缺失时会先跳转。</summary>
+    private bool _ready;
+
+    /// <summary>当前可选前台 Theme。</summary>
+    private IReadOnlyList<ThemeOption> _themeOptions = [];
+
+    private IReadOnlyList<string> VisibleErrors => Errors ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await SetupService.IsSetupCompleteAsync().ConfigureAwait(false))
+        {
+            var auth = await AuthenticationState.GetAuthenticationStateAsync().ConfigureAwait(false);
+            var target = auth.User.Identity?.IsAuthenticated == true ? "/Admin" : "/Account/Login";
+            Navigation.NavigateTo(target, replace: true);
+            return;
+        }
+
+        var context = HttpContextAccessor.HttpContext;
+        if (context is null || !SetupPendingAdminCookie.TryRead(context, Protection, out _))
+        {
+            var message = Uri.EscapeDataString(I18n["setup.error.payloadExpired"]);
+            Navigation.NavigateTo($"/Setup?message={message}", replace: true);
+            return;
+        }
+
+        if (!HasSubmittedValues)
+        {
+            ApplyValues(SetupSiteFormValues.FromSite(await SiteProfile.GetAsync().ConfigureAwait(false)));
+        }
+
+        _themeOptions = await ThemeSettings.ListAvailableThemesAsync().ConfigureAwait(false);
+        if (_themeOptions.Count == 0)
+        {
+            _themeOptions = [new ThemeOption("default-static", "Bocchi Mono")];
+        }
+
+        _ready = true;
+    }
+
+    /// <summary>从设置模型填充页面字段。</summary>
+    private void ApplyValues(SetupSiteFormValues values)
+    {
+        SiteName = values.SiteName;
+        DefaultTitle = values.DefaultTitle;
+        Description = values.Description;
+        PublicBaseUrl = values.PublicBaseUrl;
+        CopyrightNotice = values.CopyrightNotice;
+        DefaultThemeId = values.DefaultThemeId;
+    }
+
+    /// <summary>判断 Theme 下拉项是否为当前选项。</summary>
+    private bool IsSelectedTheme(string themeId)
+        => string.Equals(themeId, DefaultThemeId, StringComparison.Ordinal);
+}

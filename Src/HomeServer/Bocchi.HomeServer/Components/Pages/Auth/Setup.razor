@@ -1,0 +1,175 @@
+@page "/Setup"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@inject AuthenticationStateProvider AuthenticationState
+@inject DashboardLocalizationService I18n
+@inject HomeServerSetupService SetupService
+@inject NavigationManager Navigation
+
+<PageTitle>@I18n["setup.page.title"] · Bocchi</PageTitle>
+
+@if (_ready)
+{
+    <section class="bocchi-setup-frame">
+        <form class="bocchi-setup-card bocchi-setup-card--main" method="post" action="/Setup/Admin">
+            <header class="bocchi-setup-heading">
+                <p class="bocchi-setup-eyebrow">
+                    <span class="bocchi-material-symbol bocchi-material-symbol--filled" aria-hidden="true">admin_panel_settings</span>
+                    <span>@I18n["setup.admin.eyebrow"]</span>
+                </p>
+                <h1 id="setup-title">@I18n["setup.page.heading"]</h1>
+                <p>@I18n["setup.page.description"]</p>
+            </header>
+
+            <BocchiAuthErrors Errors="VisibleErrors" />
+
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <p class="bocchi-auth-message">@Message</p>
+            }
+
+            <div class="bocchi-setup-fields bocchi-setup-fields--admin">
+                <label class="bocchi-setup-field">
+                    <span>@I18n["setup.field.username"]</span>
+                    <input name="username"
+                           type="text"
+                           autocomplete="username"
+                           value="@UserName"
+                           placeholder='@I18n["setup.field.username.placeholder"]'
+                           required />
+                </label>
+                <label class="bocchi-setup-field">
+                    <span>@I18n["setup.field.displayName"]</span>
+                    <input name="displayName"
+                           type="text"
+                           autocomplete="name"
+                           value="@DisplayName"
+                           placeholder='@I18n["setup.field.displayName.placeholder"]' />
+                </label>
+                <label class="bocchi-setup-field bocchi-setup-field--full">
+                    <span>@I18n["setup.field.emailOptional"]</span>
+                    <input name="email"
+                           type="email"
+                           inputmode="email"
+                           autocomplete="email"
+                           value="@Email"
+                           placeholder='@I18n["setup.field.email.placeholder"]' />
+                </label>
+                <label class="bocchi-setup-field bocchi-setup-field--full">
+                    <span>@I18n["setup.field.password"]</span>
+                    <span class="bocchi-password-input">
+                        <input id="setup-password"
+                               name="password"
+                               type="password"
+                               autocomplete="new-password"
+                               minlength="8"
+                               placeholder='@I18n["setup.field.password.placeholder"]'
+                               data-bocchi-password-source
+                               required />
+                        <button class="bocchi-password-toggle"
+                                type="button"
+                                data-bocchi-password-toggle="setup-password"
+                                aria-label='@I18n["setup.password.toggle"]'
+                                title='@I18n["setup.password.toggle"]'>
+                            <span class="bocchi-material-symbol" aria-hidden="true">visibility_off</span>
+                        </button>
+                    </span>
+                </label>
+
+                <div class="bocchi-password-meter"
+                     data-strength="weak"
+                     data-bocchi-password-meter
+                     data-label-weak='@I18n["setup.passwordStrength.weak"]'
+                     data-label-medium='@I18n["setup.passwordStrength.medium"]'
+                     data-label-strong='@I18n["setup.passwordStrength.strong"]'>
+                    <span class="bocchi-visually-hidden" aria-live="polite">
+                        @I18n["setup.passwordStrength.label"] <strong data-bocchi-password-strength-label>@I18n["setup.passwordStrength.weak"]</strong>
+                    </span>
+                    <div aria-hidden="true"><i></i><i></i><i></i></div>
+                    <div class="bocchi-password-meter__labels" aria-hidden="true">
+                        <span>@I18n["setup.passwordStrength.weak"]</span>
+                        <span>@I18n["setup.passwordStrength.medium"]</span>
+                        <span>@I18n["setup.passwordStrength.strong"]</span>
+                    </div>
+                </div>
+
+                <ul class="bocchi-setup-checklist bocchi-setup-field--full" aria-label='@I18n["setup.passwordChecklist.aria"]'>
+                    <li data-ok="false" data-bocchi-password-rule="length"><span class="bocchi-material-symbol" aria-hidden="true">check_circle</span>@I18n["setup.passwordChecklist.length"]</li>
+                    <li data-ok="false" data-bocchi-password-rule="letter"><span class="bocchi-material-symbol" aria-hidden="true">check_circle</span>@I18n["setup.passwordChecklist.letter"]</li>
+                    <li data-ok="false" data-bocchi-password-rule="numberOrSymbol"><span class="bocchi-material-symbol" aria-hidden="true">check_circle</span>@I18n["setup.passwordChecklist.numberOrSymbol"]</li>
+                    <li data-ok="false" data-bocchi-password-rule="match"><span class="bocchi-material-symbol" aria-hidden="true">check_circle</span>@I18n["setup.passwordChecklist.match"]</li>
+                </ul>
+
+                <label class="bocchi-setup-field bocchi-setup-field--full">
+                    <span>@I18n["setup.field.confirmPassword"]</span>
+                    <span class="bocchi-password-input">
+                        <input id="setup-confirm-password"
+                               name="confirmPassword"
+                               type="password"
+                               autocomplete="new-password"
+                               minlength="8"
+                               placeholder='@I18n["setup.field.password.placeholder"]'
+                               data-bocchi-password-confirm
+                               required />
+                        <button class="bocchi-password-toggle"
+                                type="button"
+                                data-bocchi-password-toggle="setup-confirm-password"
+                                aria-label='@I18n["setup.password.toggle"]'
+                                title='@I18n["setup.password.toggle"]'>
+                            <span class="bocchi-material-symbol" aria-hidden="true">visibility_off</span>
+                        </button>
+                    </span>
+                </label>
+            </div>
+
+            <div class="bocchi-setup-card-actions">
+                <button class="bocchi-setup-submit" type="submit">
+                    <span>@I18n["setup.action.next"]</span>
+                    <span class="bocchi-material-symbol" aria-hidden="true">arrow_forward</span>
+                </button>
+            </div>
+        </form>
+
+        <BocchiSetupGuide />
+    </section>
+}
+
+@code {
+    /// <summary>POST validation 回传的错误列表。</summary>
+    [Parameter]
+    public IReadOnlyList<string>? Errors { get; set; }
+
+    /// <summary>Setup 过期等 redirect 场景的提示。</summary>
+    [SupplyParameterFromQuery(Name = "message")]
+    public string? Message { get; set; }
+
+    /// <summary>错误回显时保留的用户名。</summary>
+    [Parameter]
+    public string UserName { get; set; } = string.Empty;
+
+    /// <summary>错误回显时保留的 email。</summary>
+    [Parameter]
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>错误回显时保留的显示名。</summary>
+    [Parameter]
+    public string DisplayName { get; set; } = string.Empty;
+
+    /// <summary>页面是否可以渲染；Setup 已完成时会先跳转。</summary>
+    private bool _ready;
+
+    private IReadOnlyList<string> VisibleErrors => Errors ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await SetupService.IsSetupCompleteAsync().ConfigureAwait(false))
+        {
+            var auth = await AuthenticationState.GetAuthenticationStateAsync().ConfigureAwait(false);
+            var target = auth.User.Identity?.IsAuthenticated == true ? "/Admin" : "/Account/Login";
+            Navigation.NavigateTo(target, replace: true);
+            return;
+        }
+
+        _ready = true;
+    }
+}

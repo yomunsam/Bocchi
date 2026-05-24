@@ -17,8 +17,9 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -78,6 +79,7 @@ try
         options.AddPolicy("Admin", policy => policy.RequireRole(BocchiRoleNames.Admin));
     });
     builder.Services.AddCascadingAuthenticationState();
+    builder.Services.AddHttpContextAccessor();
     builder.Services.AddSingleton<ExternalLoginOptionsConfigurator>();
     builder.Services.AddSingleton<IConfigureOptions<OAuthOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
     builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
@@ -179,6 +181,7 @@ try
     app.UseBocchiSetupGate();
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseBocchiAdminGate();
 
     app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
@@ -204,12 +207,9 @@ try
         .RequireAuthorization();
 
     app.MapRazorComponents<App>()
-        .AddInteractiveServerRenderMode()
-        .RequireAuthorization("Admin");
+        .AddInteractiveServerRenderMode();
 
-    app.MapGet("/{**previewPath}", (string? previewPath, PreviewHost preview, CancellationToken cancellationToken)
-            => preview.RenderAsync(previewPath, cancellationToken))
-        .RequireAuthorization();
+    app.MapGet("/{**previewPath}", RenderPreviewOrStaticAssetMissAsync);
 
     // CLI 子命令：`Bocchi.HomeServer -- build [--theme=...] [--include-drafts]` 跑完即退出。
     if (BuildCli.TryParse(args, out var cliOptions))
@@ -267,6 +267,27 @@ static string ResolveDataRoot(IConfiguration configuration, string dataRootBaseP
     return Path.IsPathRooted(configured)
         ? Path.GetFullPath(configured)
         : Path.GetFullPath(Path.Combine(dataRootBasePath, configured));
+}
+
+/// <summary>渲染前台 preview；后台静态资源缺失时明确 404，避免 catch-all 返回 HTML 污染 JS/manifest/JSON 请求。</summary>
+static Task<IResult> RenderPreviewOrStaticAssetMissAsync(
+    HttpContext context,
+    string? previewPath,
+    PreviewHost preview,
+    CancellationToken cancellationToken)
+{
+    if (HomeServerStaticAssetPaths.IsHomeServerAsset(context.Request.Path))
+    {
+        context.Features.Get<IStatusCodePagesFeature>()?.Enabled = false;
+        return Task.FromResult<IResult>(Results.NotFound());
+    }
+
+    if (context.User.Identity?.IsAuthenticated != true)
+    {
+        return Task.FromResult<IResult>(Results.Challenge());
+    }
+
+    return preview.RenderAsync(previewPath, cancellationToken);
 }
 
 /// <summary>

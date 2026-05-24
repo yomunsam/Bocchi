@@ -1,0 +1,57 @@
+@inherits LayoutComponentBase
+@inject DashboardLocalizationService I18n
+@inject NavigationManager Navigation
+
+<div class="bocchi-auth-shell selection:bg-bocchi-action-soft selection:text-bocchi-action-strong">
+    <header class="bocchi-auth-topbar">
+        <a class="bocchi-auth-logo" href="/Setup" aria-label='@I18n["auth.brand.aria"]'>
+            <span class="bocchi-auth-logo__mark">
+                <Blazicon Svg="Lucide.Guitar" />
+            </span>
+            <span>@I18n["auth.brand.name"]</span>
+        </a>
+        <div class="bocchi-auth-topbar__actions">
+            <form class="bocchi-auth-language" method="post" action="/Account/UiLanguage">
+                <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
+                <label>
+                    <span class="bocchi-material-symbol" aria-hidden="true">translate</span>
+                    <select name="uiLanguage" aria-label='@I18n["auth.language.aria"]' onchange="this.form.submit()">
+                        @foreach (var language in DashboardLocalizationService.SupportedDashboardLanguages)
+                        {
+                            <option value="@language.Code" selected="@IsCurrentLanguage(language.Code)">@language.NativeName</option>
+                        }
+                    </select>
+                </label>
+            </form>
+            <button
+                class="bocchi-auth-icon-button"
+                type="button"
+                data-bocchi-appearance-toggle
+                data-label-dark='@I18n["setup.appearance.switchToDark"]'
+                data-label-light='@I18n["setup.appearance.switchToLight"]'
+                aria-label='@I18n["setup.appearance.switchToDark"]'
+                title='@I18n["setup.appearance.switchToDark"]'>
+                <span class="bocchi-material-symbol" aria-hidden="true">dark_mode</span>
+            </button>
+        </div>
+    </header>
+    <main class="bocchi-auth-main">
+        @Body
+    </main>
+    <footer class="bocchi-auth-footer">
+        <nav aria-label='@I18n["auth.footer.aria"]'>
+            <a href="https://github.com/yomunsam/Bocchi">@I18n["auth.footer.documentation"]</a>
+            <a href="https://github.com/yomunsam/Bocchi">@I18n["auth.footer.github"]</a>
+        </nav>
+        <span>@I18n["auth.footer.copyright"]</span>
+    </footer>
+</div>
+
+@code {
+    /// <summary>语言切换后回到当前 Auth/Setup 页面。</summary>
+    private string CurrentReturnUrl => new Uri(Navigation.Uri).PathAndQuery;
+
+    /// <summary>判断当前 Dashboard UI language 是否为目标语言。</summary>
+    private bool IsCurrentLanguage(string code)
+        => string.Equals(I18n.CurrentLanguage.Code, code, StringComparison.OrdinalIgnoreCase);
+}

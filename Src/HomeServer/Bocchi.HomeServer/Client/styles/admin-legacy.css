@@ -1,0 +1,825 @@
+.bocchi-admin-shell a {
+    color: var(--bocchi-blue-strong);
+}
+
+.bocchi-admin-shell code {
+    border-radius: 6px;
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+    padding: 0.1rem 0.28rem;
+}
+
+.bocchi-admin-shell pre {
+    overflow: auto;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    padding: 1rem;
+}
+
+.bocchi-admin-shell h1:focus {
+    outline: none;
+}
+
+.bocchi-shell {
+    display: grid;
+    gap: 1.15rem;
+}
+
+.bocchi-page-heading {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.bocchi-page-heading--with-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: 1rem;
+}
+
+.bocchi-page-heading--with-actions > :not(.bocchi-page-heading__actions) {
+    grid-column: 1;
+}
+
+.bocchi-page-heading--with-actions .bocchi-page-heading__actions {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: end;
+}
+
+.bocchi-page-heading__eyebrow {
+    color: var(--bocchi-blue-strong);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.bocchi-page-heading h1 {
+    margin: 0;
+    color: var(--bocchi-text);
+    font-size: 2rem;
+    letter-spacing: 0;
+    line-height: 2.5rem;
+}
+
+.bocchi-page-heading p {
+    max-width: 44rem;
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.bocchi-page-heading__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: flex-end;
+}
+
+.bocchi-shell--dashboard {
+    gap: 1rem;
+}
+
+.bocchi-page-intro {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.bocchi-page-intro--with-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: 1rem;
+}
+
+.bocchi-page-intro--with-actions > :not(.bocchi-page-intro__actions) {
+    grid-column: 1;
+}
+
+.bocchi-page-intro__actions {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    gap: 0.6rem;
+    justify-content: flex-end;
+}
+
+.bocchi-page-intro h1 {
+    margin: 0;
+    color: var(--bocchi-text);
+    font-size: 1.5rem;
+    letter-spacing: 0;
+    line-height: 2rem;
+}
+
+.bocchi-page-intro p {
+    max-width: 48rem;
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    line-height: 1.6;
+}
+
+.bocchi-eyebrow {
+    color: var(--bocchi-text-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1rem;
+}
+
+.bocchi-banner {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    color: var(--bocchi-text);
+    background: var(--bocchi-surface);
+    font-size: 0.9rem;
+}
+
+.bocchi-banner--warning {
+    border-color: color-mix(in srgb, var(--bocchi-warning-strong) 30%, var(--bocchi-border));
+    background: var(--bocchi-warning-soft);
+    color: var(--bocchi-warning-strong);
+}
+
+.bocchi-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+/* Quick action card：保持 4 张并列的"动作入口"语义，但收掉花花绿绿的图标色调；
+   只在 hover 时由 action-soft 给出微弱粉色提示，让 CTA 「发布」按钮才是页面唯一高饱和粉。 */
+.bocchi-quick-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-md);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    padding: 0.95rem 1.05rem;
+    text-decoration: none;
+    transition: border-color 150ms ease, background 150ms ease;
+}
+
+.bocchi-quick-card:hover {
+    border-color: var(--bocchi-border-strong);
+    background: var(--bocchi-action-soft);
+}
+
+.bocchi-quick-card__icon {
+    display: inline-flex;
+    width: 2.3rem;
+    height: 2.3rem;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-radius: var(--bocchi-radius-sm);
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-quick-card__icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+/* 兼容旧 modifier：所有色调统一弱化为中性 chip，由 hover 与文字承担差异化。 */
+.bocchi-quick-card__icon--pink,
+.bocchi-quick-card__icon--lavender,
+.bocchi-quick-card__icon--blue,
+.bocchi-quick-card__icon--green {
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-quick-card:hover .bocchi-quick-card__icon {
+    color: var(--bocchi-action-strong);
+}
+
+.bocchi-quick-card__body {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+.bocchi-quick-card__body strong {
+    font-size: 0.98rem;
+}
+
+.bocchi-quick-card__body span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.83rem;
+    line-height: 1.4;
+}
+
+.bocchi-link-pill {
+    display: inline-flex;
+    min-height: 1.95rem;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    font-size: 0.83rem;
+    font-weight: 600;
+    padding: 0 0.7rem;
+    text-decoration: none;
+}
+
+.bocchi-link-pill svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.bocchi-link-pill:hover {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+}
+
+.bocchi-preview-card {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
+    box-shadow: var(--bocchi-shadow-soft);
+}
+
+.bocchi-content-list {
+    display: grid;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+    overflow: hidden;
+}
+
+.bocchi-content-list--actions {
+    overflow: visible;
+}
+
+.bocchi-kind-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 78%, transparent);
+    padding: 0.65rem;
+}
+
+.bocchi-kind-action {
+    display: inline-flex;
+    min-height: 2.1rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 999px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 0 1rem;
+    text-decoration: none;
+}
+
+.bocchi-kind-action:hover {
+    background: var(--bocchi-surface-muted);
+    transform: none;
+}
+
+.bocchi-kind-action-group {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 999px;
+    background: var(--bocchi-surface);
+}
+
+.bocchi-kind-action--grouped {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.bocchi-kind-action--grouped + .bocchi-kind-action--grouped {
+    border-left: 1px solid var(--bocchi-border);
+}
+
+.bocchi-kind-action--primary {
+    border-color: color-mix(in srgb, var(--bocchi-action) 45%, var(--bocchi-border));
+    background: var(--bocchi-action);
+    color: #fff;
+}
+
+.bocchi-kind-action--primary:hover {
+    background: color-mix(in srgb, var(--bocchi-action) 88%, #000);
+    color: #fff;
+}
+
+.bocchi-kind-action svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.bocchi-kind-empty {
+    display: grid;
+    min-height: 13rem;
+    place-items: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+    padding: 1.4rem;
+    text-align: center;
+}
+
+.bocchi-kind-empty__body {
+    display: grid;
+    justify-items: center;
+    gap: 0.65rem;
+}
+
+.bocchi-kind-empty strong {
+    color: var(--bocchi-text);
+    font-size: 1.08rem;
+}
+
+.bocchi-kind-empty p {
+    max-width: 28rem;
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.bocchi-content-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 3.25rem minmax(0, 1fr) auto minmax(5.2rem, auto) auto;
+    gap: 0.9rem;
+    align-items: center;
+    min-height: 4.6rem;
+    border-bottom: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    padding: 0.75rem 0.9rem;
+    text-decoration: none;
+    transition: background 150ms ease;
+}
+
+.bocchi-content-item:last-child {
+    border-bottom: 0;
+}
+
+.bocchi-content-item:hover {
+    background: color-mix(in srgb, var(--bocchi-surface-soft) 58%, transparent);
+}
+
+.bocchi-content-item__icon {
+    display: inline-flex;
+    width: 2.6rem;
+    height: 2.6rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.bocchi-content-item__icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.bocchi-content-item__icon--pink {
+    background: var(--bocchi-surface-pink);
+    color: var(--bocchi-action);
+}
+
+.bocchi-content-item__icon--lavender {
+    background: color-mix(in srgb, var(--bocchi-lavender) 38%, var(--bocchi-surface));
+    color: #8f6bf0;
+}
+
+.bocchi-content-item__icon--blue {
+    background: var(--bocchi-surface-soft);
+    color: var(--bocchi-blue-strong);
+}
+
+.bocchi-content-item__icon--amber {
+    background: var(--bocchi-warning-soft);
+    color: var(--bocchi-warning-strong);
+}
+
+.bocchi-content-item__main {
+    display: grid;
+    gap: 0.22rem;
+    min-width: 0;
+    color: var(--bocchi-text);
+    text-decoration: none;
+}
+
+.bocchi-content-item__main strong,
+.bocchi-content-item__main small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-content-item__main small,
+.bocchi-content-item__date {
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-content-item__action {
+    min-height: 2.2rem;
+    color: var(--bocchi-action);
+}
+
+.bocchi-content-item__actions {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.bocchi-row-icon-button {
+    display: inline-flex;
+    width: 2rem;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    padding: 0;
+    text-decoration: none;
+}
+
+.bocchi-row-icon-button:hover {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-action);
+    transform: none;
+}
+
+.bocchi-row-icon-button svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.bocchi-row-delete {
+    position: relative;
+}
+
+.bocchi-row-delete summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.bocchi-row-delete summary::-webkit-details-marker {
+    display: none;
+}
+
+.bocchi-row-delete__popup {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    z-index: 30;
+    display: grid;
+    min-width: 10rem;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: 0 16px 36px rgba(77, 67, 107, 0.16);
+    padding: 0.7rem;
+}
+
+.bocchi-row-delete__popup strong {
+    color: var(--bocchi-text);
+    font-size: 0.86rem;
+}
+
+.bocchi-row-delete__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+
+.bocchi-row-delete__actions button {
+    min-height: 1.8rem;
+    border: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    padding: 0 0.6rem;
+}
+
+.bocchi-row-delete__actions .bocchi-row-delete__danger {
+    border-color: color-mix(in srgb, var(--bocchi-action) 36%, var(--bocchi-border));
+    color: var(--bocchi-action);
+}
+
+.bocchi-preview-card {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1rem;
+}
+
+.bocchi-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.bocchi-card-heading h2 {
+    margin: 0;
+    font-size: 1rem;
+    letter-spacing: 0;
+}
+
+.bocchi-card-heading > svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--bocchi-blue-strong);
+}
+
+.bocchi-card-heading a {
+    margin-left: auto;
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.bocchi-card-copy {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    line-height: 1.55;
+}
+
+.bocchi-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.bocchi-section-heading span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.bocchi-section-heading {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.bocchi-section-heading h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    letter-spacing: 0;
+}
+
+.bocchi-two-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.36fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.bocchi-panel {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-soft);
+    padding: 0.9rem;
+}
+
+.bocchi-panel--soft {
+    background: linear-gradient(135deg, var(--bocchi-surface-soft), var(--bocchi-surface-pink));
+}
+
+.bocchi-panel h2,
+.bocchi-panel h3 {
+    margin-top: 0;
+}
+
+.bocchi-meta-list {
+    display: grid;
+    gap: 0.38rem;
+    margin: 0;
+}
+
+.bocchi-meta-list div {
+    display: grid;
+    grid-template-columns: minmax(6rem, 0.25fr) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: baseline;
+}
+
+.bocchi-meta-list dt {
+    color: var(--bocchi-text-muted);
+    font-weight: 600;
+}
+
+.bocchi-meta-list dd {
+    min-width: 0;
+    margin: 0;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.bocchi-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.bocchi-form-grid {
+    display: grid;
+    gap: 0.62rem;
+}
+
+.bocchi-form-grid label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.bocchi-form-grid input[type="text"],
+.bocchi-form-grid input[type="email"],
+.bocchi-form-grid input[type="password"],
+.bocchi-form-grid input[type="number"],
+.bocchi-form-grid input[type="url"],
+.bocchi-form-grid input[type="search"],
+.bocchi-form-grid select,
+.bocchi-common-i18n-row input[type="text"] {
+    min-height: 2.25rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-weight: 400;
+    padding: 0 0.65rem;
+}
+
+.bocchi-compact-field {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0 0.62rem;
+}
+
+.bocchi-compact-field select {
+    min-height: 2rem;
+    border: 0;
+    background: transparent;
+    color: var(--bocchi-text);
+    font: inherit;
+}
+
+.bocchi-checkbox {
+    display: flex !important;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    flex-direction: row;
+    gap: 0.55rem !important;
+}
+
+.bocchi-advanced-details {
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    padding: 0.85rem 1rem;
+}
+
+.bocchi-advanced-details summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.bocchi-language-search {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.bocchi-language-option {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.55rem !important;
+    color: var(--bocchi-text);
+}
+
+.bocchi-language-option span {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.bocchi-language-option small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.82rem;
+}
+
+.bocchi-language-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.bocchi-language-chip-list--selected {
+    border: 1px dashed var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 86%, var(--bocchi-surface-soft));
+    padding: 0.65rem;
+}
+
+.bocchi-language-chip {
+    display: inline-flex;
+    min-height: 2.4rem;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-size: 0.9rem;
+    font-weight: 700;
+    padding: 0.25rem 0.35rem 0.25rem 0.75rem;
+}
+
+.bocchi-language-chip button {
+    min-height: 1.9rem;
+    padding: 0 0.55rem;
+}
+
+.bocchi-common-i18n-list {
+    display: grid;
+    gap: 0.65rem;
+    max-height: 26rem;
+    overflow: auto;
+}
+
+.bocchi-common-i18n-row {
+    display: grid;
+    gap: 0.55rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface-soft);
+    padding: 0.75rem;
+}
+
+.bocchi-common-i18n-row__inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.65rem;
+}
+
+.bocchi-common-i18n-row label {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--bocchi-success-strong);
+}
+
+.invalid {
+    outline: 1px solid var(--bocchi-danger-strong);
+}
+
+.validation-message {
+    color: var(--bocchi-danger-strong);
+}
+
+.blazor-error-boundary {
+    border-radius: 8px;
+    background: var(--bocchi-danger-soft);
+    color: var(--bocchi-danger-strong);
+    padding: 1rem;
+}

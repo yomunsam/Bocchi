@@ -1,0 +1,39 @@
+@font-face {
+    font-family: "Sora";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("/fonts/sora/Sora-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Sora";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("/fonts/sora/Sora-Medium.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Sora";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("/fonts/sora/Sora-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Sora";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("/fonts/sora/Sora-Bold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Material Symbols Outlined";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("/fonts/material-symbols/MaterialSymbolsOutlined-Regular.ttf") format("truetype");
+}

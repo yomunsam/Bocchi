@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build && vite build --config vite.styles.config.mjs"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.8.1",
@@ -11,7 +11,9 @@
     "@codemirror/language": "^6.11.3",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.3",
+    "@tailwindcss/vite": "^4.3.0",
     "codemirror": "^6.0.2",
+    "tailwindcss": "^4.3.0",
     "vite": "^7.2.4"
   }
 }

@@ -7,7 +7,7 @@ using Bocchi.Workspace.Scanning;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
-namespace Bocchi.HomeServer.Components.Pages;
+namespace Bocchi.HomeServer.Components.Pages.Admin;
 
 /// <summary>ContentEditor 的内容类型判断与 frontmatter YAML 同步逻辑。</summary>
 public partial class ContentEditor

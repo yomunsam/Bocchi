@@ -1,5 +1,3 @@
-using System.Net;
-
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -64,7 +62,7 @@ public sealed class IsolatedDataRootWebApplicationFactory
         var setupBody = await setup.Content.ReadAsStringAsync();
         if (setup.IsSuccessStatusCode && setupBody.Contains("name=\"username\"", StringComparison.Ordinal))
         {
-            var siteStep = await client.PostAsync("/Setup/Site", new FormUrlEncodedContent(new Dictionary<string, string>
+            var siteStep = await client.PostAsync("/Setup/Admin", new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["username"] = AdminUserName,
                 ["displayName"] = "Bocchi Admin",
@@ -72,13 +70,11 @@ public sealed class IsolatedDataRootWebApplicationFactory
                 ["password"] = AdminPassword,
                 ["confirmPassword"] = AdminPassword,
             }));
-            siteStep.EnsureSuccessStatusCode();
-            var siteStepBody = await siteStep.Content.ReadAsStringAsync();
-            var setupPayload = ExtractHiddenFieldValue(siteStepBody, "setupPayload");
+            siteStep.StatusCode.Should().Be(System.Net.HttpStatusCode.Redirect);
+            siteStep.Headers.Location!.ToString().Should().Be("/Setup/Site");
 
             var created = await client.PostAsync("/Setup/Complete", new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["setupPayload"] = setupPayload,
                 ["siteName"] = "Bocchi Test Site",
                 ["defaultTitle"] = "Bocchi Test",
                 ["description"] = "Test publishing workspace",
@@ -91,7 +87,7 @@ public sealed class IsolatedDataRootWebApplicationFactory
             return client;
         }
 
-        var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        var login = await client.PostAsync("/Account/Login/Submit", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["username"] = AdminUserName,
             ["password"] = AdminPassword,
@@ -145,18 +141,4 @@ public sealed class IsolatedDataRootWebApplicationFactory
         }
     }
 
-    private static string ExtractHiddenFieldValue(string html, string fieldName)
-    {
-        var nameNeedle = $"name=\"{fieldName}\"";
-        var nameIndex = html.IndexOf(nameNeedle, StringComparison.Ordinal);
-        nameIndex.Should().BeGreaterThanOrEqualTo(0, $"Setup step 2 should include hidden field {fieldName}.");
-
-        var valueNeedle = "value=\"";
-        var valueIndex = html.IndexOf(valueNeedle, nameIndex, StringComparison.Ordinal);
-        valueIndex.Should().BeGreaterThanOrEqualTo(0, $"Hidden field {fieldName} should include a value.");
-        var valueStart = valueIndex + valueNeedle.Length;
-        var valueEnd = html.IndexOf('"', valueStart);
-        valueEnd.Should().BeGreaterThan(valueStart, $"Hidden field {fieldName} should not be empty.");
-        return WebUtility.HtmlDecode(html[valueStart..valueEnd]);
-    }
 }

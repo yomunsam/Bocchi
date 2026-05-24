@@ -1,0 +1,149 @@
+@media (max-width: 900px) {
+    .bocchi-content-item {
+        grid-template-columns: 2.8rem minmax(0, 1fr) auto;
+    }
+
+    .bocchi-content-item__date {
+        display: none;
+    }
+
+    .bocchi-content-item__action {
+        grid-column: 2 / -1;
+        justify-self: start;
+    }
+
+    .bocchi-page-heading--with-actions,
+    .bocchi-page-intro--with-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-page-heading--with-actions .bocchi-page-heading__actions {
+        grid-column: 1;
+        grid-row: auto;
+        justify-content: flex-start;
+    }
+
+    .bocchi-page-intro--with-actions .bocchi-page-intro__actions {
+        grid-column: 1;
+        grid-row: auto;
+        justify-content: flex-start;
+    }
+
+    .bocchi-quick-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .bocchi-two-column,
+    .bocchi-setup-frame {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-setup-guide {
+        position: static;
+    }
+}
+
+@media (max-width: 620px) {
+    .bocchi-auth-shell {
+        grid-template-rows: auto 1fr auto;
+    }
+
+    .bocchi-auth-topbar {
+        position: relative;
+        left: auto;
+        z-index: 2;
+        width: 100%;
+        min-height: auto;
+        gap: 0.75rem;
+        padding-block: 0.85rem 0.5rem;
+        transform: none;
+    }
+
+    .bocchi-auth-logo {
+        min-width: 0;
+        flex: 1 1 auto;
+        gap: 0.55rem;
+        font-size: 1rem;
+    }
+
+    .bocchi-auth-logo__mark {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .bocchi-auth-topbar__actions {
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+    }
+
+    .bocchi-auth-language label {
+        padding: 0 0.65rem;
+    }
+
+    .bocchi-auth-language select {
+        max-width: 7.25rem;
+    }
+
+    .bocchi-auth-main {
+        min-height: auto;
+        padding: 0.75rem 0.9rem 2rem;
+    }
+
+    .bocchi-auth-footer {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+    }
+
+    .bocchi-auth-footer nav,
+    .bocchi-auth-footer > span {
+        grid-column: 1;
+        justify-self: center;
+    }
+
+    .bocchi-setup-card--main,
+    .bocchi-setup-guide {
+        padding: 1.25rem;
+    }
+
+    .bocchi-setup-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-setup-heading h1 {
+        font-size: 1.75rem;
+    }
+
+    .bocchi-setup-field input,
+    .bocchi-setup-field select {
+        min-height: 3.25rem;
+    }
+
+    .bocchi-setup-card-actions {
+        justify-content: stretch;
+    }
+
+    .bocchi-setup-card-actions > * {
+        flex: 1 1 12rem;
+    }
+
+    .bocchi-setup-guide__item {
+        grid-template-columns: 1.5rem minmax(0, 1fr);
+        gap: 0.8rem;
+    }
+
+    .bocchi-setup-guide__item-icon svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .bocchi-meta-list div {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+    }
+
+    .bocchi-quick-actions {
+        grid-template-columns: 1fr;
+    }
+}

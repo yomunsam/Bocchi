@@ -1,0 +1,141 @@
+/* =========================================================================
+   Bocchi Admin 设计 token
+   新 Admin Dashboard 设计稿是正式视觉源；旧页面只能通过这些 token 渐进收敛。
+   ========================================================================= */
+
+/* 这里保留 bocchi 旧变量名作为兼容层，但数值以新设计稿的 Tailwind config 为准。 */
+:root {
+    color-scheme: light;
+    /* design colors */
+    --bocchi-color-on-background: #1b1c1b;
+    --bocchi-color-secondary: #625c66;
+    --bocchi-color-surface: #fbf9f7;
+    --bocchi-color-on-surface-variant: #574146;
+    --bocchi-color-surface-tint: #ab2c5d;
+    --bocchi-color-on-surface: #1b1c1b;
+    --bocchi-color-surface-variant: #e4e2e0;
+    --bocchi-color-on-primary-fixed-variant: #8b0e45;
+    --bocchi-color-on-primary: #ffffff;
+    --bocchi-color-surface-container-low: #f5f3f1;
+    --bocchi-color-primary: #ab2c5d;
+    --bocchi-color-primary-fixed: #ffd9e1;
+    --bocchi-color-on-tertiary-fixed-variant: #464746;
+    --bocchi-color-background: #fbf9f7;
+    --bocchi-color-surface-container-lowest: #ffffff;
+    --bocchi-color-error: #ba1a1a;
+    --bocchi-color-secondary-container: #e5dde8;
+    --bocchi-color-outline: #8a7176;
+    --bocchi-color-surface-container: #efedeb;
+    --bocchi-color-outline-variant: #ddbfc5;
+
+    /* old variable aliases */
+    --bocchi-bg: #fbf9f7;
+    --bocchi-surface: #ffffff;
+    --bocchi-surface-muted: #f5f3f1;
+    --bocchi-surface-soft: #efedeb;
+    --bocchi-surface-pink: color-mix(in srgb, #ffd9e1 30%, #ffffff);
+    --bocchi-text: #1b1c1b;
+    --bocchi-text-muted: #625c66;
+    --bocchi-text-subtle: #8a7176;
+    --bocchi-border: #e4e2e0;
+    --bocchi-border-strong: #ddbfc5;
+    /* accents */
+    --bocchi-blue: #8aa3be;
+    --bocchi-blue-strong: #4d647d;
+    --bocchi-pink: #f06292;
+    --bocchi-lavender: #e5dde8;
+    /* status */
+    --bocchi-success-soft: #e9f8f0;
+    --bocchi-success-strong: #4daf50;
+    --bocchi-warning-soft: #fff5dc;
+    --bocchi-warning-strong: #936a16;
+    --bocchi-danger-soft: #fff0f0;
+    --bocchi-danger-strong: #ba1a1a;
+    /* shadows & focus */
+    --bocchi-shadow-soft: 0 16px 32px -8px rgba(98, 92, 102, 0.08), 0 4px 16px -4px rgba(98, 92, 102, 0.05);
+    --bocchi-shadow-sm: 0 1px 2px rgba(98, 92, 102, 0.08);
+    --bocchi-shadow-pop: 0 18px 40px rgba(98, 92, 102, 0.18);
+    --bocchi-focus-ring: 0 0 0 3px rgba(171, 44, 93, 0.22);
+    /* brand action - Berry，唯一的高饱和入口 */
+    --bocchi-action: #ab2c5d;
+    --bocchi-action-strong: #8b0e45;
+    --bocchi-action-soft: rgba(171, 44, 93, 0.08);
+    --bocchi-action-soft-strong: rgba(171, 44, 93, 0.14);
+    /* nav active (soft sink) */
+    --bocchi-nav-active-bg: var(--bocchi-action-soft);
+    --bocchi-nav-active-bar: var(--bocchi-action);
+    --bocchi-nav-active-text: var(--bocchi-action-strong);
+    /* avatar */
+    --bocchi-avatar-bg: #ffd9e1;
+    /* radius scale */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-pill: 999px;
+    /* 组件 CSS 使用 bocchi 前缀 token；这里统一映射到全局 radius 阶梯。 */
+    --bocchi-radius-sm: var(--radius-sm);
+    --bocchi-radius-md: var(--radius-md);
+    --bocchi-radius-lg: var(--radius-lg);
+    --bocchi-radius-xl: var(--radius-xl);
+    --bocchi-radius-pill: var(--radius-pill);
+    /* 紧凑控件：segmented 与轻量 action button 共用的尺寸 token。 */
+    --bocchi-segmented-gap: 0.18rem;
+    --bocchi-segmented-padding: 0.2rem;
+    --bocchi-segmented-item-min-height: 1.9rem;
+    --bocchi-segmented-item-padding-x: 0.78rem;
+    --bocchi-segmented-item-font-size: 0.84rem;
+    --bocchi-segmented-item-font-weight: 500;
+    --bocchi-segmented-icon-size: 0.88rem;
+    --bocchi-action-control-min-height: 2.05rem;
+    --bocchi-action-control-padding-x: 0.78rem;
+    --bocchi-action-control-font-size: 0.84rem;
+    --bocchi-action-control-font-weight: 600;
+    --bocchi-action-control-gap: 0.35rem;
+    --bocchi-action-control-icon-size: 0.88rem;
+    /* spacing scale */
+    --space-1: 0.25rem; /* 4 */
+    --space-2: 0.5rem;  /* 8 */
+    --space-3: 0.75rem; /* 12 */
+    --space-4: 1rem;    /* 16 */
+    --space-5: 1.5rem;  /* 24 */
+    --space-6: 2rem;    /* 32 */
+    --space-7: 3rem;    /* 48 */
+}
+
+:root[data-bocchi-effective-appearance="dark"] {
+    color-scheme: dark;
+    --bocchi-bg: #181617;
+    --bocchi-surface: #211f20;
+    --bocchi-surface-muted: #2a2729;
+    --bocchi-surface-soft: #302c2f;
+    --bocchi-surface-pink: #322129;
+    --bocchi-text: #f4f1ef;
+    --bocchi-text-muted: #ccc4cf;
+    --bocchi-text-subtle: #9b9098;
+    --bocchi-border: #40383c;
+    --bocchi-border-strong: #6f535b;
+    --bocchi-blue: #8ba8c6;
+    --bocchi-blue-strong: #bfd5ee;
+    --bocchi-pink: #ffb1c5;
+    --bocchi-lavender: #ccc4cf;
+    --bocchi-success-soft: #173226;
+    --bocchi-success-strong: #4daf50;
+    --bocchi-warning-soft: #332a18;
+    --bocchi-warning-strong: #e6c276;
+    --bocchi-danger-soft: #392123;
+    --bocchi-danger-strong: #ec8f93;
+    --bocchi-shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.28);
+    --bocchi-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --bocchi-shadow-pop: 0 18px 36px rgba(0, 0, 0, 0.4);
+    --bocchi-focus-ring: 0 0 0 3px rgba(232, 95, 145, 0.28);
+    /* 深色下粉色只作为品牌点缀，不再把大面积 surface 染成 Night Mode。 */
+    --bocchi-action: #ffb1c5;
+    --bocchi-action-strong: #ffd9e1;
+    --bocchi-action-soft: rgba(255, 177, 197, 0.08);
+    --bocchi-action-soft-strong: rgba(255, 177, 197, 0.12);
+    --bocchi-nav-active-bg: var(--bocchi-action-soft);
+    --bocchi-nav-active-bar: var(--bocchi-action);
+    --bocchi-nav-active-text: var(--bocchi-text);
+    --bocchi-avatar-bg: #28303a;
+}
