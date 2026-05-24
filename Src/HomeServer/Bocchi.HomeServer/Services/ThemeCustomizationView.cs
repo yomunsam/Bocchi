@@ -67,6 +67,9 @@ public sealed class ThemeConfigFieldView
     /// <summary>字段说明，来自 Theme schema。</summary>
     public string? Description { get; init; }
 
+    /// <summary>文本字段的可选表现层格式；plain 表示 Dashboard 只按普通文本保存。</summary>
+    public string TextFormat { get; init; } = "plain";
+
     /// <summary>输入框占位提示，来自 Theme schema。</summary>
     public string? Placeholder { get; init; }
 

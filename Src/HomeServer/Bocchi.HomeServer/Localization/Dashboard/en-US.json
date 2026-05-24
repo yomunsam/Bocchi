@@ -941,6 +941,7 @@
   "themeCustomization.field.disabled": "Disabled",
   "themeCustomization.field.defaultOption": "Use default",
   "themeCustomization.field.defaultValueFormat": "Default: {0}",
+  "themeCustomization.field.inlineColorHelp": "Supports [color=#E85D3A]text[/color] and [color=accent]text[/color].",
   "themeCustomization.meta.title": "Active Theme",
   "themeCustomization.meta.themeName": "Name",
   "themeCustomization.meta.themeId": "Theme id",

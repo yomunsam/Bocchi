@@ -1,7 +1,7 @@
 <section class="hero container">
   <div class="meta caption">01 — <span data-bocchi-i18n="menu.home">{{ page.title }}</span></div>
-  <h1 class="display" data-bocchi-i18n="{{ home.heroTitleKey }}">{{ home.heroTitle }}</h1>
-  <p class="hero-subtitle" data-bocchi-i18n="{{ home.heroSubtitleKey }}">{{ home.heroSubtitle }}</p>
+  <h1 class="display" data-bocchi-i18n="{{ home.heroTitleKey }}"{% if home.heroTitleFormat %} data-bocchi-i18n-format="{{ home.heroTitleFormat }}"{% endif %}>{{ home.heroTitleHtml | html }}</h1>
+  <p class="hero-subtitle" data-bocchi-i18n="{{ home.heroSubtitleKey }}"{% if home.heroSubtitleFormat %} data-bocchi-i18n-format="{{ home.heroSubtitleFormat }}"{% endif %}>{{ home.heroSubtitleHtml | html }}</p>
   {% if home.hasTags %}
   <div class="meta-line">
     {% for tag in home.tagSlots %}<span data-bocchi-i18n="{{ tag.i18nKey }}">{{ tag.label }}</span>{% endfor %}

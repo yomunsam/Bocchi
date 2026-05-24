@@ -21,18 +21,20 @@
         {
           "key": "home.heroTitle",
           "type": "localizedText",
+          "textFormat": "inlineColor",
           "title": "首页大标题",
           "description": "首页首屏 display 标题。支持换行，属于当前 Theme 的表现层文案。",
           "default": {
-            "en-US": "Bocchi — writing,\nwork, & notes.",
-            "zh-CN": "Bocchi — 写作、\n作品与札记。",
-            "zh-TW": "Bocchi — 寫作、\n作品與札記。",
-            "ja-JP": "Bocchi — 文章、\n制作、ノート。"
+            "en-US": "Bocchi — writing,\nwork, [color=accent]& notes.[/color]",
+            "zh-CN": "Bocchi — 写作、\n作品[color=accent]与札记。[/color]",
+            "zh-TW": "Bocchi — 寫作、\n作品[color=accent]與札記。[/color]",
+            "ja-JP": "Bocchi — 文章、\n制作、[color=accent]ノート。[/color]"
           }
         },
         {
           "key": "home.heroSubtitle",
           "type": "localizedText",
+          "textFormat": "inlineColor",
           "title": "首页副标题",
           "description": "首页首屏下方的可见说明文案；SEO 描述请继续在站点资料中编辑。",
           "default": {

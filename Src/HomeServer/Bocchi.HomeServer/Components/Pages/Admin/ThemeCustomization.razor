@@ -297,6 +297,10 @@
                                                 {
                                                     <small>@field.HelpText</small>
                                                 }
+                                                @if (UsesInlineColorTextFormat(field))
+                                                {
+                                                    <small>@I18n["themeCustomization.field.inlineColorHelp"]</small>
+                                                }
                                             </div>
                                         </div>
                                     </section>
@@ -1053,6 +1057,10 @@
     /// <summary>生成字段 placeholder；优先使用 schema placeholder，其次用默认值提示。</summary>
     private static string? FieldPlaceholder(ThemeConfigFieldView field)
         => string.IsNullOrWhiteSpace(field.Placeholder) ? field.DefaultText : field.Placeholder;
+
+    /// <summary>判断字段是否声明了默认 Theme 的受控 inline color 文本格式。</summary>
+    private static bool UsesInlineColorTextFormat(ThemeConfigFieldView field)
+        => string.Equals(field.TextFormat, "inlineColor", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>把字段 key 转成稳定的 DOM id 后缀。</summary>
     private static string FieldLabelId(ThemeConfigFieldView field)

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using Bocchi.GeneratorContract;
 
@@ -21,6 +22,11 @@ public sealed class DefaultStaticTemplateRenderer
 
     /// <summary>首页 tag 配置文案注入浏览器端 i18n JSON 时使用的虚拟 key 前缀。</summary>
     private const string HomeTagClientKeyPrefix = "theme.config.home.tag.";
+
+    /// <summary>需要随静态站点部署位置搬移的 HTML URL 属性。</summary>
+    private static readonly Regex InternalUrlAttributeRegex = new(
+        @"(?<prefix>\b(?:href|src|poster)\s*=\s*)(?<quote>[""'])(?<url>/(?!/)[^""']*)(?<suffix>\k<quote>)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     /// <summary>浏览器端语言切换需要同步的 Theme chrome 文案 key。</summary>
     private static readonly string[] ClientI18nKeys =
@@ -64,6 +70,7 @@ public sealed class DefaultStaticTemplateRenderer
         Directory.CreateDirectory(request.OutputDirectory);
 
         var text = DefaultStaticThemeText.From(input.ThemeContext);
+        var configTextFormats = await ReadConfigTextFormatsAsync(request.ThemeRoot, input.ThemeContext, cancellationToken).ConfigureAwait(false);
         var site = SiteInfo.From(input.ThemeContext, text.CurrentLanguage) with { Navigation = input.Navigation };
         var visiblePosts = FilterVisible(input.Posts, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
         var visiblePages = FilterVisible(input.Pages, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
@@ -72,7 +79,7 @@ public sealed class DefaultStaticTemplateRenderer
         var visibleFriends = FilterVisible(input.Friends, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
 
         await WriteAssetsAsync(request, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, visiblePosts, visibleWorks, visibleNotes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, configTextFormats, visiblePosts, visibleWorks, visibleNotes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePostDetailsAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false);
         await WritePostCategoryPagesAsync(request, site, text, visiblePosts, input.PostCategories, cancellationToken).ConfigureAwait(false);
@@ -134,6 +141,72 @@ public sealed class DefaultStaticTemplateRenderer
         return data.EnumerateArray().Select(item => item.Clone()).ToArray();
     }
 
+    /// <summary>读取 Theme schema 中声明的可控文本格式；缺失或未知格式都会回退为 plain。</summary>
+    private static async Task<IReadOnlyDictionary<string, string>> ReadConfigTextFormatsAsync(
+        string themeRoot,
+        JsonElement context,
+        CancellationToken cancellationToken)
+    {
+        var schema = await TryReadConfigSchemaAsync(themeRoot, context, cancellationToken).ConfigureAwait(false);
+        if (schema is null)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        using var document = JsonDocument.Parse(schema);
+        if (!document.RootElement.TryGetProperty("groups", out var groups) || groups.ValueKind != JsonValueKind.Array)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var group in groups.EnumerateArray().Where(group => group.ValueKind == JsonValueKind.Object))
+        {
+            if (!group.TryGetProperty("fields", out var fields) || fields.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var field in fields.EnumerateArray().Where(field => field.ValueKind == JsonValueKind.Object))
+            {
+                var key = GetString(field, "key");
+                var type = GetString(field, "type");
+                var format = DefaultStaticInlineTextRenderer.NormalizeFormat(GetString(field, "textFormat"));
+                if (!string.IsNullOrWhiteSpace(key) &&
+                    IsTextFormatEligibleField(type) &&
+                    DefaultStaticInlineTextRenderer.IsInlineColorFormat(format))
+                {
+                    result[key.Trim()] = format;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>读取当前 Theme 的 schema；内置默认 Theme 在运行实例缺文件时可回退到 embedded resource。</summary>
+    private static async Task<string?> TryReadConfigSchemaAsync(
+        string themeRoot,
+        JsonElement context,
+        CancellationToken cancellationToken)
+    {
+        var schemaPath = Path.Combine(themeRoot, "config-schema.json");
+        if (File.Exists(schemaPath))
+        {
+            return await File.ReadAllTextAsync(schemaPath, cancellationToken).ConfigureAwait(false);
+        }
+
+        var themeId = TryGetPath(context, ["theme", "id"])?.GetString();
+        return string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal)
+            ? await DefaultStaticThemeResources.TryReadTextAsync("config-schema.json", cancellationToken).ConfigureAwait(false)
+            : null;
+    }
+
+    /// <summary>判断字段类型是否允许声明 inline 文本格式。</summary>
+    private static bool IsTextFormatEligibleField(string type)
+        => string.Equals(type, "string", StringComparison.Ordinal)
+            || string.Equals(type, "localizedText", StringComparison.Ordinal);
+
     /// <summary>读取 navigation.json 的 items 数组；无菜单时返回空数组。</summary>
     private static JsonElement[] ReadNavigationItems(JsonElement navigationData)
     {
@@ -182,10 +255,76 @@ public sealed class DefaultStaticTemplateRenderer
     private static async Task WritePageAsync(string outputDirectory, string relativePath, string html, CancellationToken cancellationToken)
     {
         var destination = Path.Combine(outputDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        var relocatableHtml = RelativizeInternalHtmlUrls(html, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        await File.WriteAllTextAsync(destination, html, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken)
+        await File.WriteAllTextAsync(destination, relocatableHtml, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), cancellationToken)
             .ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 将渲染后的站点根相对 URL 改写为相对当前 HTML 文件的 URL，让同一份输出可以部署在域名根目录或任意二级路径。
+    /// </summary>
+    private static string RelativizeInternalHtmlUrls(string html, string outputRelativePath)
+    {
+        ArgumentNullException.ThrowIfNull(html);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputRelativePath);
+
+        var pageDirectory = GetPageDirectory(outputRelativePath);
+        return InternalUrlAttributeRegex.Replace(html, match =>
+        {
+            var url = match.Groups["url"].Value;
+            return string.Concat(
+                match.Groups["prefix"].Value,
+                match.Groups["quote"].Value,
+                ToPageRelativeUrl(pageDirectory, url),
+                match.Groups["suffix"].Value);
+        });
+    }
+
+    /// <summary>根据输出 HTML 路径推导浏览器解析相对 URL 时所在的页面目录。</summary>
+    private static string GetPageDirectory(string outputRelativePath)
+    {
+        var normalized = outputRelativePath.Replace('\\', '/');
+        var lastSlash = normalized.LastIndexOf('/');
+        return lastSlash < 0 ? "/" : "/" + normalized[..(lastSlash + 1)];
+    }
+
+    /// <summary>把 <paramref name="targetUrl"/> 从站点根相对 URL 转为相对 <paramref name="pageDirectory"/> 的 URL。</summary>
+    private static string ToPageRelativeUrl(string pageDirectory, string targetUrl)
+    {
+        if (string.IsNullOrWhiteSpace(targetUrl) || targetUrl[0] != '/' || targetUrl.StartsWith("//", StringComparison.Ordinal))
+        {
+            return targetUrl;
+        }
+
+        var suffixStart = targetUrl.IndexOfAny(['?', '#']);
+        var targetPath = suffixStart < 0 ? targetUrl : targetUrl[..suffixStart];
+        var suffix = suffixStart < 0 ? string.Empty : targetUrl[suffixStart..];
+        var currentSegments = SplitUrlPath(pageDirectory);
+        var targetSegments = SplitUrlPath(targetPath);
+        var common = 0;
+        while (common < currentSegments.Length &&
+               common < targetSegments.Length &&
+               string.Equals(currentSegments[common], targetSegments[common], StringComparison.Ordinal))
+        {
+            common++;
+        }
+
+        var parts = Enumerable.Repeat("..", currentSegments.Length - common)
+            .Concat(targetSegments.Skip(common))
+            .ToArray();
+        var relative = parts.Length == 0 ? "." : string.Join("/", parts);
+        if (targetPath.EndsWith("/", StringComparison.Ordinal))
+        {
+            relative += "/";
+        }
+
+        return relative + suffix;
+    }
+
+    /// <summary>拆分 URL path；根路径会返回空数组，便于计算相对层级。</summary>
+    private static string[] SplitUrlPath(string path)
+        => path.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
 
     /// <summary>渲染首页。</summary>
     private static Task<string> RenderHomeAsync(
@@ -193,6 +332,7 @@ public sealed class DefaultStaticTemplateRenderer
         SiteInfo site,
         DefaultStaticThemeText text,
         ThemeInputSet input,
+        IReadOnlyDictionary<string, string> configTextFormats,
         JsonElement[] posts,
         JsonElement[] works,
         JsonElement[] notes,
@@ -201,7 +341,7 @@ public sealed class DefaultStaticTemplateRenderer
         var featuredPosts = MapContentItems(Limit(posts, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredPosts"], 5)), site);
         var featuredWorks = MapContentItems(Limit(works, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredWorks"], 4)), site);
         var recentNotes = MapContentItems(Limit(notes, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "recentNotes"], 3)), site);
-        var homeCopy = CreateHomeCopyModel(input.ThemeContext, text);
+        var homeCopy = CreateHomeCopyModel(input.ThemeContext, text, configTextFormats);
 
         var model = CreatePageModel(site, text, text.Get("menu.home"), "/");
         model["home"] = homeCopy.TemplateModel;
@@ -627,11 +767,18 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>创建首页 Theme 配置文案模型，同时准备浏览器端语言切换需要的虚拟 i18n key。</summary>
-    private static HomeCopyModel CreateHomeCopyModel(JsonElement context, DefaultStaticThemeText text)
+    private static HomeCopyModel CreateHomeCopyModel(
+        JsonElement context,
+        DefaultStaticThemeText text,
+        IReadOnlyDictionary<string, string> configTextFormats)
     {
         var titleValues = ReadLocalizedTextConfig(context, ["theme", "config", "home", "heroTitle"]);
         var subtitleValues = ReadLocalizedTextConfig(context, ["theme", "config", "home", "heroSubtitle"]);
         var tagValues = ReadLocalizedTextListConfig(context, ["theme", "config", "home", "tags"]);
+        var title = ResolveLocalizedText(titleValues, text);
+        var subtitle = ResolveLocalizedText(subtitleValues, text);
+        var titleFormat = GetTextFormat(configTextFormats, "home.heroTitle");
+        var subtitleFormat = GetTextFormat(configTextFormats, "home.heroSubtitle");
         var currentTags = ResolveLocalizedList(tagValues, text);
         var slotCount = Math.Max(currentTags.Length, tagValues.Values.Select(tagList => tagList.Length).DefaultIfEmpty(0).Max());
         var tagSlots = Enumerable.Range(0, slotCount)
@@ -658,15 +805,27 @@ public sealed class DefaultStaticTemplateRenderer
 
         var templateModel = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["heroTitle"] = ResolveLocalizedText(titleValues, text),
+            ["heroTitle"] = title,
+            ["heroTitleHtml"] = DefaultStaticInlineTextRenderer.Render(title, titleFormat),
             ["heroTitleKey"] = HomeHeroTitleClientKey,
-            ["heroSubtitle"] = ResolveLocalizedText(subtitleValues, text),
+            ["heroTitleFormat"] = ToClientTextFormat(titleFormat),
+            ["heroSubtitle"] = subtitle,
+            ["heroSubtitleHtml"] = DefaultStaticInlineTextRenderer.Render(subtitle, subtitleFormat),
             ["heroSubtitleKey"] = HomeHeroSubtitleClientKey,
+            ["heroSubtitleFormat"] = ToClientTextFormat(subtitleFormat),
             ["tagSlots"] = tagSlots,
             ["hasTags"] = tagSlots.Length > 0,
         };
         return new HomeCopyModel(templateModel, clientText);
     }
+
+    /// <summary>读取字段声明的文本格式；未声明时返回 plain。</summary>
+    private static string GetTextFormat(IReadOnlyDictionary<string, string> formats, string key)
+        => formats.TryGetValue(key, out var format) ? format : DefaultStaticInlineTextRenderer.PlainFormat;
+
+    /// <summary>转换为前端 data attribute；plain 不输出属性，保持普通 i18n 路径。</summary>
+    private static string ToClientTextFormat(string format)
+        => DefaultStaticInlineTextRenderer.IsInlineColorFormat(format) ? DefaultStaticInlineTextRenderer.InlineColorFormat : string.Empty;
 
     /// <summary>读取 Theme 配置中的多语言文本对象；非对象值被当作当前语言的单值配置处理。</summary>
     private static Dictionary<string, string> ReadLocalizedTextConfig(JsonElement context, IReadOnlyList<string> path)

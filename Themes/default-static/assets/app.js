@@ -2,6 +2,7 @@ const root = document.documentElement;
 const appearanceStorageKey = "bocchi-theme-appearance";
 const legacyAppearanceStorageKey = "bocchi-theme";
 const languageStorageKey = "bocchi-theme-language";
+const inlineColorFormat = "inlineColor";
 const appearanceQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
 
 const readStorage = (key) => {
@@ -41,6 +42,72 @@ const getLanguage = (code) => languages.find((language) => language.code === cod
 const getLanguageDisplayName = (code) => {
   const language = getLanguage(code);
   return language?.nativeName || language?.englishName || code;
+};
+
+const normalizeInlineColor = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(trimmed)) return trimmed;
+  if (trimmed.toLowerCase() === "accent") return "var(--accent)";
+  return null;
+};
+
+const readOpeningColorTag = (token) => {
+  const body = token.slice(1, -1).trim();
+  const separator = body.indexOf("=");
+  if (separator <= 0) return null;
+  const name = body.slice(0, separator).trim();
+  if (name.toLowerCase() !== "color") return null;
+  return normalizeInlineColor(body.slice(separator + 1));
+};
+
+const isClosingColorTag = (token) => {
+  const body = token.slice(1, -1).trim();
+  return body.startsWith("/") && body.slice(1).trim().toLowerCase() === "color";
+};
+
+const appendInlineColorText = (rootElement, value) => {
+  rootElement.textContent = "";
+  const stack = [rootElement];
+  let index = 0;
+  while (index < value.length) {
+    const open = value.indexOf("[", index);
+    if (open < 0) {
+      stack[stack.length - 1].append(document.createTextNode(value.slice(index)));
+      break;
+    }
+
+    if (open > index) stack[stack.length - 1].append(document.createTextNode(value.slice(index, open)));
+    const close = value.indexOf("]", open + 1);
+    if (close < 0) {
+      stack[stack.length - 1].append(document.createTextNode(value.slice(open)));
+      break;
+    }
+
+    const token = value.slice(open, close + 1);
+    const cssColor = readOpeningColorTag(token);
+    if (cssColor) {
+      const span = document.createElement("span");
+      span.style.color = cssColor;
+      stack[stack.length - 1].append(span);
+      stack.push(span);
+    } else if (isClosingColorTag(token) && stack.length > 1) {
+      stack.pop();
+    } else {
+      stack[stack.length - 1].append(document.createTextNode(token));
+    }
+
+    index = close + 1;
+  }
+};
+
+const applyElementText = (element, value) => {
+  if (element.getAttribute("data-bocchi-i18n-format") === inlineColorFormat) {
+    appendInlineColorText(element, value);
+    return;
+  }
+
+  element.textContent = value;
 };
 
 const resolveText = (key, language = currentLanguage) => {
@@ -105,7 +172,7 @@ const applyLanguage = (language, persist = true) => {
   document.querySelectorAll("[data-bocchi-i18n]").forEach((element) => {
     const key = element.getAttribute("data-bocchi-i18n");
     const value = key ? resolveText(key) : null;
-    if (value !== null) element.textContent = value;
+    if (value !== null) applyElementText(element, value);
   });
 
   document.querySelectorAll("[data-mobile-toggle]").forEach((button) => {

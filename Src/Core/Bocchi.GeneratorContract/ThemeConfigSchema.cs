@@ -33,6 +33,9 @@ public sealed record ThemeConfigField
 
     public string? Description { get; init; }
 
+    /// <summary>文本字段的可选表现层格式，例如 <c>inlineColor</c>；未声明时按 plain text 处理。</summary>
+    public string? TextFormat { get; init; }
+
     public object? Default { get; init; }
 
     public IReadOnlyList<string>? Options { get; init; }

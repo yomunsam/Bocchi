@@ -653,6 +653,7 @@ public sealed class ThemeSettingsService
             Type = type,
             Title = title.Trim(),
             Description = TrimOrNull(ReadString(field["description"])),
+            TextFormat = NormalizeTextFormat(type, ReadString(field["textFormat"])),
             Placeholder = TrimOrNull(ReadString(field["placeholder"])),
             HelpText = TrimOrNull(ReadString(field["helpText"])),
             Required = ReadBool(field["required"]),
@@ -924,6 +925,19 @@ public sealed class ThemeSettingsService
     {
         type = value;
         return true;
+    }
+
+    /// <summary>归一化文本字段的表现层格式；非文本字段和未知格式都按 plain 处理。</summary>
+    private static string NormalizeTextFormat(ThemeConfigFieldType type, string? value)
+    {
+        if (type is not (ThemeConfigFieldType.String or ThemeConfigFieldType.LocalizedText))
+        {
+            return "plain";
+        }
+
+        return string.Equals(value?.Trim(), "inlineColor", StringComparison.OrdinalIgnoreCase)
+            ? "inlineColor"
+            : "plain";
     }
 
     private static string? ReadString(JsonNode? node)

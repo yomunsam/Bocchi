@@ -145,6 +145,20 @@ public sealed class ThemeContractTests
     }
 
     [Fact]
+    public void ThemeConfigField_CanDeclareInlineTextFormat()
+    {
+        var field = new ThemeConfigField
+        {
+            Key = "home.heroTitle",
+            Type = ThemeConfigFieldType.LocalizedText,
+            Title = "Home hero title",
+            TextFormat = "inlineColor",
+        };
+
+        field.TextFormat.Should().Be("inlineColor");
+    }
+
+    [Fact]
     public void BuildContext_RoundTripsRequiredFields()
     {
         var ctx = new BuildContext

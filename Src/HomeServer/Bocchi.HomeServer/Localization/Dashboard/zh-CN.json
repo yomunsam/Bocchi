@@ -941,6 +941,7 @@
   "themeCustomization.field.disabled": "关闭",
   "themeCustomization.field.defaultOption": "使用默认值",
   "themeCustomization.field.defaultValueFormat": "默认值：{0}",
+  "themeCustomization.field.inlineColorHelp": "支持 [color=#E85D3A]文本[/color] 和 [color=accent]文本[/color]。",
   "themeCustomization.meta.title": "当前 Theme",
   "themeCustomization.meta.themeName": "名称",
   "themeCustomization.meta.themeId": "Theme id",

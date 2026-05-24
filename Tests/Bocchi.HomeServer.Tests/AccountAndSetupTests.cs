@@ -357,11 +357,13 @@ public sealed class AccountAndSetupTests
         var homeFields = view.Groups.Single(group => group.Id == "home").Fields;
         var heroTitle = homeFields.Single(field => field.Key == "home.heroTitle");
         heroTitle.Type.Should().Be(ThemeConfigFieldType.LocalizedText);
+        heroTitle.TextFormat.Should().Be("inlineColor");
         heroTitle.LocalizedTextValues.Should().BeEmpty();
-        heroTitle.DefaultLocalizedTextValues["zh-CN"].Should().Be("Bocchi — 写作、\n作品与札记。");
+        heroTitle.DefaultLocalizedTextValues["zh-CN"].Should().Be("Bocchi — 写作、\n作品[color=accent]与札记。[/color]");
 
         var tags = homeFields.Single(field => field.Key == "home.tags");
         tags.Type.Should().Be(ThemeConfigFieldType.LocalizedTextList);
+        tags.TextFormat.Should().Be("plain");
         tags.DefaultLocalizedTextListValues["zh-CN"].Should().Equal("个人站点", "软件与文字", "静态优先");
     }
 

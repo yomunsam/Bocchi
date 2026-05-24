@@ -158,7 +158,7 @@ public sealed class GeneratorPipelineEndToEndTests
             .GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#E85D3A");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
             .GetProperty("home").GetProperty("heroTitle").GetProperty("zh-CN").GetString()
-            .Should().Be("Bocchi — 写作、\n作品与札记。");
+            .Should().Be("Bocchi — 写作、\n作品[color=accent]与札记。[/color]");
         var themeI18n = contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("i18n");
         themeI18n.GetProperty("supportedLanguages").EnumerateArray().Should()
             .Contain(language => language.GetString() == "zh-CN");
@@ -351,9 +351,87 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "categories", "tech", "index.html")).Should().BeTrue();
         var indexHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
         indexHtml.Should().Contain("<span class=\"nav__label\">More</span>");
-        indexHtml.Should().Contain("<a href=\"/notes/\"");
+        indexHtml.Should().Contain("<a href=\"notes/\"");
         indexHtml.Should().NotContain("empty-about");
         indexHtml.Should().NotContain("Missing page");
+    }
+
+    [Fact]
+    public async Task DefaultStaticTheme_RendersInternalUrlsRelativeToEachOutputPage()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        await File.WriteAllTextAsync(fixture.Layout.Workspace.SiteSettingsFile, """
+            title: Portable Site
+            defaultTitle: Portable Site
+            description: Portable static output
+            language: zh-CN
+            timeZone: Asia/Shanghai
+            baseUrl: https://yomunsam.github.io/bocchi-site-test/
+            copyright: Copyright 2026 Portable Site.
+
+            author:
+              name: Author
+
+            social: []
+            defaultThemeId: default-static
+            enableRss: true
+            enableSitemap: true
+            enableSearch: true
+            """);
+        await File.WriteAllTextAsync(fixture.Layout.Workspace.NavigationFile, """
+            items:
+              - id: home
+                label: i18n://common@menu.home
+                target:
+                  type: builtin
+                  value: home
+                children: []
+              - id: posts
+                label: i18n://common@menu.posts
+                target:
+                  type: builtin
+                  value: posts
+                children: []
+              - id: about
+                label: About
+                target:
+                  type: page
+                  value: about
+                children: []
+            """);
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var indexHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        indexHtml.Should().Contain("href=\"assets/app.css\"");
+        indexHtml.Should().Contain("src=\"assets/app.js\"");
+        indexHtml.Should().Contain("href=\"posts/\"");
+        indexHtml.Should().Contain("href=\"feed.xml\"");
+        indexHtml.Should().NotContain("href=\"/");
+        indexHtml.Should().NotContain("src=\"/");
+
+        var postsHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "index.html"));
+        postsHtml.Should().Contain("href=\"../assets/app.css\"");
+        postsHtml.Should().Contain("src=\"../assets/app.js\"");
+        postsHtml.Should().Contain("href=\"../\"");
+        postsHtml.Should().Contain("href=\"./\" class=\"active\"");
+        postsHtml.Should().NotContain("href=\"/");
+        postsHtml.Should().NotContain("src=\"/");
+
+        var postHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "2025", "hello", "index.html"));
+        postHtml.Should().Contain("href=\"../../../assets/app.css\"");
+        postHtml.Should().Contain("src=\"../../../assets/app.js\"");
+        postHtml.Should().Contain("src=\"../../../media/posts/2025/hello/c.jpg\"");
+        postHtml.Should().Contain("href=\"../../\">←");
+        postHtml.Should().NotContain("href=\"/");
+        postHtml.Should().NotContain("src=\"/");
     }
 
     [Fact]
@@ -467,8 +545,9 @@ public sealed class GeneratorPipelineEndToEndTests
         visibleHtml.Should().Contain("""<html lang="zh-CN">""");
         visibleHtml.Should().Contain(">首页</a>");
         visibleHtml.Should().Contain(">写作</a>");
-        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroTitle\">Bocchi — 写作");
-        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroSubtitle\">一个安静的个人站点");
+        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroTitle\" data-bocchi-i18n-format=\"inlineColor\">Bocchi — 写作");
+        html.Should().Contain("""<span style="color:var(--accent)">与札记。</span>""");
+        visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroSubtitle\" data-bocchi-i18n-format=\"inlineColor\">一个安静的个人站点");
         visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.tag.0\">个人站点</span>");
         visibleHtml.Should().Contain("theme.defaultStatic.homeSelectedWriting\">精选写作</span>");
         visibleHtml.Should().Contain("由测试构建。");
@@ -545,21 +624,75 @@ public sealed class GeneratorPipelineEndToEndTests
         using var contextDoc = JsonDocument.Parse(contextJson);
         var homeConfig = contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config").GetProperty("home");
         homeConfig.GetProperty("heroTitle").GetProperty("zh-CN").GetString().Should().Be("主题首页大标题");
-        homeConfig.GetProperty("heroTitle").GetProperty("en-US").GetString().Should().Be("Bocchi — writing,\nwork, & notes.");
+        homeConfig.GetProperty("heroTitle").GetProperty("en-US").GetString().Should().Be("Bocchi — writing,\nwork, [color=accent]& notes.[/color]");
         homeConfig.GetProperty("heroSubtitle").GetProperty("zh-CN").GetString().Should().Be("一个安静的个人站点，用来放长文章、作品和短札记。");
 
         var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
         var visibleHtml = System.Net.WebUtility.HtmlDecode(html);
         html.Should().Contain("""<title>Browser Tab Title</title>""");
         html.Should().Contain("""<meta name="description" content="Search engine summary">""");
-        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.heroTitle">主题首页大标题</h1>""");
-        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.heroSubtitle">一个安静的个人站点，用来放长文章、作品和短札记。</p>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.heroTitle" data-bocchi-i18n-format="inlineColor">主题首页大标题</h1>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.heroSubtitle" data-bocchi-i18n-format="inlineColor">一个安静的个人站点，用来放长文章、作品和短札记。</p>""");
         visibleHtml.Should().Contain("""data-bocchi-i18n="theme.config.home.tag.0">主题标签一</span>""");
         visibleHtml.Should().NotContain("Search engine summary</p>");
         visibleHtml.Should().NotContain("kanban");
         visibleHtml.Should().NotContain("account");
         visibleHtml.Should().NotContain("admin");
         visibleHtml.Should().NotContain("myaccount");
+    }
+
+    [Fact]
+    public async Task DefaultStaticTheme_RendersInlineColorMarkupOnlyForDeclaredHomeText()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        WriteThemeConfig(fixture, "default-static", """
+            {
+              "home": {
+                "heroTitle": {
+                  "zh-CN": "[color=#E85D3A]强调<script>[/color] [color=accent]Accent[/color] [color=#123]短色"
+                },
+                "heroSubtitle": {
+                  "zh-CN": "普通 <script>alert(1)</script> [color=red]红[/color] [/color]"
+                }
+              }
+            }
+            """);
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+
+        var contextJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
+        using var contextDoc = JsonDocument.Parse(contextJson);
+        contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
+            .GetProperty("home").GetProperty("heroTitle").GetProperty("zh-CN").GetString()
+            .Should().Contain("[color=#E85D3A]强调<script>[/color]");
+
+        var html = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        html.Should().Contain("""data-bocchi-i18n="theme.config.home.heroTitle" data-bocchi-i18n-format="inlineColor">""");
+        html.Should().Contain("""<span style="color:#E85D3A">强调&lt;script&gt;</span>""");
+        html.Should().Contain("""<span style="color:var(--accent)">Accent</span>""");
+        html.Should().Contain("""<span style="color:#123">短色</span></h1>""");
+        html.Should().Contain("""data-bocchi-i18n="theme.config.home.heroSubtitle" data-bocchi-i18n-format="inlineColor">普通 &lt;script&gt;alert(1)&lt;/script&gt; [color=red]红[/color] [/color]</p>""");
+        html.Should().NotContain("""style="color:red""");
+        html.Should().NotContain("""style="color:javascript""");
+        html.Should().NotContain("""<script>alert(1)</script>""");
+
+        var clientI18nMarker = """<script type="application/json" id="bocchi-i18n-data">""";
+        var clientI18nStart = html.IndexOf(clientI18nMarker, StringComparison.Ordinal);
+        clientI18nStart.Should().BeGreaterThanOrEqualTo(0);
+        clientI18nStart += clientI18nMarker.Length;
+        var clientI18nEnd = html.IndexOf("</script>", clientI18nStart, StringComparison.Ordinal);
+        clientI18nEnd.Should().BeGreaterThan(clientI18nStart);
+        using var clientI18nDoc = JsonDocument.Parse(html[clientI18nStart..clientI18nEnd]);
+        clientI18nDoc.RootElement.GetProperty("text").GetProperty("theme.config.home.heroTitle").GetProperty("zh-CN").GetString()
+            .Should().Contain("[color=#E85D3A]强调<script>[/color]");
     }
 
     [Fact]
