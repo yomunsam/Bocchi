@@ -1,7 +1,8 @@
 namespace Bocchi.HomeServer.Data;
 
 /// <summary>
-/// 第三方登录 Provider 配置。GitHub 与通用 OIDC 共用一张表，避免把 Logto 等具体服务写死进模型。
+/// 第三方登录 Provider 配置。GitHub 已收敛到 GitHubIntegrationSettings；
+/// 这里保留通用 OIDC 等可配置 Provider，避免把 Logto 等具体服务写死进模型。
 /// </summary>
 public sealed class ExternalLoginProviderSettings
 {
@@ -55,7 +56,6 @@ public sealed class ExternalLoginProviderSettings
             return false;
         }
 
-        return ProviderKey.Equals("github", StringComparison.OrdinalIgnoreCase)
-            || !string.IsNullOrWhiteSpace(Authority);
+        return !string.IsNullOrWhiteSpace(Authority);
     }
 }

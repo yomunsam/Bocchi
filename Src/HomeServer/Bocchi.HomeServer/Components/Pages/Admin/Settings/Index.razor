@@ -327,14 +327,13 @@
                                 <p>@I18n["settings.login.description"]</p>
                             </div>
                             <div class="bocchi-provider-grid">
-                                <div class="bocchi-provider-card">
-                                    <h3>GitHub</h3>
-                                    <label class="bocchi-checkbox"><input type="checkbox" @bind="_github.Enabled" />@I18n["settings.login.enabled"]</label>
-                                    <label>@I18n["settings.login.displayName"]<input type="text" @bind="_github.DisplayName" /></label>
-                                    <label>@I18n["settings.login.clientId"]<input type="text" @bind="_github.ClientId" /></label>
-                                    <label>@I18n["settings.login.clientSecret"]<input type="password" @bind="_github.ClientSecret" placeholder='@I18n["settings.login.secretPlaceholder"]' /></label>
-                                    <label>@I18n["settings.login.callbackPath"]<input type="text" @bind="_github.CallbackPath" /></label>
-                                    <button type="button" class="secondary" @onclick="SaveGitHubAsync">@I18n["settings.login.saveGitHub"]</button>
+                                <div class="bocchi-provider-card bocchi-provider-card--link">
+                                    <h3>@I18n["settings.login.githubTitle"]</h3>
+                                    <p>@I18n["settings.login.githubDescription"]</p>
+                                    <a class="bocchi-button secondary" href="/Admin/Settings/Integrations/GitHub">
+                                        <Blazicon Svg="Lucide.Link" />
+                                        <span>@I18n["settings.login.openGitHubIntegration"]</span>
+                                    </a>
                                 </div>
 
                                 <div class="bocchi-provider-card">
@@ -427,6 +426,7 @@
         new("/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal, "pink"),
         new("/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages, "lavender"),
         new("/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound, "blue"),
+        new("/Admin/Settings/Integrations/GitHub", "settings.nav.githubIntegration", "settings.nav.githubIntegrationDescription", Lucide.Link, "blue"),
         new("/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users, "green"),
         new("/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database, "blue"),
         new("/Admin/Site/Theme", "nav.themeCustomization", "settings.nav.themeDescription", Lucide.SunMoon, "pink"),
@@ -518,9 +518,6 @@
     /// <summary>自定义语言 englishName 输入。</summary>
     private string _customLanguageEnglishName = string.Empty;
 
-    /// <summary>GitHub Provider 表单状态。</summary>
-    private ProviderForm _github = new();
-
     /// <summary>OIDC Provider 表单状态。</summary>
     private ProviderForm _oidc = new();
 
@@ -565,11 +562,7 @@
                 Authority = provider.Authority,
                 Scopes = provider.Scopes,
             };
-            if (provider.ProviderKey == "github")
-            {
-                _github = form;
-            }
-            else if (provider.ProviderKey == "oidc")
+            if (provider.ProviderKey == "oidc")
             {
                 _oidc = form;
             }
@@ -636,14 +629,6 @@
         await LoadLocalizationAsync();
         _commonTextSaved = true;
         _commonTextMessage = I18n["settings.localization.commonTextSaved"];
-    }
-
-    /// <summary>保存 GitHub Provider 设置。</summary>
-    private async Task SaveGitHubAsync()
-    {
-        await ExternalLogins.SaveGitHubAsync(_github.Enabled, _github.DisplayName, _github.ClientId, _github.ClientSecret, _github.CallbackPath);
-        _loginSaved = true;
-        _github.ClientSecret = string.Empty;
     }
 
     /// <summary>保存 OIDC Provider 设置。</summary>

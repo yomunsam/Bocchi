@@ -10,7 +10,14 @@
            aria-current="@AriaCurrent(item)"
            title='@I18n[item.DescriptionKey]'>
             <span class="bocchi-publish-nav__icon" aria-hidden="true">
-                <Blazicon Svg="@item.Icon" />
+                @if (item.IconAsset is not null)
+                {
+                    <span class="bocchi-publish-nav__mark"></span>
+                }
+                else
+                {
+                    <Blazicon Svg="@item.Icon" />
+                }
             </span>
             <span class="bocchi-publish-nav__label">@I18n[item.TitleKey]</span>
         </a>
@@ -22,11 +29,11 @@
     [Parameter]
     public string? ActiveSection { get; set; }
 
-    /// <summary>发布中心子页面定义；只暴露真实可操作的发布首页和添加方案页。</summary>
+    /// <summary>发布中心子页面定义；Help 页属于发布方案流程，不放到全局 Settings。</summary>
     private static readonly PublishNavItem[] Items =
     [
-        new("/Admin/Publish", "publish.nav.publish", "publish.nav.publishDescription", Lucide.Send),
-        new("/Admin/Publish/AddPlan", "publish.nav.addPlan", "publish.nav.addPlanDescription", Lucide.Plus),
+        new(string.Empty, "/Admin/Publish", "publish.nav.publish", "publish.nav.publishDescription", Lucide.Send),
+        new("AddPlan", "/Admin/Publish/AddPlan", "publish.nav.addPlan", "publish.nav.addPlanDescription", Lucide.Plus),
     ];
 
     /// <summary>当前 Dashboard 路径，用于判断发布中心二级导航 active 状态。</summary>
@@ -53,9 +60,7 @@
         var normalized = NormalizePath(item.Url);
         if (!string.IsNullOrWhiteSpace(ActiveSection))
         {
-            return string.Equals(ActiveSection, "AddPlan", StringComparison.OrdinalIgnoreCase)
-                ? string.Equals(normalized, "/Admin/Publish/AddPlan", StringComparison.OrdinalIgnoreCase)
-                : string.Equals(normalized, "/Admin/Publish", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(ActiveSection, item.Section, StringComparison.OrdinalIgnoreCase);
         }
 
         return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase);
@@ -66,5 +71,5 @@
         => "/" + value.Trim('/').TrimEnd('/');
 
     /// <summary>发布中心二级导航项定义。</summary>
-    private sealed record PublishNavItem(string Url, string TitleKey, string DescriptionKey, SvgIcon Icon);
+    private sealed record PublishNavItem(string Section, string Url, string TitleKey, string DescriptionKey, SvgIcon Icon, string? IconAsset = null);
 }

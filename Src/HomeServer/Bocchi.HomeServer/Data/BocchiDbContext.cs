@@ -21,6 +21,9 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>Dashboard 自身设置。</summary>
     public DbSet<DashboardSettings> DashboardSettings => Set<DashboardSettings>();
 
+    /// <summary>GitHub OAuth App 集成设置。</summary>
+    public DbSet<GitHubIntegrationSettings> GitHubIntegrationSettings => Set<GitHubIntegrationSettings>();
+
     /// <summary>Home Server 权威的站点基础约定。</summary>
     public DbSet<SiteProfileSettings> SiteProfileSettings => Set<SiteProfileSettings>();
 
@@ -77,6 +80,17 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.ToTable("DashboardSettings");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.AppearanceMode).HasMaxLength(16).IsRequired();
+        });
+
+        builder.Entity<GitHubIntegrationSettings>(entity =>
+        {
+            entity.ToTable("GitHubIntegrationSettings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.LoginEnabled).IsRequired();
+            entity.Property(x => x.OAuthClientId).HasMaxLength(512);
+            entity.Property(x => x.ProtectedOAuthClientSecret).HasMaxLength(4096);
+            entity.Property(x => x.CallbackPath).HasMaxLength(256).IsRequired();
         });
 
         builder.Entity<SiteProfileSettings>(entity =>

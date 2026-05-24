@@ -35,8 +35,8 @@
 
 .bocchi-publish-layout {
     display: grid;
-    grid-template-columns: 12rem minmax(0, 1fr);
-    gap: 1.3rem;
+    grid-template-columns: var(--bocchi-secondary-nav-width) minmax(0, 1fr);
+    gap: var(--bocchi-secondary-nav-gap);
     align-items: start;
 }
 
@@ -254,6 +254,26 @@
 .bocchi-publish-icon-link ::deep svg {
     width: 1.1rem;
     height: 1.1rem;
+}
+
+.bocchi-github-mark {
+    display: inline-block;
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: 0 0 auto;
+    background: currentColor;
+    -webkit-mask: url("/github.svg") center / contain no-repeat;
+    mask: url("/github.svg") center / contain no-repeat;
+}
+
+.bocchi-publish-plan-card__icon .bocchi-github-mark {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.bocchi-publish-quick-actions .bocchi-github-mark {
+    width: 0.92rem;
+    height: 0.92rem;
 }
 
 .bocchi-publish-plan-card__main {
@@ -477,6 +497,10 @@
     color: var(--bocchi-text-muted);
 }
 
+.bocchi-publish-wizard-section__heading .bocchi-github-mark {
+    color: var(--bocchi-text-muted);
+}
+
 .bocchi-publish-wizard-section__heading div {
     display: grid;
     gap: 0.1rem;
@@ -485,6 +509,37 @@
 .bocchi-publish-wizard-section__heading span {
     color: var(--bocchi-text-muted);
     font-size: 0.88rem;
+}
+
+.bocchi-publish-provider-notice {
+    display: grid;
+    grid-template-columns: 1.6rem minmax(0, 1fr);
+    gap: 0.6rem;
+    align-items: start;
+    border: 1px solid color-mix(in srgb, var(--bocchi-warning-strong) 34%, var(--bocchi-border));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-warning-soft) 72%, var(--bocchi-surface));
+    color: var(--bocchi-warning-strong);
+    padding: 0.65rem 0.7rem;
+}
+
+.bocchi-publish-provider-notice ::deep svg {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.08rem;
+}
+
+.bocchi-publish-provider-notice strong {
+    color: var(--bocchi-text);
+    font-size: 0.9rem;
+    font-weight: 620;
+}
+
+.bocchi-publish-provider-notice p {
+    margin: 0.12rem 0 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.42;
 }
 
 .bocchi-publish-local-output {

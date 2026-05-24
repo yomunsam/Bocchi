@@ -2,3 +2,11 @@
     background: color-mix(in srgb, var(--bocchi-action) 12%, var(--bocchi-surface));
     color: var(--bocchi-action);
 }
+
+.bocchi-kind-action--refresh {
+    margin-left: auto;
+}
+
+.bocchi-kind-action--refresh:disabled {
+    transform: none;
+}

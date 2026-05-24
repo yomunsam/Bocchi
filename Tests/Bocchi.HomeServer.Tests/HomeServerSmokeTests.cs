@@ -73,6 +73,22 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
+    public async Task ContentKindPages_RenderManualWorkspaceRefreshAction()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        foreach (var path in new[] { "/Admin/Posts", "/Admin/Notes", "/Admin/Works", "/Admin/Pages" })
+        {
+            var response = await client.GetAsync(path);
+
+            response.EnsureSuccessStatusCode();
+            var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+            body.Should().Contain("bocchi-kind-action--refresh");
+            body.Should().Contain("Refresh workspace index");
+        }
+    }
+
+    [Fact]
     public async Task EditorDraftService_CreatesPostAndPageDraftsWithoutWorkspaceFiles()
     {
         using var factory = new IsolatedDataRootWebApplicationFactory();
@@ -281,11 +297,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("/Admin/Settings/Profile");
         body.Should().Contain("/Admin/Settings/Localization");
         body.Should().Contain("/Admin/Settings/Login");
+        body.Should().Contain("/Admin/Settings/Integrations/GitHub");
         body.Should().Contain("/Admin/Settings/System");
         body.Should().Contain("/Admin/Users");
         body.Should().Contain("Site profile");
         body.Should().Contain("Localization");
         body.Should().Contain("Third-party Login");
+        body.Should().Contain("GitHub");
         body.Should().Contain("System");
         body.Should().NotContain("Site primary language");
         body.Should().NotContain("Save Theme config");
@@ -342,8 +360,27 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-settings-nav");
         body.Should().Contain("Third-party login");
         body.Should().Contain("GitHub");
+        body.Should().Contain("Open GitHub integration");
         body.Should().Contain("OpenID Connect");
         body.Should().Contain("Leave blank to keep existing secret");
+    }
+
+    [Fact]
+    public async Task SettingsGitHubIntegrationPage_RendersSettingsNavigationAndOAuthAppGuide()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/Integrations/GitHub");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-settings-nav");
+        body.Should().Contain("Settings / Integrations / GitHub");
+        body.Should().Contain("Create one GitHub OAuth App");
+        body.Should().Contain("GitHub OAuth App Client ID");
+        body.Should().Contain("GitHub OAuth App Client secret");
+        body.Should().Contain("https://github.com/settings/applications/new");
+        body.Should().Contain("GitHub / Developer settings / OAuth Apps");
     }
 
     [Fact]

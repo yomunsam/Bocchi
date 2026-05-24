@@ -6,7 +6,36 @@
     top: 5.4rem;
     display: grid;
     gap: 0.15rem;
+    width: var(--bocchi-secondary-nav-width);
     padding: 0.35rem 0;
+}
+
+.bocchi-settings-nav__back {
+    display: grid;
+    grid-template-columns: 1.1rem minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+    border-radius: var(--bocchi-radius-sm);
+    color: var(--bocchi-text-subtle);
+    padding: 0.35rem 0.7rem 0.45rem 0.85rem;
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 620;
+    line-height: 1.25;
+    transition: background 120ms ease, color 120ms ease;
+}
+
+.bocchi-settings-nav__back:hover {
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+}
+
+.bocchi-settings-nav__items {
+    display: grid;
+    gap: 0.15rem;
+    margin-top: 0.35rem;
+    border-top: 1px solid var(--bocchi-border);
+    padding-top: 0.35rem;
 }
 
 .bocchi-settings-nav__item {
@@ -74,15 +103,26 @@
     /* 窄屏改成横向滚动条形态，避免占据过多空间。 */
     .bocchi-settings-nav {
         position: static;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
+        display: flex;
+        width: auto;
         overflow-x: auto;
         gap: 0.25rem;
         padding: 0.25rem 0 0.5rem;
         scrollbar-width: thin;
     }
 
+    .bocchi-settings-nav__items {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 0.25rem;
+        margin-top: 0;
+        border-top: 0;
+        padding-top: 0;
+    }
+
+    .bocchi-settings-nav__back,
     .bocchi-settings-nav__item {
         grid-template-columns: 1.1rem max-content;
+        width: max-content;
     }
 }

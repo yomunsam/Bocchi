@@ -1,9 +1,15 @@
 using System.Net;
 using System.Text;
 
+using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Services;
 using Bocchi.HomeServer.Services.Git;
 using Bocchi.HomeServer.Services.Publishing;
 
+using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Bocchi.HomeServer.Tests;
@@ -21,9 +27,9 @@ public sealed class GitHubDeviceFlowServiceTests
     {
         var handler = new RecordingHandler(
             Json(HttpStatusCode.OK, $$"""{"error":"{{error}}","error_description":"description"}"""));
-        var service = CreateService(handler);
+        await using var context = await CreateServiceAsync(handler);
 
-        var result = await service.PollAsync("device-code");
+        var result = await context.Service.PollAsync("device-code");
 
         result.Status.Should().Be(expectedStatus);
         result.Credential.Should().BeNull();
@@ -37,9 +43,9 @@ public sealed class GitHubDeviceFlowServiceTests
     {
         var handler = new RecordingHandler(
             Json(HttpStatusCode.OK, """{"access_token":"secret-token","token_type":"bearer","scope":"repo read:user"}"""));
-        var service = CreateService(handler);
+        await using var context = await CreateServiceAsync(handler);
 
-        var result = await service.PollAsync("device-code");
+        var result = await context.Service.PollAsync("device-code");
 
         result.Status.Should().Be(GitHubDeviceFlowPollStatus.Succeeded);
         result.Credential.Should().NotBeNull();
@@ -54,12 +60,25 @@ public sealed class GitHubDeviceFlowServiceTests
     {
         var handler = new RecordingHandler(
             Json(HttpStatusCode.OK, """{"device_code":"device-code","user_code":"ABCD-EFGH","verification_uri":"https://github.com/login/device","expires_in":900,"interval":5}"""));
-        var service = CreateService(handler);
+        await using var context = await CreateServiceAsync(handler);
 
-        var result = await service.StartAsync();
+        var result = await context.Service.StartAsync();
 
         result.UserCode.Should().Be("ABCD-EFGH");
         handler.Requests.Single().Body.Should().Contain("scope=repo+read%3Auser");
+    }
+
+    /// <summary>GitHub Integration 保存的 Client ID 优先于 appsettings，便于 NAS 用户在 UI 中完成配置。</summary>
+    [Fact]
+    public async Task StartAsync_UsesIntegrationSavedClientId()
+    {
+        var handler = new RecordingHandler(
+            Json(HttpStatusCode.OK, """{"device_code":"device-code","user_code":"ABCD-EFGH","verification_uri":"https://github.com/login/device","expires_in":900,"interval":5}"""));
+        await using var context = await CreateServiceAsync(handler, savedClientId: "saved-client-id");
+
+        await context.Service.StartAsync();
+
+        handler.Requests.Single().Body.Should().Contain("client_id=saved-client-id");
     }
 
     /// <summary>GitHub API 错误消息即使回显 token，也不会把明文 token 交给 UI 或日志。</summary>
@@ -68,19 +87,41 @@ public sealed class GitHubDeviceFlowServiceTests
     {
         var handler = new RecordingHandler(
             Json(HttpStatusCode.Forbidden, """{"message":"bad secret-token"}"""));
-        var service = CreateService(handler);
+        await using var context = await CreateServiceAsync(handler);
 
-        var act = async () => await service.GetCurrentUserAsync("secret-token");
+        var act = async () => await context.Service.GetCurrentUserAsync("secret-token");
 
         await act.Should().ThrowAsync<PublishTargetException>()
             .Where(ex => !ex.Message.Contains("secret-token", StringComparison.Ordinal));
     }
 
     /// <summary>创建测试用 GitHub Device Flow 服务。</summary>
-    private static GitHubDeviceFlowService CreateService(HttpMessageHandler handler)
-        => new(
+    private static async Task<ServiceContext> CreateServiceAsync(HttpMessageHandler handler, string? savedClientId = null)
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<BocchiDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        var db = new BocchiDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var protection = DataProtectionProvider.Create(new DirectoryInfo(Path.Combine(Path.GetTempPath(), "bocchi-github-device-flow-tests", Guid.NewGuid().ToString("N"))));
+        var settings = new GitHubIntegrationSettingsService(
+            db,
+            protection,
+            TimeProvider.System,
+            new OptionsCache<OAuthOptions>());
+        if (!string.IsNullOrWhiteSpace(savedClientId))
+        {
+            await settings.SaveAsync(new GitHubIntegrationSettingsUpdate(false, "GitHub", savedClientId, null, "/signin-github"));
+        }
+
+        var service = new GitHubDeviceFlowService(
             new HttpClient(handler),
-            Options.Create(new GitHubDeviceFlowOptions { OAuthClientId = "client-id" }));
+            Options.Create(new GitHubDeviceFlowOptions { OAuthClientId = "client-id" }),
+            settings);
+        return new ServiceContext(connection, db, service);
+    }
 
     /// <summary>创建固定 JSON 响应。</summary>
     private static Func<HttpRequestMessage, string?, HttpResponseMessage> Json(HttpStatusCode statusCode, string json)
@@ -117,4 +158,32 @@ public sealed class GitHubDeviceFlowServiceTests
 
     /// <summary>HTTP 请求记录。</summary>
     private sealed record RecordedRequest(HttpMethod Method, Uri Uri, string? Body);
+
+    /// <summary>测试用服务与内存数据库生命周期。</summary>
+    private sealed class ServiceContext : IAsyncDisposable
+    {
+        /// <summary>构造测试上下文。</summary>
+        public ServiceContext(SqliteConnection connection, BocchiDbContext db, GitHubDeviceFlowService service)
+        {
+            Connection = connection;
+            Db = db;
+            Service = service;
+        }
+
+        /// <summary>SQLite 内存连接。</summary>
+        private SqliteConnection Connection { get; }
+
+        /// <summary>测试数据库。</summary>
+        private BocchiDbContext Db { get; }
+
+        /// <summary>待测服务。</summary>
+        public GitHubDeviceFlowService Service { get; }
+
+        /// <summary>释放数据库资源。</summary>
+        public async ValueTask DisposeAsync()
+        {
+            await Db.DisposeAsync();
+            await Connection.DisposeAsync();
+        }
+    }
 }

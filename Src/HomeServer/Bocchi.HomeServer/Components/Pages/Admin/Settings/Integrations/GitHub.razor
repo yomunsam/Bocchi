@@ -1,0 +1,218 @@
+@page "/Admin/Settings/Integrations/GitHub"
+@inject DashboardLocalizationService I18n
+@inject GitHubIntegrationSettingsService GitHubIntegration
+@inject NavigationManager Navigation
+
+<PageTitle>@I18n["settings.githubIntegration.pageTitle"] · Bocchi</PageTitle>
+
+<article class="bocchi-shell bocchi-github-integration-shell">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["settings.githubIntegration.eyebrow"]</span>
+        <h1>@I18n["settings.githubIntegration.heading"]</h1>
+        <p>@I18n["settings.githubIntegration.description"]</p>
+    </header>
+
+    <div class="bocchi-github-integration-layout">
+        <BocchiSettingsNav ActiveSection="github" />
+
+        <div class="bocchi-github-integration-stack">
+            <section class="bocchi-panel bocchi-github-integration-setup" aria-labelledby="github-integration-setup-heading">
+                <div class="bocchi-github-integration-heading">
+                    <span aria-hidden="true">
+                        <span class="bocchi-github-mark"></span>
+                    </span>
+                    <div>
+                        <h2 id="github-integration-setup-heading">@I18n["settings.githubIntegration.setupTitle"]</h2>
+                        <p>@I18n["settings.githubIntegration.setupDescription"]</p>
+                    </div>
+                </div>
+
+                <ol class="bocchi-github-integration-steps">
+                    <li>
+                        <strong>@I18n["settings.githubIntegration.stepCreateTitle"]</strong>
+                        <p>@I18n["settings.githubIntegration.stepCreateDescription"]</p>
+                        <a class="bocchi-button secondary" href="https://github.com/settings/applications/new" target="_blank" rel="noopener">
+                            <Blazicon Svg="Lucide.ExternalLink" />
+                            <span>@I18n["settings.githubIntegration.openCreatePage"]</span>
+                        </a>
+                    </li>
+                    <li>
+                        <strong>@I18n["settings.githubIntegration.stepFillTitle"]</strong>
+                        <dl class="bocchi-github-integration-values">
+                            <div>
+                                <dt>@I18n["settings.githubIntegration.fieldApplicationName"]</dt>
+                                <dd><code>@I18n["settings.githubIntegration.valueApplicationName"]</code></dd>
+                            </div>
+                            <div>
+                                <dt>@I18n["settings.githubIntegration.fieldHomepageUrl"]</dt>
+                                <dd><code>@BocchiBaseUrl</code></dd>
+                            </div>
+                            <div>
+                                <dt>@I18n["settings.githubIntegration.fieldCallbackUrl"]</dt>
+                                <dd><code>@CallbackUrl</code></dd>
+                            </div>
+                        </dl>
+                    </li>
+                    <li>
+                        <strong>@I18n["settings.githubIntegration.stepDeviceTitle"]</strong>
+                        <p>@I18n["settings.githubIntegration.stepDeviceDescription"]</p>
+                    </li>
+                    <li>
+                        <strong>@I18n["settings.githubIntegration.stepCopyTitle"]</strong>
+                        <p>@I18n["settings.githubIntegration.stepCopyDescription"]</p>
+                    </li>
+                </ol>
+            </section>
+
+            <section class="bocchi-panel bocchi-github-integration-config" aria-labelledby="github-integration-config-heading">
+                <div class="bocchi-github-integration-heading">
+                    <span aria-hidden="true">
+                        <Blazicon Svg="Lucide.Save" />
+                    </span>
+                    <div>
+                        <h2 id="github-integration-config-heading">@I18n["settings.githubIntegration.configTitle"]</h2>
+                        <p>@I18n["settings.githubIntegration.configDescription"]</p>
+                    </div>
+                </div>
+
+                <form class="bocchi-form-grid" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                    <label>@I18n["settings.githubIntegration.clientIdLabel"]
+                        <input type="text" @bind="_clientId" autocomplete="off" />
+                    </label>
+                    <label>@I18n["settings.githubIntegration.clientSecretLabel"]
+                        <input type="password" @bind="_clientSecret" autocomplete="off" placeholder='@I18n["settings.githubIntegration.secretPlaceholder"]' />
+                    </label>
+                    <label>@I18n["settings.githubIntegration.callbackPathLabel"]
+                        <input type="text" @bind="_callbackPath" autocomplete="off" />
+                    </label>
+                    <label>@I18n["settings.githubIntegration.displayNameLabel"]
+                        <input type="text" @bind="_displayName" autocomplete="off" />
+                    </label>
+                    <label class="bocchi-checkbox">
+                        <input type="checkbox" @bind="_loginEnabled" />
+                        @I18n["settings.githubIntegration.loginEnabled"]
+                    </label>
+                    <div class="bocchi-github-integration-actions">
+                        <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_saving">
+                            <Blazicon Svg="Lucide.Save" />
+                            <span>@(_saving ? I18n["settings.githubIntegration.saving"] : I18n["settings.githubIntegration.save"])</span>
+                        </button>
+                        <a class="bocchi-button secondary" href="/Admin/Publish/AddPlan">
+                            <Blazicon Svg="Lucide.ArrowRight" />
+                            <span>@I18n["settings.githubIntegration.backToAddPlan"]</span>
+                        </a>
+                    </div>
+                </form>
+
+                @if (!string.IsNullOrWhiteSpace(_message))
+                {
+                    <p class="@MessageClass">@_message</p>
+                }
+            </section>
+
+            <section class="bocchi-panel bocchi-github-integration-manage" aria-labelledby="github-integration-manage-heading">
+                <div class="bocchi-github-integration-heading">
+                    <span aria-hidden="true">
+                        <Blazicon Svg="Lucide.Settings" />
+                    </span>
+                    <div>
+                        <h2 id="github-integration-manage-heading">@I18n["settings.githubIntegration.manageTitle"]</h2>
+                        <p>@I18n["settings.githubIntegration.manageDescription"]</p>
+                    </div>
+                </div>
+
+                <div class="bocchi-github-integration-management-list">
+                    <a href="/Admin/Settings/Integrations/GitHub">
+                        <strong>@I18n["settings.githubIntegration.manageBocchiTitle"]</strong>
+                        <span>@I18n["settings.githubIntegration.manageBocchiDescription"]</span>
+                    </a>
+                    <a href="/Admin/Publish/AddPlan">
+                        <strong>@I18n["settings.githubIntegration.managePlanTitle"]</strong>
+                        <span>@I18n["settings.githubIntegration.managePlanDescription"]</span>
+                    </a>
+                    <a href="https://github.com/settings/developers" target="_blank" rel="noopener">
+                        <strong>@I18n["settings.githubIntegration.manageGitHubTitle"]</strong>
+                        <span>@I18n["settings.githubIntegration.manageGitHubDescription"]</span>
+                    </a>
+                </div>
+            </section>
+        </div>
+    </div>
+</article>
+
+@code {
+    /// <summary>GitHub OAuth App client id 输入框；它是公开 id，不是 token 或 secret。</summary>
+    private string _clientId = string.Empty;
+
+    /// <summary>GitHub OAuth App client secret 输入框；留空表示保留已有 secret。</summary>
+    private string _clientSecret = string.Empty;
+
+    /// <summary>GitHub 登录 callback path。</summary>
+    private string _callbackPath = "/signin-github";
+
+    /// <summary>登录页显示名。</summary>
+    private string _displayName = "GitHub";
+
+    /// <summary>是否启用 GitHub 登录。</summary>
+    private bool _loginEnabled;
+
+    /// <summary>保存时禁用按钮，避免重复提交。</summary>
+    private bool _saving;
+
+    /// <summary>保存结果短消息。</summary>
+    private string? _message;
+
+    /// <summary>保存结果是否是错误态。</summary>
+    private bool _messageIsDanger;
+
+    /// <summary>当前 Bocchi 管理后台地址，用于 GitHub OAuth App 表单。</summary>
+    private string BocchiBaseUrl => Navigation.BaseUri.TrimEnd('/') + "/";
+
+    /// <summary>GitHub OAuth App callback URL。</summary>
+    private string CallbackUrl => BocchiBaseUrl + _callbackPath.TrimStart('/');
+
+    /// <summary>保存结果消息样式。</summary>
+    private string MessageClass => _messageIsDanger
+        ? "bocchi-github-integration-message bocchi-github-integration-message--danger"
+        : "bocchi-github-integration-message";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await GitHubIntegration.GetAsync(default);
+        _clientId = settings.OAuthClientId ?? string.Empty;
+        _callbackPath = string.IsNullOrWhiteSpace(settings.CallbackPath) ? "/signin-github" : settings.CallbackPath;
+        _displayName = string.IsNullOrWhiteSpace(settings.DisplayName) ? "GitHub" : settings.DisplayName;
+        _loginEnabled = settings.LoginEnabled;
+    }
+
+    /// <summary>保存 GitHub OAuth App 设置；secret 留空时保留已有值。</summary>
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_clientId))
+        {
+            _messageIsDanger = true;
+            _message = I18n["settings.githubIntegration.errorClientIdRequired"];
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            await GitHubIntegration.SaveAsync(
+                new GitHubIntegrationSettingsUpdate(_loginEnabled, _displayName, _clientId, _clientSecret, _callbackPath),
+                default);
+            var settings = await GitHubIntegration.GetAsync(default);
+            _clientId = settings.OAuthClientId ?? string.Empty;
+            _callbackPath = settings.CallbackPath;
+            _displayName = settings.DisplayName;
+            _loginEnabled = settings.LoginEnabled;
+            _clientSecret = string.Empty;
+            _messageIsDanger = false;
+            _message = I18n["settings.githubIntegration.saved"];
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

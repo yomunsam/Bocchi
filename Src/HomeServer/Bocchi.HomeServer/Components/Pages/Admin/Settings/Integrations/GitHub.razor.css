@@ -1,0 +1,208 @@
+.bocchi-github-integration-shell {
+    gap: 1.15rem;
+}
+
+.bocchi-github-integration-layout {
+    display: grid;
+    grid-template-columns: var(--bocchi-secondary-nav-width) minmax(0, 1fr);
+    gap: var(--bocchi-secondary-nav-gap);
+    align-items: start;
+}
+
+.bocchi-github-integration-stack,
+.bocchi-github-integration-setup,
+.bocchi-github-integration-config,
+.bocchi-github-integration-manage {
+    display: grid;
+    min-width: 0;
+    gap: 0.85rem;
+}
+
+.bocchi-github-integration-heading {
+    display: grid;
+    grid-template-columns: 2.35rem minmax(0, 1fr);
+    gap: 0.7rem;
+    align-items: center;
+}
+
+.bocchi-github-integration-heading > span {
+    display: inline-flex;
+    width: 2.35rem;
+    height: 2.35rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-text-muted) 12%, var(--bocchi-surface));
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-github-integration-heading ::deep svg {
+    width: 1.12rem;
+    height: 1.12rem;
+}
+
+.bocchi-github-mark {
+    display: inline-block;
+    width: 1.12rem;
+    height: 1.12rem;
+    background: currentColor;
+    -webkit-mask: url("/github.svg") center / contain no-repeat;
+    mask: url("/github.svg") center / contain no-repeat;
+}
+
+.bocchi-github-integration-heading h2 {
+    margin: 0;
+    color: var(--bocchi-text);
+    font-size: 1rem;
+    font-weight: 620;
+    line-height: 1.2;
+}
+
+.bocchi-github-integration-heading p,
+.bocchi-github-integration-steps p,
+.bocchi-github-integration-management-list span {
+    margin: 0.12rem 0 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.85rem;
+    line-height: 1.48;
+}
+
+.bocchi-github-integration-steps {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: github-integration-step;
+}
+
+.bocchi-github-integration-steps li {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+    border-top: 1px solid var(--bocchi-border);
+    padding-top: 0.75rem;
+    counter-increment: github-integration-step;
+}
+
+.bocchi-github-integration-steps li::before {
+    content: counter(github-integration-step);
+    display: inline-flex;
+    grid-column: 1;
+    grid-row: 1 / span 8;
+    width: 1.7rem;
+    height: 1.7rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--bocchi-action-soft);
+    color: var(--bocchi-action);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.bocchi-github-integration-steps li > * {
+    grid-column: 2;
+}
+
+.bocchi-github-integration-steps strong {
+    color: var(--bocchi-text);
+    font-size: 0.94rem;
+    font-weight: 620;
+}
+
+.bocchi-github-integration-steps .bocchi-button {
+    width: fit-content;
+    margin-top: 0.55rem;
+}
+
+.bocchi-github-integration-values {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.55rem 0 0;
+}
+
+.bocchi-github-integration-values div {
+    display: grid;
+    grid-template-columns: minmax(9rem, 0.35fr) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: baseline;
+}
+
+.bocchi-github-integration-values dt {
+    color: var(--bocchi-text-subtle);
+    font-size: 0.82rem;
+    font-weight: 620;
+}
+
+.bocchi-github-integration-values dd {
+    min-width: 0;
+    margin: 0;
+}
+
+.bocchi-github-integration-values code,
+.bocchi-github-integration-config code {
+    overflow-wrap: anywhere;
+    border-radius: 6px;
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+    padding: 0.12rem 0.32rem;
+    font-size: 0.82rem;
+}
+
+.bocchi-github-integration-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.bocchi-github-integration-message {
+    border-radius: 8px;
+    background: var(--bocchi-success-soft);
+    color: var(--bocchi-success-strong);
+    font-size: 0.84rem;
+    padding: 0.55rem 0.65rem;
+}
+
+.bocchi-github-integration-message--danger {
+    background: var(--bocchi-danger-soft);
+    color: var(--bocchi-danger-strong);
+}
+
+.bocchi-github-integration-management-list {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.bocchi-github-integration-management-list a {
+    display: grid;
+    gap: 0.12rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    color: var(--bocchi-text);
+    padding: 0.7rem;
+    text-decoration: none;
+}
+
+.bocchi-github-integration-management-list a:hover {
+    background: var(--bocchi-surface-muted);
+}
+
+.bocchi-github-integration-management-list strong {
+    color: var(--bocchi-text);
+    font-size: 0.92rem;
+    font-weight: 620;
+}
+
+@media (max-width: 900px) {
+    .bocchi-github-integration-layout,
+    .bocchi-github-integration-values div {
+        grid-template-columns: 1fr;
+    }
+
+    .bocchi-github-integration-steps li {
+        grid-template-columns: 1.8rem minmax(0, 1fr);
+    }
+}

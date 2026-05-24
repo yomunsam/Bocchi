@@ -1,7 +1,7 @@
 .bocchi-users-layout {
     display: grid;
-    grid-template-columns: minmax(14rem, 0.28fr) minmax(0, 1fr);
-    gap: 1rem;
+    grid-template-columns: var(--bocchi-secondary-nav-width) minmax(0, 1fr);
+    gap: var(--bocchi-secondary-nav-gap);
     align-items: start;
 }
 

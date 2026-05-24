@@ -125,6 +125,43 @@ namespace Bocchi.HomeServer.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "GitHubIntegrationSettings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
+                    LoginEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
+                    OAuthClientId = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    ProtectedOAuthClientSecret = table.Column<string>(type: "TEXT", maxLength: 4096, nullable: true),
+                    CallbackPath = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GitHubIntegrationSettings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GitProviderConnections",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ProviderKey = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    BaseUrl = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
+                    AccountLogin = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    Scopes = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
+                    ProtectedCredentialJson = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GitProviderConnections", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "HomeServerSetupStates",
                 columns: table => new
                 {
@@ -156,25 +193,6 @@ namespace Bocchi.HomeServer.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_LocalizationSettings", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "PublishPlans",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
-                    Channel = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
-                    ConfigurationJson = table.Column<string>(type: "TEXT", nullable: false),
-                    ProtectedCredentialJson = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: true),
-                    IsDefault = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_PublishPlans", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -320,6 +338,90 @@ namespace Bocchi.HomeServer.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "ContentWorkspaceRemotes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    RemoteName = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    RemoteUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
+                    Branch = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
+                    GitProviderConnectionId = table.Column<int>(type: "INTEGER", nullable: true),
+                    LastSyncStatus = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    LastSyncMessage = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
+                    LastSyncedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContentWorkspaceRemotes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ContentWorkspaceRemotes_GitProviderConnections_GitProviderConnectionId",
+                        column: x => x.GitProviderConnectionId,
+                        principalTable: "GitProviderConnections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PublishPlans",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
+                    Channel = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    ConfigurationJson = table.Column<string>(type: "TEXT", nullable: false),
+                    ProtectedCredentialJson = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: true),
+                    GitProviderConnectionId = table.Column<int>(type: "INTEGER", nullable: true),
+                    IsDefault = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PublishPlans", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PublishPlans_GitProviderConnections_GitProviderConnectionId",
+                        column: x => x.GitProviderConnectionId,
+                        principalTable: "GitProviderConnections",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PublishRuns",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    PublishPlanId = table.Column<int>(type: "INTEGER", nullable: true),
+                    DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
+                    Channel = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    StartedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    FinishedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    BuildRunId = table.Column<long>(type: "INTEGER", nullable: true),
+                    BuildSessionId = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    BuildFingerprint = table.Column<string>(type: "TEXT", maxLength: 128, nullable: true),
+                    ArtifactCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    RemoteCommitSha = table.Column<string>(type: "TEXT", maxLength: 128, nullable: true),
+                    RemoteUrl = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
+                    ErrorMessage = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PublishRuns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PublishRuns_PublishPlans_PublishPlanId",
+                        column: x => x.PublishPlanId,
+                        principalTable: "PublishPlans",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -364,6 +466,11 @@ namespace Bocchi.HomeServer.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_ContentWorkspaceRemotes_GitProviderConnectionId",
+                table: "ContentWorkspaceRemotes",
+                column: "GitProviderConnectionId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DashboardGuideCards_Key",
                 table: "DashboardGuideCards",
                 column: "Key",
@@ -374,6 +481,26 @@ namespace Bocchi.HomeServer.Data.Migrations
                 table: "ExternalLoginProviderSettings",
                 column: "ProviderKey",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GitProviderConnections_ProviderKey_BaseUrl_AccountLogin",
+                table: "GitProviderConnections",
+                columns: new[] { "ProviderKey", "BaseUrl", "AccountLogin" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PublishPlans_GitProviderConnectionId",
+                table: "PublishPlans",
+                column: "GitProviderConnectionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PublishRuns_PublishPlanId",
+                table: "PublishRuns",
+                column: "PublishPlanId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PublishRuns_StartedAt",
+                table: "PublishRuns",
+                column: "StartedAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ThemeConfigurationRecords_ThemeId",
@@ -404,6 +531,9 @@ namespace Bocchi.HomeServer.Data.Migrations
                 name: "CategoryTrees");
 
             migrationBuilder.DropTable(
+                name: "ContentWorkspaceRemotes");
+
+            migrationBuilder.DropTable(
                 name: "DashboardGuideCards");
 
             migrationBuilder.DropTable(
@@ -413,13 +543,16 @@ namespace Bocchi.HomeServer.Data.Migrations
                 name: "ExternalLoginProviderSettings");
 
             migrationBuilder.DropTable(
+                name: "GitHubIntegrationSettings");
+
+            migrationBuilder.DropTable(
                 name: "HomeServerSetupStates");
 
             migrationBuilder.DropTable(
                 name: "LocalizationSettings");
 
             migrationBuilder.DropTable(
-                name: "PublishPlans");
+                name: "PublishRuns");
 
             migrationBuilder.DropTable(
                 name: "SiteProfileSettings");
@@ -432,6 +565,12 @@ namespace Bocchi.HomeServer.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "PublishPlans");
+
+            migrationBuilder.DropTable(
+                name: "GitProviderConnections");
         }
     }
 }

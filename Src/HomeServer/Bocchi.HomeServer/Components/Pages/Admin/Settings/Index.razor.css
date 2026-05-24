@@ -14,8 +14,8 @@
     /* 侧边窄列固定 12rem，省下的横向空间留给表单本体；
        表单本体不应铺满整页：表单字段密度高时反而难读，限定到 36rem 视觉舒适。 */
     display: grid;
-    grid-template-columns: 12rem minmax(0, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: var(--bocchi-secondary-nav-width) minmax(0, 1fr);
+    gap: var(--bocchi-secondary-nav-gap);
     align-items: start;
 }
 
@@ -389,6 +389,21 @@
     color: var(--bocchi-text-muted);
     font-size: 0.9rem;
     font-weight: 700;
+}
+
+.bocchi-provider-card--link {
+    align-content: start;
+}
+
+.bocchi-provider-card--link p {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.bocchi-provider-card--link .bocchi-button {
+    width: fit-content;
 }
 
 .bocchi-settings-system-grid {

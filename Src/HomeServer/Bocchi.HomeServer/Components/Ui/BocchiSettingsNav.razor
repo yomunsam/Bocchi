@@ -2,20 +2,30 @@
 @inject NavigationManager Navigation
 
 <nav class="bocchi-settings-nav" aria-label='@I18n["settings.nav.aria"]'>
-    @foreach (var item in Items)
-    {
-        @* 紧凑式 sub-nav：每项 icon + 标题一行，描述移除（hub 才需要解释，进入子页就不再重复）。
-           active 与 sidebar 同款 soft 风格：左侧 3px 粉条 + 8% 粉底。 *@
-        <a href="@item.Url"
-           class="@ItemClass(item)"
-           aria-current="@AriaCurrent(item)"
-           title='@I18n[item.DescriptionKey]'>
-            <span class="bocchi-settings-nav__icon" aria-hidden="true">
-                <Blazicon Svg="@item.Icon" />
-            </span>
-            <span class="bocchi-settings-nav__label">@I18n[item.TitleKey]</span>
-        </a>
-    }
+    @* Settings hub 是上级入口，不参与二级导航 active 规则，避免“返回”和“当前 section”混在一起。 *@
+    <a class="bocchi-settings-nav__back" href="/Admin/Settings" title='@I18n["settings.nav.backDescription"]'>
+        <span class="bocchi-settings-nav__icon" aria-hidden="true">
+            <Blazicon Svg="Lucide.ArrowLeft" />
+        </span>
+        <span class="bocchi-settings-nav__label">@I18n["settings.nav.backToOverview"]</span>
+    </a>
+
+    <div class="bocchi-settings-nav__items">
+        @foreach (var item in Items)
+        {
+            @* 紧凑式 sub-nav：每项 icon + 标题一行，描述移除（hub 才需要解释，进入子页就不再重复）。
+               active 与 sidebar 同款 soft 风格：左侧 3px 粉条 + 8% 粉底。 *@
+            <a href="@item.Url"
+               class="@ItemClass(item)"
+               aria-current="@AriaCurrent(item)"
+               title='@I18n[item.DescriptionKey]'>
+                <span class="bocchi-settings-nav__icon" aria-hidden="true">
+                    <Blazicon Svg="@item.Icon" />
+                </span>
+                <span class="bocchi-settings-nav__label">@I18n[item.TitleKey]</span>
+            </a>
+        }
+    </div>
 </nav>
 
 @code {
@@ -26,10 +36,10 @@
     /// <summary>Settings 导航项的固定定义；Users 是设置体系的一部分，但保留独立路由。</summary>
     private static readonly SettingsNavItem[] Items =
     [
-        new("overview", "/Admin/Settings", "settings.nav.overview", "settings.nav.overviewDescription", Lucide.LayoutGrid),
         new("profile", "/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal),
         new("localization", "/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages),
         new("login", "/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound),
+        new("github", "/Admin/Settings/Integrations/GitHub", "settings.nav.githubIntegration", "settings.nav.githubIntegrationDescription", Lucide.Link),
         new("users", "/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users),
         new("system", "/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database),
     ];
@@ -66,7 +76,8 @@
             return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase);
         }
 
-        return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(CurrentPath, normalized, StringComparison.OrdinalIgnoreCase)
+               || CurrentPath.StartsWith(normalized + "/", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>统一去掉尾斜杠，避免导航 active 被 URL 细节影响。</summary>

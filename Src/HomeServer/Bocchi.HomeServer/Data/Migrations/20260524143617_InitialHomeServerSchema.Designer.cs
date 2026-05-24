@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Bocchi.HomeServer.Data.Migrations
 {
     [DbContext(typeof(BocchiDbContext))]
-    [Migration("20260524054611_AddPublishRuns")]
-    partial class AddPublishRuns
+    [Migration("20260524143617_InitialHomeServerSchema")]
+    partial class InitialHomeServerSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -121,6 +121,55 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("CategoryTrees", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.ContentWorkspaceRemoteRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Branch")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("GitProviderConnectionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastSyncMessage")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastSyncStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LastSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GitProviderConnectionId");
+
+                    b.ToTable("ContentWorkspaceRemotes", (string)null);
                 });
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.DashboardGuideCardRecord", b =>
@@ -237,6 +286,85 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.ToTable("ExternalLoginProviderSettings", (string)null);
                 });
 
+            modelBuilder.Entity("Bocchi.HomeServer.Data.GitHubIntegrationSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CallbackPath")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("LoginEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OAuthClientId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedOAuthClientSecret")
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GitHubIntegrationSettings", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.GitProviderConnectionRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AccountLogin")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedCredentialJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Scopes")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderKey", "BaseUrl", "AccountLogin");
+
+                    b.ToTable("GitProviderConnections", (string)null);
+                });
+
             modelBuilder.Entity("Bocchi.HomeServer.Data.LocalizationSettingsRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -296,6 +424,9 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("GitProviderConnectionId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsDefault")
                         .HasColumnType("INTEGER");
 
@@ -307,6 +438,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GitProviderConnectionId");
 
                     b.ToTable("PublishPlans", (string)null);
                 });
@@ -613,6 +746,22 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.ContentWorkspaceRemoteRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.GitProviderConnectionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("GitProviderConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.PublishPlanRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.GitProviderConnectionRecord", null)
+                        .WithMany()
+                        .HasForeignKey("GitProviderConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.PublishRunRecord", b =>

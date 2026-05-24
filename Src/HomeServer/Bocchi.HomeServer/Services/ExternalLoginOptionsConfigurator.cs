@@ -23,12 +23,15 @@ public sealed class ExternalLoginOptionsConfigurator :
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDataProtector _protector;
+    private readonly IDataProtector _githubProtector;
 
     /// <summary>构造 options 配置器。</summary>
     public ExternalLoginOptionsConfigurator(IServiceScopeFactory scopeFactory, IDataProtectionProvider protection)
     {
         _scopeFactory = scopeFactory;
         _protector = protection.CreateProtector("Bocchi.HomeServer.ExternalLoginProviderSettings.v1");
+        // 复用旧 GitHub 登录 secret 的 protector purpose，保证迁移后的 secret 可继续解密。
+        _githubProtector = protection.CreateProtector("Bocchi.HomeServer.ExternalLoginProviderSettings.v1");
     }
 
     /// <summary>配置 GitHub OAuth options。</summary>
@@ -39,14 +42,16 @@ public sealed class ExternalLoginOptionsConfigurator :
             return;
         }
 
-        var provider = LoadProvider("github");
+        var integration = LoadGitHubIntegration();
         options.SignInScheme = IdentityConstants.ExternalScheme;
         options.AuthorizationEndpoint = "https://github.com/login/oauth/authorize";
         options.TokenEndpoint = "https://github.com/login/oauth/access_token";
         options.UserInformationEndpoint = "https://api.github.com/user";
-        options.CallbackPath = provider?.CallbackPath ?? "/signin-github";
-        options.ClientId = string.IsNullOrWhiteSpace(provider?.ClientId) ? "not-configured" : provider!.ClientId;
-        options.ClientSecret = string.IsNullOrWhiteSpace(provider?.ProtectedClientSecret) ? "not-configured" : Unprotect(provider.ProtectedClientSecret);
+        options.CallbackPath = integration?.CallbackPath ?? "/signin-github";
+        options.ClientId = string.IsNullOrWhiteSpace(integration?.OAuthClientId) ? "not-configured" : integration!.OAuthClientId;
+        options.ClientSecret = string.IsNullOrWhiteSpace(integration?.ProtectedOAuthClientSecret)
+            ? "not-configured"
+            : UnprotectGitHub(integration.ProtectedOAuthClientSecret);
         options.SaveTokens = true;
         options.Scope.Clear();
         options.Scope.Add("read:user");
@@ -107,6 +112,15 @@ public sealed class ExternalLoginOptionsConfigurator :
             .FirstOrDefault(x => x.ProviderKey == providerKey);
     }
 
+    private GitHubIntegrationSettings? LoadGitHubIntegration()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
+        return db.GitHubIntegrationSettings
+            .AsNoTracking()
+            .FirstOrDefault();
+    }
+
     private string Unprotect(string? protectedValue)
     {
         if (string.IsNullOrWhiteSpace(protectedValue))
@@ -115,6 +129,16 @@ public sealed class ExternalLoginOptionsConfigurator :
         }
 
         return _protector.Unprotect(protectedValue);
+    }
+
+    private string UnprotectGitHub(string? protectedValue)
+    {
+        if (string.IsNullOrWhiteSpace(protectedValue))
+        {
+            return string.Empty;
+        }
+
+        return _githubProtector.Unprotect(protectedValue);
     }
 
     private static async Task PopulateGitHubClaimsAsync(OAuthCreatingTicketContext context)

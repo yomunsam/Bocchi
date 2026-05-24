@@ -53,7 +53,29 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         body.Should().Contain("Publish channel");
         body.Should().Contain("Connect GitHub");
         body.Should().Contain("Publish repository");
+        body.Should().Contain("GitHub cannot connect yet");
+        body.Should().Contain("Open GitHub integration");
+        body.Should().Contain("/Admin/Settings/Integrations/GitHub");
         body.Should().NotContain("GitHub token");
+        body.Should().NotContain("OAuth client id");
+    }
+
+    [Fact]
+    public async Task GitHubIntegrationPage_RendersSetupGuideAndClientIdForm()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/Integrations/GitHub");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("GitHub integration");
+        body.Should().Contain("Open GitHub create page");
+        body.Should().Contain("https://github.com/settings/applications/new");
+        body.Should().Contain("GitHub OAuth App Client ID");
+        body.Should().Contain("GitHub OAuth App Client secret");
+        body.Should().Contain("Back to Add publish plan");
+        body.Should().Contain("GitHub / Developer settings / OAuth Apps");
     }
 
     [Fact]
@@ -68,6 +90,7 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         body.Should().Contain("Local output");
         body.Should().Contain("aria-current=\"page\"");
         body.Should().Contain("/Admin/Publish");
+        body.Should().NotContain("GitHub help");
     }
 
     [Fact]

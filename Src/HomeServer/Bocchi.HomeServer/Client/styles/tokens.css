@@ -93,6 +93,9 @@
     --bocchi-action-control-font-weight: 600;
     --bocchi-action-control-gap: 0.35rem;
     --bocchi-action-control-icon-size: 0.88rem;
+    /* 二级导航列宽：Settings 与 Publish 的左侧子导航都必须引用这一处，避免不同页面忽宽忽窄。 */
+    --bocchi-secondary-nav-width: 12rem;
+    --bocchi-secondary-nav-gap: 1.3rem;
     /* spacing scale */
     --space-1: 0.25rem; /* 4 */
     --space-2: 0.5rem;  /* 8 */

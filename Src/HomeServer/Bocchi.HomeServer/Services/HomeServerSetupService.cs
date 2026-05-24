@@ -45,6 +45,7 @@ public sealed class HomeServerSetupService
         await _db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
         await EnsureAdminRoleAsync().ConfigureAwait(false);
         await EnsureDashboardSettingsAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureGitHubIntegrationSettingsAsync(cancellationToken).ConfigureAwait(false);
         await _siteProfile.EnsureAsync(cancellationToken).ConfigureAwait(false);
         await EnsureLocalizationSettingsAsync(cancellationToken).ConfigureAwait(false);
         await EnsureExternalProviderDefaultsAsync(cancellationToken).ConfigureAwait(false);
@@ -169,23 +170,21 @@ public sealed class HomeServerSetupService
         }
     }
 
+    private async Task EnsureGitHubIntegrationSettingsAsync(CancellationToken cancellationToken)
+    {
+        if (!await _db.GitHubIntegrationSettings.AnyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            _db.GitHubIntegrationSettings.Add(new GitHubIntegrationSettings { Id = 1, UpdatedAt = _time.GetUtcNow() });
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task EnsureExternalProviderDefaultsAsync(CancellationToken cancellationToken)
     {
         var existing = await _db.ExternalLoginProviders
             .Select(x => x.ProviderKey)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-
-        if (!existing.Contains("github", StringComparer.OrdinalIgnoreCase))
-        {
-            _db.ExternalLoginProviders.Add(new ExternalLoginProviderSettings
-            {
-                ProviderKey = "github",
-                DisplayName = "GitHub",
-                CallbackPath = "/signin-github",
-                UpdatedAt = _time.GetUtcNow(),
-            });
-        }
 
         if (!existing.Contains("oidc", StringComparer.OrdinalIgnoreCase))
         {

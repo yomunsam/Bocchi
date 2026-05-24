@@ -37,20 +37,32 @@ public sealed class GitHubDeviceFlowService
     /// <summary>Device Flow 配置。</summary>
     private readonly GitHubDeviceFlowOptions _options;
 
+    /// <summary>GitHub 集成设置；登录与发布 Device Flow 共用同一个 OAuth App client id。</summary>
+    private readonly GitHubIntegrationSettingsService _settings;
+
     /// <summary>构造 GitHub Device Flow 服务。</summary>
-    public GitHubDeviceFlowService(HttpClient http, IOptions<GitHubDeviceFlowOptions> options)
+    public GitHubDeviceFlowService(HttpClient http, IOptions<GitHubDeviceFlowOptions> options, GitHubIntegrationSettingsService settings)
     {
         _http = http;
         _options = options.Value;
+        _settings = settings;
     }
 
-    /// <summary>当前是否配置了 OAuth client id。</summary>
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_options.OAuthClientId);
+    /// <summary>当前是否配置了 OAuth client id；优先读取 Dashboard 保存值，其次读取应用配置。</summary>
+    public async Task<bool> IsConfiguredAsync(CancellationToken cancellationToken = default)
+        => !string.IsNullOrWhiteSpace(await GetConfiguredClientIdAsync(cancellationToken).ConfigureAwait(false));
+
+    /// <summary>读取当前有效的 GitHub OAuth App client id；该值是公开 id，不是 secret。</summary>
+    public async Task<string?> GetConfiguredClientIdAsync(CancellationToken cancellationToken = default)
+    {
+        var settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
+        return TrimToNull(settings.OAuthClientId) ?? TrimToNull(_options.OAuthClientId);
+    }
 
     /// <summary>发起 GitHub Device Flow，返回用户需要打开的 URL 和验证码。</summary>
     public async Task<GitHubDeviceFlowStart> StartAsync(CancellationToken cancellationToken = default)
     {
-        var clientId = RequireClientId();
+        var clientId = await RequireClientIdAsync(cancellationToken).ConfigureAwait(false);
         using var response = await SendWebFormAsync(
                 "/login/device/code",
                 new Dictionary<string, string>
@@ -76,7 +88,7 @@ public sealed class GitHubDeviceFlowService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceCode);
 
-        var clientId = RequireClientId();
+        var clientId = await RequireClientIdAsync(cancellationToken).ConfigureAwait(false);
         using var response = await SendWebFormAsync(
                 "/login/oauth/access_token",
                 new Dictionary<string, string>
@@ -200,10 +212,16 @@ public sealed class GitHubDeviceFlowService
         return new GitHubPublishBranchCheck(state, hasMarker, files);
     }
 
-    private string RequireClientId()
-        => string.IsNullOrWhiteSpace(_options.OAuthClientId)
+    private async Task<string> RequireClientIdAsync(CancellationToken cancellationToken)
+    {
+        var clientId = await GetConfiguredClientIdAsync(cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrWhiteSpace(clientId)
             ? throw new InvalidOperationException("GitHub OAuth client id is not configured.")
-            : _options.OAuthClientId.Trim();
+            : clientId;
+    }
+
+    private static string? TrimToNull(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private async Task<GitHubReferenceResponse?> TryGetReferenceAsync(
         string owner,

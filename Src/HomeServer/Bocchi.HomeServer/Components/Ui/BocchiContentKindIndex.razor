@@ -1,10 +1,12 @@
 @using System.Globalization
 @using Bocchi.ContentModel
 @using Bocchi.HomeServer.Services
+@using Bocchi.Workspace.Scanning
 @using Bocchi.Workspace.State
 @inject DashboardLocalizationService I18n
 @inject IContentStateStore Store
 @inject ContentEditingService Editor
+@inject ContentScanner Scanner
 
 <article class="bocchi-shell bocchi-shell--dashboard">
     <header class="bocchi-page-intro">
@@ -17,9 +19,10 @@
     {
         <BocchiNoteComposer ReturnUrl="/Admin/Notes" />
     }
-    else
-    {
-        <section class="bocchi-kind-actions" aria-label='@I18n["kind.index.actions.aria"]'>
+
+    <section class="bocchi-kind-actions" aria-label='@I18n["kind.index.actions.aria"]'>
+        @if (Kind != ContentKind.Note)
+        {
             <a class="bocchi-kind-action bocchi-kind-action--primary" href="@CreateUrl">
                 <Blazicon Svg="Lucide.Plus" />
                 <span>@I18n["kind.index.actions.create"]</span>
@@ -35,8 +38,17 @@
                     <button type="button" class="bocchi-kind-action bocchi-kind-action--grouped">@I18n["kind.index.actions.tags"]</button>
                 </div>
             }
-        </section>
-    }
+        }
+        <button type="button"
+                class="bocchi-kind-action bocchi-kind-action--refresh"
+                title='@I18n["kind.index.actions.refreshTitle"]'
+                aria-label='@I18n["kind.index.actions.refreshTitle"]'
+                disabled="@_refreshing"
+                @onclick="RefreshWorkspaceAsync">
+            <Blazicon Svg="Lucide.Repeat2" />
+            <span>@(_refreshing ? I18n["kind.index.actions.refreshing"] : I18n["kind.index.actions.refresh"])</span>
+        </button>
+    </section>
 
     @if (_items.Count == 0)
     {
@@ -119,16 +131,43 @@
 
     private IReadOnlyList<ContentSummary> _items = [];
 
+    /// <summary>刷新按钮的忙碌状态；扫描期间禁用按钮，避免重复写入 ScanRun。</summary>
+    private bool _refreshing;
+
     /// <summary>正在删除的源文件路径，用于防止重复点击确认按钮。</summary>
     private string? _deletingPath;
 
     protected override async Task OnInitializedAsync()
+        => await LoadItemsAsync();
+
+    /// <summary>按当前内容类型重新读取数据库索引，保持列表排序逻辑集中。</summary>
+    private async Task LoadItemsAsync()
     {
         var summaries = await Store.ListContentSummariesAsync(Kind);
         _items = summaries
             .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
             .ThenBy(x => x.Title ?? x.ContentId)
             .ToList();
+    }
+
+    /// <summary>手动重扫整个 workspace，用于外部修改文件或重建数据库后刷新内容索引。</summary>
+    private async Task RefreshWorkspaceAsync()
+    {
+        if (_refreshing)
+        {
+            return;
+        }
+
+        _refreshing = true;
+        try
+        {
+            await Scanner.ScanAsync();
+            await LoadItemsAsync();
+        }
+        finally
+        {
+            _refreshing = false;
+        }
     }
 
     private string StatusLabel(ContentStatus status) => status switch

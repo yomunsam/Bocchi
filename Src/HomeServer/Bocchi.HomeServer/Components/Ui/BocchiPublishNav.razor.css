@@ -5,6 +5,7 @@
     top: 5.4rem;
     display: grid;
     gap: 0.15rem;
+    width: var(--bocchi-secondary-nav-width);
     padding: 0.35rem 0;
 }
 
@@ -58,6 +59,15 @@
     height: 1rem;
 }
 
+.bocchi-publish-nav__mark {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    background: currentColor;
+    -webkit-mask: url("/github.svg") center / contain no-repeat;
+    mask: url("/github.svg") center / contain no-repeat;
+}
+
 .bocchi-publish-nav__item--active .bocchi-publish-nav__icon {
     color: var(--bocchi-nav-active-bar);
     opacity: 1;
@@ -74,6 +84,7 @@
         position: static;
         grid-auto-flow: column;
         grid-auto-columns: max-content;
+        width: auto;
         overflow-x: auto;
         gap: 0.25rem;
         padding: 0.25rem 0 0.5rem;

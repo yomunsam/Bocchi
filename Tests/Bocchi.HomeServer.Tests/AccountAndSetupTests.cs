@@ -239,18 +239,18 @@ public sealed class AccountAndSetupTests
         }
         using (var scope = factory.Services.CreateScope())
         {
-            var settings = scope.ServiceProvider.GetRequiredService<ExternalLoginSettingsService>();
-            await settings.SaveGitHubAsync(
-                enabled: true,
-                displayName: "GitHub",
-                clientId: "github-client",
-                clientSecret: "github-secret",
-                callbackPath: "/signin-github");
+            var settings = scope.ServiceProvider.GetRequiredService<GitHubIntegrationSettingsService>();
+            await settings.SaveAsync(new GitHubIntegrationSettingsUpdate(
+                LoginEnabled: true,
+                DisplayName: "GitHub",
+                OAuthClientId: "github-client",
+                OAuthClientSecret: "github-secret",
+                CallbackPath: "/signin-github"));
 
             var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
-            var provider = db.ExternalLoginProviders.Single(x => x.ProviderKey == "github");
-            provider.ProtectedClientSecret.Should().NotBeNullOrWhiteSpace();
-            provider.ProtectedClientSecret.Should().NotBe("github-secret");
+            var provider = db.GitHubIntegrationSettings.Single();
+            provider.ProtectedOAuthClientSecret.Should().NotBeNullOrWhiteSpace();
+            provider.ProtectedOAuthClientSecret.Should().NotBe("github-secret");
         }
 
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });

@@ -283,6 +283,41 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.ToTable("ExternalLoginProviderSettings", (string)null);
                 });
 
+            modelBuilder.Entity("Bocchi.HomeServer.Data.GitHubIntegrationSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CallbackPath")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("LoginEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OAuthClientId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedOAuthClientSecret")
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GitHubIntegrationSettings", (string)null);
+                });
+
             modelBuilder.Entity("Bocchi.HomeServer.Data.GitProviderConnectionRecord", b =>
                 {
                     b.Property<int>("Id")

@@ -9,13 +9,14 @@ using Microsoft.Extensions.Options;
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// 第三方登录 Provider 设置服务，集中处理 secret 的保护与登录页按钮可见性。
+/// 第三方登录 Provider 设置服务，集中处理通用 OIDC secret 的保护与登录页按钮可见性。
 /// </summary>
 public sealed class ExternalLoginSettingsService
 {
     private readonly BocchiDbContext _db;
     private readonly IDataProtector _protector;
     private readonly TimeProvider _time;
+    private readonly GitHubIntegrationSettingsService _githubIntegration;
     private readonly IOptionsMonitorCache<OAuthOptions> _oauthCache;
     private readonly IOptionsMonitorCache<OpenIdConnectOptions> _oidcCache;
 
@@ -24,12 +25,14 @@ public sealed class ExternalLoginSettingsService
         BocchiDbContext db,
         IDataProtectionProvider protection,
         TimeProvider time,
+        GitHubIntegrationSettingsService githubIntegration,
         IOptionsMonitorCache<OAuthOptions> oauthCache,
         IOptionsMonitorCache<OpenIdConnectOptions> oidcCache)
     {
         _db = db;
         _protector = protection.CreateProtector("Bocchi.HomeServer.ExternalLoginProviderSettings.v1");
         _time = time;
+        _githubIntegration = githubIntegration;
         _oauthCache = oauthCache;
         _oidcCache = oidcCache;
     }
@@ -44,26 +47,26 @@ public sealed class ExternalLoginSettingsService
 
     /// <summary>列出登录页可显示的 Provider。</summary>
     public async Task<IReadOnlyList<ExternalLoginProviderSettings>> ListReadyForLoginAsync(CancellationToken cancellationToken = default)
-        => (await ListAsync(cancellationToken).ConfigureAwait(false))
-            .Where(x => x.IsReadyForLogin())
+    {
+        var providers = (await ListAsync(cancellationToken).ConfigureAwait(false))
+            .Where(x => !x.ProviderKey.Equals("github", StringComparison.OrdinalIgnoreCase) && x.IsReadyForLogin())
             .ToList();
-
-    /// <summary>保存 GitHub Provider 设置。</summary>
-    public Task SaveGitHubAsync(
-        bool enabled,
-        string displayName,
-        string? clientId,
-        string? clientSecret,
-        string? callbackPath,
-        CancellationToken cancellationToken = default)
-        => SaveAsync("github", provider =>
+        var github = await _githubIntegration.GetAsync(cancellationToken).ConfigureAwait(false);
+        if (GitHubIntegrationSettingsService.IsReadyForLogin(github))
         {
-            provider.Enabled = enabled;
-            provider.DisplayName = string.IsNullOrWhiteSpace(displayName) ? "GitHub" : displayName.Trim();
-            provider.ClientId = TrimToNull(clientId);
-            SetSecretIfProvided(provider, clientSecret);
-            provider.CallbackPath = string.IsNullOrWhiteSpace(callbackPath) ? "/signin-github" : callbackPath.Trim();
-        }, cancellationToken);
+            providers.Add(new ExternalLoginProviderSettings
+            {
+                ProviderKey = "github",
+                DisplayName = github.DisplayName,
+                Enabled = true,
+                ClientId = github.OAuthClientId,
+                ProtectedClientSecret = github.ProtectedOAuthClientSecret,
+                CallbackPath = github.CallbackPath,
+            });
+        }
+
+        return providers;
+    }
 
     /// <summary>保存通用 OpenID Connect Provider 设置。</summary>
     public Task SaveOidcAsync(

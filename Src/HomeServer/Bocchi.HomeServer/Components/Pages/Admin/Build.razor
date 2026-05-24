@@ -158,6 +158,12 @@
     /// <summary>GitHub Pages 配置面板消息是否为失败态。</summary>
     private bool _githubMessageIsDanger;
 
+    /// <summary>当前是否已经配置 GitHub OAuth App client id。</summary>
+    private bool _githubAuthorizationConfigured;
+
+    /// <summary>未启用 GitHub 授权时，把禁用按钮和解释文案关联起来。</summary>
+    private string? GitHubAuthUnavailableNoticeId => _githubAuthorizationConfigured ? null : "github-auth-unavailable";
+
     /// <summary>规范化后的发布中心子页面。</summary>
     private string CurrentSection
     {
@@ -224,6 +230,7 @@
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
+        await LoadGitHubPublishAuthSettingsAsync();
         await LoadGitConnectionsAsync();
         await LoadPublishPlanEditorAsync();
     }
@@ -241,6 +248,12 @@
     {
         _gitConnections = await GitConnections.ListAsync(default);
         _selectedGitConnectionId ??= _gitConnections.FirstOrDefault(x => x.ProviderKey == GitProviderKeys.GitHub)?.Id;
+    }
+
+    /// <summary>读取 GitHub 发布授权设置，用于决定连接按钮是否可用。</summary>
+    private async Task LoadGitHubPublishAuthSettingsAsync()
+    {
+        _githubAuthorizationConfigured = await GitHubFlow.IsConfiguredAsync(default);
     }
 
     /// <summary>发布首页：主操作、发布方案和辅助状态分栏展示，避免把配置表单压到第一屏。</summary>
@@ -328,7 +341,14 @@
                     var editUrl = PlanEditUrl(plan);
                     <article class="bocchi-publish-plan-card">
                         <span class="bocchi-publish-plan-card__icon" aria-hidden="true">
-                            <Blazicon Svg="@PlanChannelIcon(plan.Channel)" />
+                            @if (plan.Channel == PublishPlanService.GitHubPagesChannel)
+                            {
+                                <span class="bocchi-github-mark"></span>
+                            }
+                            else
+                            {
+                                <Blazicon Svg="@PlanChannelIcon(plan.Channel)" />
+                            }
                         </span>
                         <div class="bocchi-publish-plan-card__main">
                             <strong>@plan.DisplayName</strong>
@@ -377,7 +397,7 @@
 
             <div class="bocchi-publish-wizard-section">
                 <div class="bocchi-publish-wizard-section__heading">
-                    <Blazicon Svg="Lucide.KeyRound" />
+                    <span class="bocchi-github-mark" aria-hidden="true"></span>
                     <div>
                         <strong>@I18n["publish.github.connectTitle"]</strong>
                         <span>@I18n["publish.github.connectDescription"]</span>
@@ -394,9 +414,28 @@
                         </select>
                     </label>
                 }
+                @if (!_githubAuthorizationConfigured)
+                {
+                    <div id="github-auth-unavailable" class="bocchi-publish-provider-notice" role="status">
+                        <Blazicon Svg="Lucide.ShieldAlert" />
+                        <div>
+                            <strong>@I18n["publish.github.authUnavailableTitle"]</strong>
+                            <p>@I18n["publish.github.authUnavailableDescription"]</p>
+                            <p>@I18n["publish.github.authUnavailableAction"]</p>
+                            <a class="bocchi-publish-provider-notice__link" href="/Admin/Settings/Integrations/GitHub">
+                                <Blazicon Svg="Lucide.ExternalLink" />
+                                <span>@I18n["publish.github.openSetupHelp"]</span>
+                            </a>
+                        </div>
+                    </div>
+                }
                 <div class="bocchi-publish-quick-actions">
-                    <button type="button" class="bocchi-button secondary" @onclick="StartGitHubDeviceFlowAsync">
-                        <Blazicon Svg="Lucide.GitBranch" />
+                    <button type="button"
+                            class="bocchi-button secondary"
+                            @onclick="StartGitHubDeviceFlowAsync"
+                            disabled="@(!_githubAuthorizationConfigured)"
+                            aria-describedby="@GitHubAuthUnavailableNoticeId">
+                        <span class="bocchi-github-mark" aria-hidden="true"></span>
                         <span>@I18n["publish.github.connect"]</span>
                     </button>
                     @if (!string.IsNullOrWhiteSpace(_githubUserCode) && !string.IsNullOrWhiteSpace(_githubVerificationUri))
@@ -445,7 +484,7 @@
                         <input type="checkbox" @bind="_githubCreatePrivateRepository" />
                         @I18n["publish.github.privateRepository"]
                     </label>
-                    <button type="button" class="bocchi-button secondary" @onclick="CreateGitHubRepositoryAsync">
+                    <button type="button" class="bocchi-button secondary" @onclick="CreateGitHubRepositoryAsync" disabled="@(_selectedGitConnectionId is null)">
                         <Blazicon Svg="Lucide.Plus" />
                         <span>@I18n["publish.github.createRepository"]</span>
                     </button>
@@ -463,7 +502,7 @@
                             <input type="text" @bind="_githubBranch" autocomplete="off" />
                         </label>
                     </div>
-                    <button type="button" class="bocchi-button secondary" @onclick="CheckGitHubBranchAsync">
+                    <button type="button" class="bocchi-button secondary" @onclick="CheckGitHubBranchAsync" disabled="@(_selectedGitConnectionId is null)">
                         <Blazicon Svg="Lucide.ShieldCheck" />
                         <span>@I18n["publish.github.checkBranch"]</span>
                     </button>
@@ -483,7 +522,7 @@
             </label>
             <div class="bocchi-publish-github-fields">
                 <div class="bocchi-publish-quick-actions">
-                    <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
+                    <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@(_githubSaving || _selectedGitConnectionId is null)">
                         <Blazicon Svg="Lucide.Save" />
                         <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
                     </button>
@@ -672,10 +711,11 @@
     {
         _githubMessage = null;
         _githubMessageIsDanger = false;
-        if (!GitHubFlow.IsConfigured)
+        if (!await GitHubFlow.IsConfiguredAsync(default))
         {
             _githubMessageIsDanger = true;
             _githubMessage = I18n["publish.github.errorOAuthNotConfigured"];
+            _githubAuthorizationConfigured = false;
             return;
         }
 

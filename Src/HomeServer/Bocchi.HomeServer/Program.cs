@@ -87,6 +87,7 @@ try
     builder.Services.AddScoped<HomeServerSetupService>();
     builder.Services.AddScoped<DashboardGuideService>();
     builder.Services.AddScoped<DashboardSettingsService>();
+    builder.Services.AddScoped<GitHubIntegrationSettingsService>();
     builder.Services.AddScoped<SiteProfileSettingsService>();
     builder.Services.AddScoped<ExternalLoginSettingsService>();
     builder.Services.AddScoped<ThemeSettingsService>();
