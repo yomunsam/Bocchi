@@ -471,6 +471,23 @@
     gap: 0.62rem;
 }
 
+.bocchi-publish-github-fields--existing {
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.4fr);
+    align-items: start;
+}
+
+.bocchi-publish-form-field {
+    display: grid;
+    gap: 0.32rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.bocchi-publish-form-field--wide {
+    min-width: 0;
+}
+
 .bocchi-publish-github-check {
     margin-top: 0.1rem;
 }
@@ -509,6 +526,143 @@
 .bocchi-publish-wizard-section__heading span {
     color: var(--bocchi-text-muted);
     font-size: 0.88rem;
+}
+
+.bocchi-publish-connected-account {
+    display: grid;
+    grid-template-columns: 1.65rem minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: start;
+    padding: 0.62rem 0.68rem;
+    border: 1px solid color-mix(in srgb, var(--bocchi-success-strong) 22%, var(--bocchi-border));
+    border-radius: var(--bocchi-radius-sm);
+    background: color-mix(in srgb, var(--bocchi-success-soft) 58%, var(--bocchi-surface));
+}
+
+.bocchi-publish-connected-account ::deep svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--bocchi-success-strong);
+    margin-top: 0.15rem;
+}
+
+.bocchi-publish-connected-account > div {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.bocchi-publish-connected-account strong {
+    color: var(--bocchi-text);
+    font-size: 0.9rem;
+    font-weight: 620;
+}
+
+.bocchi-publish-repo-picker {
+    position: relative;
+    min-width: 0;
+}
+
+.bocchi-publish-repo-picker__control {
+    display: grid;
+    grid-template-columns: 1.1rem minmax(0, 1fr) 2.25rem;
+    gap: 0.4rem;
+    align-items: center;
+    min-height: 2.35rem;
+    padding: 0 0.35rem 0 0.62rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+}
+
+.bocchi-publish-repo-picker__control:focus-within {
+    box-shadow: var(--bocchi-focus-ring);
+    border-color: color-mix(in srgb, var(--bocchi-action) 52%, var(--bocchi-border));
+}
+
+.bocchi-publish-repo-picker__control ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-publish-repo-picker__control input {
+    min-width: 0;
+    min-height: 2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--bocchi-text);
+    font-weight: 400;
+}
+
+.bocchi-publish-repo-picker__control input:focus-visible {
+    box-shadow: none;
+}
+
+.bocchi-publish-repo-picker__control button {
+    width: 1.85rem;
+    min-height: 1.85rem;
+    justify-content: center;
+    padding: 0;
+    border-radius: 6px;
+}
+
+.bocchi-publish-repo-picker__menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    left: 0;
+    display: grid;
+    gap: 0.2rem;
+    max-height: 18rem;
+    overflow: auto;
+    padding: 0.35rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: var(--bocchi-surface);
+    box-shadow: var(--bocchi-shadow-pop);
+}
+
+.bocchi-publish-repo-picker__menu p {
+    margin: 0;
+    padding: 0.55rem 0.65rem;
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.bocchi-publish-repo-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+    min-height: 2.35rem;
+    padding: 0 0.62rem;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--bocchi-text);
+    text-align: left;
+}
+
+.bocchi-publish-repo-option:hover,
+.bocchi-publish-repo-option[aria-selected="true"] {
+    background: var(--bocchi-action-soft);
+    transform: none;
+}
+
+.bocchi-publish-repo-option span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-publish-repo-option small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
 }
 
 .bocchi-publish-provider-notice {

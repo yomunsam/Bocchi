@@ -1,9 +1,12 @@
 @page "/Admin/Settings"
 @page "/Admin/Settings/{Section}"
+@using System.Globalization
+@using Bocchi.Generator.Theme
 @using Bocchi.Workspace
 @inject SiteProfileSettingsService SiteProfileSettings
 @inject ExternalLoginSettingsService ExternalLogins
 @inject LocalizationSettingsService LocalizationSettings
+@inject ThemeSettingsService ThemeSettings
 @inject ThemeMigrationService ThemeMigration
 @inject NavigationManager Navigation
 @inject DashboardLocalizationService I18n
@@ -64,7 +67,19 @@
                                 </label>
                                 <label>
                                     @I18n["settings.profile.defaultTheme"]
-                                    <input type="text" @bind="_siteDefaultThemeId" />
+                                    <select @bind="_siteDefaultThemeId" aria-describedby="settings-profile-theme-help">
+                                        @if (!ThemeCatalogContains(_siteDefaultThemeId))
+                                        {
+                                            <option value="@_siteDefaultThemeId" disabled>
+                                                @string.Format(CultureInfo.CurrentCulture, I18n["settings.profile.themeMissingOptionFormat"], _siteDefaultThemeId)
+                                            </option>
+                                        }
+                                        @foreach (var option in _themeCatalog)
+                                        {
+                                            <option value="@option.Id" disabled="@(!option.IsAvailable || RequiresProcessTrust(option))">@ThemeOptionLabel(option)</option>
+                                        }
+                                    </select>
+                                    <small id="settings-profile-theme-help">@SelectedThemeDescription</small>
                                 </label>
                                 <label>
                                     @I18n["settings.profile.timeZone"]
@@ -86,6 +101,10 @@
                                     @if (_basicSaved)
                                     {
                                         <BocchiStatusPill Tone="success">@I18n["settings.profile.saved"]</BocchiStatusPill>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(_basicError))
+                                    {
+                                        <BocchiStatusPill Tone="danger">@_basicError</BocchiStatusPill>
                                     }
                                 </div>
                             </form>
@@ -426,7 +445,7 @@
         new("/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal, "pink"),
         new("/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages, "lavender"),
         new("/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound, "blue"),
-        new("/Admin/Settings/Integrations/GitHub", "settings.nav.githubIntegration", "settings.nav.githubIntegrationDescription", Lucide.Link, "blue"),
+        new("/Admin/Settings/Integrations", "settings.nav.integrations", "settings.nav.integrationsDescription", Lucide.Link, "blue"),
         new("/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users, "green"),
         new("/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database, "blue"),
         new("/Admin/Site/Theme", "nav.themeCustomization", "settings.nav.themeDescription", Lucide.SunMoon, "pink"),
@@ -464,6 +483,9 @@
 
     /// <summary>站点基础约定中的默认前台 Theme id。</summary>
     private string _siteDefaultThemeId = "default-static";
+
+    /// <summary>Theme Catalog 缓存；Profile 页 picker 用它展示来源、版本和不可选诊断。</summary>
+    private IReadOnlyList<ThemeCatalogItem> _themeCatalog = [];
 
     /// <summary>站点默认时区编辑缓冲区。</summary>
     private string _siteTimeZone = "Asia/Shanghai";
@@ -524,6 +546,9 @@
     /// <summary>Basic Info 保存反馈。</summary>
     private bool _basicSaved;
 
+    /// <summary>Basic Info 保存失败反馈。</summary>
+    private string? _basicError;
+
     /// <summary>本地化设置保存反馈。</summary>
     private bool _localizationSaved;
 
@@ -549,6 +574,7 @@
         _copyrightNotice = site.CopyrightNotice;
         _siteDefaultThemeId = site.DefaultThemeId;
         _siteTimeZone = site.TimeZone;
+        _themeCatalog = await ThemeSettings.ListThemeCatalogAsync();
         await LoadLocalizationAsync();
 
         foreach (var provider in await ExternalLogins.ListAsync())
@@ -569,12 +595,106 @@
         }
     }
 
+    /// <summary>当前 picker 选中的 Catalog 项；缺失时说明 active Theme 已不可用。</summary>
+    private ThemeCatalogItem? SelectedThemeItem
+        => _themeCatalog.FirstOrDefault(item => string.Equals(item.Id, _siteDefaultThemeId, StringComparison.Ordinal));
+
+    /// <summary>判断当前 Catalog 是否包含指定 Theme id。</summary>
+    private bool ThemeCatalogContains(string? themeId)
+        => !string.IsNullOrWhiteSpace(themeId) &&
+           _themeCatalog.Any(item => string.Equals(item.Id, themeId.Trim(), StringComparison.Ordinal));
+
+    /// <summary>只有 Resolver 判定可用的 Theme 才允许从 Profile 页保存为 Active Theme。</summary>
+    private bool IsSelectableTheme(string themeId)
+    {
+        var item = _themeCatalog.FirstOrDefault(candidate => string.Equals(candidate.Id, themeId, StringComparison.Ordinal));
+        return item?.IsAvailable == true && !RequiresProcessTrust(item);
+    }
+
+    /// <summary>Theme picker 当前选项说明；包含 source/root/runner，避免 Admin 不知道实际使用哪份 Theme。</summary>
+    private string SelectedThemeDescription
+    {
+        get
+        {
+            var item = SelectedThemeItem;
+            if (item is null)
+            {
+                return string.Format(CultureInfo.CurrentCulture, I18n["settings.profile.themeMissingDescriptionFormat"], _siteDefaultThemeId);
+            }
+
+            if (!item.IsAvailable)
+            {
+                return I18n["settings.profile.themeUnavailableDescription"];
+            }
+
+            return string.Format(
+                CultureInfo.CurrentCulture,
+                I18n["settings.profile.themeSelectedDescriptionFormat"],
+                ThemeSourceLabel(item.SourceKind),
+                item.RunnerKind ?? I18n["settings.profile.themeUnknown"],
+                item.Root);
+        }
+    }
+
+    /// <summary>Theme picker 单项展示文案；不可用状态保留在 option 文案中，同时 option 本身禁用。</summary>
+    private string ThemeOptionLabel(ThemeCatalogItem option)
+    {
+        var parts = new List<string>
+        {
+            string.Format(CultureInfo.CurrentCulture, I18n["settings.profile.themeOptionNameFormat"], option.Name, option.Id),
+            ThemeSourceLabel(option.SourceKind),
+        };
+        if (!string.IsNullOrWhiteSpace(option.Version))
+        {
+            parts.Add(string.Format(CultureInfo.CurrentCulture, I18n["settings.profile.themeVersionFormat"], option.Version));
+        }
+
+        if (option.ShadowsInstalledTheme)
+        {
+            parts.Add(I18n["settings.profile.themeShadowsInstalled"]);
+        }
+
+        if (!option.IsAvailable)
+        {
+            parts.Add(I18n["settings.profile.themeUnavailable"]);
+        }
+        else if (RequiresProcessTrust(option))
+        {
+            parts.Add(I18n["settings.profile.themeRequiresTrust"]);
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>普通 Profile picker 不处理 process runner 信任确认；这类 Theme 必须从 Theme Library 激活。</summary>
+    private static bool RequiresProcessTrust(ThemeCatalogItem item)
+        => string.Equals(item.RunnerKind, "process", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>把 Theme 来源枚举转换成当前 Dashboard 语言。</summary>
+    private string ThemeSourceLabel(ThemeSourceKind sourceKind)
+        => sourceKind switch
+        {
+            ThemeSourceKind.BuiltIn => I18n["themeCustomization.source.builtIn"],
+            ThemeSourceKind.Installed => I18n["themeCustomization.source.installed"],
+            ThemeSourceKind.DevLink => I18n["themeCustomization.source.devLink"],
+            ThemeSourceKind.PackageCandidate => I18n["themeCustomization.source.packageCandidate"],
+            _ => I18n["settings.profile.themeUnknown"],
+        };
+
     /// <summary>保存站点基础约定；Dashboard 明暗外观已收敛到顶栏客户端控件。</summary>
     private async Task SaveBasicInfoAsync()
     {
+        _basicError = null;
+        _basicSaved = false;
         // 检测 Theme 是否变更；有 Menu 里的 i18n://theme@ 引用时跳转到迁移向导。
         var current = await SiteProfileSettings.GetAsync();
         var newTheme = (_siteDefaultThemeId ?? string.Empty).Trim();
+        if (!IsSelectableTheme(newTheme))
+        {
+            _basicError = I18n["settings.profile.themeUnavailableError"];
+            return;
+        }
+
         var oldTheme = current.DefaultThemeId;
         if (newTheme.Length > 0 && !string.Equals(newTheme, oldTheme, StringComparison.Ordinal))
         {

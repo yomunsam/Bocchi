@@ -19,7 +19,9 @@ public sealed class BocchiDataLayoutTests
         layout.CacheDirectory.Should().Be(Path.Combine(expectedRoot, "cache"));
         layout.DerivativesDirectory.Should().Be(Path.Combine(expectedRoot, "cache", "derivatives"));
         layout.ThemeInputDirectory.Should().Be(Path.Combine(expectedRoot, "cache", "theme-input"));
+        layout.ThemeUploadCacheDirectory.Should().Be(Path.Combine(expectedRoot, "cache", "theme-upload"));
         layout.ThemeConfigDirectory.Should().Be(Path.Combine(expectedRoot, "state", "theme-config"));
+        layout.ThemeBackupsDirectory.Should().Be(Path.Combine(expectedRoot, "themes", ".backups"));
         layout.OutputDirectory.Should().Be(Path.Combine(expectedRoot, "output"));
         layout.PublicOutputDirectory.Should().Be(Path.Combine(expectedRoot, "output", "public"));
 

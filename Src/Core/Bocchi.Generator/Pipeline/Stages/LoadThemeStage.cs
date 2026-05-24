@@ -1,6 +1,4 @@
 using Bocchi.Generator.Theme;
-using Bocchi.Theme.DefaultStatic;
-using Bocchi.Workspace;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
@@ -10,14 +8,14 @@ namespace Bocchi.Generator.Pipeline.Stages;
 /// </summary>
 public sealed class LoadThemeStage : IBuildStage
 {
-    /// <summary>当前工作区路径约定。</summary>
-    private readonly BocchiDataLayout _layout;
+    /// <summary>统一 Theme Resolver，保证 Generator 与 Dashboard 解析同一个 Theme Root。</summary>
+    private readonly ThemeResolver _themeResolver;
 
     /// <summary>构造 Theme 加载阶段。</summary>
-    public LoadThemeStage(BocchiDataLayout layout)
+    public LoadThemeStage(ThemeResolver themeResolver)
     {
-        ArgumentNullException.ThrowIfNull(layout);
-        _layout = layout;
+        ArgumentNullException.ThrowIfNull(themeResolver);
+        _themeResolver = themeResolver;
     }
 
     public string Name => nameof(LoadThemeStage);
@@ -34,21 +32,42 @@ public sealed class LoadThemeStage : IBuildStage
         }
 
         session.SetItem(BuildSessionKeys.ThemeId, themeId);
-        if (string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+        var result = await _themeResolver.ResolveThemeAsync(themeId, session.CancellationToken).ConfigureAwait(false);
+        if (!result.IsResolved || result.Theme is null)
         {
-            await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, session.CancellationToken).ConfigureAwait(false);
-        }
-
-        var loaded = await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, session.CancellationToken).ConfigureAwait(false);
-        if (loaded is null)
-        {
-            session.Log(Name, BuildLogLevel.Warning, $"未在 '{_layout.ThemesDirectory}' 下找到 theme '{themeId}'；Theme 输入数据仍会写出，但 Theme 构建阶段将被跳过。");
+            LogDiagnostics(session, result.Diagnostics);
+            session.Log(Name, BuildLogLevel.Warning, $"未能解析 theme '{themeId}'；Theme 输入数据仍会写出，但 Theme 构建阶段将被跳过。");
             return true;
         }
 
-        session.SetItem(BuildSessionKeys.LoadedTheme, new LoadedTheme(loaded.Value.Manifest, loaded.Value.ThemeRoot));
+        var resolved = result.Theme;
+        session.SetItem(BuildSessionKeys.LoadedTheme, new LoadedTheme(resolved.Manifest, resolved.Root)
+        {
+            SourceKind = resolved.SourceKind,
+        });
+        LogDiagnostics(session, resolved.Diagnostics);
         session.Log(Name, BuildLogLevel.Info,
-            $"已加载 Theme '{loaded.Value.Manifest.Id}' v{loaded.Value.Manifest.Version}（contract {loaded.Value.Manifest.ContractVersion}）。");
+            $"已加载 Theme '{resolved.Id}' v{resolved.Version}（contract {resolved.ContractVersion}，source {resolved.SourceKind}，root '{resolved.Root}'，runner '{ResolveRunnerKind(resolved)}'）。");
         return true;
     }
+
+    /// <summary>把 Resolver 诊断投影到构建日志；阻断错误之外也保留 Dev Link shadow 这类定位信息。</summary>
+    private void LogDiagnostics(BuildSession session, IReadOnlyList<ThemeDiagnostic> diagnostics)
+    {
+        foreach (var diagnostic in diagnostics)
+        {
+            var level = diagnostic.Severity switch
+            {
+                ThemeDiagnosticSeverity.Error => BuildLogLevel.Warning,
+                ThemeDiagnosticSeverity.Warning => BuildLogLevel.Warning,
+                _ => BuildLogLevel.Info,
+            };
+            session.Log(Name, level, $"Theme diagnostic [{diagnostic.Code}]: {diagnostic.Message}");
+        }
+    }
+
+    private static string ResolveRunnerKind(ResolvedTheme resolved)
+        => string.IsNullOrWhiteSpace(resolved.Manifest.Runner?.Kind)
+            ? (string.IsNullOrWhiteSpace(resolved.Manifest.Build?.Command) ? "unknown" : "process")
+            : resolved.Manifest.Runner.Kind.Trim();
 }

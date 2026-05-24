@@ -1,4 +1,5 @@
 using Bocchi.GeneratorContract;
+using Bocchi.Generator.Theme;
 
 namespace Bocchi.HomeServer.Services;
 
@@ -12,6 +13,24 @@ public sealed class ThemeCustomizationView
 
     /// <summary>当前前台 Theme 的展示名称；manifest 不可用时回退到 Theme id。</summary>
     public required string ThemeName { get; init; }
+
+    /// <summary>当前 Theme 版本；manifest 不可用时为空。</summary>
+    public string? Version { get; init; }
+
+    /// <summary>当前 Theme Contract 版本；manifest 不可用时为空。</summary>
+    public string? ContractVersion { get; init; }
+
+    /// <summary>当前 Theme Root；manifest 不可用时为空。</summary>
+    public string? ThemeRoot { get; init; }
+
+    /// <summary>当前 Theme 来源；manifest 不可用时为空。</summary>
+    public ThemeSourceKind? SourceKind { get; init; }
+
+    /// <summary>当前 Theme runner 类型；manifest 不可用时为空。</summary>
+    public string? RunnerKind { get; init; }
+
+    /// <summary>当前 Theme 解析诊断；Dashboard 用它展示 Dev Link shadow 等状态。</summary>
+    public IReadOnlyList<ThemeDiagnostic> Diagnostics { get; init; } = [];
 
     /// <summary>当前 Theme 原始配置 JSON，主要用于调试和后续高级视图。</summary>
     public required string ConfigurationJson { get; init; }

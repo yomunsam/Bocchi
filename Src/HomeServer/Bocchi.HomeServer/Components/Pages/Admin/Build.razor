@@ -95,6 +95,18 @@
     /// <summary>Git provider 连接列表；发布方案向导可复用已有授权。</summary>
     private IReadOnlyList<GitProviderConnectionRecord>? _gitConnections;
 
+    /// <summary>当前 GitHub 账号可选的 repository 列表；只在进入已有仓库选择时加载。</summary>
+    private IReadOnlyList<GitHubRepository> _githubRepositories = [];
+
+    /// <summary>已有 repository 选择器的搜索文本，同时允许输入 owner/repository 作为兜底。</summary>
+    private string _githubRepositorySearch = string.Empty;
+
+    /// <summary>repository 列表正在从 GitHub 加载。</summary>
+    private bool _githubRepositoriesLoading;
+
+    /// <summary>是否展开已有 repository 搜索下拉层。</summary>
+    private bool _githubRepositoryPickerOpen;
+
     /// <summary>一键发布后的短状态消息。</summary>
     private string? _oneClickMessage;
 
@@ -195,6 +207,20 @@
     /// <summary>默认发布方案；没有显式默认时使用列表第一项作为旧数据回退。</summary>
     private PublishPlanRecord? DefaultPublishPlan => _publishPlans?.FirstOrDefault(x => x.IsDefault) ?? _publishPlans?.FirstOrDefault();
 
+    /// <summary>可用于发布向导的 GitHub 连接集合。</summary>
+    private IEnumerable<GitProviderConnectionRecord> GitHubConnections
+        => _gitConnections?.Where(x => x.ProviderKey == GitProviderKeys.GitHub)
+            ?? Array.Empty<GitProviderConnectionRecord>();
+
+    /// <summary>当前选中的 GitHub 连接；不存在时说明发布向导仍停留在授权步骤。</summary>
+    private GitProviderConnectionRecord? SelectedGitHubConnection
+        => _selectedGitConnectionId is null
+            ? null
+            : GitHubConnections.FirstOrDefault(x => x.Id == _selectedGitConnectionId.Value);
+
+    /// <summary>是否已经有可用 GitHub 连接，决定仓库配置步骤是否展示。</summary>
+    private bool HasSelectedGitHubConnection => SelectedGitHubConnection is not null;
+
     /// <summary>当前页面标题。</summary>
     private string CurrentPageTitle => CurrentSection switch
     {
@@ -247,7 +273,11 @@
     private async Task LoadGitConnectionsAsync()
     {
         _gitConnections = await GitConnections.ListAsync(default);
-        _selectedGitConnectionId ??= _gitConnections.FirstOrDefault(x => x.ProviderKey == GitProviderKeys.GitHub)?.Id;
+        var githubConnections = GitHubConnections.ToArray();
+        if (_selectedGitConnectionId is null || !githubConnections.Any(x => x.Id == _selectedGitConnectionId.Value))
+        {
+            _selectedGitConnectionId = githubConnections.FirstOrDefault()?.Id;
+        }
     }
 
     /// <summary>读取 GitHub 发布授权设置，用于决定连接按钮是否可用。</summary>
@@ -395,137 +425,199 @@
                 </label>
             </div>
 
-            <div class="bocchi-publish-wizard-section">
-                <div class="bocchi-publish-wizard-section__heading">
-                    <span class="bocchi-github-mark" aria-hidden="true"></span>
-                    <div>
-                        <strong>@I18n["publish.github.connectTitle"]</strong>
-                        <span>@I18n["publish.github.connectDescription"]</span>
-                    </div>
-                </div>
-                @if (_gitConnections?.Any(x => x.ProviderKey == GitProviderKeys.GitHub) == true)
-                {
-                    <label>@I18n["publish.github.connection"]
-                        <select @bind="_selectedGitConnectionId">
-                            @foreach (var connection in _gitConnections.Where(x => x.ProviderKey == GitProviderKeys.GitHub))
-                            {
-                                <option value="@connection.Id">@connection.AccountLogin</option>
-                            }
-                        </select>
-                    </label>
-                }
-                @if (!_githubAuthorizationConfigured)
-                {
-                    <div id="github-auth-unavailable" class="bocchi-publish-provider-notice" role="status">
-                        <Blazicon Svg="Lucide.ShieldAlert" />
+            @if (!HasSelectedGitHubConnection)
+            {
+                <div class="bocchi-publish-wizard-section">
+                    <div class="bocchi-publish-wizard-section__heading">
+                        <span class="bocchi-github-mark" aria-hidden="true"></span>
                         <div>
-                            <strong>@I18n["publish.github.authUnavailableTitle"]</strong>
-                            <p>@I18n["publish.github.authUnavailableDescription"]</p>
-                            <p>@I18n["publish.github.authUnavailableAction"]</p>
-                            <a class="bocchi-publish-provider-notice__link" href="/Admin/Settings/Integrations/GitHub">
-                                <Blazicon Svg="Lucide.ExternalLink" />
-                                <span>@I18n["publish.github.openSetupHelp"]</span>
-                            </a>
+                            <strong>@I18n["publish.github.connectTitle"]</strong>
+                            <span>@I18n["publish.github.connectDescription"]</span>
                         </div>
                     </div>
-                }
-                <div class="bocchi-publish-quick-actions">
-                    <button type="button"
-                            class="bocchi-button secondary"
-                            @onclick="StartGitHubDeviceFlowAsync"
-                            disabled="@(!_githubAuthorizationConfigured)"
-                            aria-describedby="@GitHubAuthUnavailableNoticeId">
-                        <span class="bocchi-github-mark" aria-hidden="true"></span>
-                        <span>@I18n["publish.github.connect"]</span>
-                    </button>
-                    @if (!string.IsNullOrWhiteSpace(_githubUserCode) && !string.IsNullOrWhiteSpace(_githubVerificationUri))
+                    @if (!_githubAuthorizationConfigured)
                     {
-                        <a class="bocchi-button secondary" href="@_githubVerificationUri" target="_blank" rel="noopener">
-                            <Blazicon Svg="Lucide.ExternalLink" />
-                            <span>@I18n["publish.github.openAuthorization"]</span>
-                        </a>
-                        <button type="button" class="bocchi-button secondary" @onclick="CompleteGitHubDeviceFlowAsync">
-                            <Blazicon Svg="Lucide.Check" />
-                            <span>@I18n["publish.github.completeAuthorization"]</span>
+                        <div id="github-auth-unavailable" class="bocchi-publish-provider-notice" role="status">
+                            <Blazicon Svg="Lucide.ShieldAlert" />
+                            <div>
+                                <strong>@I18n["publish.github.authUnavailableTitle"]</strong>
+                                <p>@I18n["publish.github.authUnavailableDescription"]</p>
+                                <p>@I18n["publish.github.authUnavailableAction"]</p>
+                                <a class="bocchi-publish-provider-notice__link" href="/Admin/Settings/Integrations/GitHub">
+                                    <Blazicon Svg="Lucide.ExternalLink" />
+                                    <span>@I18n["publish.github.openSetupHelp"]</span>
+                                </a>
+                            </div>
+                        </div>
+                    }
+                    <div class="bocchi-publish-quick-actions">
+                        <button type="button"
+                                class="bocchi-button secondary"
+                                @onclick="StartGitHubDeviceFlowAsync"
+                                disabled="@(!_githubAuthorizationConfigured)"
+                                aria-describedby="@GitHubAuthUnavailableNoticeId">
+                            <span class="bocchi-github-mark" aria-hidden="true"></span>
+                            <span>@I18n["publish.github.connect"]</span>
+                        </button>
+                        @if (!string.IsNullOrWhiteSpace(_githubUserCode) && !string.IsNullOrWhiteSpace(_githubVerificationUri))
+                        {
+                            <a class="bocchi-button secondary" href="@_githubVerificationUri" target="_blank" rel="noopener">
+                                <Blazicon Svg="Lucide.ExternalLink" />
+                                <span>@I18n["publish.github.openAuthorization"]</span>
+                            </a>
+                            <button type="button" class="bocchi-button secondary" @onclick="CompleteGitHubDeviceFlowAsync">
+                                <Blazicon Svg="Lucide.Check" />
+                                <span>@I18n["publish.github.completeAuthorization"]</span>
+                            </button>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_githubUserCode))
+                    {
+                        <p class="bocchi-publish-remote-message">@string.Format(CultureInfo.CurrentCulture, I18n["publish.github.userCodeFormat"], _githubUserCode)</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="bocchi-publish-wizard-section">
+                    <div class="bocchi-publish-wizard-section__heading">
+                        <Blazicon Svg="Lucide.FolderGit2" />
+                        <div>
+                            <strong>@I18n["publish.github.repositoryTitle"]</strong>
+                            <span>@I18n["publish.github.repositoryDescription"]</span>
+                        </div>
+                    </div>
+                    <div class="bocchi-publish-connected-account">
+                        <Blazicon Svg="Lucide.Check" />
+                        <div>
+                            <strong>@I18n["publish.github.connectedTitle"]</strong>
+                            <label>@I18n["publish.github.connection"]
+                                <select value="@_selectedGitConnectionId" @onchange="OnGitHubConnectionChanged">
+                                    @foreach (var connection in GitHubConnections)
+                                    {
+                                        <option value="@connection.Id">@connection.AccountLogin</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                    <label>@I18n["publish.github.destinationMode"]
+                        <select value="@_githubDestinationMode" @onchange="OnGitHubDestinationModeChanged">
+                            <option value="create">@I18n["publish.github.destinationCreate"]</option>
+                            <option value="existing">@I18n["publish.github.destinationExisting"]</option>
+                        </select>
+                    </label>
+                    @if (string.Equals(_githubDestinationMode, "create", StringComparison.Ordinal))
+                    {
+                        <div class="bocchi-publish-github-fields">
+                            <label>@I18n["publish.github.newRepository"]
+                                <input type="text" @bind="_githubNewRepository" autocomplete="off" />
+                            </label>
+                            <label>@I18n["publish.github.branch"]
+                                <input type="text" @bind="_githubBranch" autocomplete="off" />
+                            </label>
+                        </div>
+                        <label class="bocchi-checkbox bocchi-publish-github-check">
+                            <input type="checkbox" @bind="_githubCreatePrivateRepository" />
+                            @I18n["publish.github.privateRepository"]
+                        </label>
+                        <button type="button" class="bocchi-button secondary" @onclick="CreateGitHubRepositoryAsync" disabled="@(!HasSelectedGitHubConnection)">
+                            <Blazicon Svg="Lucide.Plus" />
+                            <span>@I18n["publish.github.createRepository"]</span>
                         </button>
                     }
-                </div>
-                @if (!string.IsNullOrWhiteSpace(_githubUserCode))
-                {
-                    <p class="bocchi-publish-remote-message">@string.Format(CultureInfo.CurrentCulture, I18n["publish.github.userCodeFormat"], _githubUserCode)</p>
-                }
-            </div>
-
-            <div class="bocchi-publish-wizard-section">
-                <div class="bocchi-publish-wizard-section__heading">
-                    <Blazicon Svg="Lucide.FolderGit2" />
-                    <div>
-                        <strong>@I18n["publish.github.repositoryTitle"]</strong>
-                        <span>@I18n["publish.github.repositoryDescription"]</span>
-                    </div>
-                </div>
-                <label>@I18n["publish.github.destinationMode"]
-                    <select @bind="_githubDestinationMode">
-                        <option value="create">@I18n["publish.github.destinationCreate"]</option>
-                        <option value="existing">@I18n["publish.github.destinationExisting"]</option>
-                    </select>
-                </label>
-                @if (string.Equals(_githubDestinationMode, "create", StringComparison.Ordinal))
-                {
-                    <div class="bocchi-publish-github-fields">
-                        <label>@I18n["publish.github.newRepository"]
-                            <input type="text" @bind="_githubNewRepository" autocomplete="off" />
-                        </label>
-                        <label>@I18n["publish.github.branch"]
-                            <input type="text" @bind="_githubBranch" autocomplete="off" />
-                        </label>
-                    </div>
-                    <label class="bocchi-checkbox bocchi-publish-github-check">
-                        <input type="checkbox" @bind="_githubCreatePrivateRepository" />
-                        @I18n["publish.github.privateRepository"]
-                    </label>
-                    <button type="button" class="bocchi-button secondary" @onclick="CreateGitHubRepositoryAsync" disabled="@(_selectedGitConnectionId is null)">
-                        <Blazicon Svg="Lucide.Plus" />
-                        <span>@I18n["publish.github.createRepository"]</span>
-                    </button>
-                }
-                else
-                {
-                    <div class="bocchi-publish-github-fields">
-                        <label>@I18n["publish.github.owner"]
-                            <input type="text" @bind="_githubOwner" autocomplete="off" />
-                        </label>
-                        <label>@I18n["publish.github.repository"]
-                            <input type="text" @bind="_githubRepository" autocomplete="off" />
-                        </label>
-                        <label>@I18n["publish.github.branch"]
-                            <input type="text" @bind="_githubBranch" autocomplete="off" />
-                        </label>
-                    </div>
-                    <button type="button" class="bocchi-button secondary" @onclick="CheckGitHubBranchAsync" disabled="@(_selectedGitConnectionId is null)">
-                        <Blazicon Svg="Lucide.ShieldCheck" />
-                        <span>@I18n["publish.github.checkBranch"]</span>
-                    </button>
-                    @if (_githubBranchCheck?.State == GitHubPublishBranchState.Occupied)
+                    else
                     {
-                        <label class="bocchi-checkbox bocchi-publish-github-check">
-                            <input type="checkbox" @bind="_githubAllowBranchTakeover" />
-                            @I18n["publish.github.allowTakeover"]
-                        </label>
+                        <div class="bocchi-publish-github-fields bocchi-publish-github-fields--existing">
+                            <div class="bocchi-publish-form-field bocchi-publish-form-field--wide">
+                                <label for="github-repository-picker">@I18n["publish.github.repositoryPicker"]</label>
+                                <div class="bocchi-publish-repo-picker">
+                                    <div class="bocchi-publish-repo-picker__control">
+                                        <Blazicon Svg="Lucide.Search" />
+                                        <input id="github-repository-picker"
+                                               type="search"
+                                               value="@_githubRepositorySearch"
+                                               @oninput="OnGitHubRepositorySearchInput"
+                                               @onfocus="OpenGitHubRepositoryPickerAsync"
+                                               role="combobox"
+                                               aria-autocomplete="list"
+                                               aria-expanded="@_githubRepositoryPickerOpen"
+                                               aria-controls="github-repository-options"
+                                               placeholder='@I18n["publish.github.repositorySearchPlaceholder"]'
+                                               autocomplete="off" />
+                                        <button type="button"
+                                                class="secondary"
+                                                title='@I18n["publish.github.refreshRepositories"]'
+                                                aria-label='@I18n["publish.github.refreshRepositories"]'
+                                                @onclick="RefreshGitHubRepositoriesAsync">
+                                            <Blazicon Svg="Lucide.RefreshCw" />
+                                        </button>
+                                    </div>
+                                    @if (_githubRepositoryPickerOpen)
+                                    {
+                                        <div id="github-repository-options" class="bocchi-publish-repo-picker__menu" role="listbox">
+                                            @if (_githubRepositoriesLoading)
+                                            {
+                                                <p>@I18n["publish.github.repositoryPickerLoading"]</p>
+                                            }
+                                            else
+                                            {
+                                                var filteredRepositories = FilteredGitHubRepositories();
+                                                if (filteredRepositories.Count == 0)
+                                                {
+                                                    <p>@I18n["publish.github.repositoryPickerEmpty"]</p>
+                                                }
+                                                else
+                                                {
+                                                    @foreach (var repository in filteredRepositories)
+                                                    {
+                                                        <button type="button"
+                                                                class="bocchi-publish-repo-option"
+                                                                role="option"
+                                                                aria-selected="@string.Equals(repository.FullName, GitHubRepositoryFullName(), StringComparison.OrdinalIgnoreCase)"
+                                                                @onclick="() => SelectGitHubRepository(repository)">
+                                                            <span>@repository.FullName</span>
+                                                            <small>@(repository.Private ? I18n["publish.github.repositoryPrivacyPrivate"] : I18n["publish.github.repositoryPrivacyPublic"])</small>
+                                                        </button>
+                                                    }
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <label>@I18n["publish.github.branch"]
+                                <input type="text" @bind="_githubBranch" autocomplete="off" />
+                            </label>
+                        </div>
+                        <button type="button" class="bocchi-button secondary" @onclick="CheckGitHubBranchAsync" disabled="@(!HasSelectedGitHubConnection)">
+                            <Blazicon Svg="Lucide.ShieldCheck" />
+                            <span>@I18n["publish.github.checkBranch"]</span>
+                        </button>
+                        @if (_githubBranchCheck?.State == GitHubPublishBranchState.Occupied)
+                        {
+                            <label class="bocchi-checkbox bocchi-publish-github-check">
+                                <input type="checkbox" @bind="_githubAllowBranchTakeover" />
+                                @I18n["publish.github.allowTakeover"]
+                            </label>
+                        }
                     }
-                }
-            </div>
+                </div>
 
-            <label class="bocchi-checkbox bocchi-publish-github-check">
-                <input type="checkbox" @bind="_githubEnsurePagesSource" />
-                @I18n["publish.github.ensurePagesSource"]
-            </label>
+                <label class="bocchi-checkbox bocchi-publish-github-check">
+                    <input type="checkbox" @bind="_githubEnsurePagesSource" />
+                    @I18n["publish.github.ensurePagesSource"]
+                </label>
+            }
             <div class="bocchi-publish-github-fields">
                 <div class="bocchi-publish-quick-actions">
-                    <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@(_githubSaving || _selectedGitConnectionId is null)">
-                        <Blazicon Svg="Lucide.Save" />
-                        <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
-                    </button>
+                    @if (HasSelectedGitHubConnection)
+                    {
+                        <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
+                            <Blazicon Svg="Lucide.Save" />
+                            <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
+                        </button>
+                    }
                     <a class="bocchi-button secondary" href="/Admin/Publish">
                         <Blazicon Svg="Lucide.ArrowLeft" />
                         <span>@I18n["publish.addPlan.back"]</span>
@@ -704,7 +796,167 @@
         _githubDestinationMode = config.DestinationMode;
         _githubAllowBranchTakeover = config.AllowBranchTakeover;
         _githubNewRepository = string.IsNullOrWhiteSpace(config.Repository) ? _githubNewRepository : config.Repository;
+        _githubRepositorySearch = GitHubRepositoryFullName();
     }
+
+    /// <summary>切换 GitHub 账号后清空账号相关的仓库候选，避免把旧账号的 repo 误保存到新账号。</summary>
+    private async Task OnGitHubConnectionChanged(ChangeEventArgs args)
+    {
+        _selectedGitConnectionId = int.TryParse(args.Value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+            ? id
+            : null;
+        ClearSelectedGitHubRepository();
+        _githubRepositories = [];
+        _githubRepositoryPickerOpen = false;
+        if (string.Equals(_githubDestinationMode, "existing", StringComparison.Ordinal))
+        {
+            await LoadGitHubRepositoriesAsync(force: true);
+        }
+    }
+
+    /// <summary>切换发布仓库模式；进入已有仓库时立即准备候选列表，形成搜索下拉的预期反馈。</summary>
+    private async Task OnGitHubDestinationModeChanged(ChangeEventArgs args)
+    {
+        var mode = args.Value?.ToString();
+        _githubDestinationMode = string.Equals(mode, "existing", StringComparison.Ordinal) ? "existing" : "create";
+        _githubBranchCheck = null;
+        _githubAllowBranchTakeover = false;
+        if (string.Equals(_githubDestinationMode, "existing", StringComparison.Ordinal))
+        {
+            _githubRepositorySearch = GitHubRepositoryFullName();
+            _githubRepositoryPickerOpen = true;
+            await LoadGitHubRepositoriesAsync();
+        }
+        else
+        {
+            _githubRepositoryPickerOpen = false;
+        }
+    }
+
+    /// <summary>打开已有 repository 搜索下拉；首次打开时拉取当前账号可访问的仓库。</summary>
+    private async Task OpenGitHubRepositoryPickerAsync()
+    {
+        _githubRepositoryPickerOpen = true;
+        await LoadGitHubRepositoriesAsync();
+    }
+
+    /// <summary>手动刷新 GitHub repository 列表，适配用户刚在 GitHub 创建或授权新仓库的情况。</summary>
+    private async Task RefreshGitHubRepositoriesAsync()
+    {
+        _githubRepositoryPickerOpen = true;
+        await LoadGitHubRepositoriesAsync(force: true);
+    }
+
+    /// <summary>更新 repository 搜索文本；文本变化时清空旧选择，避免保存隐藏的旧 owner/repo。</summary>
+    private void OnGitHubRepositorySearchInput(ChangeEventArgs args)
+    {
+        _githubRepositorySearch = args.Value?.ToString() ?? string.Empty;
+        _githubRepositoryPickerOpen = true;
+        _githubBranchCheck = null;
+        _githubAllowBranchTakeover = false;
+        if (!string.Equals(_githubRepositorySearch.Trim(), GitHubRepositoryFullName(), StringComparison.OrdinalIgnoreCase))
+        {
+            ClearSelectedGitHubRepository();
+        }
+    }
+
+    /// <summary>选择已有 GitHub repository，并把 owner/name 回填到发布配置模型。</summary>
+    private void SelectGitHubRepository(GitHubRepository repository)
+    {
+        _githubOwner = repository.Owner;
+        _githubRepository = repository.Name;
+        _githubRepositorySearch = repository.FullName;
+        _githubRepositoryPickerOpen = false;
+        _githubBranchCheck = null;
+        _githubAllowBranchTakeover = false;
+    }
+
+    /// <summary>从 GitHub 读取当前账号可访问的 repository；失败时只显示表单错误，不让页面崩溃。</summary>
+    private async Task LoadGitHubRepositoriesAsync(bool force = false)
+    {
+        if (!HasSelectedGitHubConnection || _githubRepositoriesLoading)
+        {
+            return;
+        }
+
+        if (!force && _githubRepositories.Count > 0)
+        {
+            return;
+        }
+
+        _githubRepositoriesLoading = true;
+        try
+        {
+            var token = await GetSelectedGitHubAccessTokenAsync();
+            _githubRepositories = await GitHubFlow.ListRepositoriesAsync(token, default);
+            _githubMessageIsDanger = false;
+            _githubMessage = null;
+        }
+        catch (Exception)
+        {
+            _githubMessageIsDanger = true;
+            _githubMessage = I18n["publish.github.errorRepositoryListFailed"];
+        }
+        finally
+        {
+            _githubRepositoriesLoading = false;
+        }
+    }
+
+    /// <summary>返回搜索下拉中应该展示的 repository；限制条数保证表单高度稳定。</summary>
+    private IReadOnlyList<GitHubRepository> FilteredGitHubRepositories()
+    {
+        var query = _githubRepositorySearch.Trim();
+        var matches = string.IsNullOrWhiteSpace(query)
+            ? _githubRepositories
+            : _githubRepositories
+                .Where(x => x.FullName.Contains(query, StringComparison.OrdinalIgnoreCase)
+                    || x.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+        return matches.Take(12).ToArray();
+    }
+
+    /// <summary>尝试把手动输入的 owner/repository 写回目标模型，作为 GitHub 列表不完整时的兜底。</summary>
+    private bool TryApplyGitHubRepositorySearch()
+    {
+        if (!string.Equals(_githubDestinationMode, "existing", StringComparison.Ordinal)
+            || !string.IsNullOrWhiteSpace(_githubOwner)
+            || !string.IsNullOrWhiteSpace(_githubRepository))
+        {
+            return true;
+        }
+
+        var fullName = _githubRepositorySearch.Trim();
+        var slashIndex = fullName.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex <= 0 || slashIndex >= fullName.Length - 1)
+        {
+            return false;
+        }
+
+        var owner = fullName[..slashIndex].Trim();
+        var repository = fullName[(slashIndex + 1)..].Trim();
+        if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repository) || repository.Contains('/', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        _githubOwner = owner;
+        _githubRepository = repository;
+        _githubRepositorySearch = GitHubRepositoryFullName();
+        return true;
+    }
+
+    /// <summary>清空已有 repository 选择，但保留 branch，因为 branch 通常仍是 gh-pages。</summary>
+    private void ClearSelectedGitHubRepository()
+    {
+        _githubOwner = string.Empty;
+        _githubRepository = string.Empty;
+    }
+
+    /// <summary>当前 GitHub repository 的 owner/name 全名；未选中时返回空字符串。</summary>
+    private string GitHubRepositoryFullName()
+        => string.IsNullOrWhiteSpace(_githubOwner) || string.IsNullOrWhiteSpace(_githubRepository)
+            ? string.Empty
+            : $"{_githubOwner}/{_githubRepository}";
 
     /// <summary>发起 GitHub Device Flow。</summary>
     private async Task StartGitHubDeviceFlowAsync()
@@ -768,6 +1020,10 @@
         _githubMessageIsDanger = false;
         _githubMessage = I18n["publish.github.authorizationSucceeded"];
         await LoadGitConnectionsAsync();
+        if (string.Equals(_githubDestinationMode, "existing", StringComparison.Ordinal))
+        {
+            await LoadGitHubRepositoriesAsync(force: true);
+        }
     }
 
     /// <summary>创建发布专用 GitHub repository，并回填 owner/repository。</summary>
@@ -789,6 +1045,7 @@
         var repo = await GitHubFlow.CreateRepositoryAsync(token, _githubNewRepository, _githubCreatePrivateRepository, autoInit: true, default);
         _githubOwner = repo.Owner;
         _githubRepository = repo.Name;
+        _githubRepositorySearch = repo.FullName;
         _githubDestinationMode = "create";
         _githubBranchCheck = new GitHubPublishBranchCheck(GitHubPublishBranchState.Missing, false, 0);
         _githubMessageIsDanger = false;
@@ -856,6 +1113,7 @@
             _githubOwner = config.Owner;
             _githubRepository = config.Repository;
             _githubBranch = config.Branch;
+            _githubRepositorySearch = GitHubRepositoryFullName();
             _githubMessageIsDanger = false;
             _githubMessage = I18n["publish.addPlan.saved"];
             await RefreshAsync();
@@ -932,6 +1190,12 @@
     private bool ValidateGitHubTarget(bool requireRepository)
     {
         _githubMessageIsDanger = true;
+        if (requireRepository && !TryApplyGitHubRepositorySearch())
+        {
+            _githubMessage = I18n["publish.github.errorRepositoryRequired"];
+            return false;
+        }
+
         if (requireRepository && string.IsNullOrWhiteSpace(_githubOwner))
         {
             _githubMessage = I18n["publish.github.errorOwnerRequired"];

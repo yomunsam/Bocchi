@@ -26,6 +26,18 @@ public static class ThemeManifestLoader
         var themesRoot = Path.GetFullPath(themesDirectory);
         var themeRoot = Path.GetFullPath(Path.Combine(themesRoot, themeId));
         EnsureUnderThemesRoot(themeRoot, themesRoot, themeId);
+        return await TryLoadFromRootAsync(themeRoot, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从指定 Theme Root 读取 <c>theme.json</c>。它不限制路径来源，供 Dev Link 和 Package inspection 复用。
+    /// </summary>
+    public static async Task<(ThemeManifest Manifest, string ThemeRoot)?> TryLoadFromRootAsync(
+        string themeRoot, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(themeRoot);
+
+        themeRoot = Path.GetFullPath(themeRoot);
         var manifestPath = Path.Combine(themeRoot, "theme.json");
         if (!File.Exists(manifestPath))
         {

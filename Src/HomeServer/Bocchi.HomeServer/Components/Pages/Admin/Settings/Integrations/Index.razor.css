@@ -1,0 +1,132 @@
+.bocchi-integrations-shell {
+    gap: 1.15rem;
+}
+
+.bocchi-integrations-layout {
+    display: grid;
+    grid-template-columns: var(--bocchi-secondary-nav-width) minmax(0, 1fr);
+    gap: var(--bocchi-secondary-nav-gap);
+    align-items: start;
+}
+
+.bocchi-integrations-stack,
+.bocchi-integrations-section {
+    display: grid;
+    min-width: 0;
+    gap: 0.85rem;
+}
+
+.bocchi-settings-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    margin: 0;
+    color: var(--bocchi-text-subtle);
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+
+.bocchi-settings-breadcrumb a {
+    color: var(--bocchi-text-muted);
+    text-decoration: none;
+}
+
+.bocchi-settings-breadcrumb a:hover {
+    color: var(--bocchi-action-strong);
+}
+
+.bocchi-integrations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: 0.75rem;
+}
+
+.bocchi-integration-entry {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-surface) 96%, var(--bocchi-bg));
+    color: var(--bocchi-text);
+    padding: 0.85rem;
+    text-decoration: none;
+}
+
+.bocchi-integration-entry:hover {
+    border-color: color-mix(in srgb, var(--bocchi-action) 34%, var(--bocchi-border));
+    background: var(--bocchi-surface-muted);
+}
+
+.bocchi-integration-entry__icon {
+    display: inline-flex;
+    width: 2.5rem;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bocchi-text-muted) 12%, var(--bocchi-surface));
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-github-mark {
+    display: inline-block;
+    width: 1.15rem;
+    height: 1.15rem;
+    background: currentColor;
+    -webkit-mask: url("/github.svg") center / contain no-repeat;
+    mask: url("/github.svg") center / contain no-repeat;
+}
+
+.bocchi-integration-entry__body {
+    display: grid;
+    min-width: 0;
+    gap: 0.15rem;
+}
+
+.bocchi-integration-entry__body strong {
+    overflow: hidden;
+    color: var(--bocchi-text);
+    font-size: 0.98rem;
+    font-weight: 680;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-integration-entry__body span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.bocchi-integration-entry__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--bocchi-action-strong);
+    font-size: 0.84rem;
+    font-weight: 650;
+}
+
+.bocchi-integration-entry__action ::deep svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+@media (max-width: 900px) {
+    .bocchi-integrations-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 620px) {
+    .bocchi-integration-entry {
+        grid-template-columns: 2.5rem minmax(0, 1fr);
+    }
+
+    .bocchi-integration-entry__action {
+        grid-column: 2;
+    }
+}

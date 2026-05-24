@@ -1,0 +1,462 @@
+@page "/Admin/Site/Themes"
+@using System.Globalization
+@using Bocchi.Generator.Theme
+@using Bocchi.Workspace
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Options
+@inject SiteProfileSettingsService SiteProfileSettings
+@inject ThemeSettingsService ThemeSettings
+@inject ThemeMigrationService ThemeMigration
+@inject ThemePackageService ThemePackages
+@inject DashboardLocalizationService I18n
+@inject NavigationManager Navigation
+@inject BocchiDataLayout Layout
+@inject IOptions<ThemePackageOptions> PackageOptions
+
+<PageTitle>@I18n["themeLibrary.page.title"] · Bocchi</PageTitle>
+
+<article class="bocchi-shell bocchi-shell--dashboard bocchi-theme-library-shell">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@I18n["themeLibrary.page.eyebrow"]</span>
+        <h1>@I18n["themeLibrary.page.heading"]</h1>
+        <p>@I18n["themeLibrary.page.description"]</p>
+    </header>
+
+    @if (_loading)
+    {
+        <section class="bocchi-panel">
+            <p class="bocchi-theme-library-muted">@I18n["themeLibrary.loading"]</p>
+        </section>
+    }
+    else
+    {
+        <section class="bocchi-theme-library-active" aria-labelledby="theme-library-active-heading">
+            <div>
+                <span>@I18n["themeLibrary.active.eyebrow"]</span>
+                <h2 id="theme-library-active-heading">@ActiveThemeName</h2>
+                <code>@_activeThemeId</code>
+            </div>
+            <BocchiStatusPill Tone="@ActiveThemeTone">@ActiveThemeStatus</BocchiStatusPill>
+        </section>
+
+        <section class="bocchi-panel bocchi-theme-library-section" aria-labelledby="theme-library-catalog-heading">
+            <div class="bocchi-section-heading">
+                <h2 id="theme-library-catalog-heading">@I18n["themeLibrary.catalog.title"]</h2>
+                <p>@I18n["themeLibrary.catalog.description"]</p>
+            </div>
+
+            <div class="bocchi-theme-library-list">
+                @foreach (var item in _catalog)
+                {
+                    <article class="@ThemeItemClass(item)">
+                        <div class="bocchi-theme-library-item__main">
+                            <div>
+                                <h3>@item.Name</h3>
+                                <code>@item.Id</code>
+                            </div>
+                            <div class="bocchi-theme-library-pill-row">
+                                <BocchiStatusPill Tone="@SourceTone(item.SourceKind)">@ThemeSourceLabel(item.SourceKind)</BocchiStatusPill>
+                                @if (!string.IsNullOrWhiteSpace(item.Version))
+                                {
+                                    <BocchiStatusPill Tone="neutral">@string.Format(CultureInfo.CurrentCulture, I18n["themeLibrary.catalog.versionFormat"], item.Version)</BocchiStatusPill>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.RunnerKind))
+                                {
+                                    <BocchiStatusPill Tone="@RunnerTone(item.RunnerKind)">@item.RunnerKind</BocchiStatusPill>
+                                }
+                                @if (item.ShadowsInstalledTheme)
+                                {
+                                    <BocchiStatusPill Tone="warning">@I18n["themeLibrary.catalog.shadowed"]</BocchiStatusPill>
+                                }
+                                @if (!item.IsAvailable)
+                                {
+                                    <BocchiStatusPill Tone="danger">@I18n["themeLibrary.catalog.unavailable"]</BocchiStatusPill>
+                                }
+                            </div>
+                            <code class="bocchi-theme-library-root" title="@item.Root">@item.Root</code>
+                            @if (item.Diagnostics.Count > 0)
+                            {
+                                <div class="bocchi-theme-library-diagnostics">
+                                    @foreach (var diagnostic in item.Diagnostics)
+                                    {
+                                        <BocchiStatusPill Tone="@DiagnosticTone(diagnostic)">@DiagnosticText(diagnostic)</BocchiStatusPill>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="bocchi-theme-library-item__actions">
+                            @if (IsActiveTheme(item.Id))
+                            {
+                                <BocchiStatusPill Tone="success">@I18n["themeLibrary.catalog.active"]</BocchiStatusPill>
+                            }
+                            else
+                            {
+                                @if (RequiresProcessTrust(item))
+                                {
+                                    <label class="bocchi-theme-library-trust">
+                                        <input type="checkbox" checked="@IsActivationTrusted(item.Id)" @onchange="args => SetActivationTrust(item.Id, args)" />
+                                        <span>@I18n["themeLibrary.catalog.trustConfirm"]</span>
+                                    </label>
+                                }
+                                <button type="button" class="secondary" disabled="@(!CanActivateTheme(item))" @onclick="() => SetActiveThemeAsync(item.Id)">
+                                    <Blazicon Svg="Lucide.Check" />
+                                    <span>@I18n["themeLibrary.catalog.setActive"]</span>
+                                </button>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="bocchi-panel bocchi-theme-library-section" aria-labelledby="theme-library-upload-heading">
+            <div class="bocchi-section-heading">
+                <h2 id="theme-library-upload-heading">@I18n["themeLibrary.upload.title"]</h2>
+                <p>@I18n["themeLibrary.upload.description"]</p>
+            </div>
+
+            <div class="bocchi-theme-library-upload">
+                <label class="bocchi-theme-library-file">
+                    <span>@I18n["themeLibrary.upload.file"]</span>
+                    <InputFile OnChange="InspectUploadAsync" accept=".zip,application/zip" />
+                </label>
+
+                @if (_uploadBusy)
+                {
+                    <BocchiStatusPill Tone="neutral">@I18n["themeLibrary.upload.inspecting"]</BocchiStatusPill>
+                }
+                @if (!string.IsNullOrWhiteSpace(_uploadMessage))
+                {
+                    <BocchiStatusPill Tone="@_uploadMessageTone">@_uploadMessage</BocchiStatusPill>
+                }
+            </div>
+
+            @if (_inspection is not null)
+            {
+                <div class="bocchi-theme-library-inspection">
+                    <div>
+                        <span>@I18n["themeLibrary.inspection.title"]</span>
+                        <h3>@(_inspection.Name ?? I18n["themeLibrary.inspection.unknownTheme"])</h3>
+                        <code>@(_inspection.ThemeId ?? I18n["themeLibrary.inspection.unknownTheme"])</code>
+                    </div>
+                    <dl>
+                        <div>
+                            <dt>@I18n["themeLibrary.inspection.version"]</dt>
+                            <dd>@(_inspection.Version ?? I18n["themeLibrary.inspection.unknown"])</dd>
+                        </div>
+                        <div>
+                            <dt>@I18n["themeLibrary.inspection.runner"]</dt>
+                            <dd>@(_inspection.RunnerKind ?? I18n["themeLibrary.inspection.unknown"])</dd>
+                        </div>
+                        <div>
+                            <dt>@I18n["themeLibrary.inspection.trust"]</dt>
+                            <dd>@(_inspection.RequiresTrust ? I18n["themeLibrary.inspection.trustRequired"] : I18n["themeLibrary.inspection.trustNotRequired"])</dd>
+                        </div>
+                    </dl>
+
+                    @if (_inspection.Diagnostics.Count > 0)
+                    {
+                        <div class="bocchi-theme-library-diagnostics">
+                            @foreach (var diagnostic in _inspection.Diagnostics)
+                            {
+                                <BocchiStatusPill Tone="@DiagnosticTone(diagnostic)">@DiagnosticText(diagnostic)</BocchiStatusPill>
+                            }
+                        </div>
+                    }
+
+                    @if (_inspection.RequiresTrust)
+                    {
+                        <label class="bocchi-theme-library-trust">
+                            <input type="checkbox" @bind="_trustProcessRunner" />
+                            <span>@I18n["themeLibrary.inspection.trustConfirm"]</span>
+                        </label>
+                    }
+
+                    <div class="bocchi-inline-actions">
+                        <button type="button" disabled="@(!CanInstallInspection)" @onclick="InstallInspectionAsync">
+                            <Blazicon Svg="Lucide.Archive" />
+                            <span>@InstallButtonText</span>
+                        </button>
+                    </div>
+                </div>
+            }
+
+            @if (_installResult is not null)
+            {
+                <div class="bocchi-theme-library-installed">
+                    <BocchiStatusPill Tone="success">@I18n["themeLibrary.install.success"]</BocchiStatusPill>
+                    <button type="button" class="secondary" disabled="@_activationBusy" @onclick="() => SetActiveThemeAsync(_installResult.ThemeId)">
+                        <Blazicon Svg="Lucide.Check" />
+                        <span>@I18n["themeLibrary.install.setActive"]</span>
+                    </button>
+                </div>
+            }
+        </section>
+    }
+</article>
+
+@code {
+    /// <summary>当前 active Theme id。</summary>
+    private string _activeThemeId = "default-static";
+
+    /// <summary>Theme Catalog 页面缓存。</summary>
+    private IReadOnlyList<ThemeCatalogItem> _catalog = [];
+
+    /// <summary>页面初次加载状态。</summary>
+    private bool _loading = true;
+
+    /// <summary>上传 inspection 运行中状态。</summary>
+    private bool _uploadBusy;
+
+    /// <summary>安装运行中状态。</summary>
+    private bool _installBusy;
+
+    /// <summary>切换 active Theme 运行中状态。</summary>
+    private bool _activationBusy;
+
+    /// <summary>上传或安装反馈文案。</summary>
+    private string? _uploadMessage;
+
+    /// <summary>上传或安装反馈色值。</summary>
+    private string _uploadMessageTone = "neutral";
+
+    /// <summary>最近一次 zip inspection 结果。</summary>
+    private ThemePackageInspection? _inspection;
+
+    /// <summary>process runner 安装信任确认。</summary>
+    private bool _trustProcessRunner;
+
+    /// <summary>最近一次安装结果，用于提供设为当前 Theme 的连续动作。</summary>
+    private ThemePackageInstallResult? _installResult;
+
+    /// <summary>Catalog 中 process Theme 激活前的显式信任确认。</summary>
+    private HashSet<string> _trustedActivationThemeIds = new(StringComparer.Ordinal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStateAsync();
+        _loading = false;
+    }
+
+    /// <summary>当前 active Theme 展示名。</summary>
+    private string ActiveThemeName
+        => _catalog.FirstOrDefault(item => IsActiveTheme(item.Id))?.Name ?? _activeThemeId;
+
+    /// <summary>当前 active Theme 状态标签文案。</summary>
+    private string ActiveThemeStatus
+        => _catalog.FirstOrDefault(item => IsActiveTheme(item.Id))?.IsAvailable == true
+            ? I18n["themeLibrary.active.available"]
+            : I18n["themeLibrary.active.unavailable"];
+
+    /// <summary>当前 active Theme 状态标签色值。</summary>
+    private string ActiveThemeTone
+        => _catalog.FirstOrDefault(item => IsActiveTheme(item.Id))?.IsAvailable == true ? "success" : "danger";
+
+    /// <summary>安装按钮是否可用。</summary>
+    private bool CanInstallInspection
+        => !_installBusy &&
+           _inspection?.IsInstallable == true &&
+           (!_inspection.RequiresTrust || _trustProcessRunner);
+
+    /// <summary>安装按钮文案。</summary>
+    private string InstallButtonText
+        => _installBusy ? I18n["themeLibrary.install.installing"] : I18n["themeLibrary.install.confirm"];
+
+    /// <summary>读取 active Theme 与 Catalog。</summary>
+    private async Task RefreshStateAsync()
+    {
+        var site = await SiteProfileSettings.GetAsync();
+        _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "default-static" : site.DefaultThemeId;
+        _catalog = await ThemeSettings.ListThemeCatalogAsync();
+    }
+
+    /// <summary>保存上传文件到 Theme upload cache 并执行 inspection。</summary>
+    private async Task InspectUploadAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        _uploadBusy = true;
+        _uploadMessage = null;
+        _inspection = null;
+        _installResult = null;
+        _trustProcessRunner = false;
+
+        try
+        {
+            var uploadDirectory = Path.Combine(Layout.ThemeUploadCacheDirectory, "browser-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(uploadDirectory);
+            var uploadPath = Path.Combine(uploadDirectory, Path.GetFileName(file.Name));
+            await using (var source = file.OpenReadStream(PackageOptions.Value.MaxPackageBytes))
+            await using (var target = File.Create(uploadPath))
+            {
+                await source.CopyToAsync(target);
+            }
+
+            _inspection = await ThemePackages.InspectZipAsync(uploadPath);
+            _uploadMessage = _inspection.IsInstallable
+                ? I18n["themeLibrary.upload.inspectSuccess"]
+                : I18n["themeLibrary.upload.inspectFailed"];
+            _uploadMessageTone = _inspection.IsInstallable ? "success" : "danger";
+        }
+        catch (IOException)
+        {
+            _uploadMessage = I18n["themeLibrary.upload.readFailed"];
+            _uploadMessageTone = "danger";
+        }
+        finally
+        {
+            _uploadBusy = false;
+        }
+    }
+
+    /// <summary>安装最近一次 inspection 通过的 Theme Package。</summary>
+    private async Task InstallInspectionAsync()
+    {
+        if (_inspection is null || !CanInstallInspection)
+        {
+            return;
+        }
+
+        _installBusy = true;
+        _uploadMessage = null;
+        try
+        {
+            _installResult = await ThemePackages.InstallOrUpdateAsync(_inspection, _trustProcessRunner);
+            if (_inspection.RequiresTrust)
+            {
+                _trustedActivationThemeIds.Add(_installResult.ThemeId);
+            }
+
+            await RefreshStateAsync();
+            _uploadMessage = _installResult.WasUpdate
+                ? I18n["themeLibrary.install.updated"]
+                : I18n["themeLibrary.install.installed"];
+            _uploadMessageTone = "success";
+        }
+        catch (InvalidOperationException)
+        {
+            _uploadMessage = I18n["themeLibrary.install.failed"];
+            _uploadMessageTone = "danger";
+        }
+        finally
+        {
+            _installBusy = false;
+        }
+    }
+
+    /// <summary>把指定 Theme 设置为 active；有 Theme i18n menu 引用时进入既有迁移向导。</summary>
+    private async Task SetActiveThemeAsync(string themeId)
+    {
+        if (string.IsNullOrWhiteSpace(themeId) || IsActiveTheme(themeId))
+        {
+            return;
+        }
+
+        var item = _catalog.FirstOrDefault(candidate => string.Equals(candidate.Id, themeId, StringComparison.Ordinal));
+        if (item is null || !CanActivateTheme(item))
+        {
+            return;
+        }
+
+        _activationBusy = true;
+        var current = await SiteProfileSettings.GetAsync();
+        var plan = await ThemeMigration.ScanAsync(current.DefaultThemeId, themeId);
+        if (plan.Entries.Count > 0)
+        {
+            Navigation.NavigateTo($"/Admin/Site/ThemeMigration?from={Uri.EscapeDataString(current.DefaultThemeId)}&to={Uri.EscapeDataString(themeId)}");
+            return;
+        }
+
+        await SiteProfileSettings.SaveAsync(new SiteProfileSettingsUpdate
+        {
+            SiteName = current.SiteName,
+            DefaultTitle = current.DefaultTitle,
+            Description = current.Description,
+            PublicBaseUrl = current.PublicBaseUrl,
+            CopyrightNotice = current.CopyrightNotice,
+            Language = current.Language,
+            TimeZone = current.TimeZone,
+            DefaultThemeId = themeId,
+        });
+        await RefreshStateAsync();
+        _activationBusy = false;
+    }
+
+    /// <summary>判断 Catalog 项是否可从 Theme Library 激活。</summary>
+    private bool CanActivateTheme(ThemeCatalogItem item)
+        => !_activationBusy &&
+           item.IsAvailable &&
+           (!RequiresProcessTrust(item) || IsActivationTrusted(item.Id));
+
+    /// <summary>process runner Theme 激活前需要显式 trust。</summary>
+    private static bool RequiresProcessTrust(ThemeCatalogItem item)
+        => string.Equals(item.RunnerKind, "process", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>判断指定 Theme 是否已经在本页面确认过激活信任。</summary>
+    private bool IsActivationTrusted(string themeId)
+        => _trustedActivationThemeIds.Contains(themeId);
+
+    /// <summary>记录或取消 process Theme 激活信任确认。</summary>
+    private void SetActivationTrust(string themeId, ChangeEventArgs args)
+    {
+        if (args.Value is bool trusted && trusted)
+        {
+            _trustedActivationThemeIds.Add(themeId);
+            return;
+        }
+
+        _trustedActivationThemeIds.Remove(themeId);
+    }
+
+    /// <summary>判断 Catalog 项是否为当前 active Theme。</summary>
+    private bool IsActiveTheme(string themeId)
+        => string.Equals(themeId, _activeThemeId, StringComparison.Ordinal);
+
+    /// <summary>Catalog 条目外层 class，保留 active/unavailable 状态给 CSS。</summary>
+    private string ThemeItemClass(ThemeCatalogItem item)
+        => "bocchi-theme-library-item"
+           + (IsActiveTheme(item.Id) ? " bocchi-theme-library-item--active" : string.Empty)
+           + (!item.IsAvailable ? " bocchi-theme-library-item--unavailable" : string.Empty);
+
+    /// <summary>把 Theme 来源枚举转换成当前 Dashboard 语言。</summary>
+    private string ThemeSourceLabel(ThemeSourceKind sourceKind)
+        => sourceKind switch
+        {
+            ThemeSourceKind.BuiltIn => I18n["themeCustomization.source.builtIn"],
+            ThemeSourceKind.Installed => I18n["themeCustomization.source.installed"],
+            ThemeSourceKind.DevLink => I18n["themeCustomization.source.devLink"],
+            ThemeSourceKind.PackageCandidate => I18n["themeCustomization.source.packageCandidate"],
+            _ => I18n["themeLibrary.unknown"],
+        };
+
+    /// <summary>Theme 来源对应的状态标签色值。</summary>
+    private static string SourceTone(ThemeSourceKind sourceKind)
+        => sourceKind switch
+        {
+            ThemeSourceKind.DevLink => "warning",
+            ThemeSourceKind.BuiltIn => "success",
+            _ => "neutral",
+        };
+
+    /// <summary>Runner 对应的状态标签色值。</summary>
+    private static string RunnerTone(string runnerKind)
+        => string.Equals(runnerKind, "process", StringComparison.OrdinalIgnoreCase) ? "warning" : "neutral";
+
+    /// <summary>诊断对应的状态标签色值。</summary>
+    private static string DiagnosticTone(ThemeDiagnostic diagnostic)
+        => diagnostic.Severity switch
+        {
+            ThemeDiagnosticSeverity.Error => "danger",
+            ThemeDiagnosticSeverity.Warning => "warning",
+            _ => "neutral",
+        };
+
+    /// <summary>Dashboard 使用资源文件展示诊断，避免把服务层日志文案直接暴露成 UI 文案。</summary>
+    private string DiagnosticText(ThemeDiagnostic diagnostic)
+    {
+        var key = $"themeDiagnostics.{diagnostic.Code}";
+        var text = I18n[key];
+        return string.Equals(text, key, StringComparison.Ordinal)
+            ? diagnostic.Code
+            : text;
+    }
+}

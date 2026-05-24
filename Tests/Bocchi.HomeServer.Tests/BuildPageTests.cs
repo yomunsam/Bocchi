@@ -2,6 +2,11 @@ using System.Net;
 using System.Text.Json;
 
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+
+using Bocchi.HomeServer.Services;
+using Bocchi.HomeServer.Services.Git;
+using Bocchi.HomeServer.Services.Publishing;
 
 namespace Bocchi.HomeServer.Tests;
 
@@ -52,12 +57,67 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         body.Should().Contain("Publish plan name");
         body.Should().Contain("Publish channel");
         body.Should().Contain("Connect GitHub");
-        body.Should().Contain("Publish repository");
+        body.Should().NotContain("Publish repository");
         body.Should().Contain("GitHub cannot connect yet");
         body.Should().Contain("Open GitHub integration");
         body.Should().Contain("/Admin/Settings/Integrations/GitHub");
         body.Should().NotContain("GitHub token");
         body.Should().NotContain("OAuth client id");
+    }
+
+    [Fact]
+    public async Task AddPlanPage_WithSavedConnection_RendersRepositoryStepAndSearchPicker()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        int planId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var connections = scope.ServiceProvider.GetRequiredService<GitProviderConnectionService>();
+            var credential = new GitHubOAuthCredential
+            {
+                AccessToken = "test-token",
+                Scope = "repo",
+                GitHubLogin = "octocat",
+            };
+            var connection = await connections.SaveAsync(new GitProviderConnectionSaveInput(
+                null,
+                GitProviderKeys.GitHub,
+                "https://github.com",
+                "octocat",
+                "repo",
+                credential.ToJson()));
+            var plans = scope.ServiceProvider.GetRequiredService<PublishPlanService>();
+            var configuration = new GitHubPagesPublishConfiguration
+            {
+                Owner = "octocat",
+                Repository = "bocchi-site",
+                Branch = "gh-pages",
+                DestinationMode = "existing",
+            };
+            var plan = await plans.SaveAsync(new PublishPlanSaveInput(
+                null,
+                "GitHub Pages",
+                PublishPlanService.GitHubPagesChannel,
+                configuration.ToJson(),
+                CredentialJson: null,
+                SetAsDefault: true,
+                GitProviderConnectionId: connection.Id));
+            planId = plan.Id;
+        }
+
+        var response = await client.GetAsync($"/Admin/Publish/AddPlan/{planId}");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("GitHub connected");
+        body.Should().Contain("GitHub account");
+        body.Should().Contain("Publish repository");
+        body.Should().Contain("Search owner/repository");
+        body.Should().Contain("octocat/bocchi-site");
+        body.Should().NotContain("GitHub cannot connect yet");
+        body.Should().NotContain("Open GitHub integration");
+        body.Should().NotContain("GitHub token");
     }
 
     [Fact]
@@ -70,12 +130,46 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("GitHub integration");
+        body.Should().Contain("GitHub OAuth App integration");
         body.Should().Contain("Open GitHub create page");
+        body.Should().Contain("View existing OAuth Apps");
         body.Should().Contain("https://github.com/settings/applications/new");
+        body.Should().Contain("https://github.com/settings/developers");
         body.Should().Contain("GitHub OAuth App Client ID");
         body.Should().Contain("GitHub OAuth App Client secret");
-        body.Should().Contain("Back to Add publish plan");
+        body.Should().Contain("View publish settings");
         body.Should().Contain("GitHub / Developer settings / OAuth Apps");
+        body.Should().NotContain("GitHub OAuth App configured");
+    }
+
+    [Fact]
+    public async Task GitHubIntegrationPage_WithSavedClientId_RendersMaintenanceState()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var settings = scope.ServiceProvider.GetRequiredService<GitHubIntegrationSettingsService>();
+            await settings.SaveAsync(new GitHubIntegrationSettingsUpdate(
+                LoginEnabled: false,
+                DisplayName: "GitHub",
+                OAuthClientId: "saved-client-id",
+                OAuthClientSecret: null,
+                CallbackPath: "/signin-github"));
+        }
+
+        var response = await client.GetAsync("/Admin/Settings/Integrations/GitHub");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("GitHub OAuth App configured");
+        body.Should().Contain("Update Bocchi configuration");
+        body.Should().Contain("Update GitHub integration");
+        body.Should().Contain("View existing OAuth Apps");
+        body.Should().Contain("Create another OAuth App");
+        body.Should().Contain("value=\"saved-client-id\"");
+        body.Should().NotContain("Fill the GitHub form with these values");
+        body.Should().NotContain("Check Enable Device Flow");
     }
 
     [Fact]

@@ -22,3 +22,7 @@ Home Server live preview is a first-class build mode. A Theme should:
 ## Authoring Notes
 
 The `fluid-static` runner generates Bocchi's standard static route set from the Theme Contract inputs. If a Theme needs a completely different route system or a frontend framework build, use `runner.kind = "process"` instead.
+
+To start a new Theme from this reference implementation, copy the directory outside the Bocchi repo, change `theme.json.id` and `theme.json.name`, then add a Dev Link in `<data>/themes/dev-links.json`. Refreshing Preview runs a new Live Build against the external Theme Root, so template, CSS, manifest, and schema changes do not need to be copied back into DataRoot.
+
+`process` runner Themes should prepare dependencies in their own repo. Bocchi does not run `installCommand` during ordinary Preview or Full Build; missing Node.js, package-manager, or binary dependencies are reported as runner startup/build errors.

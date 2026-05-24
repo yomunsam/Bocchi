@@ -72,8 +72,14 @@ public sealed record BocchiDataLayout
     /// <summary>Theme 输入数据目录，对应 Theme Contract 中的 <c>inputDir</c>。</summary>
     public string ThemeInputDirectory => Path.Combine(CacheDirectory, "theme-input");
 
+    /// <summary>Theme zip 上传检查与解压临时目录。</summary>
+    public string ThemeUploadCacheDirectory => Path.Combine(CacheDirectory, "theme-upload");
+
     /// <summary>Theme 实例配置目录（每个 Theme 一份 JSON）。</summary>
     public string ThemeConfigDirectory => Path.Combine(StateDirectory, "theme-config");
+
+    /// <summary>Installed Theme 更新前的旧版本备份目录。</summary>
+    public string ThemeBackupsDirectory => Path.Combine(ThemesDirectory, ".backups");
 
     /// <summary>构建产物输出根目录。</summary>
     public string OutputDirectory => Path.Combine(DataRoot, "output");

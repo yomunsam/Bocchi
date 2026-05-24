@@ -1,0 +1,45 @@
+@page "/Admin/Settings/Integrations"
+@inject DashboardLocalizationService I18n
+
+<PageTitle>@I18n["settings.integrations.pageTitle"] · Bocchi</PageTitle>
+
+<article class="bocchi-shell bocchi-integrations-shell">
+    <header class="bocchi-page-intro">
+        <nav class="bocchi-settings-breadcrumb" aria-label='@I18n["settings.breadcrumb.aria"]'>
+            <a href="/Admin/Settings">@I18n["settings.page.heading"]</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">@I18n["settings.integrations.heading"]</span>
+        </nav>
+        <h1>@I18n["settings.integrations.heading"]</h1>
+        <p>@I18n["settings.integrations.description"]</p>
+    </header>
+
+    <div class="bocchi-integrations-layout">
+        <BocchiSettingsNav ActiveSection="integrations" />
+
+        <div class="bocchi-integrations-stack">
+            <section class="bocchi-panel bocchi-integrations-section" aria-labelledby="settings-integrations-heading">
+                <div class="bocchi-section-heading">
+                    <h2 id="settings-integrations-heading">@I18n["settings.integrations.availableTitle"]</h2>
+                    <p>@I18n["settings.integrations.availableDescription"]</p>
+                </div>
+
+                <div class="bocchi-integrations-grid">
+                    <a class="bocchi-integration-entry" href="/Admin/Settings/Integrations/GitHub">
+                        <span class="bocchi-integration-entry__icon" aria-hidden="true">
+                            <span class="bocchi-github-mark"></span>
+                        </span>
+                        <span class="bocchi-integration-entry__body">
+                            <strong>@I18n["settings.integrations.githubTitle"]</strong>
+                            <span>@I18n["settings.integrations.githubDescription"]</span>
+                        </span>
+                        <span class="bocchi-integration-entry__action">
+                            <span>@I18n["settings.integrations.openGitHub"]</span>
+                            <Blazicon Svg="Lucide.ArrowRight" />
+                        </span>
+                    </a>
+                </div>
+            </section>
+        </div>
+    </div>
+</article>

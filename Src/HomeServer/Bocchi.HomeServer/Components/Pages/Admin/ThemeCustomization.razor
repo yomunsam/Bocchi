@@ -1,5 +1,6 @@
 @page "/Admin/Site/Theme"
 @using System.Globalization
+@using Bocchi.Generator.Theme
 @using Bocchi.GeneratorContract
 @inject SiteProfileSettingsService SiteProfileSettings
 @inject ThemeSettingsService ThemeSettings
@@ -34,8 +35,31 @@
                 <span>@I18n["themeCustomization.meta.title"]</span>
                 <h2 id="theme-meta-heading">@_customization.ThemeName</h2>
                 <code>@_customization.ThemeId</code>
+                @if (!string.IsNullOrWhiteSpace(_customization.ThemeRoot))
+                {
+                    <small class="bocchi-theme-overview__root">
+                        <span>@I18n["themeCustomization.meta.root"]</span>
+                        <code title="@_customization.ThemeRoot">@_customization.ThemeRoot</code>
+                    </small>
+                }
             </div>
             <dl class="bocchi-theme-summary-list">
+                <div>
+                    <dt>@I18n["themeCustomization.meta.source"]</dt>
+                    <dd>@ThemeSourceLabel(_customization.SourceKind)</dd>
+                </div>
+                <div>
+                    <dt>@I18n["themeCustomization.meta.runner"]</dt>
+                    <dd>@(_customization.RunnerKind ?? I18n["themeCustomization.meta.unknown"])</dd>
+                </div>
+                <div>
+                    <dt>@I18n["themeCustomization.meta.version"]</dt>
+                    <dd>@(_customization.Version ?? I18n["themeCustomization.meta.unknown"])</dd>
+                </div>
+                <div>
+                    <dt>@I18n["themeCustomization.meta.contract"]</dt>
+                    <dd>@(_customization.ContractVersion ?? I18n["themeCustomization.meta.unknown"])</dd>
+                </div>
                 <div>
                     <dt>@I18n["themeCustomization.meta.schemaGroups"]</dt>
                     <dd>@_customization.Groups.Count</dd>
@@ -48,6 +72,10 @@
             <div class="bocchi-theme-status-stack" aria-live="polite">
                 <BocchiStatusPill Tone="@ConfigStatusTone">@ConfigStatusText</BocchiStatusPill>
                 <BocchiStatusPill Tone="@ThemeI18nStatusTone">@ThemeI18nStatusText</BocchiStatusPill>
+                @foreach (var diagnostic in _customization.Diagnostics)
+                {
+                    <BocchiStatusPill Tone="@ThemeDiagnosticTone(diagnostic)">@ThemeDiagnosticText(diagnostic)</BocchiStatusPill>
+                }
             </div>
             @* 切换 Theme 入口：实际的 Theme 选择字段位于 站点资料；这里给一个显眼的快捷入口，避免用户在多个页面之间盲找。 *@
             <a class="bocchi-theme-overview__switch" href="/Admin/Settings/Profile" title='@I18n["themeCustomization.meta.switchThemeHint"]'>
@@ -496,6 +524,36 @@
         => _themeI18nMessage is not null && !_themeI18nSaved
             ? "danger"
             : _themeI18nDirty ? "warning" : _themeI18nSaved ? "success" : "neutral";
+
+    /// <summary>把 Theme 来源枚举转换为 Dashboard 当前语言文案。</summary>
+    private string ThemeSourceLabel(ThemeSourceKind? sourceKind)
+        => sourceKind switch
+        {
+            ThemeSourceKind.BuiltIn => I18n["themeCustomization.source.builtIn"],
+            ThemeSourceKind.Installed => I18n["themeCustomization.source.installed"],
+            ThemeSourceKind.DevLink => I18n["themeCustomization.source.devLink"],
+            ThemeSourceKind.PackageCandidate => I18n["themeCustomization.source.packageCandidate"],
+            _ => I18n["themeCustomization.meta.unknown"],
+        };
+
+    /// <summary>把 Resolver 诊断级别映射到现有状态标签色值。</summary>
+    private static string ThemeDiagnosticTone(ThemeDiagnostic diagnostic)
+        => diagnostic.Severity switch
+        {
+            ThemeDiagnosticSeverity.Error => "danger",
+            ThemeDiagnosticSeverity.Warning => "warning",
+            _ => "neutral",
+        };
+
+    /// <summary>Dashboard 使用资源文件展示诊断，避免把服务层日志文案直接暴露成 UI 文案。</summary>
+    private string ThemeDiagnosticText(ThemeDiagnostic diagnostic)
+    {
+        var key = $"themeDiagnostics.{diagnostic.Code}";
+        var text = I18n[key];
+        return string.Equals(text, key, StringComparison.Ordinal)
+            ? diagnostic.Code
+            : text;
+    }
 
     /// <summary>当前配置分组；schema 更新后如果 id 不存在会回退到第一个分组。</summary>
     private ThemeConfigGroupView? ActiveConfigGroup

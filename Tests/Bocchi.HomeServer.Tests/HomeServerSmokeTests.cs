@@ -297,13 +297,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("/Admin/Settings/Profile");
         body.Should().Contain("/Admin/Settings/Localization");
         body.Should().Contain("/Admin/Settings/Login");
-        body.Should().Contain("/Admin/Settings/Integrations/GitHub");
+        body.Should().Contain("/Admin/Settings/Integrations");
         body.Should().Contain("/Admin/Settings/System");
         body.Should().Contain("/Admin/Users");
         body.Should().Contain("Site profile");
         body.Should().Contain("Localization");
         body.Should().Contain("Third-party Login");
-        body.Should().Contain("GitHub");
+        body.Should().Contain("External integrations");
         body.Should().Contain("System");
         body.Should().NotContain("Site primary language");
         body.Should().NotContain("Save Theme config");
@@ -324,6 +324,9 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Site name");
         body.Should().Contain("Default frontend URL");
         body.Should().Contain("Default frontend Theme");
+        body.Should().Contain("<select");
+        body.Should().Contain("Bocchi Mono");
+        body.Should().Contain("Built-in Theme");
         body.Should().Contain("Save site profile");
         body.Should().NotContain("Dashboard appearance");
     }
@@ -366,6 +369,24 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
+    public async Task SettingsIntegrationsPage_RendersProviderEntry()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Settings/Integrations");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-settings-nav");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Settings/Integrations\"[^>]*class=\"bocchi-settings-nav__item bocchi-settings-nav__item--active\"[^>]*aria-current=\"page\"");
+        body.Should().Contain("External integrations");
+        body.Should().Contain("Available integrations");
+        body.Should().Contain("href=\"/Admin/Settings/Integrations/GitHub\"");
+        body.Should().Contain("Open GitHub integration");
+        body.Should().NotContain("GitHub OAuth App Client ID");
+    }
+
+    [Fact]
     public async Task SettingsGitHubIntegrationPage_RendersSettingsNavigationAndOAuthAppGuide()
     {
         using var client = await _factory.CreateAdminClientAsync();
@@ -375,12 +396,19 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("bocchi-settings-nav");
-        body.Should().Contain("Settings / Integrations / GitHub");
-        body.Should().Contain("Create one GitHub OAuth App");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Settings/Integrations\"[^>]*class=\"bocchi-settings-nav__item bocchi-settings-nav__item--active\"[^>]*aria-current=\"page\"");
+        body.Should().Contain("href=\"/Admin/Settings\"");
+        body.Should().Contain("href=\"/Admin/Settings/Integrations\"");
+        body.Should().MatchRegex("<span[^>]*aria-current=\"page\"[^>]*>GitHub");
+        body.Should().Contain("GitHub integration");
+        body.Should().Contain("With the GitHub integration, you can later sign in to the Bocchi Admin panel with a GitHub account and publish the site to a GitHub repository or GitHub Pages.");
+        body.Should().Contain("GitHub OAuth App integration");
+        body.Should().Contain("View existing OAuth Apps");
         body.Should().Contain("GitHub OAuth App Client ID");
         body.Should().Contain("GitHub OAuth App Client secret");
         body.Should().Contain("https://github.com/settings/applications/new");
-        body.Should().Contain("GitHub / Developer settings / OAuth Apps");
+        body.Should().Contain("View publish settings");
+        body.Should().Contain("Bocchi / External integrations / GitHub");
     }
 
     [Fact]
@@ -453,6 +481,24 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Theme private text");
         body.Should().Contain("Private text keys");
         body.Should().Contain("Override Theme-owned labels");
+    }
+
+    [Fact]
+    public async Task ThemeLibraryPage_RendersCatalogAndUploadInspection()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Site/Themes");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("bocchi-theme-library-shell");
+        body.Should().Contain("Theme library");
+        body.Should().Contain("Active Theme");
+        body.Should().Contain("Bocchi Mono");
+        body.Should().Contain("Installed and development Themes");
+        body.Should().Contain("Upload Theme package");
+        body.Should().Contain("Theme zip");
     }
 
     [Fact]

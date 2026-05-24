@@ -5,7 +5,6 @@ using System.Text.Json.Nodes;
 using Bocchi.Generator.Theme;
 using Bocchi.GeneratorContract;
 using Bocchi.HomeServer.Data;
-using Bocchi.Theme.DefaultStatic;
 using Bocchi.Workspace;
 
 using Microsoft.EntityFrameworkCore;
@@ -35,13 +34,16 @@ public sealed class ThemeSettingsService
     private readonly BocchiDbContext _db;
     private readonly TimeProvider _time;
     private readonly BocchiDataLayout _layout;
+    private readonly ThemeResolver _themeResolver;
 
     /// <summary>构造 Theme 设置服务。</summary>
-    public ThemeSettingsService(BocchiDbContext db, TimeProvider time, BocchiDataLayout layout)
+    public ThemeSettingsService(BocchiDbContext db, TimeProvider time, BocchiDataLayout layout, ThemeResolver themeResolver)
     {
+        ArgumentNullException.ThrowIfNull(themeResolver);
         _db = db;
         _time = time;
         _layout = layout;
+        _themeResolver = themeResolver;
     }
 
     /// <summary>创建 Dashboard display ref 默认多语言文案。</summary>
@@ -125,12 +127,18 @@ public sealed class ThemeSettingsService
         var configuration = ParseConfigurationObject(record.ConfigurationJson);
         var groups = loadedTheme is null
             ? []
-            : await LoadConfigGroupsAsync(loadedTheme.Value.ThemeRoot, configuration, cancellationToken).ConfigureAwait(false);
+            : await LoadConfigGroupsAsync(loadedTheme.Root, configuration, cancellationToken).ConfigureAwait(false);
 
         return new ThemeCustomizationView
         {
             ThemeId = normalizedThemeId,
-            ThemeName = loadedTheme is null ? normalizedThemeId : loadedTheme.Value.Manifest.Name,
+            ThemeName = loadedTheme is null ? normalizedThemeId : loadedTheme.Manifest.Name,
+            Version = loadedTheme?.Version,
+            ContractVersion = loadedTheme?.ContractVersion,
+            ThemeRoot = loadedTheme?.Root,
+            SourceKind = loadedTheme?.SourceKind,
+            RunnerKind = loadedTheme is null ? null : ResolveRunnerKind(loadedTheme.Manifest),
+            Diagnostics = loadedTheme?.Diagnostics ?? [],
             ConfigurationJson = record.ConfigurationJson,
             Groups = groups,
         };
@@ -153,7 +161,7 @@ public sealed class ThemeSettingsService
 
         var record = await GetConfigurationAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
         var configuration = ParseConfigurationObject(record.ConfigurationJson);
-        var fields = (await LoadConfigGroupsAsync(loadedTheme.Value.ThemeRoot, new JsonObject(), cancellationToken).ConfigureAwait(false))
+        var fields = (await LoadConfigGroupsAsync(loadedTheme.Root, new JsonObject(), cancellationToken).ConfigureAwait(false))
             .SelectMany(group => group.Fields)
             .ToDictionary(field => field.Key, StringComparer.Ordinal);
         var inputs = values
@@ -178,38 +186,25 @@ public sealed class ThemeSettingsService
     /// <summary>列出当前可选择的前台 Theme；内置默认 Theme 始终会被物化并排在第一位。</summary>
     public async Task<IReadOnlyList<ThemeOption>> ListAvailableThemesAsync(CancellationToken cancellationToken = default)
     {
-        await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
-
-        var options = new Dictionary<string, ThemeOption>(StringComparer.Ordinal)
-        {
-            [DefaultStaticThemeDefinition.ThemeId] = new(
-                DefaultStaticThemeDefinition.ThemeId,
-                DefaultStaticThemeDefinition.ThemeName),
-        };
-
-        foreach (var themeDirectory in Directory.EnumerateDirectories(_layout.ThemesDirectory).Order(StringComparer.Ordinal))
-        {
-            var themeId = Path.GetFileName(themeDirectory);
-            if (string.IsNullOrWhiteSpace(themeId) ||
-                string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+        var catalog = await ListThemeCatalogAsync(cancellationToken).ConfigureAwait(false);
+        return catalog
+            .Where(x => x.IsAvailable)
+            .Select(x => new ThemeOption(x.Id, x.Name)
             {
-                continue;
-            }
-
-            var loaded = await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, cancellationToken)
-                .ConfigureAwait(false);
-            if (loaded is not null)
-            {
-                var manifest = loaded.Value.Manifest;
-                options[manifest.Id] = new ThemeOption(manifest.Id, manifest.Name);
-            }
-        }
-
-        return options.Values
-            .OrderByDescending(x => string.Equals(x.Id, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
-            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                Version = x.Version,
+                ContractVersion = x.ContractVersion,
+                Root = x.Root,
+                SourceKind = x.SourceKind,
+                RunnerKind = x.RunnerKind,
+                Diagnostics = x.Diagnostics,
+                ShadowsInstalledTheme = x.ShadowsInstalledTheme,
+            })
             .ToList();
     }
+
+    /// <summary>列出 Theme Catalog 原始条目；包含不可选择的无效 Theme 诊断。</summary>
+    public async Task<IReadOnlyList<ThemeCatalogItem>> ListThemeCatalogAsync(CancellationToken cancellationToken = default)
+        => await _themeResolver.ListAvailableThemesAsync(cancellationToken).ConfigureAwait(false);
 
     /// <summary>读取当前 Theme manifest 声明的私有 i18n key 和用户覆盖值。</summary>
     public async Task<ThemeI18nSettingsView> GetI18nAsync(string themeId, CancellationToken cancellationToken = default)
@@ -349,18 +344,19 @@ public sealed class ThemeSettingsService
     private async Task<ThemeManifest?> LoadThemeManifestAsync(string themeId, CancellationToken cancellationToken)
     {
         var loaded = await LoadThemeAsync(themeId, cancellationToken).ConfigureAwait(false);
-        return loaded is null ? null : loaded.Value.Manifest;
+        return loaded?.Manifest;
     }
 
-    private async Task<(ThemeManifest Manifest, string ThemeRoot)?> LoadThemeAsync(string themeId, CancellationToken cancellationToken)
+    private async Task<ResolvedTheme?> LoadThemeAsync(string themeId, CancellationToken cancellationToken)
     {
-        if (string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
-        {
-            await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
-        }
-
-        return await ThemeManifestLoader.TryLoadAsync(_layout.ThemesDirectory, themeId, cancellationToken).ConfigureAwait(false);
+        var result = await _themeResolver.ResolveThemeAsync(themeId, cancellationToken).ConfigureAwait(false);
+        return result.Theme;
     }
+
+    private static string ResolveRunnerKind(ThemeManifest manifest)
+        => string.IsNullOrWhiteSpace(manifest.Runner?.Kind)
+            ? (string.IsNullOrWhiteSpace(manifest.Build?.Command) ? "unknown" : "process")
+            : manifest.Runner.Kind.Trim();
 
     private static string NormalizeThemeId(string themeId)
         => string.IsNullOrWhiteSpace(themeId) ? "default-static" : themeId.Trim();

@@ -7,62 +7,101 @@
 
 <article class="bocchi-shell bocchi-github-integration-shell">
     <header class="bocchi-page-intro">
-        <span class="bocchi-eyebrow">@I18n["settings.githubIntegration.eyebrow"]</span>
+        <nav class="bocchi-settings-breadcrumb" aria-label='@I18n["settings.breadcrumb.aria"]'>
+            <a href="/Admin/Settings">@I18n["settings.page.heading"]</a>
+            <span aria-hidden="true">/</span>
+            <a href="/Admin/Settings/Integrations">@I18n["settings.integrations.heading"]</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">@I18n["settings.integrations.githubTitle"]</span>
+        </nav>
         <h1>@I18n["settings.githubIntegration.heading"]</h1>
         <p>@I18n["settings.githubIntegration.description"]</p>
     </header>
 
     <div class="bocchi-github-integration-layout">
-        <BocchiSettingsNav ActiveSection="github" />
+        <BocchiSettingsNav ActiveSection="integrations" />
 
         <div class="bocchi-github-integration-stack">
-            <section class="bocchi-panel bocchi-github-integration-setup" aria-labelledby="github-integration-setup-heading">
-                <div class="bocchi-github-integration-heading">
-                    <span aria-hidden="true">
-                        <span class="bocchi-github-mark"></span>
-                    </span>
-                    <div>
-                        <h2 id="github-integration-setup-heading">@I18n["settings.githubIntegration.setupTitle"]</h2>
-                        <p>@I18n["settings.githubIntegration.setupDescription"]</p>
+            @if (_hasSavedClientId)
+            {
+                <section class="bocchi-panel bocchi-github-integration-setup bocchi-github-integration-status" aria-labelledby="github-integration-setup-heading">
+                    <div class="bocchi-github-integration-heading">
+                        <span aria-hidden="true">
+                            <span class="bocchi-github-mark"></span>
+                        </span>
+                        <div>
+                            <h2 id="github-integration-setup-heading">@I18n["settings.githubIntegration.configuredTitle"]</h2>
+                            <p>@I18n["settings.githubIntegration.configuredDescription"]</p>
+                        </div>
                     </div>
-                </div>
 
-                <ol class="bocchi-github-integration-steps">
-                    <li>
-                        <strong>@I18n["settings.githubIntegration.stepCreateTitle"]</strong>
-                        <p>@I18n["settings.githubIntegration.stepCreateDescription"]</p>
+                    <div class="bocchi-github-integration-step-actions">
+                        <a class="bocchi-button secondary" href="https://github.com/settings/developers" target="_blank" rel="noopener">
+                            <Blazicon Svg="Lucide.ExternalLink" />
+                            <span>@I18n["settings.githubIntegration.openExistingApps"]</span>
+                        </a>
                         <a class="bocchi-button secondary" href="https://github.com/settings/applications/new" target="_blank" rel="noopener">
                             <Blazicon Svg="Lucide.ExternalLink" />
-                            <span>@I18n["settings.githubIntegration.openCreatePage"]</span>
+                            <span>@I18n["settings.githubIntegration.openCreateAnother"]</span>
                         </a>
-                    </li>
-                    <li>
-                        <strong>@I18n["settings.githubIntegration.stepFillTitle"]</strong>
-                        <dl class="bocchi-github-integration-values">
-                            <div>
-                                <dt>@I18n["settings.githubIntegration.fieldApplicationName"]</dt>
-                                <dd><code>@I18n["settings.githubIntegration.valueApplicationName"]</code></dd>
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="bocchi-panel bocchi-github-integration-setup" aria-labelledby="github-integration-setup-heading">
+                    <div class="bocchi-github-integration-heading">
+                        <span aria-hidden="true">
+                            <span class="bocchi-github-mark"></span>
+                        </span>
+                        <div>
+                            <h2 id="github-integration-setup-heading">@I18n["settings.githubIntegration.setupTitle"]</h2>
+                        </div>
+                    </div>
+
+                    <ol class="bocchi-github-integration-steps">
+                        <li>
+                            <strong>@I18n["settings.githubIntegration.stepCreateTitle"]</strong>
+                            <p>@I18n["settings.githubIntegration.stepCreateDescription"]</p>
+                            <div class="bocchi-github-integration-step-actions">
+                                <a class="bocchi-button secondary" href="https://github.com/settings/applications/new" target="_blank" rel="noopener">
+                                    <Blazicon Svg="Lucide.ExternalLink" />
+                                    <span>@I18n["settings.githubIntegration.openCreatePage"]</span>
+                                </a>
+                                <a class="bocchi-button secondary" href="https://github.com/settings/developers" target="_blank" rel="noopener">
+                                    <Blazicon Svg="Lucide.ExternalLink" />
+                                    <span>@I18n["settings.githubIntegration.openExistingApps"]</span>
+                                </a>
                             </div>
-                            <div>
-                                <dt>@I18n["settings.githubIntegration.fieldHomepageUrl"]</dt>
-                                <dd><code>@BocchiBaseUrl</code></dd>
-                            </div>
-                            <div>
-                                <dt>@I18n["settings.githubIntegration.fieldCallbackUrl"]</dt>
-                                <dd><code>@CallbackUrl</code></dd>
-                            </div>
-                        </dl>
-                    </li>
-                    <li>
-                        <strong>@I18n["settings.githubIntegration.stepDeviceTitle"]</strong>
-                        <p>@I18n["settings.githubIntegration.stepDeviceDescription"]</p>
-                    </li>
-                    <li>
-                        <strong>@I18n["settings.githubIntegration.stepCopyTitle"]</strong>
-                        <p>@I18n["settings.githubIntegration.stepCopyDescription"]</p>
-                    </li>
-                </ol>
-            </section>
+                        </li>
+                        <li>
+                            <strong>@I18n["settings.githubIntegration.stepFillTitle"]</strong>
+                            <dl class="bocchi-github-integration-values">
+                                <div>
+                                    <dt>@I18n["settings.githubIntegration.fieldApplicationName"]</dt>
+                                    <dd><code>@I18n["settings.githubIntegration.valueApplicationName"]</code></dd>
+                                </div>
+                                <div>
+                                    <dt>@I18n["settings.githubIntegration.fieldHomepageUrl"]</dt>
+                                    <dd><code>@BocchiBaseUrl</code></dd>
+                                </div>
+                                <div>
+                                    <dt>@I18n["settings.githubIntegration.fieldCallbackUrl"]</dt>
+                                    <dd><code>@CallbackUrl</code></dd>
+                                </div>
+                            </dl>
+                        </li>
+                        <li>
+                            <strong>@I18n["settings.githubIntegration.stepDeviceTitle"]</strong>
+                            <p>@I18n["settings.githubIntegration.stepDeviceDescription"]</p>
+                        </li>
+                        <li>
+                            <strong>@I18n["settings.githubIntegration.stepCopyTitle"]</strong>
+                            <p>@I18n["settings.githubIntegration.stepCopyDescription"]</p>
+                        </li>
+                    </ol>
+                </section>
+            }
 
             <section class="bocchi-panel bocchi-github-integration-config" aria-labelledby="github-integration-config-heading">
                 <div class="bocchi-github-integration-heading">
@@ -70,7 +109,7 @@
                         <Blazicon Svg="Lucide.Save" />
                     </span>
                     <div>
-                        <h2 id="github-integration-config-heading">@I18n["settings.githubIntegration.configTitle"]</h2>
+                        <h2 id="github-integration-config-heading">@ConfigTitle</h2>
                         <p>@I18n["settings.githubIntegration.configDescription"]</p>
                     </div>
                 </div>
@@ -95,11 +134,11 @@
                     <div class="bocchi-github-integration-actions">
                         <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_saving">
                             <Blazicon Svg="Lucide.Save" />
-                            <span>@(_saving ? I18n["settings.githubIntegration.saving"] : I18n["settings.githubIntegration.save"])</span>
+                            <span>@(_saving ? I18n["settings.githubIntegration.saving"] : SaveButtonText)</span>
                         </button>
-                        <a class="bocchi-button secondary" href="/Admin/Publish/AddPlan">
+                        <a class="bocchi-button secondary" href="/Admin/Publish">
                             <Blazicon Svg="Lucide.ArrowRight" />
-                            <span>@I18n["settings.githubIntegration.backToAddPlan"]</span>
+                            <span>@I18n["settings.githubIntegration.viewPublishSettings"]</span>
                         </a>
                     </div>
                 </form>
@@ -156,6 +195,9 @@
     /// <summary>是否启用 GitHub 登录。</summary>
     private bool _loginEnabled;
 
+    /// <summary>是否已保存 GitHub OAuth App client id，用于区分首次接入和日常维护状态。</summary>
+    private bool _hasSavedClientId;
+
     /// <summary>保存时禁用按钮，避免重复提交。</summary>
     private bool _saving;
 
@@ -171,6 +213,16 @@
     /// <summary>GitHub OAuth App callback URL。</summary>
     private string CallbackUrl => BocchiBaseUrl + _callbackPath.TrimStart('/');
 
+    /// <summary>配置表单标题；已接入后使用更新语义，避免每次打开都像首次保存。</summary>
+    private string ConfigTitle => _hasSavedClientId
+        ? I18n["settings.githubIntegration.updateConfigTitle"]
+        : I18n["settings.githubIntegration.configTitle"];
+
+    /// <summary>保存按钮文案；已接入后改为更新动作。</summary>
+    private string SaveButtonText => _hasSavedClientId
+        ? I18n["settings.githubIntegration.update"]
+        : I18n["settings.githubIntegration.save"];
+
     /// <summary>保存结果消息样式。</summary>
     private string MessageClass => _messageIsDanger
         ? "bocchi-github-integration-message bocchi-github-integration-message--danger"
@@ -183,6 +235,7 @@
         _callbackPath = string.IsNullOrWhiteSpace(settings.CallbackPath) ? "/signin-github" : settings.CallbackPath;
         _displayName = string.IsNullOrWhiteSpace(settings.DisplayName) ? "GitHub" : settings.DisplayName;
         _loginEnabled = settings.LoginEnabled;
+        _hasSavedClientId = !string.IsNullOrWhiteSpace(settings.OAuthClientId);
     }
 
     /// <summary>保存 GitHub OAuth App 设置；secret 留空时保留已有值。</summary>
@@ -207,6 +260,7 @@
             _displayName = settings.DisplayName;
             _loginEnabled = settings.LoginEnabled;
             _clientSecret = string.Empty;
+            _hasSavedClientId = !string.IsNullOrWhiteSpace(settings.OAuthClientId);
             _messageIsDanger = false;
             _message = I18n["settings.githubIntegration.saved"];
         }

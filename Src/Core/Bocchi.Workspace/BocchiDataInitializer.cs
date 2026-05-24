@@ -30,8 +30,10 @@ public sealed class BocchiDataInitializer
             EnsureDirectory(_layout.CacheDirectory);
             EnsureDirectory(_layout.DerivativesDirectory);
             EnsureDirectory(_layout.ThemeInputDirectory);
+            EnsureDirectory(_layout.ThemeUploadCacheDirectory);
             EnsureDirectory(_layout.ThemeConfigDirectory);
             EnsureDirectory(_layout.ThemesDirectory);
+            EnsureDirectory(_layout.ThemeBackupsDirectory);
             EnsureDirectory(_layout.OutputDirectory);
             EnsureDirectory(_layout.PublicOutputDirectory);
 

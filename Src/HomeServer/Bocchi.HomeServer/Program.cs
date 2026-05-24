@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Bocchi.Generator;
+using Bocchi.Generator.Theme;
 using Bocchi.HomeServer;
 using Bocchi.HomeServer.Build;
 using Bocchi.HomeServer.Components;
@@ -48,6 +49,7 @@ try
         builder.Configuration,
         _ => dataRootBasePath);
     builder.Services.AddBocchiGenerator(builder.Configuration);
+    builder.Services.PostConfigure<ThemeDevelopmentOptions>(options => options.EnvironmentName = builder.Environment.EnvironmentName);
     builder.Services.AddSingleton<BuildOrchestrator>();
     builder.Services.AddDbContext<BocchiDbContext>((sp, options) =>
     {

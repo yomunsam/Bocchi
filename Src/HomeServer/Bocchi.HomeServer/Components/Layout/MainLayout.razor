@@ -102,6 +102,10 @@
                             <Blazicon Svg="Lucide.SunMoon" />
                             <span>@I18n["nav.themeCustomization"]</span>
                         </a>
+                        <a href="/Admin/Site/Themes" class="@SecondaryNavLinkClass(IsThemeLibraryActive())" aria-current="@AriaCurrent(IsThemeLibraryActive())">
+                            <Blazicon Svg="Lucide.Archive" />
+                            <span>@I18n["nav.themeLibrary"]</span>
+                        </a>
                     </div>
                 }
             </div>
@@ -388,6 +392,9 @@
 
     /// <summary>主题定制入口是否为当前页面。</summary>
     private bool IsThemeCustomizationActive() => IsCurrentPath("/Admin/Site/Theme");
+
+    /// <summary>Theme Library 入口是否为当前页面。</summary>
+    private bool IsThemeLibraryActive() => IsCurrentPath("/Admin/Site/Themes");
 
     /// <summary>发布主导航是否包含当前页面。</summary>
     private bool IsPublishSectionActive()

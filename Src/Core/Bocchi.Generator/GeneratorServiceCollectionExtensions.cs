@@ -8,6 +8,7 @@ using Bocchi.Theme.DefaultStatic;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Bocchi.Generator;
 
@@ -21,10 +22,14 @@ public static class GeneratorServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services.Configure<GeneratorOptions>(configuration.GetSection(GeneratorOptions.SectionName));
+        services.Configure<ThemeDevelopmentOptions>(configuration.GetSection(ThemeDevelopmentOptions.SectionName));
+        services.Configure<ThemePackageOptions>(configuration.GetSection(ThemePackageOptions.SectionName));
 
         services.AddSingleton<ContentGraphBuilder>();
         services.AddSingleton<ThemeInputWriter>();
         services.AddSingleton<IThemeRunner, ThemeRunner>();
+        services.TryAddSingleton<ThemeResolver>();
+        services.TryAddSingleton<ThemePackageService>();
         services.AddSingleton<IBuildStateStore, BuildStateStore>();
 
         services.AddSingleton<LoadContentStage>();
