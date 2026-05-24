@@ -1,5 +1,7 @@
+using Bocchi.ContentModel;
 using Bocchi.HomeServer.Services;
 using Bocchi.Workspace;
+using Bocchi.Workspace.Scanning;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -83,5 +85,120 @@ public sealed class NavigationMenuServiceTests
         view.CommonTextOverrides.Should().Contain(overrideText => overrideText.Key == "menu.custom.docs");
         view.TargetOptions.Select(option => option.GroupLabel).Should().Contain("Built-in");
         view.Items.Should().Contain(item => item.Label == "i18n://theme@theme.defaultStatic.colophonBuiltWith");
+    }
+
+    [Fact]
+    public async Task SaveAsync_PreservesNoTargetItemsWithoutWarnings()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var menu = scope.ServiceProvider.GetRequiredService<NavigationMenuService>();
+        await menu.SaveAsync(
+        [
+            new NavigationEditorItem
+            {
+                Id = "about",
+                Label = "i18n://common@menu.about",
+            },
+        ]);
+
+        var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
+        var yaml = await File.ReadAllTextAsync(layout.Workspace.NavigationFile);
+        yaml.Should().Contain("id: about");
+        yaml.Should().NotContain("type: ''");
+
+        var view = await menu.GetEditorAsync();
+        view.Items.Should().ContainSingle(item => item.Id == "about" && !item.HasTarget);
+        view.Warnings.Should().BeEmpty();
+        view.TargetOptions.Should().Contain(option => option.Key == NavigationTargetOption.CreateKey(string.Empty, string.Empty));
+    }
+
+    [Fact]
+    public async Task ApplyDefaultPresetAsync_UsesNoTargetAboutWhenPageIsMissing()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var menu = scope.ServiceProvider.GetRequiredService<NavigationMenuService>();
+        await menu.SaveAsync([]);
+
+        var applied = await menu.ApplyDefaultPresetAsync();
+
+        applied.Should().BeTrue();
+        var view = await menu.GetEditorAsync();
+        view.Items.Select(item => item.Id).Should().Equal("home", "posts", "notes", "works", "about");
+        var about = view.Items.Single(item => item.Id == "about");
+        about.HasTarget.Should().BeFalse();
+        about.Label.Should().Be("i18n://common@menu.about");
+    }
+
+    [Fact]
+    public async Task GetEditorAsync_PreservesUnavailablePageTargetsAsWarnings()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var menu = scope.ServiceProvider.GetRequiredService<NavigationMenuService>();
+        await menu.SaveAsync(
+        [
+            new NavigationEditorItem
+            {
+                Id = "missing-about",
+                Label = "Missing About",
+                TargetType = "page",
+                TargetValue = "about",
+            },
+        ]);
+
+        var view = await menu.GetEditorAsync();
+
+        view.Items.Single().TargetType.Should().Be("page");
+        view.Warnings.Should().ContainSingle(warning => warning.ItemId == "missing-about");
+        view.TargetOptions.Should().Contain(option => option.Key == NavigationTargetOption.CreateKey("page", "about") && !option.Available);
+    }
+
+    [Fact]
+    public async Task ApplyDefaultPresetAsync_BindsAboutLikePageWhenAvailable()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var editor = scope.ServiceProvider.GetRequiredService<ContentEditingService>();
+        await editor.CreateFromDraftAsync(
+            ContentKind.Page,
+            """
+            title: About Me
+            slug: aboutme
+            status: published
+            template: normal
+            order: 0
+            showInNavigation: false
+            """,
+            string.Empty,
+            sourceAssetsDirectory: null);
+        await scope.ServiceProvider.GetRequiredService<ContentScanner>().ScanAsync();
+
+        var menu = scope.ServiceProvider.GetRequiredService<NavigationMenuService>();
+        await menu.SaveAsync([]);
+
+        var applied = await menu.ApplyDefaultPresetAsync();
+
+        applied.Should().BeTrue();
+        var about = (await menu.GetEditorAsync()).Items.Single(item => item.Id == "about");
+        about.TargetType.Should().Be("page");
+        about.TargetValue.Should().Be("aboutme");
     }
 }

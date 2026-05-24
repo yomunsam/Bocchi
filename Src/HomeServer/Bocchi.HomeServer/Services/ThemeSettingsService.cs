@@ -29,6 +29,7 @@ public sealed class ThemeSettingsService
         ["menu.works"] = CreateLanguageValues("Works", "作品", "作品", "制作"),
         ["menu.notes"] = CreateLanguageValues("Notes", "札记", "札記", "ノート"),
         ["menu.friends"] = CreateLanguageValues("Friends", "友链", "友站", "リンク"),
+        ["menu.about"] = CreateLanguageValues("About", "关于", "關於", "紹介"),
     };
 
     private readonly BocchiDbContext _db;

@@ -1,6 +1,7 @@
 using Bocchi.Generator.Pipeline;
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
+using Bocchi.HomeServer.Services.Git;
 using Bocchi.HomeServer.Services.Publishing;
 using Bocchi.Workspace;
 
@@ -76,7 +77,7 @@ public sealed class PublishExecutionServiceTests
             Branch = "gh-pages",
             EnsurePagesSource = false,
         };
-        var credential = new GitHubPagesPublishCredential { Token = token };
+        var credential = new GitHubPagesPublishCredential { AccessToken = token };
         return new PublishPlanSaveInput(
             null,
             "GitHub Pages",
@@ -117,11 +118,13 @@ public sealed class PublishExecutionServiceTests
         var keyDir = Path.Combine(Path.GetTempPath(), "bocchi-test-keys", Guid.NewGuid().ToString("N"));
         var protection = DataProtectionProvider.Create(new DirectoryInfo(keyDir));
         var planService = new PublishPlanService(db, protection, TimeProvider.System);
+        var connectionService = new GitProviderConnectionService(db, protection, TimeProvider.System);
         var runner = new FakeBuildRunner();
         var publisher = new FakePublisher();
         var execution = new PublishExecutionService(
             db,
             planService,
+            connectionService,
             runner,
             layout,
             [publisher],

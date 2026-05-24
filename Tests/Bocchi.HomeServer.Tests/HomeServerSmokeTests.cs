@@ -65,6 +65,11 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("工作区");
         body.Should().Contain(_factory.DataRoot);
+        body.Should().Contain("Connect content repository");
+        body.Should().Contain("Create new content repository");
+        body.Should().Contain("Connect empty repository");
+        body.Should().Contain("Import existing repository");
+        body.Should().Contain("Generic Git URL");
     }
 
     [Fact]

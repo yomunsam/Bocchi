@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 using Bocchi.ContentModel;
 
@@ -28,14 +29,15 @@ public sealed record NavigationInput
     public required IReadOnlyList<NavigationItemInput> Items { get; init; }
 }
 
-/// <summary>Theme 输入中的 Menu tree 节点，已经解析出可点击 URL。</summary>
+/// <summary>Theme 输入中的 Menu tree 节点；分组节点可以没有 URL。</summary>
 public sealed record NavigationItemInput
 {
     public required string Id { get; init; }
     public required string Label { get; init; }
     public NavigationLabelI18nRefInput? LabelI18n { get; init; }
-    public required string Href { get; init; }
-    public required NavigationTargetInput Target { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public required string? Href { get; init; }
+    public NavigationTargetInput? Target { get; init; }
     public required IReadOnlyList<NavigationItemInput> Children { get; init; }
 }
 

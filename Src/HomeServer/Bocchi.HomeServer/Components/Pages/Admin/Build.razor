@@ -1,16 +1,20 @@
 @page "/Admin/Publish"
 @page "/Admin/Publish/{Section}"
+@page "/Admin/Publish/{Section}/{PlanId:int}"
 @using System.Globalization
 @using Bocchi.Generator.Pipeline
 @using Bocchi.Generator.State
 @using Bocchi.HomeServer.Build
 @using Bocchi.HomeServer.Data
+@using Bocchi.HomeServer.Services.Git
 @using Bocchi.HomeServer.Services.Publishing
 @inject BuildOrchestrator Orchestrator
 @inject IBuildStateStore Store
 @inject DashboardLocalizationService I18n
 @inject PublishPlanService PublishPlans
 @inject PublishExecutionService PublishExecution
+@inject GitProviderConnectionService GitConnections
+@inject GitHubDeviceFlowService GitHubFlow
 
 <PageTitle>@CurrentPageTitle · Bocchi</PageTitle>
 
@@ -69,6 +73,10 @@
     [Parameter]
     public string? Section { get; set; }
 
+    /// <summary>发布方案编辑 id；为空表示新建方案。</summary>
+    [Parameter]
+    public int? PlanId { get; set; }
+
     /// <summary>一键发布运行中时禁用主操作，避免重复触发构建或远端发布。</summary>
     private bool _busy;
 
@@ -84,14 +92,26 @@
     /// <summary>发布方案列表；首页用它决定一键发布目标，发布方案区用它渲染空态或列表。</summary>
     private IReadOnlyList<PublishPlanRecord>? _publishPlans;
 
+    /// <summary>Git provider 连接列表；发布方案向导可复用已有授权。</summary>
+    private IReadOnlyList<GitProviderConnectionRecord>? _gitConnections;
+
     /// <summary>一键发布后的短状态消息。</summary>
     private string? _oneClickMessage;
 
     /// <summary>一键发布消息是否为失败态。</summary>
     private bool _oneClickMessageIsDanger;
 
-    /// <summary>当前 GitHub Pages 发布方案 id；为空表示尚未保存配置。</summary>
-    private int? _githubPlanId;
+    /// <summary>当前编辑的发布方案 id；为空表示新建。</summary>
+    private int? _editingPlanId;
+
+    /// <summary>发布方案名称，由用户定义，不使用渠道名代替。</summary>
+    private string _planDisplayName = string.Empty;
+
+    /// <summary>当前发布渠道；v1 只启用 GitHub Pages。</summary>
+    private string _publishChannel = PublishPlanService.GitHubPagesChannel;
+
+    /// <summary>当前选择的 Git provider 连接 id。</summary>
+    private int? _selectedGitConnectionId;
 
     /// <summary>GitHub repository owner。</summary>
     private string _githubOwner = string.Empty;
@@ -99,17 +119,35 @@
     /// <summary>GitHub repository name。</summary>
     private string _githubRepository = string.Empty;
 
+    /// <summary>创建发布专用 repository 时使用的名称。</summary>
+    private string _githubNewRepository = "bocchi-site";
+
+    /// <summary>是否创建 private repository；GitHub Pages 可用性取决于账号计划。</summary>
+    private bool _githubCreatePrivateRepository;
+
+    /// <summary>发布目标 repo 模式：create 或 existing。</summary>
+    private string _githubDestinationMode = "create";
+
     /// <summary>GitHub Pages 输出 branch。</summary>
     private string _githubBranch = "gh-pages";
 
     /// <summary>是否发布后自动确保 GitHub Pages source 指向 branch 根目录。</summary>
     private bool _githubEnsurePagesSource = true;
 
-    /// <summary>用户本次输入的新 token；保存后立即清空。</summary>
-    private string _githubToken = string.Empty;
+    /// <summary>用户是否明确接管已有无 marker 的发布 branch。</summary>
+    private bool _githubAllowBranchTakeover;
 
-    /// <summary>当前方案是否已有受保护 token。</summary>
-    private bool _githubHasSavedToken;
+    /// <summary>GitHub Device Flow device code；只在授权流程中短暂保存。</summary>
+    private string? _githubDeviceCode;
+
+    /// <summary>GitHub Device Flow 用户验证码。</summary>
+    private string? _githubUserCode;
+
+    /// <summary>GitHub Device Flow 验证页面。</summary>
+    private string? _githubVerificationUri;
+
+    /// <summary>最近一次 branch 安全检查。</summary>
+    private GitHubPublishBranchCheck? _githubBranchCheck;
 
     /// <summary>保存 GitHub Pages 配置时禁用按钮。</summary>
     private bool _githubSaving;
@@ -186,7 +224,8 @@
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
-        await LoadGitHubPlanAsync();
+        await LoadGitConnectionsAsync();
+        await LoadPublishPlanEditorAsync();
     }
 
     /// <summary>读取近期生成记录和发布运行记录。</summary>
@@ -195,6 +234,13 @@
         _recent = await Store.ListRecentRunsAsync(20, default);
         _publishRuns = await PublishExecution.ListRecentRunsAsync(20, default);
         _publishPlans = await PublishPlans.ListAsync(default);
+    }
+
+    /// <summary>读取 Git provider 连接，用于发布向导复用已有授权。</summary>
+    private async Task LoadGitConnectionsAsync()
+    {
+        _gitConnections = await GitConnections.ListAsync(default);
+        _selectedGitConnectionId ??= _gitConnections.FirstOrDefault(x => x.ProviderKey == GitProviderKeys.GitHub)?.Id;
     }
 
     /// <summary>发布首页：主操作、发布方案和辅助状态分栏展示，避免把配置表单压到第一屏。</summary>
@@ -305,46 +351,147 @@
         }
     </section>;
 
-    /// <summary>渲染添加发布方案子页面；当前把 GitHub Pages 作为唯一已接入的真实远端渠道。</summary>
+    /// <summary>渲染添加发布方案向导；方案名、渠道和 GitHub 目标分层呈现。</summary>
     private RenderFragment RenderAddPlanWorkbench() => @<section class="bocchi-panel bocchi-publish-config" aria-labelledby="publish-add-plan-heading">
         <div class="bocchi-publish-output-heading">
             <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
                 <Blazicon Svg="Lucide.GitBranch" />
             </span>
             <div>
-                <h2 id="publish-add-plan-heading">@I18n["publish.github.title"]</h2>
-                <p>@I18n["publish.github.description"]</p>
+                <h2 id="publish-add-plan-heading">@I18n["publish.addPlan.formTitle"]</h2>
+                <p>@I18n["publish.addPlan.formDescription"]</p>
             </div>
         </div>
 
         <form class="bocchi-form-grid bocchi-publish-github-form" @onsubmit="SaveGitHubPlanAsync" @onsubmit:preventDefault>
             <div class="bocchi-publish-github-fields">
-                <label>@I18n["publish.github.owner"]
-                    <input type="text" @bind="_githubOwner" autocomplete="off" />
+                <label>@I18n["publish.plan.name"]
+                    <input type="text" @bind="_planDisplayName" autocomplete="off" />
                 </label>
-                <label>@I18n["publish.github.repository"]
-                    <input type="text" @bind="_githubRepository" autocomplete="off" />
-                </label>
-                <label>@I18n["publish.github.branch"]
-                    <input type="text" @bind="_githubBranch" placeholder='@I18n["publish.github.branchPlaceholder"]' autocomplete="off" />
-                </label>
-                <label>@I18n["publish.github.token"]
-                    <input type="password" @bind="_githubToken" placeholder='@GitHubTokenPlaceholder()' autocomplete="off" />
+                <label>@I18n["publish.plan.channel"]
+                    <select @bind="_publishChannel">
+                        <option value="@PublishPlanService.GitHubPagesChannel">@I18n["publish.channel.githubPages"]</option>
+                    </select>
                 </label>
             </div>
+
+            <div class="bocchi-publish-wizard-section">
+                <div class="bocchi-publish-wizard-section__heading">
+                    <Blazicon Svg="Lucide.KeyRound" />
+                    <div>
+                        <strong>@I18n["publish.github.connectTitle"]</strong>
+                        <span>@I18n["publish.github.connectDescription"]</span>
+                    </div>
+                </div>
+                @if (_gitConnections?.Any(x => x.ProviderKey == GitProviderKeys.GitHub) == true)
+                {
+                    <label>@I18n["publish.github.connection"]
+                        <select @bind="_selectedGitConnectionId">
+                            @foreach (var connection in _gitConnections.Where(x => x.ProviderKey == GitProviderKeys.GitHub))
+                            {
+                                <option value="@connection.Id">@connection.AccountLogin</option>
+                            }
+                        </select>
+                    </label>
+                }
+                <div class="bocchi-publish-quick-actions">
+                    <button type="button" class="bocchi-button secondary" @onclick="StartGitHubDeviceFlowAsync">
+                        <Blazicon Svg="Lucide.GitBranch" />
+                        <span>@I18n["publish.github.connect"]</span>
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(_githubUserCode) && !string.IsNullOrWhiteSpace(_githubVerificationUri))
+                    {
+                        <a class="bocchi-button secondary" href="@_githubVerificationUri" target="_blank" rel="noopener">
+                            <Blazicon Svg="Lucide.ExternalLink" />
+                            <span>@I18n["publish.github.openAuthorization"]</span>
+                        </a>
+                        <button type="button" class="bocchi-button secondary" @onclick="CompleteGitHubDeviceFlowAsync">
+                            <Blazicon Svg="Lucide.Check" />
+                            <span>@I18n["publish.github.completeAuthorization"]</span>
+                        </button>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(_githubUserCode))
+                {
+                    <p class="bocchi-publish-remote-message">@string.Format(CultureInfo.CurrentCulture, I18n["publish.github.userCodeFormat"], _githubUserCode)</p>
+                }
+            </div>
+
+            <div class="bocchi-publish-wizard-section">
+                <div class="bocchi-publish-wizard-section__heading">
+                    <Blazicon Svg="Lucide.FolderGit2" />
+                    <div>
+                        <strong>@I18n["publish.github.repositoryTitle"]</strong>
+                        <span>@I18n["publish.github.repositoryDescription"]</span>
+                    </div>
+                </div>
+                <label>@I18n["publish.github.destinationMode"]
+                    <select @bind="_githubDestinationMode">
+                        <option value="create">@I18n["publish.github.destinationCreate"]</option>
+                        <option value="existing">@I18n["publish.github.destinationExisting"]</option>
+                    </select>
+                </label>
+                @if (string.Equals(_githubDestinationMode, "create", StringComparison.Ordinal))
+                {
+                    <div class="bocchi-publish-github-fields">
+                        <label>@I18n["publish.github.newRepository"]
+                            <input type="text" @bind="_githubNewRepository" autocomplete="off" />
+                        </label>
+                        <label>@I18n["publish.github.branch"]
+                            <input type="text" @bind="_githubBranch" autocomplete="off" />
+                        </label>
+                    </div>
+                    <label class="bocchi-checkbox bocchi-publish-github-check">
+                        <input type="checkbox" @bind="_githubCreatePrivateRepository" />
+                        @I18n["publish.github.privateRepository"]
+                    </label>
+                    <button type="button" class="bocchi-button secondary" @onclick="CreateGitHubRepositoryAsync">
+                        <Blazicon Svg="Lucide.Plus" />
+                        <span>@I18n["publish.github.createRepository"]</span>
+                    </button>
+                }
+                else
+                {
+                    <div class="bocchi-publish-github-fields">
+                        <label>@I18n["publish.github.owner"]
+                            <input type="text" @bind="_githubOwner" autocomplete="off" />
+                        </label>
+                        <label>@I18n["publish.github.repository"]
+                            <input type="text" @bind="_githubRepository" autocomplete="off" />
+                        </label>
+                        <label>@I18n["publish.github.branch"]
+                            <input type="text" @bind="_githubBranch" autocomplete="off" />
+                        </label>
+                    </div>
+                    <button type="button" class="bocchi-button secondary" @onclick="CheckGitHubBranchAsync">
+                        <Blazicon Svg="Lucide.ShieldCheck" />
+                        <span>@I18n["publish.github.checkBranch"]</span>
+                    </button>
+                    @if (_githubBranchCheck?.State == GitHubPublishBranchState.Occupied)
+                    {
+                        <label class="bocchi-checkbox bocchi-publish-github-check">
+                            <input type="checkbox" @bind="_githubAllowBranchTakeover" />
+                            @I18n["publish.github.allowTakeover"]
+                        </label>
+                    }
+                }
+            </div>
+
             <label class="bocchi-checkbox bocchi-publish-github-check">
                 <input type="checkbox" @bind="_githubEnsurePagesSource" />
                 @I18n["publish.github.ensurePagesSource"]
             </label>
-            <div class="bocchi-publish-quick-actions">
-                <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
-                    <Blazicon Svg="Lucide.Save" />
-                    <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
-                </button>
-                <a class="bocchi-button secondary" href="/Admin/Publish">
-                    <Blazicon Svg="Lucide.ArrowLeft" />
-                    <span>@I18n["publish.addPlan.back"]</span>
-                </a>
+            <div class="bocchi-publish-github-fields">
+                <div class="bocchi-publish-quick-actions">
+                    <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
+                        <Blazicon Svg="Lucide.Save" />
+                        <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
+                    </button>
+                    <a class="bocchi-button secondary" href="/Admin/Publish">
+                        <Blazicon Svg="Lucide.ArrowLeft" />
+                        <span>@I18n["publish.addPlan.back"]</span>
+                    </a>
+                </div>
             </div>
         </form>
 
@@ -485,29 +632,158 @@
         await RefreshAsync();
     }
 
-    /// <summary>从已有发布方案恢复 GitHub Pages 表单。</summary>
-    private async Task LoadGitHubPlanAsync()
+    /// <summary>按路由恢复发布方案编辑状态；新建入口不预加载最近方案。</summary>
+    private async Task LoadPublishPlanEditorAsync()
     {
-        var plan = await PublishPlans.GetLatestByChannelAsync(PublishPlanService.GitHubPagesChannel, default);
-        if (plan is null)
+        if (!IsAddPlanSection)
         {
             return;
         }
 
+        if (PlanId is not { } planId)
+        {
+            return;
+        }
+
+        var plan = await PublishPlans.GetAsync(planId, default);
+        if (plan is null)
+        {
+            _githubMessageIsDanger = true;
+            _githubMessage = I18n["publish.addPlan.notFound"];
+            return;
+        }
+
         var config = GitHubPagesPublishConfiguration.FromJson(plan.ConfigurationJson).Normalize();
-        _githubPlanId = plan.Id;
+        _editingPlanId = plan.Id;
+        _planDisplayName = plan.DisplayName;
+        _publishChannel = plan.Channel;
+        _selectedGitConnectionId = plan.GitProviderConnectionId;
         _githubOwner = config.Owner;
         _githubRepository = config.Repository;
         _githubBranch = config.Branch;
         _githubEnsurePagesSource = config.EnsurePagesSource;
-        _githubHasSavedToken = !string.IsNullOrWhiteSpace(plan.ProtectedCredentialJson);
-        _githubToken = string.Empty;
+        _githubDestinationMode = config.DestinationMode;
+        _githubAllowBranchTakeover = config.AllowBranchTakeover;
+        _githubNewRepository = string.IsNullOrWhiteSpace(config.Repository) ? _githubNewRepository : config.Repository;
     }
 
-    /// <summary>保存 GitHub Pages 发布方案；token 留空时保留已有受保护凭据。</summary>
+    /// <summary>发起 GitHub Device Flow。</summary>
+    private async Task StartGitHubDeviceFlowAsync()
+    {
+        _githubMessage = null;
+        _githubMessageIsDanger = false;
+        if (!GitHubFlow.IsConfigured)
+        {
+            _githubMessageIsDanger = true;
+            _githubMessage = I18n["publish.github.errorOAuthNotConfigured"];
+            return;
+        }
+
+        var start = await GitHubFlow.StartAsync(default);
+        _githubDeviceCode = start.DeviceCode;
+        _githubUserCode = start.UserCode;
+        _githubVerificationUri = start.VerificationUri;
+        _githubMessage = I18n["publish.github.authorizationStarted"];
+    }
+
+    /// <summary>完成 GitHub Device Flow，并把授权账号保存为 provider connection。</summary>
+    private async Task CompleteGitHubDeviceFlowAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_githubDeviceCode))
+        {
+            return;
+        }
+
+        var poll = await GitHubFlow.PollAsync(_githubDeviceCode, default);
+        if (poll.Status != GitHubDeviceFlowPollStatus.Succeeded || poll.Credential is null)
+        {
+            _githubMessageIsDanger = poll.Status is GitHubDeviceFlowPollStatus.AccessDenied or GitHubDeviceFlowPollStatus.Expired or GitHubDeviceFlowPollStatus.Failed;
+            _githubMessage = poll.Status switch
+            {
+                GitHubDeviceFlowPollStatus.Pending => I18n["publish.github.authorizationPending"],
+                GitHubDeviceFlowPollStatus.SlowDown => I18n["publish.github.authorizationSlowDown"],
+                GitHubDeviceFlowPollStatus.AccessDenied => I18n["publish.github.authorizationDenied"],
+                GitHubDeviceFlowPollStatus.Expired => I18n["publish.github.authorizationExpired"],
+                _ => poll.ErrorDescription ?? I18n["publish.github.authorizationFailed"],
+            };
+            return;
+        }
+
+        var user = await GitHubFlow.GetCurrentUserAsync(poll.Credential.AccessToken, default);
+        var credential = poll.Credential with { GitHubLogin = user.Login };
+        var saved = await GitConnections.SaveAsync(
+            new GitProviderConnectionSaveInput(
+                null,
+                GitProviderKeys.GitHub,
+                "https://github.com",
+                user.Login,
+                credential.Scope,
+                credential.ToJson()),
+            default);
+
+        _selectedGitConnectionId = saved.Id;
+        _githubDeviceCode = null;
+        _githubUserCode = null;
+        _githubVerificationUri = null;
+        _githubMessageIsDanger = false;
+        _githubMessage = I18n["publish.github.authorizationSucceeded"];
+        await LoadGitConnectionsAsync();
+    }
+
+    /// <summary>创建发布专用 GitHub repository，并回填 owner/repository。</summary>
+    private async Task CreateGitHubRepositoryAsync()
+    {
+        if (!await TryRequireGitHubConnectionAsync())
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_githubNewRepository))
+        {
+            _githubMessageIsDanger = true;
+            _githubMessage = I18n["publish.github.errorRepositoryRequired"];
+            return;
+        }
+
+        var token = await GetSelectedGitHubAccessTokenAsync();
+        var repo = await GitHubFlow.CreateRepositoryAsync(token, _githubNewRepository, _githubCreatePrivateRepository, autoInit: true, default);
+        _githubOwner = repo.Owner;
+        _githubRepository = repo.Name;
+        _githubDestinationMode = "create";
+        _githubBranchCheck = new GitHubPublishBranchCheck(GitHubPublishBranchState.Missing, false, 0);
+        _githubMessageIsDanger = false;
+        _githubMessage = string.Format(CultureInfo.CurrentCulture, I18n["publish.github.repositoryCreatedFormat"], repo.FullName);
+    }
+
+    /// <summary>检查已有发布 branch 是否带 Bocchi marker。</summary>
+    private async Task CheckGitHubBranchAsync()
+    {
+        if (!ValidateGitHubTarget(requireRepository: true) || !await TryRequireGitHubConnectionAsync())
+        {
+            return;
+        }
+
+        var token = await GetSelectedGitHubAccessTokenAsync();
+        _githubBranchCheck = await GitHubFlow.CheckPublishBranchAsync(token, _githubOwner, _githubRepository, _githubBranch, default);
+        _githubMessageIsDanger = _githubBranchCheck.State == GitHubPublishBranchState.Occupied;
+        _githubMessage = _githubBranchCheck.State switch
+        {
+            GitHubPublishBranchState.Missing => I18n["publish.github.branchMissing"],
+            GitHubPublishBranchState.Empty => I18n["publish.github.branchEmpty"],
+            GitHubPublishBranchState.ManagedByBocchi => I18n["publish.github.branchManaged"],
+            _ => I18n["publish.github.branchOccupied"],
+        };
+    }
+
+    /// <summary>保存 GitHub Pages 发布方案；凭据来自 Git provider connection。</summary>
     private async Task SaveGitHubPlanAsync()
     {
         if (!ValidateGitHubPlan())
+        {
+            return;
+        }
+
+        if (!await EnsureExistingGitHubBranchIsSafeAsync())
         {
             return;
         }
@@ -521,28 +797,27 @@
                 Repository = _githubRepository,
                 Branch = _githubBranch,
                 EnsurePagesSource = _githubEnsurePagesSource,
+                DestinationMode = _githubDestinationMode,
+                RequireBocchiMarker = true,
+                AllowBranchTakeover = _githubAllowBranchTakeover,
             }.Normalize();
-            var credentialJson = string.IsNullOrWhiteSpace(_githubToken)
-                ? null
-                : new GitHubPagesPublishCredential { Token = _githubToken.Trim() }.ToJson();
             var saved = await PublishPlans.SaveAsync(
                 new PublishPlanSaveInput(
-                    _githubPlanId,
-                    I18n["publish.github.defaultPlanName"],
-                    PublishPlanService.GitHubPagesChannel,
+                    _editingPlanId,
+                    _planDisplayName,
+                    _publishChannel,
                     config.ToJson(),
-                    credentialJson,
-                    SetAsDefault: true),
+                    CredentialJson: null,
+                    SetAsDefault: true,
+                    GitProviderConnectionId: _selectedGitConnectionId),
                 default);
 
-            _githubPlanId = saved.Id;
+            _editingPlanId = saved.Id;
             _githubOwner = config.Owner;
             _githubRepository = config.Repository;
             _githubBranch = config.Branch;
-            _githubHasSavedToken = !string.IsNullOrWhiteSpace(saved.ProtectedCredentialJson);
-            _githubToken = string.Empty;
             _githubMessageIsDanger = false;
-            _githubMessage = I18n["publish.github.saved"];
+            _githubMessage = I18n["publish.addPlan.saved"];
             await RefreshAsync();
         }
         finally
@@ -551,17 +826,79 @@
         }
     }
 
-    /// <summary>校验 GitHub Pages 表单；错误文案全部来自 i18n。</summary>
+    /// <summary>保存已有 repository 方案前强制检查发布 branch，避免用户绕过检查按钮。</summary>
+    private async Task<bool> EnsureExistingGitHubBranchIsSafeAsync()
+    {
+        if (!string.Equals(_githubDestinationMode, "existing", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!await TryRequireGitHubConnectionAsync())
+        {
+            return false;
+        }
+
+        var token = await GetSelectedGitHubAccessTokenAsync();
+        _githubBranchCheck = await GitHubFlow.CheckPublishBranchAsync(token, _githubOwner, _githubRepository, _githubBranch, default);
+        if (_githubBranchCheck.State == GitHubPublishBranchState.Occupied && !_githubAllowBranchTakeover)
+        {
+            _githubMessageIsDanger = true;
+            _githubMessage = I18n["publish.github.errorBranchTakeoverRequired"];
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>校验发布方案表单；错误文案全部来自 i18n。</summary>
     private bool ValidateGitHubPlan()
     {
         _githubMessageIsDanger = true;
-        if (string.IsNullOrWhiteSpace(_githubOwner))
+        if (string.IsNullOrWhiteSpace(_planDisplayName))
+        {
+            _githubMessage = I18n["publish.addPlan.errorNameRequired"];
+            return false;
+        }
+
+        if (!string.Equals(_publishChannel, PublishPlanService.GitHubPagesChannel, StringComparison.Ordinal))
+        {
+            _githubMessage = I18n["publish.addPlan.errorUnsupportedChannel"];
+            return false;
+        }
+
+        if (_selectedGitConnectionId is null)
+        {
+            _githubMessage = I18n["publish.github.errorConnectionRequired"];
+            return false;
+        }
+
+        if (!ValidateGitHubTarget(requireRepository: true))
+        {
+            return false;
+        }
+
+        if (_githubBranchCheck?.State == GitHubPublishBranchState.Occupied && !_githubAllowBranchTakeover)
+        {
+            _githubMessage = I18n["publish.github.errorBranchTakeoverRequired"];
+            return false;
+        }
+
+        _githubMessageIsDanger = false;
+        return true;
+    }
+
+    /// <summary>校验 GitHub 目标坐标。</summary>
+    private bool ValidateGitHubTarget(bool requireRepository)
+    {
+        _githubMessageIsDanger = true;
+        if (requireRepository && string.IsNullOrWhiteSpace(_githubOwner))
         {
             _githubMessage = I18n["publish.github.errorOwnerRequired"];
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(_githubRepository))
+        if (requireRepository && string.IsNullOrWhiteSpace(_githubRepository))
         {
             _githubMessage = I18n["publish.github.errorRepositoryRequired"];
             return false;
@@ -573,14 +910,36 @@
             return false;
         }
 
-        if (!_githubHasSavedToken && string.IsNullOrWhiteSpace(_githubToken))
-        {
-            _githubMessage = I18n["publish.github.errorTokenRequired"];
-            return false;
-        }
-
         _githubMessageIsDanger = false;
         return true;
+    }
+
+    /// <summary>确保已经选择 GitHub provider connection。</summary>
+    private Task<bool> TryRequireGitHubConnectionAsync()
+    {
+        if (_selectedGitConnectionId is not null)
+        {
+            return Task.FromResult(true);
+        }
+
+        _githubMessageIsDanger = true;
+        _githubMessage = I18n["publish.github.errorConnectionRequired"];
+        return Task.FromResult(false);
+    }
+
+    /// <summary>读取当前 GitHub connection 的 access token。</summary>
+    private async Task<string> GetSelectedGitHubAccessTokenAsync()
+    {
+        var connection = _selectedGitConnectionId is null
+            ? null
+            : await GitConnections.GetAsync(_selectedGitConnectionId.Value, default);
+        if (connection is null)
+        {
+            throw new InvalidOperationException("GitHub connection is missing.");
+        }
+
+        var credential = GitHubOAuthCredential.FromJson(GitConnections.UnprotectCredentialJson(connection));
+        return credential.AccessToken;
     }
 
     /// <summary>最近一次生成摘要；没有历史时保持安静，不制造虚假的成功状态。</summary>
@@ -636,10 +995,6 @@
             BuildStatus.Skipped => I18n["publish.status.skipped"],
             _ => I18n["publish.status.failed"],
         };
-
-    /// <summary>GitHub token 输入框 placeholder；不把受保护凭据回显给用户。</summary>
-    private string GitHubTokenPlaceholder()
-        => _githubHasSavedToken ? I18n["publish.github.tokenSavedPlaceholder"] : I18n["publish.github.tokenPlaceholder"];
 
     /// <summary>一键发布目标标签颜色。</summary>
     private string OneClickTargetTone() => DefaultPublishPlan is null ? "neutral" : "success";
@@ -720,7 +1075,7 @@
     /// <summary>发布方案编辑入口；当前只有 GitHub Pages 方案拥有配置页。</summary>
     private static string? PlanEditUrl(PublishPlanRecord plan)
         => string.Equals(plan.Channel, PublishPlanService.GitHubPagesChannel, StringComparison.Ordinal)
-            ? "/Admin/Publish/AddPlan"
+            ? $"/Admin/Publish/AddPlan/{plan.Id}"
             : null;
 
     /// <summary>把发布状态映射为柔和状态色。</summary>

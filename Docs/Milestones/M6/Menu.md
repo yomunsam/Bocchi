@@ -28,7 +28,7 @@ Menu item 字段：
 
 - `id`：稳定节点 id，由 Dashboard 生成和保留。
 - `label`：用户可编辑展示值，可以是普通文本或 `i18n://` 显示值引用。
-- `target`：语义目标，不直接保存 URL。
+- `target`：可选语义目标，不直接保存 URL；省略时表示 Dashboard 待配置项，只有存在可输出子项时才作为前台分组节点输出。
 - `children`：子项列表，最大深度为 5 层，与 Category tree 保持一致。
 
 Target 类型：
@@ -85,7 +85,7 @@ i18n://theme@theme.defaultStatic.pageTemplate.normal
 
 Generator 写入：
 
-- `navigation.json`：嵌套 Menu tree，包含 `id`、`label`、解析后的 `href`、原始 `target`、可选 `labelI18n` 和 `children`。
+- `navigation.json`：嵌套 Menu tree，包含 `id`、`label`、解析后的 `href`、原始 `target`、可选 `labelI18n` 和 `children`；无 target 分组使用 `href: null`，无 target 叶子不进入公开 input。
 - `post-categories.json`：Post Category tree，包含 `id`、`name`、`slug`、`url`、`count` 和 `children`。
 - `posts.json`：Post 增加 `categorySlug`。
 - `pages.json`：Page 增加 `template`。
@@ -100,6 +100,7 @@ Generator 写入：
 - 添加根项和子项。
 - 编辑 label。
 - 从下拉选择 target。
+- 支持无 target 待配置项，并与 unavailable target warning 区分。
 - 上移、下移、删除节点。
 - 保存嵌套 Menu tree。
 - 对 unavailable target 给出 warning 并保留原值。

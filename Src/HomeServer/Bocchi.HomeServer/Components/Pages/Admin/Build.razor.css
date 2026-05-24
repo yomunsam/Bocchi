@@ -455,6 +455,38 @@
     margin-top: 0.1rem;
 }
 
+.bocchi-publish-wizard-section {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.8rem;
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 80%, transparent);
+    border-radius: var(--bocchi-radius-sm);
+    background: color-mix(in srgb, var(--bocchi-surface) 92%, var(--bocchi-blue));
+}
+
+.bocchi-publish-wizard-section__heading {
+    display: grid;
+    grid-template-columns: 1.8rem minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: center;
+}
+
+.bocchi-publish-wizard-section__heading ::deep svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    color: var(--bocchi-text-muted);
+}
+
+.bocchi-publish-wizard-section__heading div {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.bocchi-publish-wizard-section__heading span {
+    color: var(--bocchi-text-muted);
+    font-size: 0.88rem;
+}
+
 .bocchi-publish-local-output {
     grid-template-columns: 2.6rem minmax(0, 1fr);
     align-items: center;

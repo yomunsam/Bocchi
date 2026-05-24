@@ -12,7 +12,7 @@ namespace Bocchi.HomeServer.Tests;
 /// <summary>验证 GitHub Pages publisher 的 Git Database API 调用形状和脱敏行为。</summary>
 public sealed class GitHubPagesPublisherTests
 {
-    /// <summary>已有 branch 时创建完整 tree、带 parent commit，并 fast-forward 更新 ref。</summary>
+    /// <summary>已有 Bocchi marker branch 时创建完整 tree、带 parent commit，并 fast-forward 更新 ref。</summary>
     [Fact]
     public async Task PublishAsync_ExistingBranch_CreatesExactTreeAndUpdatesRef()
     {
@@ -21,8 +21,11 @@ public sealed class GitHubPagesPublisherTests
         output.WriteBytes("assets/logo.bin", [0, 1, 2, 3, 255]);
         var handler = new RecordingHandler(
             Json(HttpStatusCode.OK, """{"object":{"sha":"parent-sha"}}"""),
+            Json(HttpStatusCode.OK, """{"tree":{"sha":"existing-tree"}}"""),
+            Json(HttpStatusCode.OK, """{"tree":[{"path":".bocchi-publish.json","type":"blob"}]}"""),
             Json(HttpStatusCode.Created, """{"sha":"blob-logo"}"""),
             Json(HttpStatusCode.Created, """{"sha":"blob-index"}"""),
+            Json(HttpStatusCode.Created, """{"sha":"blob-marker"}"""),
             Json(HttpStatusCode.Created, """{"sha":"tree-sha"}"""),
             Json(HttpStatusCode.Created, """{"sha":"commit-sha"}"""),
             Json(HttpStatusCode.OK, """{"object":{"sha":"commit-sha"}}"""),
@@ -33,16 +36,35 @@ public sealed class GitHubPagesPublisherTests
 
         result.RemoteCommitSha.Should().Be("commit-sha");
         result.RemoteUrl.Should().Be("https://owner.github.io/site/");
-        handler.Requests.Select(x => x.Method.Method).Should().Equal("GET", "POST", "POST", "POST", "POST", "PATCH", "GET");
-        var treeBody = JsonDocument.Parse(handler.Requests[3].Body!);
+        handler.Requests.Select(x => x.Method.Method).Should().Equal("GET", "GET", "GET", "POST", "POST", "POST", "POST", "POST", "PATCH", "GET");
+        var treeBody = JsonDocument.Parse(handler.Requests[6].Body!);
         treeBody.RootElement.TryGetProperty("base_tree", out _).Should().BeFalse();
         treeBody.RootElement.GetProperty("tree").EnumerateArray()
             .Select(x => x.GetProperty("path").GetString())
-            .Should().Equal("assets/logo.bin", "index.html");
-        var commitBody = JsonDocument.Parse(handler.Requests[4].Body!);
+            .Should().Equal("assets/logo.bin", "index.html", ".bocchi-publish.json");
+        var commitBody = JsonDocument.Parse(handler.Requests[7].Body!);
         commitBody.RootElement.GetProperty("parents").EnumerateArray().Select(x => x.GetString())
             .Should().Equal("parent-sha");
-        handler.Requests[5].Body.Should().Contain("\"force\":false");
+        handler.Requests[8].Body.Should().Contain("\"force\":false");
+    }
+
+    /// <summary>已有内容但没有 Bocchi marker 的 branch 会在上传任何 blob 前被阻止。</summary>
+    [Fact]
+    public async Task PublishAsync_ExistingBranchWithoutMarker_BlocksTakeover()
+    {
+        using var output = new TempOutput();
+        output.WriteText("index.html", "<h1>Hello</h1>");
+        var handler = new RecordingHandler(
+            Json(HttpStatusCode.OK, """{"object":{"sha":"parent-sha"}}"""),
+            Json(HttpStatusCode.OK, """{"tree":{"sha":"existing-tree"}}"""),
+            Json(HttpStatusCode.OK, """{"tree":[{"path":"index.html","type":"blob"}]}"""));
+        var publisher = CreatePublisher(handler);
+
+        var act = async () => await publisher.PublishAsync(CreateRequest(output.Root, ensurePagesSource: false), default);
+
+        await act.Should().ThrowAsync<PublishTargetException>()
+            .Where(ex => ex.Message.Contains("没有 Bocchi 发布标记", StringComparison.Ordinal));
+        handler.Requests.Select(x => x.Method.Method).Should().Equal("GET", "GET", "GET");
     }
 
     /// <summary>branch 缺失时创建 root commit 和新 ref。</summary>
@@ -54,6 +76,7 @@ public sealed class GitHubPagesPublisherTests
         var handler = new RecordingHandler(
             Json(HttpStatusCode.NotFound, """{"message":"Not Found"}"""),
             Json(HttpStatusCode.Created, """{"sha":"blob-index"}"""),
+            Json(HttpStatusCode.Created, """{"sha":"blob-marker"}"""),
             Json(HttpStatusCode.Created, """{"sha":"tree-sha"}"""),
             Json(HttpStatusCode.Created, """{"sha":"commit-sha"}"""),
             Json(HttpStatusCode.Created, """{"ref":"refs/heads/gh-pages","object":{"sha":"commit-sha"}}"""));
@@ -62,10 +85,10 @@ public sealed class GitHubPagesPublisherTests
         var result = await publisher.PublishAsync(CreateRequest(output.Root, ensurePagesSource: false), default);
 
         result.RemoteCommitSha.Should().Be("commit-sha");
-        handler.Requests.Select(x => x.Method.Method).Should().Equal("GET", "POST", "POST", "POST", "POST");
-        var commitBody = JsonDocument.Parse(handler.Requests[3].Body!);
+        handler.Requests.Select(x => x.Method.Method).Should().Equal("GET", "POST", "POST", "POST", "POST", "POST");
+        var commitBody = JsonDocument.Parse(handler.Requests[4].Body!);
         commitBody.RootElement.GetProperty("parents").EnumerateArray().Should().BeEmpty();
-        handler.Requests[4].Body.Should().Contain("\"ref\":\"refs/heads/gh-pages\"");
+        handler.Requests[5].Body.Should().Contain("\"ref\":\"refs/heads/gh-pages\"");
     }
 
     /// <summary>二进制文件使用 base64 创建 blob，不经过文本转码。</summary>
@@ -77,6 +100,7 @@ public sealed class GitHubPagesPublisherTests
         var handler = new RecordingHandler(
             Json(HttpStatusCode.NotFound, """{"message":"Not Found"}"""),
             Json(HttpStatusCode.Created, """{"sha":"blob-logo"}"""),
+            Json(HttpStatusCode.Created, """{"sha":"blob-marker"}"""),
             Json(HttpStatusCode.Created, """{"sha":"tree-sha"}"""),
             Json(HttpStatusCode.Created, """{"sha":"commit-sha"}"""),
             Json(HttpStatusCode.Created, """{"ref":"refs/heads/gh-pages","object":{"sha":"commit-sha"}}"""));
@@ -118,7 +142,7 @@ public sealed class GitHubPagesPublisherTests
             Branch = "gh-pages",
             EnsurePagesSource = ensurePagesSource,
         };
-        var credential = new GitHubPagesPublishCredential { Token = "secret-token" };
+        var credential = new GitHubPagesPublishCredential { AccessToken = "secret-token" };
         return new PublishTargetRequest
         {
             Plan = new PublishPlanRecord

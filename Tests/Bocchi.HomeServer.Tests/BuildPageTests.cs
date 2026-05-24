@@ -23,10 +23,10 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Generate site files");
-        body.Should().Contain("Generate static site");
-        body.Should().Contain("GitHub Pages");
-        body.Should().Contain("Publish to GitHub Pages");
+        body.Should().Contain("Ready to publish?");
+        body.Should().Contain("Publish now");
+        body.Should().Contain("Publish plans");
+        body.Should().Contain("No publish plans yet");
         body.Should().NotContain("Publish targets");
         body.Should().NotContain("Current target");
         body.Should().NotContain("Local static output");
@@ -36,8 +36,24 @@ public sealed class BuildPageTests : IClassFixture<IsolatedDataRootWebApplicatio
         body.Should().NotContain("Include drafts");
         body.Should().NotContain("Cloudflare Pages");
         body.Should().NotContain("Local directory");
-        body.Should().Contain("Local output");
+        body.Should().Contain("Download Zip");
         body.Should().Contain("/Admin/Publish/download");
+    }
+
+    [Fact]
+    public async Task AddPlanPage_RendersWizardWithoutRawTokenForm()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var response = await client.GetAsync("/Admin/Publish/AddPlan");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("Publish plan name");
+        body.Should().Contain("Publish channel");
+        body.Should().Contain("Connect GitHub");
+        body.Should().Contain("Publish repository");
+        body.Should().NotContain("GitHub token");
     }
 
     [Fact]

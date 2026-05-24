@@ -19,8 +19,8 @@ public sealed record NavigationItem
     /// <summary>展示标签；可以是普通文本，也可以是 <c>i18n://common@key</c> / <c>i18n://theme@key</c>。</summary>
     public string? Label { get; init; }
 
-    /// <summary>导航目标。生成器会基于当前内容图与 Theme manifest 解析为 URL。</summary>
-    public required NavigationTarget Target { get; init; }
+    /// <summary>导航目标。为空表示 Dashboard 中的待配置或分组节点，生成时不会产生死链接。</summary>
+    public NavigationTarget? Target { get; init; }
 
     /// <summary>子 Menu 项。最大深度与 Category tree 保持一致，由读写服务裁剪为 5 层。</summary>
     public IReadOnlyList<NavigationItem> Children { get; init; } = [];

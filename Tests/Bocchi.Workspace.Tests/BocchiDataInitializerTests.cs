@@ -26,6 +26,12 @@ public sealed class BocchiDataInitializerTests
         var siteYaml = await File.ReadAllTextAsync(temp.Layout.Workspace.SiteSettingsFile);
         siteYaml.Should().Contain("defaultTitle: My Site");
         siteYaml.Should().Contain("copyright: Copyright © 2026 My Site.");
+        var navigationYaml = await File.ReadAllTextAsync(temp.Layout.Workspace.NavigationFile);
+        navigationYaml.Should().Contain("id: home");
+        navigationYaml.Should().Contain("value: posts");
+        navigationYaml.Should().Contain("id: about");
+        navigationYaml.Should().Contain("label: i18n://common@menu.about");
+        navigationYaml[navigationYaml.IndexOf("id: about", StringComparison.Ordinal)..].Should().NotContain("target:");
     }
 
     [Fact]

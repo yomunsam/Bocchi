@@ -18,6 +18,9 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
     /// <summary>当前使用的 GitHub REST API 版本。</summary>
     private const string GitHubApiVersion = "2022-11-28";
 
+    /// <summary>Bocchi 发布 branch 归属标记文件。</summary>
+    private const string BocchiPublishMarkerPath = ".bocchi-publish.json";
+
     /// <summary>GitHub 请求体和响应体的 JSON 命名约定。</summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -41,37 +44,43 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
         var configuration = GitHubPagesPublishConfiguration.FromJson(request.ConfigurationJson).Normalize();
         var credential = GitHubPagesPublishCredential.FromJson(request.CredentialJson);
         Validate(configuration, credential);
+        var token = credential.AccessToken;
 
         var owner = EscapeSegment(configuration.Owner);
         var repo = EscapeSegment(configuration.Repository);
         var branchRef = "heads/" + EscapeRefPath(configuration.Branch);
         var branchUrl = $"https://github.com/{configuration.Owner}/{configuration.Repository}/tree/{configuration.Branch}";
 
-        var existingRef = await TryGetReferenceAsync(owner, repo, branchRef, credential.Token, cancellationToken).ConfigureAwait(false);
-        var blobEntries = new List<GitHubTreeEntry>(request.Output.Files.Count);
+        var existingRef = await TryGetReferenceAsync(owner, repo, branchRef, token, cancellationToken).ConfigureAwait(false);
+        await EnsureBranchIsSafeAsync(owner, repo, existingRef, configuration, token, cancellationToken).ConfigureAwait(false);
+
+        var blobEntries = new List<GitHubTreeEntry>(request.Output.Files.Count + 1);
         foreach (var file in request.Output.Files)
         {
-            var blobSha = await CreateBlobAsync(owner, repo, file, credential.Token, cancellationToken).ConfigureAwait(false);
+            var blobSha = await CreateBlobAsync(owner, repo, file, token, cancellationToken).ConfigureAwait(false);
             blobEntries.Add(new GitHubTreeEntry(file.RelativePath, "100644", "blob", blobSha));
         }
 
-        var treeSha = await CreateTreeAsync(owner, repo, blobEntries, credential.Token, cancellationToken).ConfigureAwait(false);
+        var markerSha = await CreateBlobAsync(owner, repo, CreateMarkerBytes(request), token, cancellationToken).ConfigureAwait(false);
+        blobEntries.Add(new GitHubTreeEntry(BocchiPublishMarkerPath, "100644", "blob", markerSha));
+
+        var treeSha = await CreateTreeAsync(owner, repo, blobEntries, token, cancellationToken).ConfigureAwait(false);
         var commitSha = await CreateCommitAsync(
             owner,
             repo,
             treeSha,
             existingRef?.Object.Sha,
             request.BuildResult,
-            credential.Token,
+            token,
             cancellationToken).ConfigureAwait(false);
 
         if (existingRef is null)
         {
-            await CreateReferenceAsync(owner, repo, configuration.Branch, commitSha, credential.Token, cancellationToken).ConfigureAwait(false);
+            await CreateReferenceAsync(owner, repo, configuration.Branch, commitSha, token, cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            await UpdateReferenceAsync(owner, repo, branchRef, commitSha, credential.Token, cancellationToken).ConfigureAwait(false);
+            await UpdateReferenceAsync(owner, repo, branchRef, commitSha, token, cancellationToken).ConfigureAwait(false);
         }
 
         if (!configuration.EnsurePagesSource)
@@ -85,7 +94,7 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
 
         try
         {
-            var pageUrl = await EnsurePagesSourceAsync(owner, repo, configuration.Branch, credential.Token, cancellationToken).ConfigureAwait(false);
+            var pageUrl = await EnsurePagesSourceAsync(owner, repo, configuration.Branch, token, cancellationToken).ConfigureAwait(false);
             return new PublishTargetResult
             {
                 RemoteCommitSha = commitSha,
@@ -120,10 +129,35 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
             throw new PublishTargetException("GitHub Pages branch 不能为空。");
         }
 
-        if (string.IsNullOrWhiteSpace(credential.Token))
+        if (string.IsNullOrWhiteSpace(credential.AccessToken))
         {
             throw new PublishTargetException("GitHub token 不能为空。");
         }
+    }
+
+    /// <summary>检查已有 branch 是否允许被精确发布覆盖。</summary>
+    private async Task EnsureBranchIsSafeAsync(
+        string owner,
+        string repo,
+        GitHubReference? existingRef,
+        GitHubPagesPublishConfiguration configuration,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        if (existingRef is null || !configuration.RequireBocchiMarker || configuration.AllowBranchTakeover)
+        {
+            return;
+        }
+
+        var tree = await GetTreeForCommitAsync(owner, repo, existingRef.Object.Sha, token, cancellationToken).ConfigureAwait(false);
+        var fileCount = tree.Tree.Count(x => string.Equals(x.Type, "blob", StringComparison.Ordinal));
+        var hasMarker = tree.Tree.Any(x => string.Equals(x.Path, BocchiPublishMarkerPath, StringComparison.Ordinal));
+        if (hasMarker || fileCount == 0)
+        {
+            return;
+        }
+
+        throw new PublishTargetException($"GitHub branch '{configuration.Branch}' 已有内容且没有 Bocchi 发布标记，请换一个发布 branch 或显式接管。");
     }
 
     /// <summary>读取 branch ref；404 表示首次发布到该 branch。</summary>
@@ -154,6 +188,17 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
         CancellationToken cancellationToken)
     {
         var bytes = await File.ReadAllBytesAsync(file.AbsolutePath, cancellationToken).ConfigureAwait(false);
+        return await CreateBlobAsync(owner, repo, bytes, token, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>创建内存内容 Git blob，用于写入 Bocchi marker。</summary>
+    private async Task<string> CreateBlobAsync(
+        string owner,
+        string repo,
+        byte[] bytes,
+        string token,
+        CancellationToken cancellationToken)
+    {
         var body = new GitHubCreateBlobRequest(Convert.ToBase64String(bytes), "base64");
         var response = await SendJsonAsync<GitHubShaResponse>(
             HttpMethod.Post,
@@ -162,6 +207,23 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
             body,
             cancellationToken).ConfigureAwait(false);
         return response.Sha;
+    }
+
+    /// <summary>创建发布 branch marker 内容；不包含本地路径或凭据。</summary>
+    private static byte[] CreateMarkerBytes(PublishTargetRequest request)
+    {
+        var marker = new
+        {
+            generator = "Bocchi",
+            kind = "github-pages",
+            publishPlanId = request.Plan.Id,
+            publishPlanName = request.Plan.DisplayName,
+            channel = request.Plan.Channel,
+            buildSessionId = request.BuildResult.SessionId,
+            buildFingerprint = request.BuildResult.Fingerprint?.Value,
+            generatedAtUtc = DateTimeOffset.UtcNow,
+        };
+        return Encoding.UTF8.GetBytes(JsonSerializer.Serialize(marker, JsonOptions) + "\n");
     }
 
     /// <summary>创建不带 base_tree 的完整 tree，确保远端 branch 精确等于本地 output/public。</summary>
@@ -286,12 +348,36 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
     private static object CreatePagesSourceBody(string branch)
         => new { build_type = "legacy", source = new { branch, path = "/" } };
 
+    /// <summary>读取 commit 对应的完整 tree，用于检查 Bocchi marker。</summary>
+    private async Task<GitHubTree> GetTreeForCommitAsync(
+        string owner,
+        string repo,
+        string commitSha,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        var commit = await SendJsonAsync<GitHubCommit>(
+                HttpMethod.Get,
+                $"/repos/{owner}/{repo}/git/commits/{EscapeSegment(commitSha)}",
+                token,
+                body: null!,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return await SendJsonAsync<GitHubTree>(
+                HttpMethod.Get,
+                $"/repos/{owner}/{repo}/git/trees/{EscapeSegment(commit.Tree.Sha)}?recursive=1",
+                token,
+                body: null!,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>发送 JSON 请求并读取 JSON 响应。</summary>
     private async Task<T> SendJsonAsync<T>(
         HttpMethod method,
         string path,
         string token,
-        object body,
+        object? body,
         CancellationToken cancellationToken)
     {
         using var response = await SendAsync(method, path, token, body, cancellationToken).ConfigureAwait(false);
@@ -414,6 +500,37 @@ public sealed class GitHubPagesPublisher : IPublishTargetPublisher
     {
         /// <summary>ref 指向的 SHA。</summary>
         public required string Sha { get; init; }
+    }
+
+    /// <summary>Git commit 响应。</summary>
+    private sealed record GitHubCommit
+    {
+        /// <summary>commit 指向的 tree。</summary>
+        public required GitHubCommitTree Tree { get; init; }
+    }
+
+    /// <summary>Git commit tree 引用。</summary>
+    private sealed record GitHubCommitTree
+    {
+        /// <summary>tree SHA。</summary>
+        public required string Sha { get; init; }
+    }
+
+    /// <summary>Git tree 响应。</summary>
+    private sealed record GitHubTree
+    {
+        /// <summary>tree entry 列表。</summary>
+        public required IReadOnlyList<GitHubTreeItem> Tree { get; init; }
+    }
+
+    /// <summary>Git tree entry 响应。</summary>
+    private sealed record GitHubTreeItem
+    {
+        /// <summary>entry 路径。</summary>
+        public required string Path { get; init; }
+
+        /// <summary>entry 类型，blob 表示文件。</summary>
+        public required string Type { get; init; }
     }
 
     /// <summary>GitHub Pages 站点响应。</summary>

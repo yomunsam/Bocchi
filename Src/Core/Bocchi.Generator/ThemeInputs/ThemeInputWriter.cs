@@ -493,13 +493,38 @@ public sealed class ThemeInputWriter
         BuildLocalizationOptions? localization,
         string siteLanguage)
     {
-        var href = ResolveNavigationHref(item.Target, pages, specialPages, postCategories);
+        var children = item.Children
+            .Select(child => MapNavigationItem(child, pages, specialPages, postCategories, manifest, localization, siteLanguage))
+            .Where(child => child is not null)
+            .Select(child => child!)
+            .ToArray();
+        var target = item.Target;
+        if (target is null)
+        {
+            if (children.Length == 0)
+            {
+                return null;
+            }
+
+            var groupDisplay = ResolveDisplayText(item.Label, item.Id, manifest, localization, siteLanguage);
+            return new NavigationItemInput
+            {
+                Id = item.Id,
+                Label = groupDisplay.Text,
+                LabelI18n = groupDisplay.I18n,
+                Href = null,
+                Target = null,
+                Children = children,
+            };
+        }
+
+        var href = ResolveNavigationHref(target, pages, specialPages, postCategories);
         if (string.IsNullOrWhiteSpace(href))
         {
             return null;
         }
 
-        var fallback = ResolveNavigationFallbackLabel(item.Target, pages, specialPages, postCategories);
+        var fallback = ResolveNavigationFallbackLabel(target, pages, specialPages, postCategories);
         var display = ResolveDisplayText(item.Label, fallback, manifest, localization, siteLanguage);
         return new NavigationItemInput
         {
@@ -509,14 +534,10 @@ public sealed class ThemeInputWriter
             Href = href,
             Target = new NavigationTargetInput
             {
-                Type = item.Target.Type,
-                Value = item.Target.Value,
+                Type = target.Type,
+                Value = target.Value,
             },
-            Children = item.Children
-                .Select(child => MapNavigationItem(child, pages, specialPages, postCategories, manifest, localization, siteLanguage))
-                .Where(child => child is not null)
-                .Select(child => child!)
-                .ToArray(),
+            Children = children,
         };
     }
 

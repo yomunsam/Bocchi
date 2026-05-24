@@ -284,6 +284,23 @@ public sealed class GeneratorPipelineEndToEndTests
                   type: postCategory
                   value: tech
                 children: []
+              - id: more
+                label: More
+                children:
+                  - id: notes
+                    target:
+                      type: builtin
+                      value: notes
+                    children: []
+              - id: empty-about
+                label: i18n://common@menu.about
+                children: []
+              - id: missing-page
+                label: Missing page
+                target:
+                  type: page
+                  value: deleted-about
+                children: []
             """);
         var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
 
@@ -311,12 +328,15 @@ public sealed class GeneratorPipelineEndToEndTests
         var navigationJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "navigation.json"));
         using var navigationDoc = JsonDocument.Parse(navigationJson);
         var navigation = navigationDoc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray().ToArray();
-        navigation.Should().HaveCount(2);
+        navigation.Should().HaveCount(3);
         navigation[0].GetProperty("href").GetString().Should().Be("/");
         navigation[0].GetProperty("labelI18n").GetProperty("key").GetString().Should().Be("menu.home");
         navigation[0].GetProperty("children").EnumerateArray().Single().GetProperty("href").GetString().Should().Be("/about/");
         navigation[1].GetProperty("target").GetProperty("type").GetString().Should().Be("postCategory");
         navigation[1].GetProperty("href").GetString().Should().Be("/posts/categories/tech/");
+        navigation[2].GetProperty("href").ValueKind.Should().Be(JsonValueKind.Null);
+        navigation[2].GetProperty("children").EnumerateArray().Single().GetProperty("href").GetString().Should().Be("/notes/");
+        navigationJson.Should().NotContain("deleted-about");
 
         var categoriesJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "post-categories.json"));
         using var categoriesDoc = JsonDocument.Parse(categoriesJson);
@@ -329,6 +349,11 @@ public sealed class GeneratorPipelineEndToEndTests
         using var postsDoc = JsonDocument.Parse(postsJson);
         postsDoc.RootElement.GetProperty("data").EnumerateArray().Single().GetProperty("categorySlug").GetString().Should().Be("tech");
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "categories", "tech", "index.html")).Should().BeTrue();
+        var indexHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
+        indexHtml.Should().Contain("<span class=\"nav__label\">More</span>");
+        indexHtml.Should().Contain("<a href=\"/notes/\"");
+        indexHtml.Should().NotContain("empty-about");
+        indexHtml.Should().NotContain("Missing page");
     }
 
     [Fact]

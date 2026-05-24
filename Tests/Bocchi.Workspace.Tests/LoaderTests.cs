@@ -276,7 +276,36 @@ public sealed class LoaderTests
         result.Document.CopyrightNotice.Should().Be("Copyright © 2026 Demo.");
         result.Document!.Navigation.Should().HaveCount(2);
         result.Document.Navigation[0].Label.Should().Be("B");
-        result.Document.Navigation[0].Target.Type.Should().Be("page");
-        result.Document.Navigation[0].Target.Value.Should().Be("b");
+        result.Document.Navigation[0].Target!.Type.Should().Be("page");
+        result.Document.Navigation[0].Target!.Value.Should().Be("b");
+    }
+
+    [Fact]
+    public void SiteSettingsLoader_AllowsNavigationItemWithoutTarget()
+    {
+        var siteYaml = """
+            title: Demo
+            baseUrl: https://demo.example/
+            """;
+        var navYaml = """
+            items:
+              - id: group
+                label: More
+                children:
+                  - id: posts
+                    target:
+                      type: builtin
+                      value: posts
+                    children: []
+            """;
+
+        var result = SiteSettingsLoader.Load(
+            Loc("site/site.yaml"), siteYaml,
+            Loc("site/navigation.yaml"), navYaml);
+
+        result.Errors.Should().BeEmpty();
+        var group = result.Document!.Navigation.Single();
+        group.Target.Should().BeNull();
+        group.Children.Single().Target!.Type.Should().Be("builtin");
     }
 }

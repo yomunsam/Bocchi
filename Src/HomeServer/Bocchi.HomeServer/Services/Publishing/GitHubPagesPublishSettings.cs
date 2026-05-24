@@ -20,6 +20,15 @@ public sealed record GitHubPagesPublishConfiguration
     /// <summary>是否在 push 后确保 GitHub Pages source 指向该 branch 根目录。</summary>
     public bool EnsurePagesSource { get; init; } = true;
 
+    /// <summary>目标选择模式：create 表示创建专用 repo，existing 表示选择已有 repo。</summary>
+    public string DestinationMode { get; init; } = "create";
+
+    /// <summary>发布前是否要求已有 branch 带 Bocchi marker；默认开启以保护已有内容。</summary>
+    public bool RequireBocchiMarker { get; init; } = true;
+
+    /// <summary>用户是否已明确确认接管无 marker 的已有 branch。</summary>
+    public bool AllowBranchTakeover { get; init; }
+
     /// <summary>从 JSON 读取配置，并补齐默认值。</summary>
     public static GitHubPagesPublishConfiguration FromJson(string? json)
     {
@@ -43,6 +52,7 @@ public sealed record GitHubPagesPublishConfiguration
             Owner = Owner.Trim(),
             Repository = Repository.Trim(),
             Branch = string.IsNullOrWhiteSpace(Branch) ? "gh-pages" : Branch.Trim(),
+            DestinationMode = string.IsNullOrWhiteSpace(DestinationMode) ? "create" : DestinationMode.Trim(),
         };
 }
 
@@ -52,8 +62,20 @@ public sealed record GitHubPagesPublishCredential
     /// <summary>凭据 JSON 序列化选项；只用于保护前后的短暂转换。</summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    /// <summary>GitHub token；需要 Contents write，自动配置 Pages source 时还需要 Pages/Admin 权限。</summary>
-    public string Token { get; init; } = string.Empty;
+    /// <summary>GitHub OAuth access token；需要 repo scope 覆盖 contents、pages 和 administration 操作。</summary>
+    public string AccessToken { get; init; } = string.Empty;
+
+    /// <summary>GitHub 返回的 token type，通常是 bearer。</summary>
+    public string TokenType { get; init; } = "bearer";
+
+    /// <summary>授权 scope 快照。</summary>
+    public string Scope { get; init; } = string.Empty;
+
+    /// <summary>授权账号 login。</summary>
+    public string GitHubLogin { get; init; } = string.Empty;
+
+    /// <summary>授权完成时间。</summary>
+    public DateTimeOffset AuthorizedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 
     /// <summary>从 JSON 读取凭据。</summary>
     public static GitHubPagesPublishCredential FromJson(string? json)

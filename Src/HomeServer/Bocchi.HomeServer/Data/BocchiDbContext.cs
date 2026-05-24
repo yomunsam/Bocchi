@@ -45,6 +45,12 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
     /// <summary>发布运行历史；只保存脱敏后的执行摘要。</summary>
     public DbSet<PublishRunRecord> PublishRuns => Set<PublishRunRecord>();
 
+    /// <summary>Git provider 授权连接；凭据字段只保存受保护后的字符串。</summary>
+    public DbSet<GitProviderConnectionRecord> GitProviderConnections => Set<GitProviderConnectionRecord>();
+
+    /// <summary>内容 workspace Git remote 配置。</summary>
+    public DbSet<ContentWorkspaceRemoteRecord> ContentWorkspaceRemotes => Set<ContentWorkspaceRemoteRecord>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -149,6 +155,10 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
         {
             entity.ToTable("PublishPlans");
             entity.HasKey(x => x.Id);
+            entity.HasOne<GitProviderConnectionRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.GitProviderConnectionId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.Property(x => x.DisplayName).HasMaxLength(160).IsRequired();
             entity.Property(x => x.Channel).HasMaxLength(64).IsRequired();
             entity.Property(x => x.ConfigurationJson).IsRequired();
@@ -176,6 +186,37 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.RemoteCommitSha).HasMaxLength(128);
             entity.Property(x => x.RemoteUrl).HasMaxLength(2048);
             entity.Property(x => x.ErrorMessage).HasMaxLength(2048);
+        });
+
+        builder.Entity<GitProviderConnectionRecord>(entity =>
+        {
+            entity.ToTable("GitProviderConnections");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.ProviderKey, x.BaseUrl, x.AccountLogin });
+            entity.Property(x => x.ProviderKey).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.BaseUrl).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.AccountLogin).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Scopes).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.ProtectedCredentialJson).HasMaxLength(8192).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        builder.Entity<ContentWorkspaceRemoteRecord>(entity =>
+        {
+            entity.ToTable("ContentWorkspaceRemotes");
+            entity.HasKey(x => x.Id);
+            entity.HasOne<GitProviderConnectionRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.GitProviderConnectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.Property(x => x.RemoteName).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.RemoteUrl).HasMaxLength(2048).IsRequired();
+            entity.Property(x => x.Branch).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.LastSyncStatus).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.LastSyncMessage).HasMaxLength(2048);
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
         });
     }
 }

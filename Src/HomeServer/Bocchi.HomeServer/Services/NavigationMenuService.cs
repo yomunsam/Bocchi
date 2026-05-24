@@ -14,6 +14,11 @@ public sealed class NavigationMenuService
     /// <summary>Menu 最大深度，与 Category tree 保持一致。</summary>
     public const int MaxDepth = CategoryTreeService.MaxDepth;
 
+    private const string CommonAboutLabel = "i18n://common@menu.about";
+
+    /// <summary>Preset 识别 About 页面时采用的保守 slug 候选，按最常见命名优先。</summary>
+    private static readonly string[] AboutPageSlugCandidates = ["about", "aboutme", "about-me"];
+
     private readonly BocchiDataLayout _layout;
     private readonly IContentStateStore _store;
     private readonly CategoryTreeService _categories;
@@ -47,9 +52,12 @@ public sealed class NavigationMenuService
         var items = await ReadItemsAsync(cancellationToken).ConfigureAwait(false);
         var targets = await BuildTargetOptionsAsync(items, cancellationToken).ConfigureAwait(false);
         var localization = await _localization.GetAsync(cancellationToken).ConfigureAwait(false);
-        var targetKeys = targets.Select(target => target.Key).ToHashSet(StringComparer.Ordinal);
+        var targetKeys = targets
+            .Where(target => target.Available)
+            .Select(target => target.Key)
+            .ToHashSet(StringComparer.Ordinal);
         var warnings = Flatten(items)
-            .Where(item => !targetKeys.Contains(item.TargetKey))
+            .Where(item => item.HasTarget && !targetKeys.Contains(item.TargetKey))
             .Select(item => new NavigationMenuWarning
             {
                 ItemId = item.Id,
@@ -66,6 +74,23 @@ public sealed class NavigationMenuService
             EnabledLanguages = localization.EnabledLanguages,
             CommonTextOverrides = localization.CommonTextOverrides,
         };
+    }
+
+    /// <summary>
+    /// 在空 Menu 上应用 Bocchi 默认预设。非空时不覆盖用户已有结构，避免把显式清空或手工编辑误当初始化。
+    /// </summary>
+    public async Task<bool> ApplyDefaultPresetAsync(CancellationToken cancellationToken = default)
+    {
+        var current = await ReadItemsAsync(cancellationToken).ConfigureAwait(false);
+        if (current.Count > 0)
+        {
+            return false;
+        }
+
+        var pages = await _store.ListContentSummariesAsync(ContentKind.Page, cancellationToken).ConfigureAwait(false);
+        var aboutSlug = FindAboutPageSlug(pages);
+        await SaveAsync(CreateDefaultPresetItems(aboutSlug), cancellationToken: cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     /// <summary>保存编辑器提交的 Menu tree。服务层统一裁剪深度、清理空 id，并写回 YAML。</summary>
@@ -131,6 +156,7 @@ public sealed class NavigationMenuService
     {
         var result = new List<NavigationTargetOption>
         {
+            NoTarget(),
             Builtin("home"),
             Builtin("posts"),
             Builtin("works"),
@@ -150,13 +176,17 @@ public sealed class NavigationMenuService
 
         var pages = await _store.ListContentSummariesAsync(ContentKind.Page, cancellationToken).ConfigureAwait(false);
         result.AddRange(pages
-            .OrderBy(page => page.Title ?? page.ContentId, StringComparer.OrdinalIgnoreCase)
+            .Select(page => new { Summary = page, Slug = TryReadPageSlug(page.RelativePath) })
+            .Where(page => !string.IsNullOrWhiteSpace(page.Slug))
+            .GroupBy(page => page.Slug!, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderBy(page => page.Summary.IsTranslation).ThenBy(page => page.Summary.Language).First())
+            .OrderBy(page => page.Summary.Title ?? page.Slug, StringComparer.OrdinalIgnoreCase)
             .Select(page => new NavigationTargetOption
             {
                 Type = "page",
-                Value = page.ContentId,
+                Value = page.Slug!,
                 GroupLabel = _i18n["siteNavigation.target.group.page"],
-                Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.page"], page.Title ?? page.ContentId),
+                Label = string.Format(CultureInfo.CurrentCulture, "{0} · {1}", _i18n["siteNavigation.target.group.page"], page.Summary.Title ?? page.Slug),
                 Available = true,
             }));
 
@@ -197,6 +227,15 @@ public sealed class NavigationMenuService
             Label = _i18n[$"siteNavigation.target.builtin.{name}"],
             Available = true,
         };
+
+        NavigationTargetOption NoTarget() => new()
+        {
+            Type = string.Empty,
+            Value = string.Empty,
+            GroupLabel = _i18n["siteNavigation.target.group.none"],
+            Label = _i18n["siteNavigation.target.none"],
+            Available = true,
+        };
     }
 
     private async Task<ThemePageContractView> GetActiveThemeContractAsync(CancellationToken cancellationToken)
@@ -210,6 +249,57 @@ public sealed class NavigationMenuService
         return await _themeSettings
             .GetPageContractAsync(themeId, _i18n.CurrentLanguage.Code, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    /// <summary>创建默认 Menu preset；About 找不到真实 Page 时保留为无 target 待配置项。</summary>
+    private static IReadOnlyList<NavigationEditorItem> CreateDefaultPresetItems(string? aboutSlug)
+    {
+        var about = new NavigationEditorItem
+        {
+            Id = "about",
+            Label = CommonAboutLabel,
+        };
+        if (!string.IsNullOrWhiteSpace(aboutSlug))
+        {
+            about.TargetType = "page";
+            about.TargetValue = aboutSlug;
+        }
+
+        return
+        [
+            BuiltinPresetItem("home"),
+            BuiltinPresetItem("posts"),
+            BuiltinPresetItem("notes"),
+            BuiltinPresetItem("works"),
+            about,
+        ];
+
+        static NavigationEditorItem BuiltinPresetItem(string name) => new()
+        {
+            Id = name,
+            TargetType = "builtin",
+            TargetValue = name,
+        };
+    }
+
+    private static string? FindAboutPageSlug(IEnumerable<ContentSummary> pages)
+    {
+        var slugs = pages
+            .Select(page => TryReadPageSlug(page.RelativePath))
+            .Where(slug => !string.IsNullOrWhiteSpace(slug))
+            .Select(slug => slug!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return AboutPageSlugCandidates.FirstOrDefault(slugs.Contains);
+    }
+
+    private static string? TryReadPageSlug(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/').Trim('/');
+        var parts = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 3
+            && string.Equals(parts[0], "pages", StringComparison.OrdinalIgnoreCase)
+            ? parts[1]
+            : null;
     }
 
     private static List<NavigationEditorItem> ParseItems(YamlSequenceNode seq, int depth)
@@ -229,16 +319,11 @@ public sealed class NavigationMenuService
 
             var target = TryGetMapping(map, "target");
             var type = target is null ? string.Empty : ReadScalar(target, "type");
-            if (string.IsNullOrWhiteSpace(type))
-            {
-                continue;
-            }
-
             var item = new NavigationEditorItem
             {
                 Id = NormalizeId(ReadScalar(map, "id")),
                 Label = ReadScalar(map, "label") ?? string.Empty,
-                TargetType = type.Trim(),
+                TargetType = type?.Trim() ?? string.Empty,
                 TargetValue = target is null ? string.Empty : ReadScalar(target, "value") ?? string.Empty,
             };
             if (TryGetSequence(map, "children") is { } children)
@@ -260,7 +345,6 @@ public sealed class NavigationMenuService
         }
 
         return items
-            .Where(item => !string.IsNullOrWhiteSpace(item.TargetType))
             .Select(item =>
             {
                 var normalized = new NavigationEditorItem
@@ -285,16 +369,19 @@ public sealed class NavigationMenuService
             {
                 { new YamlScalarNode("id"), new YamlScalarNode(item.Id) },
                 { new YamlScalarNode("label"), new YamlScalarNode(item.Label) },
-                {
+                { new YamlScalarNode("children"), BuildItemsYaml(item.Children) },
+            };
+            if (item.HasTarget)
+            {
+                map.Add(
                     new YamlScalarNode("target"),
                     new YamlMappingNode
                     {
                         { new YamlScalarNode("type"), new YamlScalarNode(item.TargetType) },
                         { new YamlScalarNode("value"), new YamlScalarNode(item.TargetValue) },
-                    }
-                },
-                { new YamlScalarNode("children"), BuildItemsYaml(item.Children) },
-            };
+                    });
+            }
+
             seq.Add(map);
         }
 
@@ -383,13 +470,16 @@ public sealed class NavigationEditorItem
     public string Label { get; set; } = string.Empty;
 
     /// <summary>target 类型。</summary>
-    public string TargetType { get; set; } = "builtin";
+    public string TargetType { get; set; } = string.Empty;
 
     /// <summary>target 值。</summary>
-    public string TargetValue { get; set; } = "home";
+    public string TargetValue { get; set; } = string.Empty;
 
     /// <summary>子 Menu 项。</summary>
     public List<NavigationEditorItem> Children { get; } = [];
+
+    /// <summary>是否已经选择语义 target；无 target 节点只作为后台待配置项或前台分组使用。</summary>
+    public bool HasTarget => !string.IsNullOrWhiteSpace(TargetType);
 
     /// <summary>HTML select 使用的复合 key。</summary>
     public string TargetKey

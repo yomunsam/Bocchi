@@ -125,6 +125,7 @@ public sealed class PublishPlanService
         record.DisplayName = NormalizeDisplayName(input.DisplayName, channel);
         record.Channel = channel;
         record.ConfigurationJson = configurationJson;
+        record.GitProviderConnectionId = input.GitProviderConnectionId;
         record.UpdatedAt = now;
 
         if (input.CredentialJson is not null)
@@ -240,4 +241,5 @@ public sealed record PublishPlanSaveInput(
     string Channel,
     string? ConfigurationJson,
     string? CredentialJson,
-    bool SetAsDefault);
+    bool SetAsDefault,
+    int? GitProviderConnectionId = null);

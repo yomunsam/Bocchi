@@ -285,7 +285,7 @@ Menu item 字段：
 
 - `id`：稳定节点 id，由 Dashboard 生成并保留。
 - `label`：可选展示文本；可以是普通文本，也可以是 `i18n://common@key` / `i18n://theme@key`。
-- `target`：语义目标，不直接保存 URL。
+- `target`：可选语义目标，不直接保存 URL。省略时表示待配置项；如果有可输出子项，Theme input 会把它作为非链接分组节点。
 - `children`：嵌套子项，最大深度与 Category tree 一致，为 5 层。
 
 Target 类型固定为：
@@ -295,7 +295,7 @@ Target 类型固定为：
 - `page`：自定义 Page，值为 Page slug。
 - `postCategory`：Post Category，值为稳定 slug。
 
-Generator 会把可解析 target 转成 `navigation.json` 中的 `href`。无法解析的 target 在 Dashboard 中保留并提示，但不会进入公开 Theme input，避免生成死链接。
+Generator 会把可解析 target 转成 `navigation.json` 中的 `href`。无 target 的叶子项不会进入公开 Theme input；无 target 且有可输出子项时会作为 `href: null` 的分组节点输出。无法解析的 target 在 Dashboard 中保留并提示，但不会进入公开 Theme input，避免生成死链接。
 
 ### 4.8 Category Slug
 
@@ -481,7 +481,7 @@ Home Server 向 Theme 写入一组稳定 JSON 文件。
 - 内容正文可以同时提供 `markdown`、`html` 和 `excerpt`，由 Theme 选择使用。
 - Post / Page / Work 的 canonical route 使用 `siteRelativeUrl`；`url` 暂时保留为 v1 兼容别名。Theme 不应从 slug/title 自己推导内容 URL。
 - 媒体路径统一转换为站点输出路径，不暴露本机绝对路径。
-- `navigation.json` 输出 Menu tree。每个节点包含 `id`、`label`、解析后的 `href`、原始 `target`、可选 `labelI18n` 和 `children`；无法解析 target 的节点不会进入公开 Theme input。
+- `navigation.json` 输出 Menu tree。可链接节点包含 `id`、`label`、解析后的 `href`、原始 `target`、可选 `labelI18n` 和 `children`；无 target 分组节点使用 `href: null` 且 `target: null`，无 target 叶子和无法解析 target 的节点不会进入公开 Theme input。
 - `post-categories.json` 输出 Post Category tree，包含稳定 `slug`、`url`、`count` 和 `children`。Post Category URL 固定为 `/posts/categories/{slug}/`。
 - `posts.json` 的 Post 节点包含 `categorySlug`，供 Theme 使用稳定分类 URL；`pages.json` 的 Page 节点包含 `template`，供 Theme 选择 Page 模板。
 - `build-context.json` 提供构建时间、站点 base URL、环境信息和功能开关。

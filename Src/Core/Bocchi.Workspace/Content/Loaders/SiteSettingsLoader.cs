@@ -213,12 +213,6 @@ public static class SiteSettingsLoader
             var child = seq.Children[i];
             if (child is YamlMappingNode m)
             {
-                var target = ParseNavigationTarget(m);
-                if (target is null)
-                {
-                    continue;
-                }
-
                 var id = YamlAccess.GetString(m, "id");
                 var label = YamlAccess.GetString(m, "label");
                 var children = YamlAccess.GetSequence(m, "children") is { } childSeq
@@ -228,7 +222,7 @@ public static class SiteSettingsLoader
                 {
                     Id = string.IsNullOrWhiteSpace(id) ? $"{path}-{i}" : id.Trim(),
                     Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim(),
-                    Target = target,
+                    Target = ParseNavigationTarget(m),
                     Children = children,
                 });
             }

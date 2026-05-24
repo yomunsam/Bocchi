@@ -60,6 +60,10 @@
                 {
                     <div class="bocchi-navigation-empty">
                         <strong>@I18n["siteNavigation.editor.empty"]</strong>
+                        <button type="button" class="secondary" disabled="@(!CanApplyPreset)" @onclick="ApplyPresetAsync">
+                            <Blazicon Svg="Lucide.Sparkles" />
+                            <span>@I18n["siteNavigation.editor.applyPreset"]</span>
+                        </button>
                         <button type="button" class="secondary" @onclick="AddRoot">@I18n["siteNavigation.editor.add"]</button>
                     </div>
                 }
@@ -176,6 +180,8 @@
     private bool _saved;
 
     private bool CanSave => _loaded && _dirty && !_busy;
+
+    private bool CanApplyPreset => _loaded && _items.Count == 0 && !_busy;
 
     private NavigationEditorItem? SelectedItem => string.IsNullOrWhiteSpace(_selectedItemId)
         ? null
@@ -294,6 +300,28 @@
         }
     }
 
+    /// <summary>空 Menu 时应用内置 preset；服务层会再次检查空状态，避免并发覆盖用户已有菜单。</summary>
+    private async Task ApplyPresetAsync()
+    {
+        if (!CanApplyPreset)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            _saved = await Menu.ApplyDefaultPresetAsync();
+            var view = await Menu.GetEditorAsync();
+            ApplyView(view, selectedItemId: "home");
+            _dirty = false;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
     private void OnSelectedTargetChanged(NavigationEditorItem item, ChangeEventArgs args)
     {
         item.TargetKey = args.Value?.ToString() ?? string.Empty;
@@ -362,7 +390,7 @@
 
     private NavigationEditorItem CreateDefaultItem()
     {
-        var first = _targetOptions.FirstOrDefault(option => option.Available) ??
+        var first = _targetOptions.FirstOrDefault(option => option.Available && !string.IsNullOrWhiteSpace(option.Type)) ??
             new NavigationTargetOption
             {
                 Type = "builtin",

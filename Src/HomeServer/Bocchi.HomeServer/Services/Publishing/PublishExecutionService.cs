@@ -1,5 +1,6 @@
 using Bocchi.Generator.Pipeline;
 using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Services.Git;
 using Bocchi.Workspace;
 
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,9 @@ public sealed class PublishExecutionService
 
     /// <summary>发布方案服务，负责配置查询和凭据保护/解保护。</summary>
     private readonly PublishPlanService _plans;
+
+    /// <summary>Git provider 连接服务；发布方案可以复用账号授权。</summary>
+    private readonly GitProviderConnectionService _gitConnections;
 
     /// <summary>静态站点构建入口。</summary>
     private readonly IStaticSiteBuildRunner _buildRunner;
@@ -31,6 +35,7 @@ public sealed class PublishExecutionService
     public PublishExecutionService(
         BocchiDbContext db,
         PublishPlanService plans,
+        GitProviderConnectionService gitConnections,
         IStaticSiteBuildRunner buildRunner,
         BocchiDataLayout layout,
         IEnumerable<IPublishTargetPublisher> publishers,
@@ -38,6 +43,7 @@ public sealed class PublishExecutionService
     {
         _db = db;
         _plans = plans;
+        _gitConnections = gitConnections;
         _buildRunner = buildRunner;
         _layout = layout;
         _publishers = publishers.ToArray();
@@ -106,7 +112,8 @@ public sealed class PublishExecutionService
             run.ArtifactCount = output.Files.Count;
 
             var publisher = ResolvePublisher(plan.Channel);
-            credentialJson = _plans.UnprotectCredentialJson(plan);
+            credentialJson = _plans.UnprotectCredentialJson(plan)
+                ?? await _gitConnections.TryUnprotectCredentialJsonAsync(plan.GitProviderConnectionId, cancellationToken).ConfigureAwait(false);
             var targetResult = await publisher.PublishAsync(
                 new PublishTargetRequest
                 {

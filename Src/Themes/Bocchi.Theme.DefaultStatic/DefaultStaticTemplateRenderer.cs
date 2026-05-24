@@ -519,15 +519,17 @@ public sealed class DefaultStaticTemplateRenderer
     private static Dictionary<string, object?> CreateNavigationItem(JsonElement item, string currentPath)
     {
         var href = GetString(item, "href");
+        var hasHref = !string.IsNullOrWhiteSpace(href);
         var children = item.TryGetProperty("children", out var childArray) && childArray.ValueKind == JsonValueKind.Array
             ? childArray.EnumerateArray().Select(child => CreateNavigationItem(child, currentPath)).ToArray()
             : [];
-        var current = string.Equals(href, currentPath, StringComparison.Ordinal) ||
-            href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal) ||
+        var current = (hasHref && (string.Equals(href, currentPath, StringComparison.Ordinal) ||
+            href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal))) ||
             children.Any(child => child.TryGetValue("current", out var childCurrent) && childCurrent is true);
         var model = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["href"] = href,
+            ["href"] = hasHref ? href : null,
+            ["hasHref"] = hasHref,
             ["i18nKey"] = ReadNavigationI18nKey(item),
             ["label"] = GetString(item, "label"),
             ["current"] = current,
@@ -539,10 +541,13 @@ public sealed class DefaultStaticTemplateRenderer
         return model;
     }
 
-    private static string ReadNavigationI18nKey(JsonElement item)
-        => item.TryGetProperty("labelI18n", out var i18n) && i18n.ValueKind == JsonValueKind.Object
+    private static string? ReadNavigationI18nKey(JsonElement item)
+    {
+        var key = item.TryGetProperty("labelI18n", out var i18n) && i18n.ValueKind == JsonValueKind.Object
             ? GetString(i18n, "key")
             : string.Empty;
+        return string.IsNullOrWhiteSpace(key) ? null : key;
+    }
 
     /// <summary>把嵌套 Menu 子树预渲染为 HTML，避免模板系统依赖递归 include。</summary>
     private static string RenderNavigationChildrenHtml(Dictionary<string, object?>[] children, bool mobile)
@@ -558,35 +563,54 @@ public sealed class DefaultStaticTemplateRenderer
         builder.Append("<ul class=\"").Append(listClass).Append("\">");
         foreach (var child in children)
         {
-            var href = child.TryGetValue("href", out var hrefValue) ? hrefValue?.ToString() ?? "#" : "#";
+            var href = child.TryGetValue("href", out var hrefValue) ? hrefValue?.ToString() ?? string.Empty : string.Empty;
+            var hasHref = !string.IsNullOrWhiteSpace(href);
             var label = child.TryGetValue("label", out var labelValue) ? labelValue?.ToString() ?? string.Empty : string.Empty;
             var i18nKey = child.TryGetValue("i18nKey", out var keyValue) ? keyValue?.ToString() ?? string.Empty : string.Empty;
             var current = child.TryGetValue("current", out var currentValue) && currentValue is true;
             var nestedHtml = child.TryGetValue(mobile ? "mobileChildrenHtml" : "childrenHtml", out var htmlValue)
                 ? htmlValue?.ToString() ?? string.Empty
                 : string.Empty;
-            builder.Append("<li class=\"").Append(itemClass).Append("\"><a href=\"")
-                .Append(WebUtility.HtmlEncode(href))
-                .Append('"');
-            if (current)
+            builder.Append("<li class=\"").Append(itemClass).Append("\">");
+            if (hasHref)
             {
-                builder.Append(" aria-current=\"page\"");
+                builder.Append("<a href=\"")
+                    .Append(WebUtility.HtmlEncode(href))
+                    .Append('"');
+                if (current)
+                {
+                    builder.Append(" aria-current=\"page\"");
+                }
+
+                AppendI18nAttribute(builder, i18nKey);
+                builder.Append('>')
+                    .Append(WebUtility.HtmlEncode(label))
+                    .Append("</a>");
+            }
+            else
+            {
+                builder.Append("<span class=\"").Append(mobile ? "mobile-nav__label" : "nav__label").Append('"');
+                AppendI18nAttribute(builder, i18nKey);
+                builder.Append('>')
+                    .Append(WebUtility.HtmlEncode(label))
+                    .Append("</span>");
             }
 
-            if (!string.IsNullOrWhiteSpace(i18nKey))
-            {
-                builder.Append(" data-bocchi-i18n=\"").Append(WebUtility.HtmlEncode(i18nKey)).Append('"');
-            }
-
-            builder.Append('>')
-                .Append(WebUtility.HtmlEncode(label))
-                .Append("</a>")
+            builder
                 .Append(nestedHtml)
                 .Append("</li>");
         }
 
         builder.Append("</ul>");
         return builder.ToString();
+    }
+
+    private static void AppendI18nAttribute(StringBuilder builder, string i18nKey)
+    {
+        if (!string.IsNullOrWhiteSpace(i18nKey))
+        {
+            builder.Append(" data-bocchi-i18n=\"").Append(WebUtility.HtmlEncode(i18nKey)).Append('"');
+        }
     }
 
     /// <summary>创建页面 Hero 模型。</summary>

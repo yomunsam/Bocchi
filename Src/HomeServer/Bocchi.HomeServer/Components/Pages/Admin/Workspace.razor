@@ -4,10 +4,16 @@
 @using Bocchi.Workspace.Git
 @using Bocchi.Workspace.Scanning
 @using Bocchi.Workspace.State
+@using Bocchi.HomeServer.Data
+@using Bocchi.HomeServer.Services.Git
 @inject BocchiDataLayout Layout
 @inject IContentStateStore Store
 @inject IContentRepository Repository
 @inject ContentScanner Scanner
+@inject ContentWorkspaceRemoteService WorkspaceRemotes
+@inject GitProviderConnectionService GitConnections
+@inject GitHubDeviceFlowService GitHubFlow
+@inject DashboardLocalizationService I18n
 
 <PageTitle>Content · Bocchi</PageTitle>
 
@@ -105,6 +111,84 @@
         </aside>
     </div>
 
+    <section class="bocchi-panel" aria-labelledby="workspace-remote-heading">
+        <div class="bocchi-inline-actions">
+            <h2 id="workspace-remote-heading">@I18n["workspace.remote.title"]</h2>
+            @if (_workspaceRemotes.Count > 0)
+            {
+                <BocchiStatusPill Tone="info">@_workspaceRemotes[0].RemoteName</BocchiStatusPill>
+            }
+        </div>
+        <p class="bocchi-muted-copy">@I18n["workspace.remote.description"]</p>
+        <div class="bocchi-form-grid">
+            <label>@I18n["workspace.remote.mode"]
+                <select @bind="_remoteMode">
+                    <option value="create">@I18n["workspace.remote.mode.create"]</option>
+                    <option value="connect">@I18n["workspace.remote.mode.connect"]</option>
+                    <option value="import">@I18n["workspace.remote.mode.import"]</option>
+                    <option value="generic">@I18n["workspace.remote.mode.generic"]</option>
+                </select>
+            </label>
+            <label>@I18n["workspace.remote.name"]
+                <input type="text" @bind="_remoteName" autocomplete="off" />
+            </label>
+            <label>@I18n["workspace.remote.branch"]
+                <input type="text" @bind="_remoteBranch" autocomplete="off" />
+            </label>
+            @if (string.Equals(_remoteMode, "create", StringComparison.Ordinal))
+            {
+                <label>@I18n["workspace.remote.repositoryName"]
+                    <input type="text" @bind="_remoteRepositoryName" autocomplete="off" />
+                </label>
+            }
+            else
+            {
+                <label>@I18n["workspace.remote.url"]
+                    <input type="url" @bind="_remoteUrl" autocomplete="off" />
+                </label>
+            }
+            @if (_gitConnections.Any(x => x.ProviderKey == GitProviderKeys.GitHub))
+            {
+                <label>@I18n["workspace.remote.githubAccount"]
+                    <select @bind="_selectedGitConnectionId">
+                        <option value="">@I18n["workspace.remote.noAccount"]</option>
+                        @foreach (var connection in _gitConnections.Where(x => x.ProviderKey == GitProviderKeys.GitHub))
+                        {
+                            <option value="@connection.Id">@connection.AccountLogin</option>
+                        }
+                    </select>
+                </label>
+            }
+        </div>
+        @if (string.Equals(_remoteMode, "create", StringComparison.Ordinal))
+        {
+            <label class="bocchi-checkbox bocchi-publish-github-check">
+                <input type="checkbox" @bind="_remoteCreatePrivate" />
+                @I18n["workspace.remote.privateRepository"]
+            </label>
+        }
+        <div class="bocchi-inline-actions">
+            @if (string.Equals(_remoteMode, "create", StringComparison.Ordinal))
+            {
+                <button type="button" class="secondary" @onclick="CreateContentRepositoryAsync" disabled="@_busy">@I18n["workspace.remote.createAndConnect"]</button>
+            }
+            else
+            {
+                <button type="button" class="secondary" @onclick="SaveRemoteAsync" disabled="@_busy">@I18n["workspace.remote.save"]</button>
+            }
+            @if (_workspaceRemotes.Count > 0)
+            {
+                <button type="button" class="secondary" @onclick="PullRemoteAsync" disabled="@_busy">@I18n["workspace.remote.pull"]</button>
+                <button type="button" class="secondary" @onclick="PushRemoteAsync" disabled="@_busy">@I18n["workspace.remote.push"]</button>
+                <button type="button" class="secondary" @onclick="ImportRemoteAsync" disabled="@_busy">@I18n["workspace.remote.import"]</button>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_remoteMessage))
+        {
+            <p class="@RemoteMessageClass()">@_remoteMessage</p>
+        }
+    </section>
+
     <details class="bocchi-advanced-details">
         <summary>Workspace paths</summary>
         <dl class="bocchi-meta-list">
@@ -165,6 +249,39 @@
     /// <summary>SQLite 中的内容摘要，主列表不读取正文。</summary>
     private IReadOnlyList<ContentSummary> _summaries = [];
 
+    /// <summary>内容 workspace remote 配置列表。</summary>
+    private IReadOnlyList<ContentWorkspaceRemoteRecord> _workspaceRemotes = [];
+
+    /// <summary>可复用的 Git provider 账号连接。</summary>
+    private IReadOnlyList<GitProviderConnectionRecord> _gitConnections = [];
+
+    /// <summary>内容 remote 入口模式。</summary>
+    private string _remoteMode = "generic";
+
+    /// <summary>创建内容仓库时使用的新 repository 名称。</summary>
+    private string _remoteRepositoryName = "bocchi-content";
+
+    /// <summary>创建内容仓库时默认 private，避免把未发布内容公开。</summary>
+    private bool _remoteCreatePrivate = true;
+
+    /// <summary>内容 remote 名称。</summary>
+    private string _remoteName = "origin";
+
+    /// <summary>内容 remote URL；必须是不含凭据的普通 URL。</summary>
+    private string _remoteUrl = string.Empty;
+
+    /// <summary>内容 remote branch。</summary>
+    private string _remoteBranch = "main";
+
+    /// <summary>当前内容 remote 复用的 Git provider connection。</summary>
+    private int? _selectedGitConnectionId;
+
+    /// <summary>内容 remote 操作消息。</summary>
+    private string? _remoteMessage;
+
+    /// <summary>内容 remote 操作消息是否为失败态。</summary>
+    private bool _remoteMessageIsDanger;
+
     /// <summary>内容类型筛选值；空字符串表示全部。</summary>
     [SupplyParameterFromQuery(Name = "kind")]
     private string KindFilter { get; set; } = string.Empty;
@@ -194,6 +311,16 @@
             ? []
             : (await Store.ListErrorsAsync(_lastRun.Id)).Take(50).ToList();
         _summaries = await Store.ListContentSummariesAsync(null);
+        _workspaceRemotes = await WorkspaceRemotes.ListAsync();
+        _gitConnections = await GitConnections.ListAsync();
+        _selectedGitConnectionId ??= _gitConnections.FirstOrDefault(x => x.ProviderKey == GitProviderKeys.GitHub)?.Id;
+        if (_workspaceRemotes.FirstOrDefault() is { } remote)
+        {
+            _remoteName = remote.RemoteName;
+            _remoteUrl = remote.RemoteUrl;
+            _remoteBranch = remote.Branch;
+            _selectedGitConnectionId = remote.GitProviderConnectionId ?? _selectedGitConnectionId;
+        }
     }
 
     /// <summary>把内容 workspace 初始化为独立 Git 仓库。</summary>
@@ -225,6 +352,128 @@
             _busy = false;
         }
     }
+
+    /// <summary>保存并配置内容 workspace remote；不会自动 push/pull。</summary>
+    private async Task SaveRemoteAsync()
+    {
+        await RunRemoteActionAsync(async () =>
+        {
+            var saved = await WorkspaceRemotes.ConnectAsync(CreateRemoteInput());
+            _remoteMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["workspace.remote.savedFormat"], saved.RemoteName);
+        });
+    }
+
+    /// <summary>通过 GitHub 授权创建空内容仓库，并保存为 content remote。</summary>
+    private async Task CreateContentRepositoryAsync()
+    {
+        await RunRemoteActionAsync(async () =>
+        {
+            if (_selectedGitConnectionId is null)
+            {
+                throw new InvalidOperationException(I18n["workspace.remote.connectionRequired"]);
+            }
+
+            if (string.IsNullOrWhiteSpace(_remoteRepositoryName))
+            {
+                throw new InvalidOperationException(I18n["workspace.remote.repositoryRequired"]);
+            }
+
+            var connection = await GitConnections.GetAsync(_selectedGitConnectionId.Value)
+                ?? throw new InvalidOperationException(I18n["workspace.remote.connectionRequired"]);
+            var credential = GitHubOAuthCredential.FromJson(GitConnections.UnprotectCredentialJson(connection));
+            var repository = await GitHubFlow.CreateRepositoryAsync(
+                credential.AccessToken,
+                _remoteRepositoryName,
+                _remoteCreatePrivate,
+                autoInit: false);
+
+            _remoteUrl = $"https://github.com/{repository.FullName}.git";
+            var saved = await WorkspaceRemotes.ConnectAsync(CreateRemoteInput());
+            _remoteMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["workspace.remote.createdFormat"], repository.FullName, saved.Branch);
+        });
+    }
+
+    /// <summary>fast-forward 拉取内容 remote。</summary>
+    private async Task PullRemoteAsync()
+    {
+        if (_workspaceRemotes.FirstOrDefault() is not { } remote)
+        {
+            return;
+        }
+
+        await RunRemoteActionAsync(async () =>
+        {
+            var result = await WorkspaceRemotes.PullFastForwardAsync(remote.Id);
+            _remoteMessage = result.Message;
+        });
+    }
+
+    /// <summary>推送内容 workspace 到 remote。</summary>
+    private async Task PushRemoteAsync()
+    {
+        if (_workspaceRemotes.FirstOrDefault() is not { } remote)
+        {
+            return;
+        }
+
+        await RunRemoteActionAsync(async () =>
+        {
+            var result = await WorkspaceRemotes.PushAsync(remote.Id);
+            _remoteMessage = result.Message;
+        });
+    }
+
+    /// <summary>导入已有内容仓库；服务层会先备份当前 workspace。</summary>
+    private async Task ImportRemoteAsync()
+    {
+        if (_workspaceRemotes.FirstOrDefault() is not { } remote)
+        {
+            return;
+        }
+
+        await RunRemoteActionAsync(async () =>
+        {
+            var result = await WorkspaceRemotes.ImportExistingAsync(remote.Id);
+            _remoteMessage = result.Message;
+        });
+    }
+
+    /// <summary>执行内容 remote 动作并刷新页面状态。</summary>
+    private async Task RunRemoteActionAsync(Func<Task> action)
+    {
+        _busy = true;
+        _remoteMessageIsDanger = false;
+        try
+        {
+            await action();
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            _remoteMessageIsDanger = true;
+            _remoteMessage = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>把页面表单转换为内容 remote 保存输入。</summary>
+    private ContentWorkspaceRemoteSaveInput CreateRemoteInput()
+    {
+        var existingId = _workspaceRemotes.FirstOrDefault()?.Id;
+        var connectionId = string.Equals(_remoteMode, "generic", StringComparison.Ordinal)
+            ? null
+            : _selectedGitConnectionId;
+        return new ContentWorkspaceRemoteSaveInput(existingId, _remoteName, _remoteUrl, _remoteBranch, connectionId);
+    }
+
+    /// <summary>内容 remote 操作消息 class。</summary>
+    private string RemoteMessageClass()
+        => _remoteMessageIsDanger
+            ? "bocchi-publish-remote-message bocchi-publish-remote-message--danger"
+            : "bocchi-publish-remote-message";
 
     /// <summary>把内容发布状态转成普通用户能理解的标签。</summary>
     private static string ContentStatusLabel(ContentStatus status)

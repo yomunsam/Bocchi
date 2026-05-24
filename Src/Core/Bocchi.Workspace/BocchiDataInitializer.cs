@@ -148,14 +148,30 @@ public sealed class BocchiDataInitializer
 
     private const string DefaultNavigationYaml = """
         # 前台 primary menu。Dashboard 会读写这个文件；Theme 自行决定如何展示嵌套。
-        # items:
-        #   - id: home
-        #     label: i18n://common@menu.home
-        #     target:
-        #       type: builtin
-        #       value: home
-        #     children: []
-        items: []
+        items:
+          - id: home
+            target:
+              type: builtin
+              value: home
+            children: []
+          - id: posts
+            target:
+              type: builtin
+              value: posts
+            children: []
+          - id: notes
+            target:
+              type: builtin
+              value: notes
+            children: []
+          - id: works
+            target:
+              type: builtin
+              value: works
+            children: []
+          - id: about
+            label: i18n://common@menu.about
+            children: []
         """;
 
     private const string DefaultFriendsYaml = """

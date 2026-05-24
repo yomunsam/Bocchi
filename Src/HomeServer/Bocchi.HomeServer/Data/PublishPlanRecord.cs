@@ -21,6 +21,9 @@ public sealed class PublishPlanRecord
     /// <summary>受 Data Protection 保护后的渠道凭据 JSON；不得写入 workspace 或静态输出目录。</summary>
     public string? ProtectedCredentialJson { get; set; }
 
+    /// <summary>复用的 Git 账号连接；为空时使用发布方案自己的受保护凭据。</summary>
+    public int? GitProviderConnectionId { get; set; }
+
     /// <summary>是否为发布页的一键发布默认方案。</summary>
     public bool IsDefault { get; set; }
 
