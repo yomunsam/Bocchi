@@ -3,7 +3,7 @@ using Bocchi.HomeServer.Services;
 namespace Bocchi.HomeServer.Security;
 
 /// <summary>
-/// Setup 完成前的访问闸门：只放行 Setup、Login、健康检查和后台静态资源。
+/// Setup 完成前的访问闸门：只放行 Setup flow、健康检查和后台静态资源。
 /// </summary>
 public sealed class SetupGateMiddleware
 {
@@ -33,7 +33,6 @@ public sealed class SetupGateMiddleware
         var value = path.Value ?? "/";
         if (value.Equals("/Setup", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("/Setup/", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase)
             || value.Equals("/healthz", StringComparison.OrdinalIgnoreCase))
         {
             return true;

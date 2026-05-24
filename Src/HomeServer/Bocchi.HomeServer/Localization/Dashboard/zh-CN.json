@@ -68,7 +68,7 @@
   "setup.appearance.switchToLight": "切换到浅色模式",
   "setup.admin.eyebrow": "步骤1：创建Admin账号",
   "setup.admin.title": "创建第一个 Admin",
-  "setup.site.eyebrow": "步骤 2：配置站点信息",
+  "setup.site.eyebrow": "步骤 2: 配置站点信息",
   "setup.site.title": "配置您的 Bocchi 站点",
   "setup.site.description": "确认公开站点名称、默认标题和前台 Theme，完成后即可进入管理后台。",
   "setup.field.username": "管理员用户名",

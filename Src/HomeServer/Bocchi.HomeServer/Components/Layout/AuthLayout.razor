@@ -11,7 +11,7 @@
             <span>@I18n["auth.brand.name"]</span>
         </a>
         <div class="bocchi-auth-topbar__actions">
-            <form class="bocchi-auth-language" method="post" action="/Account/UiLanguage">
+            <form class="bocchi-auth-language" method="post" action="@UiLanguageAction">
                 <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
                 <label>
                     <span class="bocchi-material-symbol" aria-hidden="true">translate</span>
@@ -48,6 +48,12 @@
 </div>
 
 @code {
+    /// <summary>根据当前 Auth 页面选择语言切换端点，避免 Setup 未完成前暴露 Account flow。</summary>
+    private string UiLanguageAction
+        => new Uri(Navigation.Uri).AbsolutePath.StartsWith("/Setup", StringComparison.OrdinalIgnoreCase)
+            ? "/Setup/UiLanguage"
+            : "/Account/UiLanguage";
+
     /// <summary>语言切换后回到当前 Auth/Setup 页面。</summary>
     private string CurrentReturnUrl => new Uri(Navigation.Uri).PathAndQuery;
 

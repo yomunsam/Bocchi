@@ -69,6 +69,7 @@ public sealed class AccountAndSetupTests
         var adminBody = await adminStep.Content.ReadAsStringAsync();
         adminBody.Should().Contain("name=\"username\"");
         adminBody.Should().Contain("name=\"email\"");
+        adminBody.Should().Contain("action=\"/Setup/UiLanguage\"");
         adminBody.Should().Contain("rel=\"icon\"");
         adminBody.Should().Contain("favicon");
         adminBody.Should().Contain("rel=\"apple-touch-icon\"");
@@ -103,6 +104,25 @@ public sealed class AccountAndSetupTests
         siteBody.Should().NotContain("workspace/site/site.yaml");
         siteBody.Should().NotContain("http://127.0.0.1");
         siteBody.Should().NotContain("name=\"password\"");
+    }
+
+    [Fact]
+    public async Task SetupGate_RedirectsAccountFlowBeforeSetup()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var login = await client.GetAsync("/Account/Login");
+        var submitLogin = await client.PostAsync("/Account/Login/Submit", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+
+        login.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        login.Headers.Location!.ToString().Should().Be("/Setup");
+        submitLogin.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        submitLogin.Headers.Location!.ToString().Should().Be("/Setup");
     }
 
     [Fact]
@@ -238,6 +258,7 @@ public sealed class AccountAndSetupTests
 
         login.EnsureSuccessStatusCode();
         var body = await login.Content.ReadAsStringAsync();
+        body.Should().Contain("action=\"/Account/UiLanguage\"");
         body.Should().Contain("Continue with GitHub");
     }
 
