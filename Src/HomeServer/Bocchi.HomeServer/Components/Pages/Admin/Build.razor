@@ -21,47 +21,58 @@
         <p>@CurrentDescription</p>
     </header>
 
-    <div class="bocchi-publish-layout">
-        <BocchiPublishNav ActiveSection="@CurrentSection" />
+    @if (IsPublishHomeSection)
+    {
+        @if (_recent is null || _publishRuns is null || _publishPlans is null)
+        {
+            <section class="bocchi-panel bocchi-publish-loading">
+                <p>@I18n["publish.loading"]</p>
+            </section>
+        }
+        else
+        {
+            @RenderPublishDashboard()
+        }
+    }
+    else
+    {
+        <div class="bocchi-publish-layout">
+            <BocchiPublishNav ActiveSection="@CurrentSection" />
 
-        <div class="bocchi-publish-stack">
-            @if (IsLocalOutputSection)
-            {
-                <section class="bocchi-panel bocchi-publish-local-output" aria-labelledby="publish-local-output-heading">
-                    <span class="bocchi-publish-local-output__icon" aria-hidden="true">
-                        <Blazicon Svg="Lucide.FolderOpen" />
-                    </span>
-                    <div>
-                        <h2 id="publish-local-output-heading">@I18n["publish.localOutput.title"]</h2>
-                        <p>@I18n["publish.localOutput.emptyDescription"]</p>
-                    </div>
-                </section>
-            }
-            else if (_recent is null)
-            {
-                <section class="bocchi-panel bocchi-publish-loading">
-                    <p>@I18n["publish.loading"]</p>
-                </section>
-            }
-            else
-            {
-                @RenderStaticOutputWorkbench()
-            }
+            <div class="bocchi-publish-stack">
+                @if (IsLocalOutputSection)
+                {
+                    <section class="bocchi-panel bocchi-publish-local-output" aria-labelledby="publish-local-output-heading">
+                        <span class="bocchi-publish-local-output__icon" aria-hidden="true">
+                            <Blazicon Svg="Lucide.FolderOpen" />
+                        </span>
+                        <div>
+                            <h2 id="publish-local-output-heading">@I18n["publish.localOutput.title"]</h2>
+                            <p>@I18n["publish.localOutput.emptyDescription"]</p>
+                        </div>
+                    </section>
+                }
+                else if (IsAddPlanSection)
+                {
+                    @RenderAddPlanWorkbench()
+                }
+            </div>
         </div>
-    </div>
+    }
 </article>
 
 @code {
     private const string LocalOutputSection = "LocalOutput";
+    private const string AddPlanSection = "AddPlan";
 
-    /// <summary>发布中心子路由片段；为空时展示默认“发布”子页。</summary>
+    /// <summary>发布中心子路由片段；为空时展示默认“一键发布”首页。</summary>
     [Parameter]
     public string? Section { get; set; }
 
-    /// <summary>静态输出生成中时禁用主操作。</summary>
+    /// <summary>一键发布运行中时禁用主操作，避免重复触发构建或远端发布。</summary>
     private bool _busy;
 
-    /// <summary>当前页面触发的最近一次构建结果。</summary>
+    /// <summary>当前页面触发的最近一次本地生成结果。</summary>
     private BuildResult? _lastResult;
 
     /// <summary>历史构建投影，来自 SQLite 状态库。</summary>
@@ -69,6 +80,15 @@
 
     /// <summary>最近发布运行投影，来自 Home Server EF 状态库。</summary>
     private IReadOnlyList<PublishRunRecord>? _publishRuns;
+
+    /// <summary>发布方案列表；首页用它决定一键发布目标，发布方案区用它渲染空态或列表。</summary>
+    private IReadOnlyList<PublishPlanRecord>? _publishPlans;
+
+    /// <summary>一键发布后的短状态消息。</summary>
+    private string? _oneClickMessage;
+
+    /// <summary>一键发布消息是否为失败态。</summary>
+    private bool _oneClickMessageIsDanger;
 
     /// <summary>当前 GitHub Pages 发布方案 id；为空表示尚未保存配置。</summary>
     private int? _githubPlanId;
@@ -94,34 +114,74 @@
     /// <summary>保存 GitHub Pages 配置时禁用按钮。</summary>
     private bool _githubSaving;
 
-    /// <summary>发布 GitHub Pages 时禁用按钮。</summary>
-    private bool _githubPublishing;
-
-    /// <summary>GitHub Pages 面板的短状态消息。</summary>
+    /// <summary>GitHub Pages 配置面板的短状态消息。</summary>
     private string? _githubMessage;
 
-    /// <summary>当前页面触发的最近一次远端发布结果。</summary>
-    private PublishExecutionResult? _lastPublishResult;
+    /// <summary>GitHub Pages 配置面板消息是否为失败态。</summary>
+    private bool _githubMessageIsDanger;
 
     /// <summary>规范化后的发布中心子页面。</summary>
-    private string CurrentSection => string.Equals(Section, LocalOutputSection, StringComparison.OrdinalIgnoreCase)
-        ? LocalOutputSection
-        : string.Empty;
+    private string CurrentSection
+    {
+        get
+        {
+            if (string.Equals(Section, LocalOutputSection, StringComparison.OrdinalIgnoreCase))
+            {
+                return LocalOutputSection;
+            }
+
+            if (string.Equals(Section, AddPlanSection, StringComparison.OrdinalIgnoreCase))
+            {
+                return AddPlanSection;
+            }
+
+            return string.Empty;
+        }
+    }
+
+    /// <summary>当前是否展示默认发布首页。</summary>
+    private bool IsPublishHomeSection => string.IsNullOrEmpty(CurrentSection);
 
     /// <summary>当前是否展示本地输出子页面。</summary>
     private bool IsLocalOutputSection => CurrentSection == LocalOutputSection;
 
+    /// <summary>当前是否展示添加发布方案子页面。</summary>
+    private bool IsAddPlanSection => CurrentSection == AddPlanSection;
+
+    /// <summary>默认发布方案；没有显式默认时使用列表第一项作为旧数据回退。</summary>
+    private PublishPlanRecord? DefaultPublishPlan => _publishPlans?.FirstOrDefault(x => x.IsDefault) ?? _publishPlans?.FirstOrDefault();
+
     /// <summary>当前页面标题。</summary>
-    private string CurrentPageTitle => IsLocalOutputSection ? I18n["publish.localOutput.pageTitle"] : I18n["publish.page.title"];
+    private string CurrentPageTitle => CurrentSection switch
+    {
+        LocalOutputSection => I18n["publish.localOutput.pageTitle"],
+        AddPlanSection => I18n["publish.addPlan.pageTitle"],
+        _ => I18n["publish.page.title"],
+    };
 
     /// <summary>当前页面 eyebrow。</summary>
-    private string CurrentEyebrow => IsLocalOutputSection ? I18n["publish.localOutput.eyebrow"] : I18n["publish.page.eyebrow"];
+    private string CurrentEyebrow => CurrentSection switch
+    {
+        LocalOutputSection => I18n["publish.localOutput.eyebrow"],
+        AddPlanSection => I18n["publish.addPlan.eyebrow"],
+        _ => I18n["publish.page.eyebrow"],
+    };
 
     /// <summary>当前页面主标题。</summary>
-    private string CurrentHeading => IsLocalOutputSection ? I18n["publish.localOutput.heading"] : I18n["publish.page.heading"];
+    private string CurrentHeading => CurrentSection switch
+    {
+        LocalOutputSection => I18n["publish.localOutput.heading"],
+        AddPlanSection => I18n["publish.addPlan.heading"],
+        _ => I18n["publish.page.heading"],
+    };
 
     /// <summary>当前页面说明。</summary>
-    private string CurrentDescription => IsLocalOutputSection ? I18n["publish.localOutput.description"] : I18n["publish.page.description"];
+    private string CurrentDescription => CurrentSection switch
+    {
+        LocalOutputSection => I18n["publish.localOutput.description"],
+        AddPlanSection => I18n["publish.addPlan.description"],
+        _ => I18n["publish.page.description"],
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -134,64 +194,125 @@
     {
         _recent = await Store.ListRecentRunsAsync(20, default);
         _publishRuns = await PublishExecution.ListRecentRunsAsync(20, default);
+        _publishPlans = await PublishPlans.ListAsync(default);
     }
 
-    /// <summary>当前发布页主工作台：只暴露真实可执行的本地静态输出能力。</summary>
-    private RenderFragment RenderStaticOutputWorkbench() => @<div class="bocchi-publish-workbench">
-        <section class="bocchi-panel bocchi-publish-output-card" aria-labelledby="publish-run-heading">
-            <div class="bocchi-publish-output-heading">
-                <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
-                    <Blazicon Svg="Lucide.FolderOpen" />
-                </span>
-                <div>
-                    <h2 id="publish-run-heading">@I18n["publish.output.title"]</h2>
-                    <p>@I18n["publish.output.description"]</p>
-                </div>
-            </div>
+    /// <summary>发布首页：主操作、发布方案和辅助状态分栏展示，避免把配置表单压到第一屏。</summary>
+    private RenderFragment RenderPublishDashboard() => @<div class="bocchi-publish-dashboard">
+        <div class="bocchi-publish-main">
+            @RenderOneClickCard()
+            @RenderPublishPlans()
+        </div>
+        <aside class="bocchi-publish-aside" aria-label='@I18n["publish.side.aria"]'>
+            @RenderSiteStatus()
+            @RenderRecentActivity()
+        </aside>
+    </div>;
 
-            <div class="bocchi-publish-ready">
-                <span aria-hidden="true"><Blazicon Svg="Lucide.Check" /></span>
-                <div>
-                    <strong>@I18n["publish.output.readyTitle"]</strong>
-                    <p>@I18n["publish.output.readyDescription"]</p>
-                </div>
+    /// <summary>渲染视觉中心的一键发布卡片；没有默认方案时退化为本地静态生成。</summary>
+    private RenderFragment RenderOneClickCard() => @<section class="bocchi-panel bocchi-publish-hero" aria-labelledby="publish-one-click-heading">
+        <span class="bocchi-publish-hero__icon" aria-hidden="true">
+            <Blazicon Svg="Lucide.Send" />
+        </span>
+        <div class="bocchi-publish-hero__content">
+            <div class="bocchi-publish-hero__heading">
+                <h2 id="publish-one-click-heading">@I18n["publish.oneClick.title"]</h2>
+                <BocchiStatusPill Tone="@OneClickTargetTone()">@OneClickTargetText()</BocchiStatusPill>
             </div>
-
-            <form class="bocchi-publish-run-form" @onsubmit="RunAsync" @onsubmit:preventDefault>
-                <button type="submit" class="bocchi-publish-primary-action" disabled="@_busy">
+            <p>@I18n["publish.oneClick.description"]</p>
+            <form class="bocchi-publish-run-form" @onsubmit="PublishOneClickAsync" @onsubmit:preventDefault>
+                <button type="submit" class="bocchi-publish-primary-action bocchi-publish-primary-action--hero" disabled="@_busy">
                     <Blazicon Svg="Lucide.Send" />
-                    <span>@(_busy ? I18n["publish.action.generating"] : I18n["publish.action.generateStaticSite"])</span>
+                    <span>@(_busy ? I18n["publish.action.publishing"] : I18n["publish.action.publishNow"])</span>
                 </button>
                 <div class="bocchi-publish-quick-actions">
                     <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
                         <Blazicon Svg="Lucide.Eye" />
                         <span>@I18n["publish.action.preview"]</span>
                     </a>
-                    <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">@I18n["publish.action.downloadZip"]</a>
+                    <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">
+                        <Blazicon Svg="Lucide.Save" />
+                        <span>@I18n["publish.action.downloadZip"]</span>
+                    </a>
                 </div>
-
             </form>
-
+            @if (!string.IsNullOrWhiteSpace(_oneClickMessage))
+            {
+                <p class="@OneClickMessageClass()">@_oneClickMessage</p>
+            }
             @RenderLastPublishMeta()
-        </section>
+        </div>
+    </section>;
 
-        @RenderGitHubPagesWorkbench()
+    /// <summary>渲染发布方案区；无方案时只展示添加入口，不制造假渠道卡片。</summary>
+    private RenderFragment RenderPublishPlans() => @<section class="bocchi-publish-plans" aria-labelledby="publish-plans-heading">
+        <div class="bocchi-publish-section-heading">
+            <div>
+                <h2 id="publish-plans-heading">@I18n["publish.plans.title"]</h2>
+                <p>@I18n["publish.plans.description"]</p>
+            </div>
+            <a class="bocchi-button secondary" href="/Admin/Publish/AddPlan">
+                <Blazicon Svg="Lucide.Plus" />
+                <span>@I18n["publish.plans.add"]</span>
+            </a>
+        </div>
+        @if (_publishPlans is null)
+        {
+            <section class="bocchi-panel bocchi-publish-loading">
+                <p>@I18n["publish.history.loading"]</p>
+            </section>
+        }
+        else if (_publishPlans.Count == 0)
+        {
+            <div class="bocchi-panel bocchi-publish-plans-empty">
+                <span aria-hidden="true"><Blazicon Svg="Lucide.Plus" /></span>
+                <strong>@I18n["publish.plans.emptyTitle"]</strong>
+                <p>@I18n["publish.plans.emptyDescription"]</p>
+                <a class="bocchi-button bocchi-button--primary" href="/Admin/Publish/AddPlan">
+                    <Blazicon Svg="Lucide.Plus" />
+                    <span>@I18n["publish.plans.add"]</span>
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="bocchi-publish-plan-list">
+                @foreach (var plan in _publishPlans)
+                {
+                    var editUrl = PlanEditUrl(plan);
+                    <article class="bocchi-publish-plan-card">
+                        <span class="bocchi-publish-plan-card__icon" aria-hidden="true">
+                            <Blazicon Svg="@PlanChannelIcon(plan.Channel)" />
+                        </span>
+                        <div class="bocchi-publish-plan-card__main">
+                            <strong>@plan.DisplayName</strong>
+                            <span>@ChannelDisplayName(plan.Channel)</span>
+                        </div>
+                        @if (plan.IsDefault)
+                        {
+                            <BocchiStatusPill Tone="success">@I18n["publish.plans.default"]</BocchiStatusPill>
+                        }
+                        @if (editUrl is not null)
+                        {
+                            <a class="bocchi-publish-icon-link" href="@editUrl" title='@I18n["publish.plans.edit"]'>
+                                <Blazicon Svg="Lucide.Pencil" />
+                                <span class="bocchi-visually-hidden">@I18n["publish.plans.edit"]</span>
+                            </a>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>;
 
-        <section class="bocchi-panel bocchi-publish-history" aria-labelledby="history-heading">
-            <h2 id="history-heading">@I18n["publish.history.title"]</h2>
-            @RenderHistory()
-            @RenderLastResult()
-        </section>
-    </div>;
-
-    /// <summary>渲染 GitHub Pages 真实发布面板。</summary>
-    private RenderFragment RenderGitHubPagesWorkbench() => @<section class="bocchi-panel bocchi-publish-github" aria-labelledby="publish-github-heading">
+    /// <summary>渲染添加发布方案子页面；当前把 GitHub Pages 作为唯一已接入的真实远端渠道。</summary>
+    private RenderFragment RenderAddPlanWorkbench() => @<section class="bocchi-panel bocchi-publish-config" aria-labelledby="publish-add-plan-heading">
         <div class="bocchi-publish-output-heading">
             <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
                 <Blazicon Svg="Lucide.GitBranch" />
             </span>
             <div>
-                <h2 id="publish-github-heading">@I18n["publish.github.title"]</h2>
+                <h2 id="publish-add-plan-heading">@I18n["publish.github.title"]</h2>
                 <p>@I18n["publish.github.description"]</p>
             </div>
         </div>
@@ -216,14 +337,14 @@
                 @I18n["publish.github.ensurePagesSource"]
             </label>
             <div class="bocchi-publish-quick-actions">
-                <button type="submit" class="bocchi-button secondary" disabled="@(_githubSaving || _githubPublishing)">
+                <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
                     <Blazicon Svg="Lucide.Save" />
-                    <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.github.save"])</span>
+                    <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
                 </button>
-                <button type="button" class="bocchi-publish-primary-action" disabled="@(_githubSaving || _githubPublishing)" @onclick="PublishGitHubAsync">
-                    <Blazicon Svg="Lucide.Send" />
-                    <span>@(_githubPublishing ? I18n["publish.github.publishing"] : I18n["publish.github.publish"])</span>
-                </button>
+                <a class="bocchi-button secondary" href="/Admin/Publish">
+                    <Blazicon Svg="Lucide.ArrowLeft" />
+                    <span>@I18n["publish.addPlan.back"]</span>
+                </a>
             </div>
         </form>
 
@@ -231,65 +352,7 @@
         {
             <p class="@GitHubMessageClass()">@_githubMessage</p>
         }
-
-        @RenderLastGitHubPublishResult()
-        @RenderGitHubPublishHistory()
     </section>;
-
-    /// <summary>渲染当前页面最近一次 GitHub Pages 发布结果。</summary>
-    private RenderFragment RenderLastGitHubPublishResult() => @<div>
-        @if (_lastPublishResult is not null)
-        {
-            <div class="bocchi-publish-remote-result">
-                <BocchiStatusPill Tone="@PublishStatusTone(_lastPublishResult.Status)">@PublishStatusText(_lastPublishResult.Status)</BocchiStatusPill>
-                <span>@RemotePublishSummary(_lastPublishResult)</span>
-                @if (!string.IsNullOrWhiteSpace(_lastPublishResult.RemoteUrl))
-                {
-                    <a href="@_lastPublishResult.RemoteUrl" target="_blank" rel="noopener">
-                        <Blazicon Svg="Lucide.ExternalLink" />
-                        <span>@I18n["publish.github.openRemote"]</span>
-                    </a>
-                }
-            </div>
-        }
-    </div>;
-
-    /// <summary>渲染近期 GitHub Pages 发布历史。</summary>
-    private RenderFragment RenderGitHubPublishHistory() => @<div class="bocchi-publish-remote-history">
-        <h3>@I18n["publish.github.historyTitle"]</h3>
-        @if (_publishRuns is null)
-        {
-            <p>@I18n["publish.history.loading"]</p>
-        }
-        else
-        {
-            var githubRuns = _publishRuns
-                .Where(x => string.Equals(x.Channel, PublishPlanService.GitHubPagesChannel, StringComparison.Ordinal))
-                .Take(5)
-                .ToArray();
-            @if (githubRuns.Length == 0)
-            {
-                <p>@I18n["publish.github.historyEmpty"]</p>
-            }
-            else
-            {
-                <div class="bocchi-publish-remote-history-list">
-                    @foreach (var run in githubRuns)
-                    {
-                        <div>
-                            <BocchiStatusPill Tone="@PublishStatusTone(run.Status)">@PublishStatusText(run.Status)</BocchiStatusPill>
-                            <span>@run.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture)</span>
-                            <span>@string.Format(CultureInfo.CurrentCulture, I18n["publish.result.artifactCountFormat"], run.ArtifactCount)</span>
-                            @if (!string.IsNullOrWhiteSpace(run.RemoteCommitSha))
-                            {
-                                <code>@run.RemoteCommitSha[..Math.Min(8, run.RemoteCommitSha.Length)]</code>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        }
-    </div>;
 
     /// <summary>渲染最近一次生成的轻量状态条，让用户知道主按钮上次是否成功。</summary>
     private RenderFragment RenderLastPublishMeta() => @<div class="bocchi-publish-run-meta">
@@ -297,98 +360,80 @@
         <span>@LatestPublishArtifactSummary()</span>
     </div>;
 
-    /// <summary>渲染高级日志与产物清单；默认折叠，避免干扰普通发布路径。</summary>
-    private RenderFragment RenderLastResult() => @<details class="bocchi-publish-advanced-strip bocchi-publish-result">
-        <summary>
-            <span>@I18n["publish.advanced.logManifest"]</span>
-            <Blazicon Svg="Lucide.ChevronDown" />
-        </summary>
-        @if (_lastResult is null)
+    /// <summary>渲染右侧站点状态摘要，所有数值都来自真实构建/发布状态。</summary>
+    private RenderFragment RenderSiteStatus() => @<section class="bocchi-panel bocchi-publish-side-card" aria-labelledby="publish-site-status-heading">
+        <div class="bocchi-publish-side-heading">
+            <Blazicon Svg="Lucide.Check" />
+            <h2 id="publish-site-status-heading">@I18n["publish.statusCard.title"]</h2>
+        </div>
+        <dl class="bocchi-publish-status-list">
+            @RenderStatusRow(I18n["publish.statusCard.lastBuild"], LatestBuildTimeText())
+            @RenderStatusRow(I18n["publish.statusCard.lastPublish"], LatestRemotePublishText())
+            @RenderStatusRow(I18n["publish.statusCard.defaultPlan"], DefaultPlanStatusText())
+            @RenderStatusRow(I18n["publish.statusCard.planCount"], PublishPlanCountText())
+        </dl>
+    </section>;
+
+    /// <summary>渲染最近活动，只展示构建和远端发布两个用户能区分的事件。</summary>
+    private RenderFragment RenderRecentActivity() => @<section class="bocchi-panel bocchi-publish-side-card" aria-labelledby="publish-activity-heading">
+        <div class="bocchi-publish-side-heading">
+            <Blazicon Svg="Lucide.FolderOpen" />
+            <h2 id="publish-activity-heading">@I18n["publish.activity.title"]</h2>
+        </div>
+        @if (_publishRuns is null || _recent is null)
         {
-            <p>@I18n["publish.advanced.emptyLogManifest"]</p>
+            <p class="bocchi-publish-side-copy">@I18n["publish.history.loading"]</p>
+        }
+        else if (_publishRuns.Count == 0 && _recent.Count == 0)
+        {
+            <div class="bocchi-publish-activity-empty">
+                <Blazicon Svg="Lucide.FolderOpen" />
+                <p>@I18n["publish.activity.emptyDescription"]</p>
+            </div>
         }
         else
         {
-            <div class="bocchi-publish-result-summary">
-                <BocchiStatusPill Tone="@BuildStatusTone(_lastResult.Status)">@BuildStatusText(_lastResult.Status)</BocchiStatusPill>
-                <span>@PublishResultDescription(_lastResult)</span>
-                <span>@string.Format(CultureInfo.CurrentCulture, I18n["publish.result.durationFormat"], _lastResult.Duration.TotalSeconds.ToString("F2", CultureInfo.CurrentCulture))</span>
-                <span>@string.Format(CultureInfo.CurrentCulture, I18n["publish.result.artifactCountFormat"], _lastResult.Artifacts.Count)</span>
-            </div>
-            <pre>@string.Join('\n', _lastResult.Logs.Select(l => $"[{l.OccurredAt:HH:mm:ss}] {l.Level,-7} {l.Stage,-28} {l.Message}"))</pre>
-            <div class="bocchi-publish-artifact-list">
-                @foreach (var artifact in _lastResult.Artifacts)
+            <div class="bocchi-publish-activity-list">
+                @if (_publishRuns.FirstOrDefault() is { } publishRun)
                 {
-                    <div>
-                        <code>@artifact.Path</code>
-                        <span>@string.Format(CultureInfo.CurrentCulture, I18n["publish.advanced.bytesFormat"], artifact.SizeBytes)</span>
-                    </div>
+                    @RenderActivityRow(
+                        Lucide.Send,
+                        I18n["publish.activity.remotePublish"],
+                        PublishStatusTone(publishRun.Status),
+                        PublishStatusText(publishRun.Status),
+                        publishRun.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture))
+                }
+                @if (_recent.FirstOrDefault() is { } buildRun)
+                {
+                    @RenderActivityRow(
+                        Lucide.FolderOpen,
+                        I18n["publish.activity.localBuild"],
+                        BuildStatusTone(buildRun.Status),
+                        BuildStatusText(buildRun.Status),
+                        buildRun.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture))
                 }
             </div>
         }
-    </details>;
+    </section>;
 
-    /// <summary>渲染近期生成记录；表格形态更接近发布后台，而不是内容列表。</summary>
-    private RenderFragment RenderHistory() => @<div class="bocchi-publish-history-table-wrap">
-        @if (_recent is null)
-        {
-            <p>@I18n["publish.history.loading"]</p>
-        }
-        else
-        {
-            <table class="bocchi-publish-history-table">
-                <thead>
-                    <tr>
-                        <th>@I18n["publish.history.columnOutput"]</th>
-                        <th>@I18n["publish.history.columnStatus"]</th>
-                        <th>@I18n["publish.history.columnTime"]</th>
-                        <th>@I18n["publish.history.columnDuration"]</th>
-                        <th>@I18n["publish.history.columnFiles"]</th>
-                        <th>@I18n["publish.history.columnAction"]</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (_recent.Count == 0)
-                    {
-                        <tr>
-                            <td colspan="6" class="bocchi-publish-history-table__empty">@I18n["publish.history.emptyDescription"]</td>
-                        </tr>
-                    }
-                    else
-                    {
-                        @foreach (var run in _recent.Take(8))
-                        {
-                            <tr>
-                                <td>
-                                    <span class="bocchi-publish-history-output">
-                                        <Blazicon Svg="Lucide.FolderOpen" />
-                                        @I18n["publish.output.historyLabel"]
-                                    </span>
-                                </td>
-                                <td><BocchiStatusPill Tone="@BuildStatusTone(run.Status)">@BuildStatusText(run.Status)</BocchiStatusPill></td>
-                                <td>@run.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture)</td>
-                                <td>@I18n["publish.history.unavailable"]</td>
-                                <td>@I18n["publish.history.unavailable"]</td>
-                                <td>
-                                    @if (!string.IsNullOrEmpty(run.Fingerprint))
-                                    {
-                                        <code>@run.Fingerprint[..Math.Min(8, run.Fingerprint.Length)]</code>
-                                    }
-                                    else
-                                    {
-                                        <span>@I18n["publish.history.unavailable"]</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-        }
+    /// <summary>渲染站点状态单行。</summary>
+    private RenderFragment RenderStatusRow(string label, string value) => @<div>
+        <dt>@label</dt>
+        <dd>@value</dd>
     </div>;
 
-    /// <summary>触发一次 Full Build，并刷新发布历史。</summary>
-    private async Task RunAsync()
+    /// <summary>渲染活动列表单行。</summary>
+    private RenderFragment RenderActivityRow(SvgIcon icon, string title, string tone, string status, string time) => @<div class="bocchi-publish-activity-row">
+        <span aria-hidden="true"><Blazicon Svg="@icon" /></span>
+        <div>
+            <strong>@title</strong>
+            <small>@time</small>
+        </div>
+        <BocchiStatusPill Tone="@tone">@status</BocchiStatusPill>
+    </div>;
+
+    /// <summary>执行首页一键发布；存在默认方案时走远端发布，否则只生成本地静态文件。</summary>
+    private async Task PublishOneClickAsync()
     {
         if (_busy)
         {
@@ -396,24 +441,48 @@
         }
 
         _busy = true;
+        _oneClickMessage = null;
+        _oneClickMessageIsDanger = false;
         try
         {
-            var options = new BuildOptions
+            var plan = DefaultPublishPlan;
+            if (plan is null)
             {
-                Mode = BuildMode.FullBuild,
-                Environment = "production",
-                IncludeDrafts = false,
-            };
-            _lastResult = await Orchestrator.RunFullBuildAsync(
-                options,
-                themeId: null,
-                default);
+                await RunBuildOnlyAsync();
+                _oneClickMessageIsDanger = _lastResult?.Status == BuildStatus.Failed;
+                _oneClickMessage = _oneClickMessageIsDanger
+                    ? _lastResult?.Reason ?? I18n["publish.oneClick.localFailed"]
+                    : I18n["publish.oneClick.localSucceeded"];
+                return;
+            }
+
+            var result = await PublishExecution.PublishAsync(plan.Id, default);
+            _oneClickMessageIsDanger = result.Status == PublishRunStatus.Failed;
+            _oneClickMessage = _oneClickMessageIsDanger
+                ? result.ErrorMessage ?? I18n["publish.github.publishFailed"]
+                : I18n["publish.oneClick.remoteSucceeded"];
             await RefreshAsync();
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    /// <summary>执行本地静态输出生成；一键发布没有发布方案时复用这个最小路径。</summary>
+    private async Task RunBuildOnlyAsync()
+    {
+        var options = new BuildOptions
+        {
+            Mode = BuildMode.FullBuild,
+            Environment = "production",
+            IncludeDrafts = false,
+        };
+        _lastResult = await Orchestrator.RunFullBuildAsync(
+            options,
+            themeId: null,
+            default);
+        await RefreshAsync();
     }
 
     /// <summary>从已有发布方案恢复 GitHub Pages 表单。</summary>
@@ -472,7 +541,9 @@
             _githubBranch = config.Branch;
             _githubHasSavedToken = !string.IsNullOrWhiteSpace(saved.ProtectedCredentialJson);
             _githubToken = string.Empty;
+            _githubMessageIsDanger = false;
             _githubMessage = I18n["publish.github.saved"];
+            await RefreshAsync();
         }
         finally
         {
@@ -480,40 +551,10 @@
         }
     }
 
-    /// <summary>保存必要配置后执行 GitHub Pages 发布。</summary>
-    private async Task PublishGitHubAsync()
-    {
-        if (_githubPlanId is null || !string.IsNullOrWhiteSpace(_githubToken))
-        {
-            await SaveGitHubPlanAsync();
-            if (_githubPlanId is null)
-            {
-                return;
-            }
-        }
-        else if (!ValidateGitHubPlan())
-        {
-            return;
-        }
-
-        _githubPublishing = true;
-        try
-        {
-            _lastPublishResult = await PublishExecution.PublishAsync(_githubPlanId.Value, default);
-            _githubMessage = _lastPublishResult.Status == PublishRunStatus.Succeeded
-                ? I18n["publish.github.publishSucceeded"]
-                : _lastPublishResult.ErrorMessage;
-            await RefreshAsync();
-        }
-        finally
-        {
-            _githubPublishing = false;
-        }
-    }
-
     /// <summary>校验 GitHub Pages 表单；错误文案全部来自 i18n。</summary>
     private bool ValidateGitHubPlan()
     {
+        _githubMessageIsDanger = true;
         if (string.IsNullOrWhiteSpace(_githubOwner))
         {
             _githubMessage = I18n["publish.github.errorOwnerRequired"];
@@ -538,6 +579,7 @@
             return false;
         }
 
+        _githubMessageIsDanger = false;
         return true;
     }
 
@@ -577,15 +619,6 @@
         return I18n["publish.last.artifactsPending"];
     }
 
-    /// <summary>为最近一次构建生成轻量说明。</summary>
-    private string PublishResultDescription(BuildResult result)
-        => result.Status switch
-        {
-            BuildStatus.Succeeded => I18n["publish.result.succeededDescription"],
-            BuildStatus.Skipped => result.Reason ?? I18n["publish.result.skippedDescription"],
-            _ => result.Reason ?? I18n["publish.result.failedDescription"],
-        };
-
     /// <summary>把构建状态映射到柔和状态色。</summary>
     private static string BuildStatusTone(BuildStatus status)
         => status switch
@@ -608,11 +641,87 @@
     private string GitHubTokenPlaceholder()
         => _githubHasSavedToken ? I18n["publish.github.tokenSavedPlaceholder"] : I18n["publish.github.tokenPlaceholder"];
 
-    /// <summary>GitHub Pages 面板消息 class。</summary>
-    private string GitHubMessageClass()
-        => _lastPublishResult?.Status == PublishRunStatus.Failed
+    /// <summary>一键发布目标标签颜色。</summary>
+    private string OneClickTargetTone() => DefaultPublishPlan is null ? "neutral" : "success";
+
+    /// <summary>一键发布目标文案；没有方案时明确说明会落到本地静态输出。</summary>
+    private string OneClickTargetText()
+    {
+        var plan = DefaultPublishPlan;
+        return plan is null
+            ? I18n["publish.oneClick.targetLocal"]
+            : string.Format(CultureInfo.CurrentCulture, I18n["publish.oneClick.targetFormat"], plan.DisplayName);
+    }
+
+    /// <summary>一键发布结果消息 class。</summary>
+    private string OneClickMessageClass()
+        => _oneClickMessageIsDanger
             ? "bocchi-publish-remote-message bocchi-publish-remote-message--danger"
             : "bocchi-publish-remote-message";
+
+    /// <summary>GitHub Pages 面板消息 class。</summary>
+    private string GitHubMessageClass()
+        => _githubMessageIsDanger
+            ? "bocchi-publish-remote-message bocchi-publish-remote-message--danger"
+            : "bocchi-publish-remote-message";
+
+    /// <summary>最新本地生成时间。</summary>
+    private string LatestBuildTimeText()
+    {
+        if (_lastResult is not null)
+        {
+            return _lastResult.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+        }
+
+        var latest = _recent?.FirstOrDefault();
+        return latest is null
+            ? I18n["publish.statusCard.never"]
+            : latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>最新远端发布时间。</summary>
+    private string LatestRemotePublishText()
+    {
+        var latest = _publishRuns?.FirstOrDefault();
+        return latest is null
+            ? I18n["publish.statusCard.never"]
+            : latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>默认发布方案名称。</summary>
+    private string DefaultPlanStatusText()
+        => DefaultPublishPlan?.DisplayName ?? I18n["publish.statusCard.none"];
+
+    /// <summary>发布方案数量摘要。</summary>
+    private string PublishPlanCountText()
+        => string.Format(CultureInfo.CurrentCulture, I18n["publish.statusCard.planCountFormat"], _publishPlans?.Count ?? 0);
+
+    /// <summary>发布渠道显示名。</summary>
+    private string ChannelDisplayName(string channel)
+        => channel switch
+        {
+            PublishPlanService.StaticFilesChannel => I18n["publish.channel.staticFiles"],
+            PublishPlanService.LocalDirectoryChannel => I18n["publish.channel.localDirectory"],
+            PublishPlanService.GitHubPagesChannel => I18n["publish.channel.githubPages"],
+            PublishPlanService.CloudflarePagesChannel => I18n["publish.channel.cloudflarePages"],
+            PublishPlanService.CustomChannel => I18n["publish.channel.custom"],
+            _ => channel,
+        };
+
+    /// <summary>发布渠道图标。</summary>
+    private static SvgIcon PlanChannelIcon(string channel)
+        => channel switch
+        {
+            PublishPlanService.GitHubPagesChannel => Lucide.GitBranch,
+            PublishPlanService.CustomChannel => Lucide.Settings,
+            _ => Lucide.FolderOpen,
+        };
+
+    /// <summary>发布方案编辑入口；当前只有 GitHub Pages 方案拥有配置页。</summary>
+    private static string? PlanEditUrl(PublishPlanRecord plan)
+        => string.Equals(plan.Channel, PublishPlanService.GitHubPagesChannel, StringComparison.Ordinal)
+            ? "/Admin/Publish/AddPlan"
+            : null;
 
     /// <summary>把发布状态映射为柔和状态色。</summary>
     private static string PublishStatusTone(PublishRunStatus status)
@@ -632,18 +741,4 @@
             _ => I18n["publish.status.failed"],
         };
 
-    /// <summary>生成远端发布结果摘要。</summary>
-    private string RemotePublishSummary(PublishExecutionResult result)
-    {
-        if (result.Status == PublishRunStatus.Failed)
-        {
-            return result.ErrorMessage ?? I18n["publish.github.publishFailed"];
-        }
-
-        return string.Format(
-            CultureInfo.CurrentCulture,
-            I18n["publish.github.publishSummaryFormat"],
-            result.ArtifactCount,
-            result.RemoteCommitSha?[..Math.Min(8, result.RemoteCommitSha.Length)] ?? I18n["publish.history.unavailable"]);
-    }
 }

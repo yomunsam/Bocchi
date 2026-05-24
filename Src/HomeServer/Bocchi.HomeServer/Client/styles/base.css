@@ -46,9 +46,9 @@ textarea {
     -webkit-font-feature-settings: "liga";
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "liga";
-    font-variation-settings: "FILL" 0;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .bocchi-material-symbol--filled {
-    font-variation-settings: "FILL" 1;
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
 }

@@ -1,4 +1,4 @@
-.bocchi-admin-shell button,
+:where(.bocchi-admin-shell button),
 .bocchi-button {
     display: inline-flex;
     min-height: 2.25rem;
@@ -14,19 +14,19 @@
     transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
-.bocchi-admin-shell button.secondary,
+:where(.bocchi-admin-shell button.secondary),
 .bocchi-button.secondary {
     border: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
 }
 
-.bocchi-admin-shell button:hover:not(:disabled),
+:where(.bocchi-admin-shell button:hover:not(:disabled)),
 .bocchi-button:hover {
     transform: translateY(-1px);
 }
 
-.bocchi-admin-shell button:focus-visible,
+:where(.bocchi-admin-shell button:focus-visible),
 .bocchi-button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -36,18 +36,20 @@ textarea:focus-visible {
     box-shadow: var(--bocchi-focus-ring);
 }
 
-.bocchi-admin-shell button:disabled,
+:where(.bocchi-admin-shell button:disabled),
 .bocchi-button:disabled {
     cursor: not-allowed;
     opacity: 0.58;
 }
 
+.bocchi-admin-shell button.bocchi-button--primary,
 .bocchi-button--primary {
     background: var(--bocchi-action);
     color: #fff;
     padding: 0 1.15rem;
 }
 
+.bocchi-admin-shell button.bocchi-button--primary:hover:not(:disabled),
 .bocchi-button--primary:hover {
     background: color-mix(in srgb, var(--bocchi-action) 85%, #000);
 }

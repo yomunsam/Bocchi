@@ -1,4 +1,5 @@
-.bocchi-admin-shell a {
+/* 普通链接保持蓝色，但不能压过 button、card、pill 这类组件自己的颜色。 */
+:where(.bocchi-admin-shell a) {
     color: var(--bocchi-blue-strong);
 }
 
@@ -423,6 +424,8 @@
     text-decoration: none;
 }
 
+.bocchi-content-item__title,
+.bocchi-content-item__excerpt,
 .bocchi-content-item__main strong,
 .bocchi-content-item__main small {
     overflow: hidden;
@@ -430,9 +433,23 @@
     white-space: nowrap;
 }
 
+.bocchi-content-item__title {
+    font-weight: 600;
+}
+
+.bocchi-content-item__excerpt {
+    font-weight: 400;
+    line-height: 1.4;
+}
+
 .bocchi-content-item__main small,
 .bocchi-content-item__date {
-    color: var(--bocchi-text-muted);
+    color: var(--bocchi-text-subtle);
+}
+
+.bocchi-content-item__meta {
+    font-size: 0.8rem;
+    font-weight: 400;
 }
 
 .bocchi-content-item__action {

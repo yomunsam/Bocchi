@@ -8,7 +8,7 @@
     color-scheme: light;
     /* design colors */
     --bocchi-color-on-background: #1b1c1b;
-    --bocchi-color-secondary: #625c66;
+    --bocchi-color-secondary: #4A454E;
     --bocchi-color-surface: #fbf9f7;
     --bocchi-color-on-surface-variant: #574146;
     --bocchi-color-surface-tint: #ab2c5d;
@@ -35,7 +35,7 @@
     --bocchi-surface-soft: #efedeb;
     --bocchi-surface-pink: color-mix(in srgb, #ffd9e1 30%, #ffffff);
     --bocchi-text: #1b1c1b;
-    --bocchi-text-muted: #625c66;
+    --bocchi-text-muted: #4A454E;
     --bocchi-text-subtle: #8a7176;
     --bocchi-border: #e4e2e0;
     --bocchi-border-strong: #ddbfc5;

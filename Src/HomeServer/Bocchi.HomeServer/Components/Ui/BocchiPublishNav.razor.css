@@ -1,5 +1,5 @@
 /* 发布中心的纵向二级导航。保持 SettingsNav 的紧凑单行风格，
-   让“发布”和“本地输出”是页面级分区，而不是可扩展性较差的 tabbar。 */
+   让发布首页和添加方案页在窄配置流里保持清楚的返回关系。 */
 .bocchi-publish-nav {
     position: sticky;
     top: 5.4rem;

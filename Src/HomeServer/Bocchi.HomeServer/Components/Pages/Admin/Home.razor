@@ -87,7 +87,7 @@
                 <h2>@I18n["home.preview.title"]</h2>
             </div>
             <p class="bocchi-card-copy">@I18n["home.preview.description"]</p>
-            <a class="bocchi-button" href="/" target="_blank" rel="noopener">
+            <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
                 <span>@I18n["home.preview.open"]</span>
                 <Blazicon Svg="Lucide.ExternalLink" />
             </a>
@@ -121,18 +121,48 @@
             <div class="bocchi-content-list">
                 @foreach (var item in _recentContent)
                 {
-                    <a class="bocchi-content-item" href="@ContentEditingService.EditUrl(item.RelativePath)">
+                    var timestamp = ContentTimestamp(item);
+                    var editUrl = ContentEditingService.EditUrl(item.RelativePath);
+                    var actionLabel = ContentActionLabel(item.Status);
+
+                    <div class="bocchi-content-item">
                         <span class="bocchi-content-item__icon @ContentIconClass(item.Kind)">
                             <Blazicon Svg="@ContentIcon(item.Kind)" />
                         </span>
-                        <span class="bocchi-content-item__main">
-                            <strong>@ContentTitle(item)</strong>
-                            <small>@KindLabel(item.Kind) · @item.RelativePath</small>
-                        </span>
+                        <a class="bocchi-content-item__main" href="@editUrl">
+                            @if (item.Kind == ContentKind.Note)
+                            {
+                                <span class="bocchi-content-item__excerpt">@ContentTitle(item)</span>
+                            }
+                            else
+                            {
+                                <strong class="bocchi-content-item__title">@ContentTitle(item)</strong>
+                            }
+                            <small class="bocchi-content-item__meta">@KindLabel(item.Kind) · @item.RelativePath</small>
+                        </a>
                         <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
-                        <span class="bocchi-content-item__date">@ContentTimeLabel(item)</span>
-                        <span class="bocchi-content-item__action">@ContentActionLabel(item.Status)</span>
-                    </a>
+                        @if (timestamp is { } contentTime)
+                        {
+                            <details class="bocchi-content-time" title="@ContentFullTimeLabel(contentTime)">
+                                <summary aria-label="@ContentFullTimeLabel(contentTime)">
+                                    <time class="bocchi-content-item__date" datetime="@ContentIsoTime(contentTime)">
+                                        @ContentTimeLabel(contentTime)
+                                    </time>
+                                </summary>
+                                <span class="bocchi-content-time__popover">@ContentFullTimeLabel(contentTime)</span>
+                            </details>
+                        }
+                        else
+                        {
+                            <span class="bocchi-content-item__date">-</span>
+                        }
+                        <a class="bocchi-row-icon-button bocchi-content-item__edit"
+                           href="@editUrl"
+                           aria-label="@actionLabel"
+                           title="@actionLabel">
+                            <Blazicon Svg="Lucide.Pencil" />
+                        </a>
+                    </div>
                 }
             </div>
         }
@@ -228,8 +258,21 @@
     private string ContentActionLabel(ContentStatus status)
         => status == ContentStatus.Draft ? I18n["home.action.continue"] : I18n["home.action.edit"];
 
-    private static string ContentTimeLabel(ContentSummary item)
-        => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
+    /// <summary>首页最近内容优先展示更新时间；无更新时间时退回发布时间。</summary>
+    private static DateTimeOffset? ContentTimestamp(ContentSummary item)
+        => item.UpdatedAt ?? item.PublishedAt;
+
+    /// <summary>短时间标签保留到分钟，适合列表扫描。</summary>
+    private static string ContentTimeLabel(DateTimeOffset timestamp)
+        => timestamp.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+
+    /// <summary>完整时间用于悬停和点击展开，包含秒和时区 offset。</summary>
+    private static string ContentFullTimeLabel(DateTimeOffset timestamp)
+        => timestamp.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.CurrentCulture);
+
+    /// <summary>机器可读时间使用 round-trip 格式，避免丢失 offset。</summary>
+    private static string ContentIsoTime(DateTimeOffset timestamp)
+        => timestamp.ToString("O", CultureInfo.InvariantCulture);
 
     /// <summary>首页最近内容只展示面向读者的创作内容，不展示页面、友链和站点配置。</summary>
     private static bool IsRecentContentKind(ContentKind kind)

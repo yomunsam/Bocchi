@@ -22,11 +22,11 @@
     [Parameter]
     public string? ActiveSection { get; set; }
 
-    /// <summary>发布中心子页面定义；当前只开放发布和本地输出两个入口。</summary>
+    /// <summary>发布中心子页面定义；只暴露真实可操作的发布首页和添加方案页。</summary>
     private static readonly PublishNavItem[] Items =
     [
         new("/Admin/Publish", "publish.nav.publish", "publish.nav.publishDescription", Lucide.Send),
-        new("/Admin/Publish/LocalOutput", "publish.nav.localOutput", "publish.nav.localOutputDescription", Lucide.FolderOpen),
+        new("/Admin/Publish/AddPlan", "publish.nav.addPlan", "publish.nav.addPlanDescription", Lucide.Plus),
     ];
 
     /// <summary>当前 Dashboard 路径，用于判断发布中心二级导航 active 状态。</summary>
@@ -53,8 +53,8 @@
         var normalized = NormalizePath(item.Url);
         if (!string.IsNullOrWhiteSpace(ActiveSection))
         {
-            return string.Equals(ActiveSection, "LocalOutput", StringComparison.OrdinalIgnoreCase)
-                ? string.Equals(normalized, "/Admin/Publish/LocalOutput", StringComparison.OrdinalIgnoreCase)
+            return string.Equals(ActiveSection, "AddPlan", StringComparison.OrdinalIgnoreCase)
+                ? string.Equals(normalized, "/Admin/Publish/AddPlan", StringComparison.OrdinalIgnoreCase)
                 : string.Equals(normalized, "/Admin/Publish", StringComparison.OrdinalIgnoreCase);
         }
 

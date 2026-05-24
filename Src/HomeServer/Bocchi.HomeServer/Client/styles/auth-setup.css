@@ -263,8 +263,8 @@
     width: 18px;
     height: 18px;
     font-size: 18px;
-    font-weight: 600;
-    font-variation-settings: "FILL" 1, "wght" 600;
+    font-weight: 400;
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .bocchi-setup-heading h1 {
@@ -560,6 +560,7 @@
     width: 1.5rem;
     height: 1.5rem;
     font-size: 1.5rem;
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .bocchi-setup-guide h2,
@@ -589,6 +590,7 @@
 
 .bocchi-setup-guide__item-icon {
     display: inline-flex;
+    margin-top: 0.125rem;
     justify-content: center;
     color: var(--bocchi-text-muted);
 }
@@ -597,6 +599,7 @@
     width: 1.5rem;
     height: 1.5rem;
     font-size: 1.5rem;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .bocchi-setup-guide h3 {
