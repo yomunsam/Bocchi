@@ -13,6 +13,7 @@ namespace Bocchi.Generator.SiteArtifacts;
 public static class SitemapXmlGenerator
 {
     private const string Ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+    private const string XhtmlNs = "http://www.w3.org/1999/xhtml";
     private const string StageName = "WriteSiteArtifactsStage";
 
     public static (BuildArtifact Artifact, ReadOnlyMemory<byte> Bytes) Build(
@@ -33,11 +34,21 @@ public static class SitemapXmlGenerator
         {
             writer.WriteStartDocument();
             writer.WriteStartElement("urlset", Ns);
+            writer.WriteAttributeString("xmlns", "xhtml", null, XhtmlNs);
 
-            void WriteUrl(string siteRel, DateTimeOffset? lastMod)
+            void WriteUrl(string siteRel, DateTimeOffset? lastMod, IReadOnlyList<GraphContentAlternate>? alternates = null)
             {
                 writer.WriteStartElement("url", Ns);
                 writer.WriteElementString("loc", Ns, SiteUrlResolver.Absolute(graph.Site.NormalizedBaseUrl, siteRel).AbsoluteUri);
+                foreach (var alternate in alternates ?? [])
+                {
+                    writer.WriteStartElement("xhtml", "link", XhtmlNs);
+                    writer.WriteAttributeString("rel", "alternate");
+                    writer.WriteAttributeString("hreflang", alternate.Language);
+                    writer.WriteAttributeString("href", SiteUrlResolver.Absolute(graph.Site.NormalizedBaseUrl, alternate.Url).AbsoluteUri);
+                    writer.WriteEndElement();
+                }
+
                 if (lastMod is { } lm)
                 {
                     writer.WriteElementString("lastmod", Ns, lm.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
@@ -51,13 +62,13 @@ public static class SitemapXmlGenerator
 
             foreach (var page in graph.Pages)
             {
-                WriteUrl(page.SiteRelativeUrl, sourceMtimeProvider($"pages/{page.Slug}"));
+                WriteUrl(page.SiteRelativeUrl, sourceMtimeProvider($"pages/{page.Slug}"), page.Localization.Alternates);
             }
 
             foreach (var post in graph.Posts)
             {
                 var mtime = post.UpdatedAt ?? post.PublishedAt ?? sourceMtimeProvider($"posts/{post.Year}/{post.Slug}");
-                WriteUrl(post.SiteRelativeUrl, mtime);
+                WriteUrl(post.SiteRelativeUrl, mtime, post.Localization.Alternates);
             }
 
             foreach (var category in FlattenPostCategories(graph.PostCategories))
@@ -68,7 +79,7 @@ public static class SitemapXmlGenerator
             foreach (var work in graph.Works)
             {
                 var mtime = sourceMtimeProvider($"works/{work.Year}/{work.Slug}");
-                WriteUrl(work.SiteRelativeUrl, mtime);
+                WriteUrl(work.SiteRelativeUrl, mtime, work.Localization.Alternates);
             }
 
             writer.WriteEndElement();

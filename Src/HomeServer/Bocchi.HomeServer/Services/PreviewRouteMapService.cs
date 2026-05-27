@@ -10,19 +10,23 @@ namespace Bocchi.HomeServer.Services;
 public sealed class PreviewRouteMapService
 {
     private readonly IContentStateStore _store;
+    private readonly LocalizationSettingsService _localization;
 
     /// <summary>构造 route map 服务。</summary>
-    public PreviewRouteMapService(IContentStateStore store)
+    public PreviewRouteMapService(IContentStateStore store, LocalizationSettingsService localization)
     {
         _store = store;
+        _localization = localization;
     }
 
     /// <summary>列出可定位到编辑页的内容 route。</summary>
     public async Task<IReadOnlyList<PreviewRouteMapItem>> ListAsync(CancellationToken cancellationToken = default)
     {
         var summaries = await _store.ListContentSummariesAsync(null, cancellationToken).ConfigureAwait(false);
+        var settings = await _localization.GetAsync(cancellationToken).ConfigureAwait(false);
+        var primaryLanguage = settings.PrimaryLanguage.Code;
         return summaries
-            .Select(Map)
+            .Select(summary => Map(summary, primaryLanguage))
             .Where(x => x is not null)
             .Cast<PreviewRouteMapItem>()
             .OrderBy(x => x.Route, StringComparer.Ordinal)
@@ -37,22 +41,127 @@ public sealed class PreviewRouteMapService
             .FirstOrDefault(x => string.Equals(NormalizeRoute(x.Route), normalized, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static PreviewRouteMapItem? Map(ContentSummary summary)
+    private static PreviewRouteMapItem? Map(ContentSummary summary, string primaryLanguage)
     {
-        var slug = summary.ContentId;
+        var route = ResolveRoute(summary, primaryLanguage);
+        return route is null
+            ? null
+            : new PreviewRouteMapItem(route, summary.Kind.ToString(), summary.Title ?? summary.ContentId, ContentEditingService.EditUrl(summary.RelativePath));
+    }
+
+    /// <summary>按 M6 PrimaryUnprefixed 策略从 state store 摘要恢复前台 route。</summary>
+    private static string? ResolveRoute(ContentSummary summary, string primaryLanguage)
+    {
         var route = summary.Kind switch
         {
-            ContentKind.Post when !string.IsNullOrWhiteSpace(summary.Year) => SiteUrlResolver.PostUrl(summary.Year, slug),
-            ContentKind.Page => SiteUrlResolver.PageUrl(slug),
-            ContentKind.Work when !string.IsNullOrWhiteSpace(summary.Year) => SiteUrlResolver.WorkUrl(summary.Year, slug),
+            ContentKind.Post => ResolvePostRoute(summary),
+            ContentKind.Page => ResolvePageRoute(summary),
+            ContentKind.Work => ResolveWorkRoute(summary),
             ContentKind.FriendLink => SiteUrlResolver.FriendsUrl,
             ContentKind.SiteSettings => "/",
             _ => null,
         };
 
-        return route is null
+        if (route is null)
+        {
+            return null;
+        }
+
+        var language = string.IsNullOrWhiteSpace(summary.Language) ? primaryLanguage : summary.Language.Trim();
+        return ApplyPrimaryUnprefixedUrlPolicy(route, language, primaryLanguage);
+    }
+
+    private static string? ResolvePostRoute(ContentSummary summary)
+    {
+        if (TrySplitGroup(summary.LocalizationGroup, "posts", out var year, out var slug))
+        {
+            return SiteUrlResolver.PostUrl(year, slug);
+        }
+
+        return string.IsNullOrWhiteSpace(summary.Year)
             ? null
-            : new PreviewRouteMapItem(route, summary.Kind.ToString(), summary.Title ?? summary.ContentId, ContentEditingService.EditUrl(summary.RelativePath));
+            : SiteUrlResolver.PostUrl(summary.Year, ResolveLegacySlug(summary.ContentId));
+    }
+
+    private static string? ResolvePageRoute(ContentSummary summary)
+    {
+        if (TrySplitGroup(summary.LocalizationGroup, "pages", out var slug))
+        {
+            return SiteUrlResolver.PageUrl(slug);
+        }
+
+        return SiteUrlResolver.PageUrl(ResolveLegacySlug(summary.ContentId));
+    }
+
+    private static string? ResolveWorkRoute(ContentSummary summary)
+    {
+        if (TrySplitGroup(summary.LocalizationGroup, "works", out var year, out var slug))
+        {
+            return SiteUrlResolver.WorkUrl(year, slug);
+        }
+
+        return string.IsNullOrWhiteSpace(summary.Year)
+            ? null
+            : SiteUrlResolver.WorkUrl(summary.Year, ResolveLegacySlug(summary.ContentId));
+    }
+
+    private static bool TrySplitGroup(string? group, string expectedKind, out string slug)
+    {
+        slug = string.Empty;
+        var parts = SplitGroup(group);
+        if (parts.Length != 2 || !string.Equals(parts[0], expectedKind, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        slug = parts[1];
+        return true;
+    }
+
+    private static bool TrySplitGroup(string? group, string expectedKind, out string year, out string slug)
+    {
+        year = string.Empty;
+        slug = string.Empty;
+        var parts = SplitGroup(group);
+        if (parts.Length != 3 || !string.Equals(parts[0], expectedKind, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        year = parts[1];
+        slug = parts[2];
+        return true;
+    }
+
+    private static string[] SplitGroup(string? group)
+        => string.IsNullOrWhiteSpace(group)
+            ? []
+            : group.Trim().Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static string ResolveLegacySlug(string contentId)
+    {
+        var normalized = string.IsNullOrWhiteSpace(contentId) ? "index" : contentId.Trim();
+        var languageSeparator = normalized.LastIndexOf('@');
+        if (languageSeparator > 0)
+        {
+            normalized = normalized[..languageSeparator];
+        }
+
+        var slash = normalized.LastIndexOf('/');
+        return slash >= 0 ? normalized[(slash + 1)..] : normalized;
+    }
+
+    private static string ApplyPrimaryUnprefixedUrlPolicy(string route, string language, string primaryLanguage)
+    {
+        if (string.Equals(language, primaryLanguage, StringComparison.OrdinalIgnoreCase))
+        {
+            return route;
+        }
+
+        var normalized = route.StartsWith('/') ? route : "/" + route;
+        return normalized == "/"
+            ? $"/{language}/"
+            : $"/{language}{normalized}";
     }
 
     private static string NormalizeRoute(string route)

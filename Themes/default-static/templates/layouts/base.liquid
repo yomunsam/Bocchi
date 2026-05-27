@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="{{ site.description }}">
   <title>{{ page.fullTitle }}</title>
+  {% if page.canonicalUrl %}<link rel="canonical" href="{{ page.canonicalUrl }}">{% endif %}
+  {% for alternate in page.alternates %}<link rel="alternate" hreflang="{{ alternate.hreflang }}" href="{{ alternate.href }}">{% endfor %}
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
   <link rel="stylesheet" href="/assets/app.css">
   <style>:root{--accent: {{ site.accentColor }};}</style>
@@ -19,14 +21,6 @@
       <div class="top-actions">
         <details class="theme-menu" data-bocchi-language-control>
           <summary aria-label="{{ text.languageLabel }}" title="{{ text.languageLabel }}">
-            <span class="theme-menu__icon theme-menu__icon--language" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M3 12h18"></path>
-                <path d="M12 3a13 13 0 0 1 0 18"></path>
-                <path d="M12 3a13 13 0 0 0 0 18"></path>
-              </svg>
-            </span>
             <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguageName }}</span>
             <span class="theme-menu__chevron" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false"><path d="m6 9 6 6 6-6"></path></svg>

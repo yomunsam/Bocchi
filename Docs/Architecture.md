@@ -520,6 +520,7 @@ Home Server 向 Theme 写入一组稳定 JSON 文件。
 - JSON 字段应尽量稳定，新增字段保持向后兼容。
 - 内容正文可以同时提供 `markdown`、`html` 和 `excerpt`，由 Theme 选择使用。
 - Post / Page / Work 的 canonical route 使用 `siteRelativeUrl`；`url` 暂时保留为 v1 兼容别名。Theme 不应从 slug/title 自己推导内容 URL。
+- Post / Page / Work 同时输出绝对 `canonicalUrl`；多语言内容的 `localization.alternates[]` 输出 `language`、`hreflang`、站点根相对 `url` 和绝对 `href`，供 Theme 与 Sitemap 直接生成 SEO alternate link。
 - Theme Contract 中的内部 route 和媒体路径保持站点根相对；具体 HTML 输出可以按当前页面位置改写为相对 URL，以支持同一份静态文件部署在域名根目录或二级路径。
 - 媒体路径统一转换为站点输出路径，不暴露本机绝对路径。
 - `navigation.json` 输出 Menu tree。可链接节点包含 `id`、`label`、解析后的 `href`、原始 `target`、可选 `labelI18n` 和 `children`；无 target 分组节点使用 `href: null` 且 `target: null`，无 target 叶子和无法解析 target 的节点不会进入公开 Theme input。

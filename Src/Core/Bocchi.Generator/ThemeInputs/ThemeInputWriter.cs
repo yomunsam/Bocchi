@@ -123,9 +123,9 @@ public sealed class ThemeInputWriter
         Add("site.json", ContractSchemaIds.Site, MapSite(graph.Site));
         Add("navigation.json", ContractSchemaIds.Navigation, MapNavigation(graph, manifest, localization));
         Add("post-categories.json", ContractSchemaIds.PostCategories, graph.PostCategories.Select(MapPostCategory).ToArray());
-        Add("posts.json", ContractSchemaIds.Posts, graph.Posts.Select(MapPost).ToArray());
-        Add("pages.json", ContractSchemaIds.Pages, graph.Pages.Select(MapPage).ToArray());
-        Add("works.json", ContractSchemaIds.Works, graph.Works.Select(MapWork).ToArray());
+        Add("posts.json", ContractSchemaIds.Posts, graph.Posts.Select(post => MapPost(post, graph.Site.NormalizedBaseUrl)).ToArray());
+        Add("pages.json", ContractSchemaIds.Pages, graph.Pages.Select(page => MapPage(page, graph.Site.NormalizedBaseUrl)).ToArray());
+        Add("works.json", ContractSchemaIds.Works, graph.Works.Select(work => MapWork(work, graph.Site.NormalizedBaseUrl)).ToArray());
         Add("notes.json", ContractSchemaIds.Notes, graph.Notes.Select(MapNote).ToArray());
         Add("friends.json", ContractSchemaIds.Friends, graph.Friends.Select(MapFriend).ToArray());
         Add("photos.json", ContractSchemaIds.Photos, Array.Empty<object>());
@@ -473,11 +473,19 @@ public sealed class ThemeInputWriter
         ThemeManifest? manifest,
         BuildLocalizationOptions? localization)
     {
-        var pages = graph.Pages.ToDictionary(page => page.Slug, StringComparer.Ordinal);
+        var siteLanguage = graph.Site.Settings.Language;
+        var pages = graph.Pages
+            .GroupBy(page => page.Slug, StringComparer.Ordinal)
+            // Menu 是站点级 primary menu；T07 前先稳定解析到主语言 variant，避免 Theme 自己从 slug 推导。
+            .ToDictionary(
+                group => group.Key,
+                group => group.FirstOrDefault(page => SameCode(page.Language, siteLanguage))
+                    ?? group.OrderBy(page => page.Language, StringComparer.OrdinalIgnoreCase).First(),
+                StringComparer.Ordinal);
         var specialPages = NormalizeSpecialPages(manifest).ToDictionary(page => page.Name, StringComparer.Ordinal);
         var postCategories = FlattenPostCategories(graph.PostCategories).ToDictionary(category => category.Slug, StringComparer.Ordinal);
         var items = graph.Site.Settings.Navigation
-            .Select(item => MapNavigationItem(item, pages, specialPages, postCategories, manifest, localization, graph.Site.Settings.Language))
+            .Select(item => MapNavigationItem(item, pages, specialPages, postCategories, manifest, localization, siteLanguage))
             .Where(item => item is not null)
             .Select(item => item!)
             .ToArray();
@@ -755,14 +763,14 @@ public sealed class ThemeInputWriter
         FeedItemCount = site.Settings.FeedItemCount,
     };
 
-    private static PostInput MapPost(GraphPost p) => new()
+    private static PostInput MapPost(GraphPost p, Uri baseUrl) => new()
     {
         Id = p.ContentId,
         Slug = p.Slug,
         Year = p.Year,
         Title = p.Title,
         Language = p.Language,
-        Localization = MapContentLocalization(p.Localization),
+        Localization = MapContentLocalization(p.Localization, baseUrl),
         Status = StatusToString(p.Status),
         PublishedAt = p.PublishedAt,
         UpdatedAt = p.UpdatedAt,
@@ -772,6 +780,7 @@ public sealed class ThemeInputWriter
         Summary = p.Summary,
         Cover = MapMedia(p.Cover),
         SiteRelativeUrl = p.SiteRelativeUrl,
+        CanonicalUrl = AbsoluteUrl(baseUrl, p.SiteRelativeUrl),
         Url = p.SiteRelativeUrl,
         Markdown = p.BodyMarkdown,
         Html = p.BodyHtml,
@@ -779,19 +788,20 @@ public sealed class ThemeInputWriter
         Media = p.Media.Select(MapMediaRequired).ToArray(),
     };
 
-    private static PageInput MapPage(GraphPage p) => new()
+    private static PageInput MapPage(GraphPage p, Uri baseUrl) => new()
     {
         Id = p.ContentId,
         Slug = p.Slug,
         Title = p.Title,
         Language = p.Language,
-        Localization = MapContentLocalization(p.Localization),
+        Localization = MapContentLocalization(p.Localization, baseUrl),
         Status = StatusToString(p.Status),
         Order = p.Order,
         ShowInNavigation = p.ShowInNavigation,
         Summary = p.Summary,
         Template = p.Template,
         SiteRelativeUrl = p.SiteRelativeUrl,
+        CanonicalUrl = AbsoluteUrl(baseUrl, p.SiteRelativeUrl),
         Url = p.SiteRelativeUrl,
         Markdown = p.BodyMarkdown,
         Html = p.BodyHtml,
@@ -799,14 +809,14 @@ public sealed class ThemeInputWriter
         Media = p.Media.Select(MapMediaRequired).ToArray(),
     };
 
-    private static WorkInput MapWork(GraphWork w) => new()
+    private static WorkInput MapWork(GraphWork w, Uri baseUrl) => new()
     {
         Id = w.ContentId,
         Slug = w.Slug,
         Year = w.Year,
         Title = w.Title,
         Language = w.Language,
-        Localization = MapContentLocalization(w.Localization),
+        Localization = MapContentLocalization(w.Localization, baseUrl),
         Status = StatusToString(w.Status),
         Role = w.Role,
         Period = w.Period,
@@ -816,6 +826,7 @@ public sealed class ThemeInputWriter
         Summary = w.Summary,
         Featured = w.Featured,
         SiteRelativeUrl = w.SiteRelativeUrl,
+        CanonicalUrl = AbsoluteUrl(baseUrl, w.SiteRelativeUrl),
         Url = w.SiteRelativeUrl,
         Markdown = w.BodyMarkdown,
         Html = w.BodyHtml,
@@ -823,22 +834,29 @@ public sealed class ThemeInputWriter
         Media = w.Media.Select(MapMediaRequired).ToArray(),
     };
 
-    private static ContentLocalizationInput MapContentLocalization(GraphContentLocalization localization) => new()
+    private static ContentLocalizationInput MapContentLocalization(GraphContentLocalization localization, Uri baseUrl) => new()
     {
         GroupId = localization.GroupId,
         IsTranslation = localization.IsTranslation,
         SourceLanguage = localization.SourceLanguage,
         SourceContentId = localization.SourceContentId,
-        Alternates = localization.Alternates.Select(MapContentAlternate).ToArray(),
+        Alternates = localization.Alternates.Select(alternate => MapContentAlternate(alternate, baseUrl)).ToArray(),
     };
 
-    private static ContentAlternateInput MapContentAlternate(GraphContentAlternate alternate) => new()
+    private static ContentAlternateInput MapContentAlternate(GraphContentAlternate alternate, Uri baseUrl) => new()
     {
         ContentId = alternate.ContentId,
         Language = alternate.Language,
+        Hreflang = alternate.Language,
         Title = alternate.Title,
+        SiteRelativeUrl = alternate.Url,
         Url = alternate.Url,
+        Href = AbsoluteUrl(baseUrl, alternate.Url),
     };
+
+    /// <summary>生成公开 SEO URL；Theme input 直接给绝对值，避免 Theme 自己拼接 baseUrl。</summary>
+    private static string AbsoluteUrl(Uri baseUrl, string siteRelativeUrl)
+        => SiteUrlResolver.Absolute(baseUrl, siteRelativeUrl).AbsoluteUri;
 
     private static NoteInput MapNote(GraphNote n) => new()
     {

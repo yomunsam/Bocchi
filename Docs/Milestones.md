@@ -19,8 +19,8 @@
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`cache/theme-input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
 | [x] | M5 | Default Static Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`default-static`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
-| [ ] | M6 | Localization and Content i18n | 完成 Dashboard i18n、站点语言设置、Theme 本地化约定和内容多语言版本 | `Docs/Milestones/M6/M6.md`、Settings / Localization、Theme Context、content variants | 普通写作流不受打扰；Post/Page/Work 可管理语言版本；默认 Theme 输出语言切换和 SEO 元数据 |
-| [ ] | M7 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
+| [~] | M6 | Localization and Content i18n | 完成 Dashboard i18n、站点语言设置、Theme 本地化约定和内容多语言版本 | `Docs/Milestones/M6/M6.md`、`Docs/Milestones/M6/Theme开发专项.md`、Settings / Localization、Theme Context、content variants | 普通写作流不受打扰；Post/Page/Work 可管理语言版本；默认 Theme 输出语言切换和 SEO 元数据 |
+| [~] | M7 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
 | [ ] | M8 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
 
 ## 推进规则
@@ -234,7 +234,9 @@
 
 目标：让 Bocchi 在不打断普通写作流程的前提下，支持 Dashboard 自身 i18n、站点语言设置、Theme 本地化约定和内容多语言版本。
 
-详细规划：见 [`Docs/Milestones/M6/M6.md`](./Milestones/M6/M6.md)；Frontend Menu v1 与 Theme Page Contract 的本轮设计和实施记录见 [`Docs/Milestones/M6/Menu.md`](./Milestones/M6/Menu.md)。
+详细规划：见 [`Docs/Milestones/M6/M6.md`](./Milestones/M6/M6.md)；Frontend Menu v1 与 Theme Page Contract 的本轮设计和实施记录见 [`Docs/Milestones/M6/Menu.md`](./Milestones/M6/Menu.md)；Theme 作者开发、Theme Library、Zip Package 和 Dev Link 的专项记录见 [`Docs/Milestones/M6/Theme开发专项.md`](./Milestones/M6/Theme开发专项.md)。
+
+当前状态：进行中。Dashboard i18n、站点语言设置、Common / Theme 私有 i18n 覆盖、Content localization model、编辑器语言版本 UX、Frontend Menu v1 与 Theme Page Contract、多语言 URL / SEO、Preview Route Map 和默认 Theme 语言切换示范已落地；M6 localization 主线的用户价值已经闭环。2026-05-26 已决策不在没有真实 provider 的情况下创建 Translation Provider 空抽象或占位 UI，Provider 后移为有可验证浏览器、第三方服务或 LLM provider 时的增强入口。M6 尚未收束的主线是最终验证与文档回写；Theme 开发专项残留 smoke / 诊断收尾继续按专项追踪，不阻塞 localization 主线完成。
 
 关键方向：
 
@@ -259,7 +261,8 @@
 - Post / Page / Work loader、scanner、state store、content graph 和 Theme input 增加 language / localization variant 字段。
 - 编辑器 `Language & versions` 小组件和“添加语言版本”Modal。
 - Generator 输出语言 URL、`html lang`、canonical、`hreflang`、Preview Route Map 和 Sitemap 多语言条目。
-- 默认 Theme 本地化示范和 Translation Provider 抽象。
+- 默认 Theme 本地化示范。
+- Translation Provider 边界决策：不创建空抽象；后续只有绑定真实 provider 时再进入产品与代码设计。
 
 验收标准：
 
@@ -279,6 +282,8 @@
 - HTML / Markdown / rich text 形式的 i18n 覆盖值。
 - 语言图标、国旗或地区象征。
 - Note 的独立语言版本详情页。
+- Translation Provider 空接口、空 UI 或临时占位入口。
+- 浏览器本地翻译、第三方翻译 API 和 LLM API provider 接入。
 - 第三方翻译 API 和 LLM API 的完整配置界面。
 
 ## M7 Feeds, Search and Publish
@@ -289,15 +294,15 @@
 
 建议任务：
 
-- RSS 生成。
-- Sitemap 生成。
+- [x] RSS / Atom Feed 生成。
+- [x] Sitemap 生成。
 - 静态搜索索引生成。
 - Local Directory 发布目标。
 - [x] GitHub Pages 静态发布目标。
 - Cloudflare Pages 发布路径：下一步优先做原生 Direct Upload，不复用 GitHub branch 作为假发布。
 - GitHub Actions Remote Runner 规划：远端完整 Bocchi build、状态轮询、artifact 读取或直接发布。
-- 发布历史记录。
-- 构建产物 manifest 与发布 manifest 对齐。
+- [x] 发布历史记录。
+- [x] 构建产物 manifest 与发布 manifest 对齐。
 
 验收标准：
 

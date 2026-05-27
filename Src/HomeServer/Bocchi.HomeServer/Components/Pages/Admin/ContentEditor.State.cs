@@ -324,7 +324,7 @@ public partial class ContentEditor
 
     /// <summary>当前结构化字段回写后的 YAML 快照；YAML 无法解析时退回原始缓冲区。</summary>
     private string CurrentYamlSnapshot
-        => TryBuildYamlFromFields(out var yaml, out _) ? yaml : _yaml;
+        => TryBuildYamlFromFields(refreshUpdatedAt: false, out var yaml, out _) ? yaml : _yaml;
 
     /// <summary>把发布状态转成 Dashboard UI 当前语言下的标签。</summary>
     private string StatusLabel(ContentStatus status)

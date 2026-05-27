@@ -53,10 +53,14 @@ public sealed class DefaultStaticTemplateRenderer
         "theme.defaultStatic.toggleAppearance",
         "theme.defaultStatic.openMenu",
         "theme.defaultStatic.languageLabel",
+        "theme.defaultStatic.languageSwitchLabel",
+        "theme.defaultStatic.currentLanguageLabel",
         "theme.defaultStatic.appearanceLabel",
         "theme.defaultStatic.appearanceAuto",
         "theme.defaultStatic.appearanceLight",
         "theme.defaultStatic.appearanceDark",
+        "content.translationNotice",
+        "content.viewOriginal",
         "common.previous",
         "common.next",
         "common.backHome",
@@ -314,7 +318,7 @@ public sealed class DefaultStaticTemplateRenderer
             .Concat(targetSegments.Skip(common))
             .ToArray();
         var relative = parts.Length == 0 ? "." : string.Join("/", parts);
-        if (targetPath.EndsWith("/", StringComparison.Ordinal))
+        if (targetPath.EndsWith('/'))
         {
             relative += "/";
         }
@@ -446,7 +450,7 @@ public sealed class DefaultStaticTemplateRenderer
         for (var i = 0; i < posts.Length; i++)
         {
             var post = posts[i];
-            var body = await RenderArticleAsync(request, site, text, text.Get("menu.posts"), "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
+            var body = await RenderArticleAsync(request, site, text, "menu.posts", "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(post)), body, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -503,9 +507,10 @@ public sealed class DefaultStaticTemplateRenderer
     {
         foreach (var page in pages)
         {
+            var pageText = text.WithCurrentLanguage(GetString(page, "language"));
             var title = GetTitle(page);
-            var model = CreatePageModel(site, text, title, GetContentUrl(page));
-            model["item"] = MapContentItem(page, site);
+            var model = CreatePageModel(site, pageText, title, GetContentUrl(page), page);
+            model["item"] = MapContentItem(page, site, pageText);
             var template = await ResolveStandalonePageTemplateAsync(request.ThemeRoot, GetString(page, "template", "normal"), cancellationToken)
                 .ConfigureAwait(false);
             var body = await DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, template, model, cancellationToken).ConfigureAwait(false);
@@ -519,7 +524,7 @@ public sealed class DefaultStaticTemplateRenderer
         for (var i = 0; i < works.Length; i++)
         {
             var work = works[i];
-            var body = await RenderArticleAsync(request, site, text, text.Get("menu.works"), "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
+            var body = await RenderArticleAsync(request, site, text, "menu.works", "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(work)), body, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -542,21 +547,22 @@ public sealed class DefaultStaticTemplateRenderer
         DefaultStaticRenderRequest request,
         SiteInfo site,
         DefaultStaticThemeText text,
-        string sectionName,
+        string sectionKey,
         string sectionUrl,
         JsonElement item,
         JsonElement? previous,
         JsonElement? next,
         CancellationToken cancellationToken)
     {
+        var pageText = text.WithCurrentLanguage(GetString(item, "language"));
         var title = GetTitle(item);
-        var model = CreatePageModel(site, text, title, GetContentUrl(item));
+        var model = CreatePageModel(site, pageText, title, GetContentUrl(item), item);
         model["section"] = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["name"] = sectionName,
+            ["name"] = pageText.Get(sectionKey),
             ["url"] = sectionUrl,
         };
-        model["item"] = MapContentItem(item, site);
+        model["item"] = MapContentItem(item, site, pageText);
         model["previous"] = previous is null ? null : MapContentItem(previous.Value, site);
         model["hasPrevious"] = previous is not null;
         model["next"] = next is null ? null : MapContentItem(next.Value, site);
@@ -615,7 +621,12 @@ public sealed class DefaultStaticTemplateRenderer
     }
 
     /// <summary>创建所有页面共享的模板模型。</summary>
-    private static Dictionary<string, object?> CreatePageModel(SiteInfo site, DefaultStaticThemeText text, string title, string currentPath)
+    private static Dictionary<string, object?> CreatePageModel(
+        SiteInfo site,
+        DefaultStaticThemeText text,
+        string title,
+        string currentPath,
+        JsonElement? contentItem = null)
     {
         var fullTitle = string.Equals(title, text.Get("menu.home"), StringComparison.Ordinal) ? site.DefaultTitle : $"{title} · {site.Title}";
         return new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -628,9 +639,68 @@ public sealed class DefaultStaticTemplateRenderer
                 ["title"] = title,
                 ["fullTitle"] = fullTitle,
                 ["currentPath"] = currentPath,
+                ["canonicalUrl"] = GetPageCanonicalUrl(site, currentPath, contentItem),
+                ["alternates"] = GetPageAlternates(contentItem).ToArray(),
             },
             ["navigation"] = CreateNavigationModel(currentPath, site.Navigation),
         };
+    }
+
+    /// <summary>读取 Generator 给出的 canonical URL；列表页等非内容页使用站点 baseUrl 兜底。</summary>
+    private static string GetPageCanonicalUrl(SiteInfo site, string currentPath, JsonElement? contentItem)
+    {
+        if (contentItem is { } item)
+        {
+            var canonicalUrl = GetString(item, "canonicalUrl");
+            if (!string.IsNullOrWhiteSpace(canonicalUrl))
+            {
+                return canonicalUrl;
+            }
+        }
+
+        return ToAbsoluteUrl(site.BaseUrl, currentPath);
+    }
+
+    /// <summary>读取 Generator 预先计算的 hreflang 关系；Theme 只负责原样输出。</summary>
+    private static IEnumerable<Dictionary<string, object?>> GetPageAlternates(JsonElement? contentItem)
+    {
+        if (contentItem is not { } item ||
+            !item.TryGetProperty("localization", out var localization) ||
+            localization.ValueKind != JsonValueKind.Object ||
+            !localization.TryGetProperty("alternates", out var alternates) ||
+            alternates.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        foreach (var alternate in alternates.EnumerateArray().Where(alternate => alternate.ValueKind == JsonValueKind.Object))
+        {
+            var hreflang = GetString(alternate, "hreflang", GetString(alternate, "language"));
+            var href = GetString(alternate, "href");
+            if (string.IsNullOrWhiteSpace(hreflang) || string.IsNullOrWhiteSpace(href))
+            {
+                continue;
+            }
+
+            yield return new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["hreflang"] = hreflang,
+                ["href"] = href,
+            };
+        }
+    }
+
+    /// <summary>把站点根相对路径拼成绝对 URL；baseUrl 缺失或非法时保留相对路径，避免构建失败。</summary>
+    private static string ToAbsoluteUrl(string baseUrl, string siteRelativeUrl)
+    {
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri))
+        {
+            return string.IsNullOrWhiteSpace(siteRelativeUrl) ? "/" : siteRelativeUrl;
+        }
+
+        var normalizedBase = baseUri.AbsoluteUri.EndsWith('/') ? baseUri : new Uri(baseUri.AbsoluteUri + "/");
+        var trimmed = siteRelativeUrl.StartsWith('/') ? siteRelativeUrl[1..] : siteRelativeUrl;
+        return new Uri(normalizedBase, trimmed).AbsoluteUri;
     }
 
     /// <summary>创建布局层使用的站点模型。</summary>
@@ -946,10 +1016,14 @@ public sealed class DefaultStaticTemplateRenderer
             ["toggleAppearance"] = text.Get("theme.defaultStatic.toggleAppearance"),
             ["openMenu"] = text.Get("theme.defaultStatic.openMenu"),
             ["languageLabel"] = text.Get("theme.defaultStatic.languageLabel"),
+            ["languageSwitchLabel"] = text.Get("theme.defaultStatic.languageSwitchLabel"),
+            ["currentLanguageLabel"] = text.Get("theme.defaultStatic.currentLanguageLabel"),
             ["appearanceLabel"] = text.Get("theme.defaultStatic.appearanceLabel"),
             ["appearanceAuto"] = text.Get("theme.defaultStatic.appearanceAuto"),
             ["appearanceLight"] = text.Get("theme.defaultStatic.appearanceLight"),
             ["appearanceDark"] = text.Get("theme.defaultStatic.appearanceDark"),
+            ["translationNotice"] = text.Get("content.translationNotice"),
+            ["viewOriginal"] = text.Get("content.viewOriginal"),
             ["previous"] = text.Get("common.previous"),
             ["next"] = text.Get("common.next"),
             ["backHome"] = text.Get("common.backHome"),
@@ -987,7 +1061,7 @@ public sealed class DefaultStaticTemplateRenderer
         => items.Select(item => MapContentItem(item, site)).ToArray();
 
     /// <summary>把文章、页面、作品或短文映射成模板模型。</summary>
-    private static Dictionary<string, object?> MapContentItem(JsonElement item, SiteInfo site)
+    private static Dictionary<string, object?> MapContentItem(JsonElement item, SiteInfo site, DefaultStaticThemeText? text = null)
     {
         var date = GetContentDate(item);
         var tags = GetStringArray(item, "tags").ToArray();
@@ -995,7 +1069,7 @@ public sealed class DefaultStaticTemplateRenderer
         var cover = MapMediaReference(item, "cover");
         var media = MapMediaArray(item);
         var links = MapLinkArray(item);
-        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        var model = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["url"] = GetContentUrl(item),
             ["title"] = GetTitle(item),
@@ -1026,6 +1100,129 @@ public sealed class DefaultStaticTemplateRenderer
             ["links"] = links,
             ["hasLinks"] = links.Length > 0,
         };
+
+        if (text is not null)
+        {
+            AddContentLocalizationModel(model, item, text);
+        }
+
+        return model;
+    }
+
+    /// <summary>为详情页补充 Theme 可直接消费的内容多语言展示模型，避免模板从 URL 或 slug 反推关系。</summary>
+    private static void AddContentLocalizationModel(Dictionary<string, object?> model, JsonElement item, DefaultStaticThemeText text)
+    {
+        var language = GetString(item, "language", text.CurrentLanguage);
+        var localization = TryGetContentLocalization(item);
+        var isTranslation = localization is { } loc &&
+            loc.TryGetProperty("isTranslation", out var value) &&
+            value.ValueKind == JsonValueKind.True;
+        var sourceLanguage = localization is { } sourceLoc ? GetString(sourceLoc, "sourceLanguage") : string.Empty;
+        var sourceContentId = localization is { } sourceIdLoc ? GetString(sourceIdLoc, "sourceContentId") : string.Empty;
+        var languageAlternates = MapContentLanguageAlternates(item, text, language, localization);
+        var sourceAlternate = FindSourceAlternate(languageAlternates, sourceContentId, sourceLanguage);
+
+        model["language"] = language;
+        model["languageName"] = GetLanguageDisplayName(text, language);
+        model["languageAlternates"] = languageAlternates;
+        model["hasLanguageAlternates"] = languageAlternates.Length > 1;
+        model["isTranslation"] = isTranslation;
+        model["sourceLanguage"] = sourceLanguage;
+        model["sourceLanguageName"] = string.IsNullOrWhiteSpace(sourceLanguage)
+            ? string.Empty
+            : GetLanguageDisplayName(text, sourceLanguage);
+        model["sourceContentId"] = sourceContentId;
+        model["sourceAlternate"] = sourceAlternate;
+        model["hasSourceAlternate"] = sourceAlternate is not null;
+    }
+
+    /// <summary>读取内容输入中的 localization 节点。</summary>
+    private static JsonElement? TryGetContentLocalization(JsonElement item)
+        => item.TryGetProperty("localization", out var localization) && localization.ValueKind == JsonValueKind.Object
+            ? localization
+            : null;
+
+    /// <summary>把 Generator 提供的 alternates 映射成语言切换控件的链接模型。</summary>
+    private static Dictionary<string, object?>[] MapContentLanguageAlternates(
+        JsonElement item,
+        DefaultStaticThemeText text,
+        string currentLanguage,
+        JsonElement? localization)
+    {
+        if (localization is not { } loc ||
+            !loc.TryGetProperty("alternates", out var alternates) ||
+            alternates.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var currentContentId = GetString(item, "id");
+        var result = new List<Dictionary<string, object?>>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var alternate in alternates.EnumerateArray().Where(alternate => alternate.ValueKind == JsonValueKind.Object))
+        {
+            var language = GetString(alternate, "language");
+            var contentId = GetString(alternate, "contentId");
+            var siteRelativeUrl = GetString(alternate, "siteRelativeUrl", GetString(alternate, "url"));
+            var url = string.IsNullOrWhiteSpace(siteRelativeUrl) ? GetString(alternate, "href") : siteRelativeUrl;
+            if (string.IsNullOrWhiteSpace(language) || string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            var stableKey = string.IsNullOrWhiteSpace(contentId) ? language : contentId;
+            if (!seen.Add(stableKey))
+            {
+                continue;
+            }
+
+            var current = string.Equals(language, currentLanguage, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(contentId) && string.Equals(contentId, currentContentId, StringComparison.OrdinalIgnoreCase));
+            result.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["contentId"] = contentId,
+                ["language"] = language,
+                ["languageName"] = GetLanguageDisplayName(text, language),
+                ["title"] = GetString(alternate, "title"),
+                ["url"] = url,
+                ["siteRelativeUrl"] = siteRelativeUrl,
+                ["href"] = GetString(alternate, "href"),
+                ["hreflang"] = GetString(alternate, "hreflang", language),
+                ["current"] = current,
+            });
+        }
+
+        return result.ToArray();
+    }
+
+    /// <summary>优先按来源 contentId，其次按来源 language 定位“查看原文”入口。</summary>
+    private static Dictionary<string, object?>? FindSourceAlternate(
+        IReadOnlyList<Dictionary<string, object?>> alternates,
+        string sourceContentId,
+        string sourceLanguage)
+    {
+        return Find(sourceContentId, "contentId") ?? Find(sourceLanguage, "language");
+
+        Dictionary<string, object?>? Find(string value, string key)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            return alternates.FirstOrDefault(alternate =>
+                alternate.TryGetValue(key, out var found) &&
+                string.Equals(found?.ToString(), value, StringComparison.OrdinalIgnoreCase) &&
+                (!alternate.TryGetValue("current", out var current) || current is not bool isCurrent || !isCurrent));
+        }
+    }
+
+    /// <summary>语言显示名优先使用 Dashboard 传入的 nativeName，其次 englishName，最后回退 code。</summary>
+    private static string GetLanguageDisplayName(DefaultStaticThemeText text, string language)
+    {
+        var matched = text.EnabledLanguages.FirstOrDefault(
+            item => string.Equals(item.Code, language, StringComparison.OrdinalIgnoreCase));
+        return matched?.NativeName ?? matched?.EnglishName ?? language;
     }
 
     /// <summary>把作品链接数组映射成模板可访问的字典数组。</summary>

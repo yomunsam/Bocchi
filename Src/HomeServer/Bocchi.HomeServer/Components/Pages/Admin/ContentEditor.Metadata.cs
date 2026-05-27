@@ -65,6 +65,10 @@ public partial class ContentEditor
 
     /// <summary>把结构化字段写回 YAML，同时保留用户在 Frontmatter 中添加的其他键。</summary>
     private bool TryBuildYamlFromFields(out string yaml, out string? error)
+        => TryBuildYamlFromFields(refreshUpdatedAt: true, out yaml, out error);
+
+    /// <summary>把结构化字段写回 YAML；差异快照不能刷新 updatedAt，只有真实保存才更新时间戳。</summary>
+    private bool TryBuildYamlFromFields(bool refreshUpdatedAt, out string yaml, out string? error)
     {
         yaml = string.Empty;
         error = null;
@@ -98,7 +102,10 @@ public partial class ContentEditor
             SetScalar(root, "category", _category, removeWhenBlank: true);
             SetSequence(root, "tags", ParseCommaList(_tagsText));
             SetScalar(root, "publishedAt", _publishedAt, removeWhenBlank: true);
-            SetScalar(root, "updatedAt", FormatDateTime(Time.GetUtcNow()));
+            if (refreshUpdatedAt)
+            {
+                SetScalar(root, "updatedAt", FormatDateTime(Time.GetUtcNow()));
+            }
         }
 
         if (IsPageFile)

@@ -16,6 +16,17 @@ M5 已经把默认 Theme 外置为 `Themes/default-static/`，并在运行时物
 - 开发入口和用户安装入口必须分开。开发使用 Dev Link，用户安装使用 Zip Package。
 - Theme 实现、Theme 配置和 Theme 包管理都属于 DataRoot 运行数据，不进入 `<data>/workspace/`。
 
+当前状态（2026-05-25 代码同步）：
+
+- 已落地：`ThemeResolver` / Catalog、Dev Link、Theme Package inspection、Zip 安装 / 更新 / 回滚、Theme Library 页面、active Theme Catalog picker、`process` runner trust 确认，以及 Architecture / Themes README 的主要契约回写。
+- 部分落地：Theme 作者开发体验已经能显示 source/root/runner/diagnostics，Build log 也会记录 Theme Root 和 runner；但 Preview 失败在 UI 中还没有按 manifest / runner / output / content 做细分呈现。
+- 待补验证：浏览器级 zip 上传安装 smoke、Docker 近似 Dev Link 验证，以及本专项最终验证记录。
+
+M6 收束口径（2026-05-26）：
+
+- 上述待补验证和 Preview 错误 UI 分类继续作为 Theme 开发专项收尾项追踪。
+- 它们不阻塞 M6 localization 主线完成；M6-T09 只需要明确记录这些专项残留风险和后续入口。
+
 ## 2. 文档结构约定
 
 为了避免“分类详情”和“Todo list”脱节，本文采用同一编号贯穿：
@@ -125,18 +136,18 @@ Dev Link 默认只在 `Development` 环境启用。Production 若要启用，必
 
 Todo：
 
-- [ ] 定义 `ThemeSourceKind`、`ResolvedTheme`、`ThemeCatalogItem`、`ThemeDiagnostic`。
-- [ ] 实现 ThemeResolver，覆盖 installed、default-static、dev link 三类来源。
-- [ ] 将 `LoadThemeStage` 改为通过 ThemeResolver 解析 Theme。
-- [ ] 将 `ThemeSettingsService.ListAvailableThemesAsync` 和 Theme 定制读取逻辑改为通过 ThemeResolver。
-- [ ] 保留找不到 Theme 时 Generator 的 warning 行为，Dashboard 则展示不可用诊断。
+- [x] 定义 `ThemeSourceKind`、`ResolvedTheme`、`ThemeCatalogItem`、`ThemeDiagnostic`。
+- [x] 实现 ThemeResolver，覆盖 installed、default-static、dev link 三类来源。
+- [x] 将 `LoadThemeStage` 改为通过 ThemeResolver 解析 Theme。
+- [x] 将 `ThemeSettingsService.ListAvailableThemesAsync` 和 Theme 定制读取逻辑改为通过 ThemeResolver。
+- [x] 保留找不到 Theme 时 Generator 的 warning 行为，Dashboard 则展示不可用诊断。
 
 验收：
 
-- [ ] `default-static` 仍会自动物化并排在 Theme 列表中。
-- [ ] `<data>/themes/my-theme/theme.json` 可被列表和构建识别。
-- [ ] 无效 Theme 不让列表崩溃，Dashboard 能看到可解释的诊断。
-- [ ] Generator 和 Dashboard 对同一个 `themeId` 解析到同一个 Theme Root。
+- [x] `default-static` 仍会自动物化并排在 Theme 列表中。
+- [x] `<data>/themes/my-theme/theme.json` 可被列表和构建识别。
+- [x] 无效 Theme 不让列表崩溃，Dashboard 能看到可解释的诊断。
+- [x] Generator 和 Dashboard 对同一个 `themeId` 解析到同一个 Theme Root。
 
 测试建议：
 
@@ -162,19 +173,19 @@ Todo：
 
 Todo：
 
-- [ ] 定义 `ThemeDevLinksManifest` 与 `ThemeDevLinkEntry` JSON 结构和解析错误。
-- [ ] 实现 `dev-links.json` 读取、enabled 过滤和重复 id 诊断。
-- [ ] 校验 root 绝对路径、manifest id 一致性、非法 theme id。
-- [ ] 禁用 Dev Link 时完全忽略 `dev-links.json`，但可在诊断页提示“开发链接未启用”。
-- [ ] 当 Dev Link shadow Installed Theme 时，在 catalog item 上标记 `ShadowsInstalledTheme=true`。
+- [x] 定义 `ThemeDevLinksManifest` 与 `ThemeDevLinkEntry` JSON 结构和解析错误。
+- [x] 实现 `dev-links.json` 读取、enabled 过滤和重复 id 诊断。
+- [x] 校验 root 绝对路径、manifest id 一致性、非法 theme id。
+- [~] 禁用 Dev Link 时完全忽略 `dev-links.json`，但可在诊断页提示“开发链接未启用”。当前代码已忽略，独立诊断页提示尚未实现。
+- [x] 当 Dev Link shadow Installed Theme 时，在 catalog item 上标记 `ShadowsInstalledTheme=true`。
 
 验收：
 
-- [ ] 源码 `dotnet run` 时，外部 `/Users/.../my-theme` 可作为 active Theme 被 Preview 使用。
-- [ ] 修改外部 Theme 的 `.liquid`、CSS 或 `theme.json` 后，刷新 Preview 可看到变化，不需要复制 Theme。
-- [ ] Docker 模式下，只要 `root` 是容器内挂载路径，同一套 Dev Link 契约可用。
-- [ ] Production 默认不会解析 Dev Link。
-- [ ] Dev Link root 缺失、id 不一致、manifest 缺失或重复 id 时不会中断 Home Server 启动。
+- [x] 源码 `dotnet run` 时，外部 `/Users/.../my-theme` 可作为 active Theme 被 Preview 使用。
+- [x] 修改外部 Theme 的 `.liquid`、CSS 或 `theme.json` 后，刷新 Preview 可看到变化，不需要复制 Theme。
+- [~] Docker 模式下，只要 `root` 是容器内挂载路径，同一套 Dev Link 契约可用。契约已文档化，尚缺 Docker 近似验证记录。
+- [x] Production 默认不会解析 Dev Link。
+- [x] Dev Link root 缺失、id 不一致、manifest 缺失或重复 id 时不会中断 Home Server 启动。
 
 测试建议：
 
@@ -208,18 +219,18 @@ dotnet run --project Src/HomeServer/Bocchi.HomeServer
 
 Todo：
 
-- [ ] 在 `/Admin/Site/Theme` 或 Theme library 页面展示 active Theme source、root、runner、diagnostics。
-- [ ] 在文档中写明源码运行与 Docker 运行两种开发方式，其中源码运行是推荐路径。
-- [ ] Build log 增加 Theme source/root 摘要，避免开发者不知道当前到底跑了哪个 Theme。
-- [ ] Live Preview 失败时，把 Theme runner 错误、manifest 错误、路径错误区分展示。
-- [ ] 明确 `process` runner 的 installCommand 不会在普通 Preview/Full Build 自动运行。
+- [x] 在 `/Admin/Site/Theme` 或 Theme library 页面展示 active Theme source、root、runner、diagnostics。
+- [x] 在文档中写明源码运行与 Docker 运行两种开发方式，其中源码运行是推荐路径。
+- [x] Build log 增加 Theme source/root 摘要，避免开发者不知道当前到底跑了哪个 Theme。
+- [~] Live Preview 失败时，把 Theme runner 错误、manifest 错误、路径错误区分展示。Build log 已保留诊断，UI 细分呈现仍需补。
+- [x] 明确 `process` runner 的 installCommand 不会在普通 Preview/Full Build 自动运行。
 
 验收：
 
-- [ ] Theme 作者可以只通过 `dotnet run` + Dev Link 完成模板/CSS/manifest/schema 调试。
-- [ ] Dashboard 能一眼看出 active Theme 来自外部 Dev Link。
-- [ ] Preview 错误能指出是 Theme manifest、runner command、输出缺失还是内容输入问题。
-- [ ] 关闭 Dev Link 后，同 id Installed Theme 或 missing Theme 状态显示正确。
+- [x] Theme 作者可以只通过 `dotnet run` + Dev Link 完成模板/CSS/manifest/schema 调试。
+- [x] Dashboard 能一眼看出 active Theme 来自外部 Dev Link。
+- [~] Preview 错误能指出是 Theme manifest、runner command、输出缺失还是内容输入问题。日志路径已具备基础信息，UI 分类仍待补。
+- [x] 关闭 Dev Link 后，同 id Installed Theme 或 missing Theme 状态显示正确。
 
 测试建议：
 
@@ -241,18 +252,18 @@ Todo：
 
 Todo：
 
-- [ ] 将 Settings 中的 Theme id 输入框替换为 select/list picker。
-- [ ] picker 显示 installed/dev link/source 状态。
-- [ ] picker 禁止选择 manifest 无效的 Theme。
-- [ ] 上传安装完成后，允许直接进入“设为当前 Theme”流程。
-- [ ] 保持 Theme Migration 对 `i18n://theme@...` 的保护。
+- [x] 将 Settings 中的 Theme id 输入框替换为 select/list picker。
+- [x] picker 显示 installed/dev link/source 状态。
+- [x] picker 禁止选择 manifest 无效的 Theme。
+- [x] 上传安装完成后，允许直接进入“设为当前 Theme”流程。
+- [x] 保持 Theme Migration 对 `i18n://theme@...` 的保护。
 
 验收：
 
-- [ ] Admin 不需要手动复制 Theme id。
-- [ ] Dev Link Theme 和 Zip 安装 Theme 都可以从同一个控件选择。
-- [ ] 无效 Theme 出现在诊断中，但不会被设为 active Theme。
-- [ ] 切换 Theme 时已有 Menu 迁移逻辑仍然生效。
+- [x] Admin 不需要手动复制 Theme id。
+- [x] Dev Link Theme 和 Zip 安装 Theme 都可以从同一个控件选择。
+- [x] 无效 Theme 出现在诊断中，但不会被设为 active Theme。
+- [x] 切换 Theme 时已有 Menu 迁移逻辑仍然生效。
 
 测试建议：
 
@@ -281,20 +292,20 @@ Todo：
 
 Todo：
 
-- [ ] 新增 `ThemePackageService.InspectZipAsync`。
-- [ ] 实现 zip root 归一化。
-- [ ] 实现 Zip Slip 与非法路径检查。
-- [ ] 实现 manifest、runner、contractVersion、theme id 校验。
-- [ ] 实现包大小、文件数、可疑目录诊断。
-- [ ] 返回 `ThemePackageInspection`，包含 manifest、source root、warnings、blocking errors。
+- [x] 新增 `ThemePackageService.InspectZipAsync`。
+- [x] 实现 zip root 归一化。
+- [x] 实现 Zip Slip 与非法路径检查。
+- [x] 实现 manifest、runner、contractVersion、theme id 校验。
+- [x] 实现包大小、文件数、可疑目录诊断。
+- [x] 返回 `ThemePackageInspection`，包含 manifest、source root、warnings、blocking errors。
 
 验收：
 
-- [ ] 合法 `fluid-static` zip 能被识别出 Theme id/name/version。
-- [ ] GitHub 下载式单顶层目录 zip 能被识别。
-- [ ] `../evil.txt`、绝对路径、非法 theme id 会被拒绝。
-- [ ] 缺失 `theme.json` 或 unsupported runner 会给出明确错误。
-- [ ] `process` runner Theme 会标记为“需要信任此 Theme 才能安装或激活”。
+- [x] 合法 `fluid-static` zip 能被识别出 Theme id/name/version。
+- [x] GitHub 下载式单顶层目录 zip 能被识别。
+- [x] `../evil.txt`、绝对路径、非法 theme id 会被拒绝。
+- [x] 缺失 `theme.json` 或 unsupported runner 会给出明确错误。
+- [x] `process` runner Theme 会标记为“需要信任此 Theme 才能安装或激活”。
 
 测试建议：
 
@@ -320,20 +331,20 @@ Todo：
 
 Todo：
 
-- [ ] 新增 `InstallOrUpdateAsync`，只接受已通过 inspection 的 package。
-- [ ] 实现 staging、backup、rollback。
-- [ ] 保留 Theme 配置与 Theme 私有 i18n 覆盖。
-- [ ] 阻止覆盖 `default-static`。
-- [ ] 安装完成后刷新 Theme catalog。
-- [ ] 安装操作写入审计日志或 build/admin log。
+- [x] 新增 `InstallOrUpdateAsync`，只接受已通过 inspection 的 package。
+- [x] 实现 staging、backup、rollback。
+- [x] 保留 Theme 配置与 Theme 私有 i18n 覆盖。
+- [x] 阻止覆盖 `default-static`。
+- [x] 安装完成后刷新 Theme catalog。
+- [x] 安装操作写入审计日志或 build/admin log。
 
 验收：
 
-- [ ] 新 Theme zip 安装后出现在 Theme 列表。
-- [ ] 同 id 更新后文件内容被替换，Theme 配置仍保留。
-- [ ] 更新失败时旧 Theme 仍可用。
-- [ ] `default-static` zip 覆盖被拒绝。
-- [ ] Dev Link shadow 状态不会被 zip 更新误导。
+- [x] 新 Theme zip 安装后出现在 Theme 列表。
+- [x] 同 id 更新后文件内容被替换，Theme 配置仍保留。
+- [~] 更新失败时旧 Theme 仍可用。代码已实现回滚路径，仍缺专门的失败回滚测试。
+- [x] `default-static` zip 覆盖被拒绝。
+- [x] Dev Link shadow 状态不会被 zip 更新误导。
 
 测试建议：
 
@@ -362,20 +373,20 @@ Todo：
 
 Todo：
 
-- [ ] 增加 Theme Library 页面和导航入口。
-- [ ] 增加 zip 上传 endpoint 或 Blazor form handler。
-- [ ] 展示 inspection 结果和 blocking errors。
-- [ ] 实现安装/更新确认动作。
-- [ ] 安装成功后提供“设为当前 Theme”动作。
-- [ ] 对 `process` runner 展示信任确认。
+- [x] 增加 Theme Library 页面和导航入口。
+- [x] 增加 zip 上传 endpoint 或 Blazor form handler。
+- [x] 展示 inspection 结果和 blocking errors。
+- [x] 实现安装/更新确认动作。
+- [x] 安装成功后提供“设为当前 Theme”动作。
+- [x] 对 `process` runner 展示信任确认。
 
 验收：
 
-- [ ] Admin 可以从浏览器上传合法 zip 并安装。
-- [ ] 上传坏包不会写入 `<data>/themes/`。
-- [ ] 更新已有 Theme 前能看到“更新”而不是误判为新安装。
-- [ ] 安装成功后不用手动输入 Theme id。
-- [ ] `process` Theme 没有确认信任时不能安装或激活。
+- [~] Admin 可以从浏览器上传合法 zip 并安装。页面和 handler 已实现，仍缺浏览器级上传 smoke 记录。
+- [x] 上传坏包不会写入 `<data>/themes/`。
+- [x] 更新已有 Theme 前能看到“更新”而不是误判为新安装。
+- [x] 安装成功后不用手动输入 Theme id。
+- [x] `process` Theme 没有确认信任时不能安装或激活。
 
 测试建议：
 
@@ -398,18 +409,18 @@ Todo：
 
 Todo：
 
-- [ ] 在 inspection 结果中区分 warning 和 blocking error。
-- [ ] 对 `process` runner 增加 trust required 状态。
-- [ ] 上传和安装流程不执行 Theme 代码。
-- [ ] 构建阶段继续通过 ThemeRunner 统一处理 timeout、取消、非零退出码。
-- [ ] 文档写明 `process` runner 的部署依赖由宿主环境负责。
+- [x] 在 inspection 结果中区分 warning 和 blocking error。
+- [x] 对 `process` runner 增加 trust required 状态。
+- [x] 上传和安装流程不执行 Theme 代码。
+- [x] 构建阶段继续通过 ThemeRunner 统一处理 timeout、取消、非零退出码。
+- [x] 文档写明 `process` runner 的部署依赖由宿主环境负责。
 
 验收：
 
-- [ ] 上传 zip 阶段不会执行 Theme 包内命令。
-- [ ] `process` Theme 的风险在 UI 中可见。
-- [ ] 依赖缺失时 Build log 能指出启动命令失败。
-- [ ] 没有新增绕过 Theme Contract 直接写 `output/public/` 的路径。
+- [x] 上传 zip 阶段不会执行 Theme 包内命令。
+- [x] `process` Theme 的风险在 UI 中可见。
+- [x] 依赖缺失时 Build log 能指出启动命令失败。
+- [x] 没有新增绕过 Theme Contract 直接写 `output/public/` 的路径。
 
 测试建议：
 
@@ -431,18 +442,18 @@ Todo：
 
 Todo：
 
-- [ ] 更新 Theme 作者文档：源码运行、Dev Link、Preview、process runner 依赖。
-- [ ] 更新 Admin 文档：上传 zip、更新 Theme、设为当前 Theme、风险提示。
-- [ ] 更新架构文档：DataRoot 下 Theme 来源与 resolver 模型。
+- [x] 更新 Theme 作者文档：源码运行、Dev Link、Preview、process runner 依赖。
+- [x] 更新 Admin 文档：上传 zip、更新 Theme、设为当前 Theme、风险提示。
+- [x] 更新架构文档：DataRoot 下 Theme 来源与 resolver 模型。
 - [ ] 补齐测试清单并记录最终验证命令。
-- [ ] 若新增 UI，补齐 `zh-CN` 和 `en-US` Dashboard i18n。
+- [x] 若新增 UI，补齐 `zh-CN` 和 `en-US` Dashboard i18n。
 
 验收：
 
-- [ ] 新开发者能按文档用外部 Theme repo 跑通 Preview。
-- [ ] 普通 Admin 能按文档上传 zip 并设为当前 Theme。
-- [ ] 文档明确 workspace 不承载 Theme 实现或 Theme 配置。
-- [ ] 文档明确 Docker 是可选验证方式，不是 Theme 开发的默认路径。
+- [~] 新开发者能按文档用外部 Theme repo 跑通 Preview。文档和代码路径已具备，尚缺最终 smoke 记录。
+- [~] 普通 Admin 能按文档上传 zip 并设为当前 Theme。页面已具备，尚缺浏览器级上传 smoke 记录。
+- [x] 文档明确 workspace 不承载 Theme 实现或 Theme 配置。
+- [x] 文档明确 Docker 是可选验证方式，不是 Theme 开发的默认路径。
 
 测试建议：
 
@@ -468,47 +479,47 @@ Todo：
 
 | 状态 | ID | 工作包 | 关键验收 |
 | --- | --- | --- | --- |
-| [ ] | TD-01 | Theme Resolver 与 Catalog 抽象 | Generator 和 Dashboard 对同一 `themeId` 解析一致。 |
-| [ ] | TD-02 | Dev Link 契约 | 外部 Theme Root 可在源码 `dotnet run` 下直接 Preview。 |
-| [ ] | TD-03 | Theme 作者开发体验 | Dashboard 与 Build log 能显示 active Theme 的 source/root/runner。 |
-| [ ] | TD-04 | Active Theme 选择与切换体验 | Admin 不再手填 Theme id，切换仍复用 Theme Migration。 |
-| [ ] | TD-05 | Zip Package 检查与校验 | 合法包可识别，坏包和路径穿越被拒绝。 |
-| [ ] | TD-06 | Zip 安装、更新与回滚 | 安装和更新写入 DataRoot，失败可回滚，配置保留。 |
-| [ ] | TD-07 | Admin Dashboard 上传与 Theme Library | Admin 可上传、检查、安装、更新并设为当前 Theme。 |
-| [ ] | TD-08 | 安全边界与运行策略 | `process` runner 需要显式信任，上传阶段不执行代码。 |
-| [ ] | TD-09 | 文档、示例与验收套件 | Theme 作者和 Admin 都能按文档跑通闭环。 |
+| [x] | TD-01 | Theme Resolver 与 Catalog 抽象 | Generator 和 Dashboard 对同一 `themeId` 解析一致。 |
+| [x] | TD-02 | Dev Link 契约 | 外部 Theme Root 可在源码 `dotnet run` 下直接 Preview。 |
+| [~] | TD-03 | Theme 作者开发体验 | Dashboard 与 Build log 能显示 active Theme 的 source/root/runner；Preview 错误 UI 细分仍待补。 |
+| [x] | TD-04 | Active Theme 选择与切换体验 | Admin 不再手填 Theme id，切换仍复用 Theme Migration。 |
+| [x] | TD-05 | Zip Package 检查与校验 | 合法包可识别，坏包和路径穿越被拒绝。 |
+| [~] | TD-06 | Zip 安装、更新与回滚 | 安装和更新写入 DataRoot，配置保留；失败回滚仍缺专门测试。 |
+| [~] | TD-07 | Admin Dashboard 上传与 Theme Library | Admin 可上传、检查、安装、更新并设为当前 Theme；浏览器级上传 smoke 仍待补。 |
+| [x] | TD-08 | 安全边界与运行策略 | `process` runner 需要显式信任，上传阶段不执行代码。 |
+| [~] | TD-09 | 文档、示例与验收套件 | 主要文档已回写；最终验证记录、浏览器上传 smoke、Docker 近似验证仍待补。 |
 
 ## 8. 总体验收目标
 
 开发者验收：
 
-- [ ] Theme 作者在本机用源码 `dotnet run` 启动 Home Server。
-- [ ] Theme 作者在外部 Theme repo 修改模板、CSS、manifest 或 schema。
-- [ ] Dev Link 指向外部 Theme repo 后，Dashboard 能识别该 Theme。
-- [ ] 设为 active Theme 后，Preview 刷新即可反映外部 Theme 文件变化。
-- [ ] 同一 Dev Link 契约在 Docker 模式下通过容器内挂载路径也能工作。
+- [x] Theme 作者在本机用源码 `dotnet run` 启动 Home Server。
+- [x] Theme 作者在外部 Theme repo 修改模板、CSS、manifest 或 schema。
+- [x] Dev Link 指向外部 Theme repo 后，Dashboard 能识别该 Theme。
+- [x] 设为 active Theme 后，Preview 刷新即可反映外部 Theme 文件变化。
+- [~] 同一 Dev Link 契约在 Docker 模式下通过容器内挂载路径也能工作。契约已文档化，尚缺 Docker 近似验证记录。
 
 用户验收：
 
-- [ ] Admin Dashboard 能上传一个合法 `fluid-static` Theme zip。
-- [ ] Dashboard 能在安装前显示 Theme id、name、version、runner 和 warnings。
-- [ ] 安装后 Theme 出现在 Theme Library，并可设为当前 Theme。
-- [ ] 更新同 id Theme 后，Theme 文件更新但原 Theme 配置保留。
-- [ ] 上传坏包、路径穿越包、缺失 manifest 包不会污染 `<data>/themes/`。
+- [~] Admin Dashboard 能上传一个合法 `fluid-static` Theme zip。页面与 Blazor form handler 已实现，尚缺浏览器级上传 smoke 记录。
+- [x] Dashboard 能在安装前显示 Theme id、name、version、runner 和 warnings。
+- [x] 安装后 Theme 出现在 Theme Library，并可设为当前 Theme。
+- [x] 更新同 id Theme 后，Theme 文件更新但原 Theme 配置保留。
+- [x] 上传坏包、路径穿越包、缺失 manifest 包不会污染 `<data>/themes/`。
 
 构建与预览验收：
 
-- [ ] Full Build 使用 active Theme，输出仍由 Generator 收集到 `<data>/output/public/`。
-- [ ] Live Preview 使用一次性 input/output 目录，不污染 Full Build 输出。
-- [ ] Theme 不直接写 `<data>/output/public/`。
-- [ ] Theme source 文件变化进入构建指纹，避免短路掉 Theme 修改。
+- [x] Full Build 使用 active Theme，输出仍由 Generator 收集到 `<data>/output/public/`。
+- [x] Live Preview 使用一次性 input/output 目录，不污染 Full Build 输出。
+- [x] Theme 不直接写 `<data>/output/public/`。
+- [x] Theme source 文件变化进入构建指纹，避免短路掉 Theme 修改。
 
 安全验收：
 
-- [ ] Zip 上传和 inspection 不执行 Theme 代码。
-- [ ] `process` runner Theme 必须显式确认信任。
-- [ ] Production 默认不启用 Dev Link。
-- [ ] `workspace` 内不出现 Theme 实现、Theme 配置、Theme 上传临时文件或构建产物。
+- [x] Zip 上传和 inspection 不执行 Theme 代码。
+- [x] `process` runner Theme 必须显式确认信任。
+- [x] Production 默认不启用 Dev Link。
+- [x] `workspace` 内不出现 Theme 实现、Theme 配置、Theme 上传临时文件或构建产物。
 
 ## 9. 非目标
 

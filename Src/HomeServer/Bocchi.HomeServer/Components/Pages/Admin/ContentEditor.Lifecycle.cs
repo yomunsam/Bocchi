@@ -192,11 +192,10 @@ public partial class ContentEditor
     {
         _yaml = file.Yaml;
         _markdown = file.Markdown;
-        _originalYaml = file.Yaml;
-        _originalMarkdown = file.Markdown;
         _previewHtml = file.PreviewHtml;
         _saved = false;
         LoadMetadataFromYaml(file);
+        ResetOriginalSnapshots();
     }
 
     /// <summary>把尚未落盘的编辑器临时草稿载入同一套编辑缓冲区。</summary>
@@ -204,11 +203,17 @@ public partial class ContentEditor
     {
         _yaml = draft.Yaml;
         _markdown = draft.Markdown;
-        _originalYaml = draft.Yaml;
-        _originalMarkdown = draft.Markdown;
         _previewHtml = draft.PreviewHtml;
         _saved = false;
         LoadMetadataFromYaml(draft.Yaml, CurrentFallbackSlug);
+        ResetOriginalSnapshots();
+    }
+
+    /// <summary>载入完成后用编辑器同一套 YAML 快照作为干净基线，避免序列化规范化造成打开即脏。</summary>
+    private void ResetOriginalSnapshots()
+    {
+        _originalYaml = CurrentYamlSnapshot;
+        _originalMarkdown = _markdown;
     }
 
     /// <summary>按当前内容类型载入写作页所需的下拉选项。</summary>

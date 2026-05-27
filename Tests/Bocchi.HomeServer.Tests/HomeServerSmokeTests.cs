@@ -228,6 +228,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
                 "title: Saved Language\nslug: saved-language\nstatus: draft",
                 "Body\n",
                 draft.AssetsDirectory);
+            saved = await editor.SaveAsync(saved.RelativePath, saved.Yaml, saved.Markdown);
             await scanner.ScanAsync();
         }
 
@@ -236,6 +237,8 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("Language & versions");
+        body.Should().Contain("No unsaved changes.");
+        body.Should().NotContain("line positions changed.");
         body.Should().Contain("Current language");
         body.Should().Contain("Native");
         body.Should().Contain("Add language version");

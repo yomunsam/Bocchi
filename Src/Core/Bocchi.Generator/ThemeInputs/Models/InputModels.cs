@@ -75,6 +75,8 @@ public sealed record PostInput
     public MediaReferenceInput? Cover { get; init; }
     /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
     public required string SiteRelativeUrl { get; init; }
+    /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>
+    public required string CanonicalUrl { get; init; }
     /// <summary>站点根相对 URL 的兼容别名。</summary>
     public required string Url { get; init; }
     public required string Markdown { get; init; }
@@ -98,6 +100,8 @@ public sealed record PageInput
     public required string Template { get; init; }
     /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
     public required string SiteRelativeUrl { get; init; }
+    /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>
+    public required string CanonicalUrl { get; init; }
     /// <summary>站点根相对 URL 的兼容别名。</summary>
     public required string Url { get; init; }
     public required string Markdown { get; init; }
@@ -125,6 +129,8 @@ public sealed record WorkInput
     public required bool Featured { get; init; }
     /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
     public required string SiteRelativeUrl { get; init; }
+    /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>
+    public required string CanonicalUrl { get; init; }
     /// <summary>站点根相对 URL 的兼容别名。</summary>
     public required string Url { get; init; }
     public required string Markdown { get; init; }
@@ -148,8 +154,15 @@ public sealed record ContentAlternateInput
 {
     public required string ContentId { get; init; }
     public required string Language { get; init; }
+    /// <summary>SEO link 使用的 hreflang 值；当前等于语言代码，后续可扩展 x-default。</summary>
+    public required string Hreflang { get; init; }
     public required string Title { get; init; }
+    /// <summary>目标 variant 的站点根相对 URL。</summary>
+    public required string SiteRelativeUrl { get; init; }
+    /// <summary>目标 variant 的站点根相对 URL 兼容别名。</summary>
     public required string Url { get; init; }
+    /// <summary>目标 variant 的绝对 URL，用于 <c>link rel="alternate"</c>。</summary>
+    public required string Href { get; init; }
 }
 
 /// <summary>短文。</summary>

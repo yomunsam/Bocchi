@@ -258,6 +258,28 @@
         }
       },
       {
+        "key": "theme.defaultStatic.languageSwitchLabel",
+        "title": "Content language switch label",
+        "description": "Label shown above content variant links.",
+        "defaultValues": {
+          "en-US": "Read in",
+          "zh-CN": "阅读语言",
+          "zh-TW": "閱讀語言",
+          "ja-JP": "読む言語"
+        }
+      },
+      {
+        "key": "theme.defaultStatic.currentLanguageLabel",
+        "title": "Current content language label",
+        "description": "Accessible label for the current content language.",
+        "defaultValues": {
+          "en-US": "Current language",
+          "zh-CN": "当前语言",
+          "zh-TW": "目前語言",
+          "ja-JP": "現在の言語"
+        }
+      },
+      {
         "key": "theme.defaultStatic.appearanceLabel",
         "title": "Appearance menu label",
         "description": "Accessible label for the frontend appearance menu.",

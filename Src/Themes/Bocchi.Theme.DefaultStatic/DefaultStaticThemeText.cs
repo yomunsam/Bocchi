@@ -83,6 +83,15 @@ internal sealed class DefaultStaticThemeText
     public string Get(string key)
         => Get(key, CurrentLanguage);
 
+    /// <summary>为单个内容 variant 创建同一套文本解析器的新当前语言视图。</summary>
+    public DefaultStaticThemeText WithCurrentLanguage(string? language)
+    {
+        var normalized = string.IsNullOrWhiteSpace(language) ? PrimaryLanguage : language.Trim();
+        return string.Equals(normalized, CurrentLanguage, StringComparison.OrdinalIgnoreCase)
+            ? this
+            : new DefaultStaticThemeText(normalized, PrimaryLanguage, EnabledLanguages, _overrides, _themeDefaults, _themeDefaultLanguage);
+    }
+
     /// <summary>按指定语言读取某个 i18n key 的最佳文案，用于生成浏览器端可切换的文案表。</summary>
     public string Get(string key, string? language)
     {
@@ -175,7 +184,7 @@ internal sealed class DefaultStaticThemeText
             ["common.backHome"] = CreateLanguageValues("Back to index", "返回首页", "返回首頁", "ホームへ戻る"),
             ["common.previous"] = CreateLanguageValues("Previous", "上一篇", "上一篇", "前へ"),
             ["common.next"] = CreateLanguageValues("Next", "下一篇", "下一篇", "次へ"),
-            ["content.translationNotice"] = CreateLanguageValues("This page is available in another language.", "此页面有其他语言版本。", "此頁面有其他語言版本。", "このページには他の言語版があります。"),
+            ["content.translationNotice"] = CreateLanguageValues("This page is a translation.", "此页面为翻译版本。", "此頁面為翻譯版本。", "このページは翻訳版です。"),
             ["content.viewOriginal"] = CreateLanguageValues("View original", "查看原文", "查看原文", "原文を見る"),
         };
     }

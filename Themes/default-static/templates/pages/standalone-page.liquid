@@ -4,5 +4,30 @@
     <h1 class="display article-display">{{ item.title }}</h1>
     {% if item.summary %}<p class="lead">{{ item.summary }}</p>{% endif %}
   </header>
+  {% if item.hasLanguageAlternates %}
+  <nav class="prose content-language-switch" aria-label="{{ text.languageSwitchLabel }}" data-bocchi-language-switch>
+    <span class="content-language-switch__label" data-bocchi-i18n="theme.defaultStatic.languageSwitchLabel">{{ text.languageSwitchLabel }}</span>
+    <span class="content-language-switch__options">
+      {% for alternate in item.languageAlternates %}
+        {% if alternate.current %}
+        <span class="content-language-switch__option active" data-bocchi-language-link="{{ alternate.language }}" aria-current="page" title="{{ text.currentLanguageLabel }}">{{ alternate.languageName }}</span>
+        {% else %}
+        <a class="content-language-switch__option" data-bocchi-language-link="{{ alternate.language }}" href="{{ alternate.url }}" hreflang="{{ alternate.hreflang }}">{{ alternate.languageName }}</a>
+        {% endif %}
+      {% endfor %}
+    </span>
+  </nav>
+  {% endif %}
+  {% if item.isTranslation %}
+  <aside class="prose translation-notice" data-bocchi-translation-notice>
+    <span>
+      <span data-bocchi-i18n="content.translationNotice">{{ text.translationNotice }}</span>
+      {% if item.sourceLanguageName %}<span class="translation-notice__source">{{ item.sourceLanguageName }}</span>{% endif %}
+    </span>
+    {% if item.hasSourceAlternate %}
+    <a class="arrow-link" href="{{ item.sourceAlternate.url }}" data-bocchi-i18n="content.viewOriginal">{{ text.viewOriginal }}</a>
+    {% endif %}
+  </aside>
+  {% endif %}
   <section class="prose prose-body">{{ item.html | html }}</section>
 </article>
