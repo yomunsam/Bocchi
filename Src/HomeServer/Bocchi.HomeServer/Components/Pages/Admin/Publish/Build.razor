@@ -1,0 +1,492 @@
+@page "/Admin/Publish"
+@page "/Admin/Publish/{Section}"
+@page "/Admin/Publish/{Section}/{PlanId:int}"
+@using System.Globalization
+@using Bocchi.Generator.Pipeline
+@using Bocchi.Generator.State
+@using Bocchi.HomeServer.Build
+@using Bocchi.HomeServer.Data
+@using Bocchi.HomeServer.Services.Git
+@using Bocchi.HomeServer.Services.Publishing
+@inject BuildOrchestrator Orchestrator
+@inject IBuildStateStore Store
+@inject DashboardLocalizationService I18n
+@inject PublishPlanService PublishPlans
+@inject PublishExecutionService PublishExecution
+@inject GitProviderConnectionService GitConnections
+@inject GitHubDeviceFlowService GitHubFlow
+
+<PageTitle>@CurrentPageTitle · Bocchi</PageTitle>
+
+<article class="bocchi-shell bocchi-publish-shell">
+    <header class="bocchi-page-intro">
+        <span class="bocchi-eyebrow">@CurrentEyebrow</span>
+        <h1>@CurrentHeading</h1>
+        <p>@CurrentDescription</p>
+    </header>
+
+    @if (IsPublishHomeSection)
+    {
+        @if (_recent is null || _publishRuns is null || _publishPlans is null)
+        {
+            <section class="bocchi-panel bocchi-publish-loading">
+                <p>@I18n["publish.loading"]</p>
+            </section>
+        }
+        else
+        {
+            @RenderPublishDashboard()
+        }
+    }
+    else
+    {
+        <div class="bocchi-publish-layout">
+            <BocchiPublishNav ActiveSection="@CurrentSection" />
+
+            <div class="bocchi-publish-stack">
+                @if (IsLocalOutputSection)
+                {
+                    <section class="bocchi-panel bocchi-publish-local-output" aria-labelledby="publish-local-output-heading">
+                        <span class="bocchi-publish-local-output__icon" aria-hidden="true">
+                            <Blazicon Svg="Lucide.FolderOpen" />
+                        </span>
+                        <div>
+                            <h2 id="publish-local-output-heading">@I18n["publish.localOutput.title"]</h2>
+                            <p>@I18n["publish.localOutput.emptyDescription"]</p>
+                        </div>
+                    </section>
+                }
+                else if (IsAddPlanSection)
+                {
+                    @RenderAddPlanWorkbench()
+                }
+            </div>
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>发布首页：主操作、发布方案和辅助状态分栏展示，避免把配置表单压到第一屏。</summary>
+    private RenderFragment RenderPublishDashboard() => @<div class="bocchi-publish-dashboard">
+        <div class="bocchi-publish-main">
+            @RenderOneClickCard()
+            @RenderPublishPlans()
+        </div>
+        <aside class="bocchi-publish-aside" aria-label='@I18n["publish.side.aria"]'>
+            @RenderSiteStatus()
+            @RenderRecentActivity()
+        </aside>
+    </div>;
+
+    /// <summary>渲染视觉中心的一键发布卡片；没有默认方案时退化为本地静态生成。</summary>
+    private RenderFragment RenderOneClickCard() => @<section class="bocchi-panel bocchi-publish-hero" aria-labelledby="publish-one-click-heading">
+        <span class="bocchi-publish-hero__icon" aria-hidden="true">
+            <Blazicon Svg="Lucide.Send" />
+        </span>
+        <div class="bocchi-publish-hero__content">
+            <div class="bocchi-publish-hero__heading">
+                <h2 id="publish-one-click-heading">@I18n["publish.oneClick.title"]</h2>
+                <BocchiStatusPill Tone="@OneClickTargetTone()">@OneClickTargetText()</BocchiStatusPill>
+            </div>
+            <p>@I18n["publish.oneClick.description"]</p>
+            <form class="bocchi-publish-run-form" @onsubmit="PublishOneClickAsync" @onsubmit:preventDefault>
+                <button type="submit" class="bocchi-publish-primary-action bocchi-publish-primary-action--hero" disabled="@_busy">
+                    <Blazicon Svg="Lucide.Send" />
+                    <span>@(_busy ? I18n["publish.action.publishing"] : I18n["publish.action.publishNow"])</span>
+                </button>
+                <div class="bocchi-publish-quick-actions">
+                    <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
+                        <Blazicon Svg="Lucide.Eye" />
+                        <span>@I18n["publish.action.preview"]</span>
+                    </a>
+                    <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">
+                        <Blazicon Svg="Lucide.Save" />
+                        <span>@I18n["publish.action.downloadZip"]</span>
+                    </a>
+                </div>
+            </form>
+            @if (!string.IsNullOrWhiteSpace(_oneClickMessage))
+            {
+                <p class="@OneClickMessageClass()">@_oneClickMessage</p>
+            }
+            @RenderLastPublishMeta()
+        </div>
+    </section>;
+
+    /// <summary>渲染发布方案区；无方案时只展示添加入口，不制造假渠道卡片。</summary>
+    private RenderFragment RenderPublishPlans() => @<section class="bocchi-publish-plans" aria-labelledby="publish-plans-heading">
+        <div class="bocchi-publish-section-heading">
+            <div>
+                <h2 id="publish-plans-heading">@I18n["publish.plans.title"]</h2>
+                <p>@I18n["publish.plans.description"]</p>
+            </div>
+            <a class="bocchi-button secondary" href="/Admin/Publish/AddPlan">
+                <Blazicon Svg="Lucide.Plus" />
+                <span>@I18n["publish.plans.add"]</span>
+            </a>
+        </div>
+        @if (_publishPlans is null)
+        {
+            <section class="bocchi-panel bocchi-publish-loading">
+                <p>@I18n["publish.history.loading"]</p>
+            </section>
+        }
+        else if (_publishPlans.Count == 0)
+        {
+            <div class="bocchi-panel bocchi-publish-plans-empty">
+                <span aria-hidden="true"><Blazicon Svg="Lucide.Plus" /></span>
+                <strong>@I18n["publish.plans.emptyTitle"]</strong>
+                <p>@I18n["publish.plans.emptyDescription"]</p>
+                <a class="bocchi-button bocchi-button--primary" href="/Admin/Publish/AddPlan">
+                    <Blazicon Svg="Lucide.Plus" />
+                    <span>@I18n["publish.plans.add"]</span>
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="bocchi-publish-plan-list">
+                @foreach (var plan in _publishPlans)
+                {
+                    var editUrl = PlanEditUrl(plan);
+                    <article class="bocchi-publish-plan-card">
+                        <span class="bocchi-publish-plan-card__icon" aria-hidden="true">
+                            @if (plan.Channel == PublishPlanService.GitHubPagesChannel)
+                            {
+                                <span class="bocchi-github-mark"></span>
+                            }
+                            else
+                            {
+                                <Blazicon Svg="@PlanChannelIcon(plan.Channel)" />
+                            }
+                        </span>
+                        <div class="bocchi-publish-plan-card__main">
+                            <strong>@plan.DisplayName</strong>
+                            <span>@ChannelDisplayName(plan.Channel)</span>
+                        </div>
+                        @if (plan.IsDefault)
+                        {
+                            <BocchiStatusPill Tone="success">@I18n["publish.plans.default"]</BocchiStatusPill>
+                        }
+                        @if (editUrl is not null)
+                        {
+                            <a class="bocchi-publish-icon-link" href="@editUrl" title='@I18n["publish.plans.edit"]'>
+                                <Blazicon Svg="Lucide.Pencil" />
+                                <span class="bocchi-visually-hidden">@I18n["publish.plans.edit"]</span>
+                            </a>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>;
+
+    /// <summary>渲染添加发布方案向导；方案名、渠道和 GitHub 目标分层呈现。</summary>
+    private RenderFragment RenderAddPlanWorkbench() => @<section class="bocchi-panel bocchi-publish-config" aria-labelledby="publish-add-plan-heading">
+        <div class="bocchi-publish-output-heading">
+            <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
+                <Blazicon Svg="Lucide.GitBranch" />
+            </span>
+            <div>
+                <h2 id="publish-add-plan-heading">@I18n["publish.addPlan.formTitle"]</h2>
+                <p>@I18n["publish.addPlan.formDescription"]</p>
+            </div>
+        </div>
+
+        <form class="bocchi-form-grid bocchi-publish-github-form" @onsubmit="SaveGitHubPlanAsync" @onsubmit:preventDefault>
+            <div class="bocchi-publish-github-fields">
+                <label>@I18n["publish.plan.name"]
+                    <input type="text" @bind="_planDisplayName" autocomplete="off" />
+                </label>
+                <label>@I18n["publish.plan.channel"]
+                    <select @bind="_publishChannel">
+                        <option value="@PublishPlanService.GitHubPagesChannel">@I18n["publish.channel.githubPages"]</option>
+                    </select>
+                </label>
+            </div>
+
+            @if (!HasSelectedGitHubConnection)
+            {
+                <div class="bocchi-publish-wizard-section">
+                    <div class="bocchi-publish-wizard-section__heading">
+                        <span class="bocchi-github-mark" aria-hidden="true"></span>
+                        <div>
+                            <strong>@I18n["publish.github.connectTitle"]</strong>
+                            <span>@I18n["publish.github.connectDescription"]</span>
+                        </div>
+                    </div>
+                    @if (!_githubAuthorizationConfigured)
+                    {
+                        <div id="github-auth-unavailable" class="bocchi-publish-provider-notice" role="status">
+                            <Blazicon Svg="Lucide.ShieldAlert" />
+                            <div>
+                                <strong>@I18n["publish.github.authUnavailableTitle"]</strong>
+                                <p>@I18n["publish.github.authUnavailableDescription"]</p>
+                                <p>@I18n["publish.github.authUnavailableAction"]</p>
+                                <a class="bocchi-publish-provider-notice__link" href="/Admin/Settings/Integrations/GitHub">
+                                    <Blazicon Svg="Lucide.ExternalLink" />
+                                    <span>@I18n["publish.github.openSetupHelp"]</span>
+                                </a>
+                            </div>
+                        </div>
+                    }
+                    <div class="bocchi-publish-quick-actions">
+                        <button type="button"
+                                class="bocchi-button secondary"
+                                @onclick="StartGitHubDeviceFlowAsync"
+                                disabled="@(!_githubAuthorizationConfigured)"
+                                aria-describedby="@GitHubAuthUnavailableNoticeId">
+                            <span class="bocchi-github-mark" aria-hidden="true"></span>
+                            <span>@I18n["publish.github.connect"]</span>
+                        </button>
+                        @if (!string.IsNullOrWhiteSpace(_githubUserCode) && !string.IsNullOrWhiteSpace(_githubVerificationUri))
+                        {
+                            <a class="bocchi-button secondary" href="@_githubVerificationUri" target="_blank" rel="noopener">
+                                <Blazicon Svg="Lucide.ExternalLink" />
+                                <span>@I18n["publish.github.openAuthorization"]</span>
+                            </a>
+                            <button type="button" class="bocchi-button secondary" @onclick="CompleteGitHubDeviceFlowAsync">
+                                <Blazicon Svg="Lucide.Check" />
+                                <span>@I18n["publish.github.completeAuthorization"]</span>
+                            </button>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_githubUserCode))
+                    {
+                        <p class="bocchi-publish-remote-message">@string.Format(CultureInfo.CurrentCulture, I18n["publish.github.userCodeFormat"], _githubUserCode)</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="bocchi-publish-wizard-section">
+                    <div class="bocchi-publish-wizard-section__heading">
+                        <Blazicon Svg="Lucide.FolderGit2" />
+                        <div>
+                            <strong>@I18n["publish.github.repositoryTitle"]</strong>
+                            <span>@I18n["publish.github.repositoryDescription"]</span>
+                        </div>
+                    </div>
+                    <div class="bocchi-publish-connected-account">
+                        <Blazicon Svg="Lucide.Check" />
+                        <div>
+                            <strong>@I18n["publish.github.connectedTitle"]</strong>
+                            <label>@I18n["publish.github.connection"]
+                                <select value="@_selectedGitConnectionId" @onchange="OnGitHubConnectionChanged">
+                                    @foreach (var connection in GitHubConnections)
+                                    {
+                                        <option value="@connection.Id">@connection.AccountLogin</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                    <label>@I18n["publish.github.destinationMode"]
+                        <select value="@_githubDestinationMode" @onchange="OnGitHubDestinationModeChanged">
+                            <option value="create">@I18n["publish.github.destinationCreate"]</option>
+                            <option value="existing">@I18n["publish.github.destinationExisting"]</option>
+                        </select>
+                    </label>
+                    @if (string.Equals(_githubDestinationMode, "create", StringComparison.Ordinal))
+                    {
+                        <div class="bocchi-publish-github-fields">
+                            <label>@I18n["publish.github.newRepository"]
+                                <input type="text" @bind="_githubNewRepository" autocomplete="off" />
+                            </label>
+                            <label>@I18n["publish.github.branch"]
+                                <input type="text" @bind="_githubBranch" autocomplete="off" />
+                            </label>
+                        </div>
+                        <label class="bocchi-checkbox bocchi-publish-github-check">
+                            <input type="checkbox" @bind="_githubCreatePrivateRepository" />
+                            @I18n["publish.github.privateRepository"]
+                        </label>
+                        <button type="button" class="bocchi-button secondary" @onclick="CreateGitHubRepositoryAsync" disabled="@(!HasSelectedGitHubConnection)">
+                            <Blazicon Svg="Lucide.Plus" />
+                            <span>@I18n["publish.github.createRepository"]</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="bocchi-publish-github-fields bocchi-publish-github-fields--existing">
+                            <div class="bocchi-publish-form-field bocchi-publish-form-field--wide">
+                                <label for="github-repository-picker">@I18n["publish.github.repositoryPicker"]</label>
+                                <div class="bocchi-publish-repo-picker">
+                                    <div class="bocchi-publish-repo-picker__control">
+                                        <Blazicon Svg="Lucide.Search" />
+                                        <input id="github-repository-picker"
+                                               type="search"
+                                               value="@_githubRepositorySearch"
+                                               @oninput="OnGitHubRepositorySearchInput"
+                                               @onfocus="OpenGitHubRepositoryPickerAsync"
+                                               role="combobox"
+                                               aria-autocomplete="list"
+                                               aria-expanded="@_githubRepositoryPickerOpen"
+                                               aria-controls="github-repository-options"
+                                               placeholder='@I18n["publish.github.repositorySearchPlaceholder"]'
+                                               autocomplete="off" />
+                                        <button type="button"
+                                                class="secondary"
+                                                title='@I18n["publish.github.refreshRepositories"]'
+                                                aria-label='@I18n["publish.github.refreshRepositories"]'
+                                                @onclick="RefreshGitHubRepositoriesAsync">
+                                            <Blazicon Svg="Lucide.RefreshCw" />
+                                        </button>
+                                    </div>
+                                    @if (_githubRepositoryPickerOpen)
+                                    {
+                                        <div id="github-repository-options" class="bocchi-publish-repo-picker__menu" role="listbox">
+                                            @if (_githubRepositoriesLoading)
+                                            {
+                                                <p>@I18n["publish.github.repositoryPickerLoading"]</p>
+                                            }
+                                            else
+                                            {
+                                                var filteredRepositories = FilteredGitHubRepositories();
+                                                if (filteredRepositories.Count == 0)
+                                                {
+                                                    <p>@I18n["publish.github.repositoryPickerEmpty"]</p>
+                                                }
+                                                else
+                                                {
+                                                    @foreach (var repository in filteredRepositories)
+                                                    {
+                                                        <button type="button"
+                                                                class="bocchi-publish-repo-option"
+                                                                role="option"
+                                                                aria-selected="@string.Equals(repository.FullName, GitHubRepositoryFullName(), StringComparison.OrdinalIgnoreCase)"
+                                                                @onclick="() => SelectGitHubRepository(repository)">
+                                                            <span>@repository.FullName</span>
+                                                            <small>@(repository.Private ? I18n["publish.github.repositoryPrivacyPrivate"] : I18n["publish.github.repositoryPrivacyPublic"])</small>
+                                                        </button>
+                                                    }
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <label>@I18n["publish.github.branch"]
+                                <input type="text" @bind="_githubBranch" autocomplete="off" />
+                            </label>
+                        </div>
+                        <button type="button" class="bocchi-button secondary" @onclick="CheckGitHubBranchAsync" disabled="@(!HasSelectedGitHubConnection)">
+                            <Blazicon Svg="Lucide.ShieldCheck" />
+                            <span>@I18n["publish.github.checkBranch"]</span>
+                        </button>
+                        @if (_githubBranchCheck?.State == GitHubPublishBranchState.Occupied)
+                        {
+                            <label class="bocchi-checkbox bocchi-publish-github-check">
+                                <input type="checkbox" @bind="_githubAllowBranchTakeover" />
+                                @I18n["publish.github.allowTakeover"]
+                            </label>
+                        }
+                    }
+                </div>
+
+                <label class="bocchi-checkbox bocchi-publish-github-check">
+                    <input type="checkbox" @bind="_githubEnsurePagesSource" />
+                    @I18n["publish.github.ensurePagesSource"]
+                </label>
+            }
+            <div class="bocchi-publish-github-fields">
+                <div class="bocchi-publish-quick-actions">
+                    @if (HasSelectedGitHubConnection)
+                    {
+                        <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
+                            <Blazicon Svg="Lucide.Save" />
+                            <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
+                        </button>
+                    }
+                    <a class="bocchi-button secondary" href="/Admin/Publish">
+                        <Blazicon Svg="Lucide.ArrowLeft" />
+                        <span>@I18n["publish.addPlan.back"]</span>
+                    </a>
+                </div>
+            </div>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(_githubMessage))
+        {
+            <p class="@GitHubMessageClass()">@_githubMessage</p>
+        }
+    </section>;
+
+    /// <summary>渲染最近一次生成的轻量状态条，让用户知道主按钮上次是否成功。</summary>
+    private RenderFragment RenderLastPublishMeta() => @<div class="bocchi-publish-run-meta">
+        <span>@LatestPublishSummary()</span>
+        <span>@LatestPublishArtifactSummary()</span>
+    </div>;
+
+    /// <summary>渲染右侧站点状态摘要，所有数值都来自真实构建/发布状态。</summary>
+    private RenderFragment RenderSiteStatus() => @<section class="bocchi-panel bocchi-publish-side-card" aria-labelledby="publish-site-status-heading">
+        <div class="bocchi-publish-side-heading">
+            <Blazicon Svg="Lucide.Check" />
+            <h2 id="publish-site-status-heading">@I18n["publish.statusCard.title"]</h2>
+        </div>
+        <dl class="bocchi-publish-status-list">
+            @RenderStatusRow(I18n["publish.statusCard.lastBuild"], LatestBuildTimeText())
+            @RenderStatusRow(I18n["publish.statusCard.lastPublish"], LatestRemotePublishText())
+            @RenderStatusRow(I18n["publish.statusCard.defaultPlan"], DefaultPlanStatusText())
+            @RenderStatusRow(I18n["publish.statusCard.planCount"], PublishPlanCountText())
+        </dl>
+    </section>;
+
+    /// <summary>渲染最近活动，只展示构建和远端发布两个用户能区分的事件。</summary>
+    private RenderFragment RenderRecentActivity() => @<section class="bocchi-panel bocchi-publish-side-card" aria-labelledby="publish-activity-heading">
+        <div class="bocchi-publish-side-heading">
+            <Blazicon Svg="Lucide.FolderOpen" />
+            <h2 id="publish-activity-heading">@I18n["publish.activity.title"]</h2>
+        </div>
+        @if (_publishRuns is null || _recent is null)
+        {
+            <p class="bocchi-publish-side-copy">@I18n["publish.history.loading"]</p>
+        }
+        else if (_publishRuns.Count == 0 && _recent.Count == 0)
+        {
+            <div class="bocchi-publish-activity-empty">
+                <Blazicon Svg="Lucide.FolderOpen" />
+                <p>@I18n["publish.activity.emptyDescription"]</p>
+            </div>
+        }
+        else
+        {
+            <div class="bocchi-publish-activity-list">
+                @if (_publishRuns.FirstOrDefault() is { } publishRun)
+                {
+                    @RenderActivityRow(
+                        Lucide.Send,
+                        I18n["publish.activity.remotePublish"],
+                        PublishStatusTone(publishRun.Status),
+                        PublishStatusText(publishRun.Status),
+                        publishRun.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture))
+                }
+                @if (_recent.FirstOrDefault() is { } buildRun)
+                {
+                    @RenderActivityRow(
+                        Lucide.FolderOpen,
+                        I18n["publish.activity.localBuild"],
+                        BuildStatusTone(buildRun.Status),
+                        BuildStatusText(buildRun.Status),
+                        buildRun.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture))
+                }
+            </div>
+        }
+    </section>;
+
+    /// <summary>渲染站点状态单行。</summary>
+    private RenderFragment RenderStatusRow(string label, string value) => @<div>
+        <dt>@label</dt>
+        <dd>@value</dd>
+    </div>;
+
+    /// <summary>渲染活动列表单行。</summary>
+    private RenderFragment RenderActivityRow(SvgIcon icon, string title, string tone, string status, string time) => @<div class="bocchi-publish-activity-row">
+        <span aria-hidden="true"><Blazicon Svg="@icon" /></span>
+        <div>
+            <strong>@title</strong>
+            <small>@time</small>
+        </div>
+        <BocchiStatusPill Tone="@tone">@status</BocchiStatusPill>
+    </div>;
+}

@@ -1,7 +1,7 @@
 using Bocchi.ContentModel;
 using Bocchi.HomeServer.Services;
 
-namespace Bocchi.HomeServer.Components.Pages.Admin;
+namespace Bocchi.HomeServer.Components.Pages.Admin.Content;
 
 /// <summary>ContentEditor 的载入、保存和编辑缓冲区同步逻辑。</summary>
 public partial class ContentEditor

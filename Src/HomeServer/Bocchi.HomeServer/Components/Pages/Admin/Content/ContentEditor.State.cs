@@ -8,7 +8,7 @@ using Bocchi.Workspace.State;
 
 using Microsoft.AspNetCore.Components;
 
-namespace Bocchi.HomeServer.Components.Pages.Admin;
+namespace Bocchi.HomeServer.Components.Pages.Admin.Content;
 
 /// <summary>ContentEditor 的页面状态和 Dashboard 文案派生属性。</summary>
 public partial class ContentEditor

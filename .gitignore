@@ -197,6 +197,8 @@ DocProject/Help/html
 
 # Click-Once directory
 publish/
+!Src/HomeServer/Bocchi.HomeServer/Components/Pages/Admin/Publish/
+!Src/HomeServer/Bocchi.HomeServer/Components/Pages/Admin/Publish/**
 
 # Publish Web Output
 *.[Pp]ublish.xml
