@@ -66,6 +66,10 @@ try
             options.Password.RequireUppercase = false;
             options.Password.RequireNonAlphanumeric = false;
             options.User.RequireUniqueEmail = false;
+            // 个人 Home Server 不强制复杂密码，但登录失败必须进入 Identity lockout 计数，避免无限试探。
+            options.Lockout.AllowedForNewUsers = true;
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
         })
         .AddEntityFrameworkStores<BocchiDbContext>()
         .AddDefaultTokenProviders();
@@ -83,9 +87,11 @@ try
     });
     builder.Services.AddCascadingAuthenticationState();
     builder.Services.AddHttpContextAccessor();
+    builder.Services.AddMemoryCache();
     builder.Services.AddSingleton<ExternalLoginOptionsConfigurator>();
     builder.Services.AddSingleton<IConfigureOptions<OAuthOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
     builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
+    builder.Services.AddSingleton<SetupPendingAdminStore>();
     builder.Services.AddScoped<HomeServerSetupService>();
     builder.Services.AddScoped<DashboardGuideService>();
     builder.Services.AddScoped<DashboardSettingsService>();

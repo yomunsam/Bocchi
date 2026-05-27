@@ -122,6 +122,7 @@ public sealed class HomeServerSetupService
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? normalizedUserName : displayName.Trim(),
             CreatedAt = now,
             LastLoginAt = now,
+            LockoutEnabled = true,
         };
 
         var create = await _users.CreateAsync(user, password).ConfigureAwait(false);

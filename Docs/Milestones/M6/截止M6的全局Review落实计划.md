@@ -126,3 +126,26 @@ M6 已完成的结论不需要回退。本计划不重新打开 M6 localization 
 - 不改无关 UI 文案；新增用户可见文案必须进 Dashboard i18n。
 - 大文件拆分优先 partial / helper，保持路由、CSS class、i18n key 和可见行为不变。
 - 默认验证命令使用串行、禁用 build server 的 `dotnet test`，并跑 `git diff --check`；涉及 JSON 时跑 `jq empty`。
+
+## 6. R1 安全边界落实记录（2026-05-27）
+
+威胁模型：
+
+- 攻击者能力：能诱导 Admin 浏览恶意站点，向本机 Home Server 发起跨站表单 POST；也可能知道 Admin 用户名并反复尝试密码；还可能控制一个与 Admin email 相同的外部身份账号。
+- 保护目标：Setup 首个 Admin 密码、本地登录入口、外部登录绑定关系，以及账户相关端点的同源操作边界。
+- 部署前提：Bocchi Home Server 仍以本机/内网个人工具为默认，不假设公网多租户；但进入 M7 发布能力前，认证和 Setup 的默认边界不能依赖“用户不会点恶意页面”。
+
+本轮最小修复：
+
+- 对 `AccountEndpoints` 中仍禁用 antiforgery token 的 POST 增加同源守卫：若浏览器发送 `Sec-Fetch-Site: cross-site`，或 `Origin` / `Referer` 与当前 Host 不同源，直接返回 `400 Bad Request`。
+- 暂不把这些 SSR 表单整体切到 antiforgery token：当前 Setup gate、匿名登录页和测试客户端仍依赖无 token 的普通 form post；强行迁移会把本轮从安全边界修复扩大成表单渲染和测试基础设施改造。保留的风险是缺少浏览器来源头的客户端仍可提交；接受理由是现代浏览器跨站表单会带来源元数据，且相关 Cookie 使用 `SameSite=Lax`。
+- 登录改为 `lockoutOnFailure: true`，并显式配置 5 次失败、5 分钟 lockout；旧用户登录时若未启用 lockout，会先开启。
+- 外部登录回调不再按 email 自动绑定已有用户。只有已经存在的 Identity external login 绑定可以登录；显式绑定 UI 仍是后续小设计，不在本轮补。
+- Setup 两步之间不再把 pending Admin JSON 放入 Cookie。服务端使用短期 `IMemoryCache` 保存 `PendingSetupAdmin`，Cookie 只携带 Data Protection 限时保护的随机句柄。服务重启或 20 分钟过期后，用户需要回到 Setup 第一步重填。
+
+验证覆盖：
+
+- `AccountPost_RejectsCrossSiteOrigin` 覆盖 Setup / Login / External Login / UI language POST 的跨站来源拒绝。
+- `LoginPost_LocksOutAfterRepeatedFailures` 覆盖失败登录进入 Identity lockout。
+- `ExternalLoginCallback_DoesNotAutoBindByMatchingEmail` 覆盖同 email 外部账号不会自动绑定或登录。
+- `SetupPendingAdminCookie_StoresOnlyServerSideHandle` 覆盖 Cookie payload 不再包含 pending Admin 密码 JSON。

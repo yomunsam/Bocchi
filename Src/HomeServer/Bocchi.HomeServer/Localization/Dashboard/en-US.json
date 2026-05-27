@@ -55,6 +55,7 @@
   "login.error.externalMissing": "The external login result could not be read.",
   "login.error.externalEmailMissing": "The external account did not return a bindable email.",
   "login.error.externalUserMissing": "The external account was verified, but an Admin must create or enable the matching user first.",
+  "login.error.externalLoginNotLinked": "This external account is not linked yet. Use local sign-in; Bocchi does not auto-link external accounts by email.",
   "login.error.externalBindFailed": "External account binding failed. Check the account on the Users page.",
   "denied.page.title": "No access",
   "denied.page.heading": "Dashboard access required",

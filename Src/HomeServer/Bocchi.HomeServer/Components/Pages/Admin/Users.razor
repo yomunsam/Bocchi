@@ -127,6 +127,7 @@
             EmailConfirmed = email is not null,
             DisplayName = string.IsNullOrWhiteSpace(_newDisplayName) ? userName : _newDisplayName.Trim(),
             CreatedAt = DateTimeOffset.UtcNow,
+            LockoutEnabled = true,
         };
 
         var result = await UsersService.CreateAsync(user, _newPassword);

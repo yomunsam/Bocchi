@@ -1,11 +1,7 @@
-using System.Security.Claims;
-
 using Bocchi.HomeServer.Components.Pages.Auth;
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
 
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
@@ -39,9 +35,14 @@ public static class AccountEndpoints
     private static async Task<IResult> SubmitSetupAdminAsync(
         HttpContext context,
         HomeServerSetupService setup,
-        IDataProtectionProvider protection,
+        SetupPendingAdminStore pendingAdmins,
         DashboardLocalizationService localization)
     {
+        if (RejectCrossSiteFormPost(context) is { } rejected)
+        {
+            return rejected;
+        }
+
         if (await setup.IsSetupCompleteAsync(context.RequestAborted).ConfigureAwait(false))
         {
             return Results.Redirect(context.User.Identity?.IsAuthenticated == true ? "/Admin" : "/Account/Login");
@@ -56,7 +57,7 @@ public static class AccountEndpoints
             return RenderSetupAdminComponent(errors, values);
         }
 
-        SetupPendingAdminCookie.Write(context, protection, values.ToPendingAdmin());
+        pendingAdmins.Write(context, values.ToPendingAdmin());
         return Results.Redirect("/Setup/Site");
     }
 
@@ -65,17 +66,22 @@ public static class AccountEndpoints
         HomeServerSetupService setup,
         SignInManager<BocchiUser> signInManager,
         UserManager<BocchiUser> users,
-        IDataProtectionProvider protection,
+        SetupPendingAdminStore pendingAdmins,
         DashboardLocalizationService localization)
     {
+        if (RejectCrossSiteFormPost(context) is { } rejected)
+        {
+            return rejected;
+        }
+
         if (await setup.IsSetupCompleteAsync(context.RequestAborted).ConfigureAwait(false))
         {
             return Results.Redirect(context.User.Identity?.IsAuthenticated == true ? "/Admin" : "/Account/Login");
         }
 
-        if (!SetupPendingAdminCookie.TryRead(context, protection, out var pendingAdmin))
+        if (!pendingAdmins.TryRead(context, out var pendingAdmin))
         {
-            SetupPendingAdminCookie.Clear(context);
+            pendingAdmins.Clear(context);
             return Results.Redirect("/Setup?message=" + Uri.EscapeDataString(localization["setup.error.payloadExpired"]));
         }
 
@@ -97,11 +103,11 @@ public static class AccountEndpoints
             context.RequestAborted).ConfigureAwait(false);
         if (!result.Succeeded)
         {
-            SetupPendingAdminCookie.Clear(context);
+            pendingAdmins.Clear(context);
             return RenderSetupAdminComponent(result.Errors.Select(x => x.Description), SetupAdminFormValues.FromPendingAdmin(pendingAdmin));
         }
 
-        SetupPendingAdminCookie.Clear(context);
+        pendingAdmins.Clear(context);
         var user = await users.FindByNameAsync(pendingAdmin.UserName).ConfigureAwait(false);
         if (user is not null)
         {
@@ -118,6 +124,11 @@ public static class AccountEndpoints
         DashboardLocalizationService localization,
         [FromQuery(Name = "returnUrl")] string? returnUrl)
     {
+        if (RejectCrossSiteFormPost(context) is { } rejected)
+        {
+            return rejected;
+        }
+
         var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
         var userName = form["username"].ToString().Trim();
         var password = form["password"].ToString();
@@ -133,7 +144,12 @@ public static class AccountEndpoints
             return RedirectToLogin(returnUrl, localization["login.error.disabled"]);
         }
 
-        var result = await signInManager.PasswordSignInAsync(user, password, remember, lockoutOnFailure: false).ConfigureAwait(false);
+        if (!user.LockoutEnabled)
+        {
+            await users.SetLockoutEnabledAsync(user, true).ConfigureAwait(false);
+        }
+
+        var result = await signInManager.PasswordSignInAsync(user, password, remember, lockoutOnFailure: true).ConfigureAwait(false);
         if (!result.Succeeded)
         {
             return RedirectToLogin(returnUrl, localization["login.error.invalid"]);
@@ -151,12 +167,18 @@ public static class AccountEndpoints
     }
 
     private static async Task<IResult> BeginExternalLoginAsync(
+        HttpContext context,
         [FromForm] string provider,
         [FromForm] string? returnUrl,
         ExternalLoginSettingsService settings,
         SignInManager<BocchiUser> signInManager,
         DashboardLocalizationService localization)
     {
+        if (RejectCrossSiteFormPost(context) is { } rejected)
+        {
+            return rejected;
+        }
+
         var ready = await settings.ListReadyForLoginAsync().ConfigureAwait(false);
         if (!ready.Any(x => string.Equals(x.ProviderKey, provider, StringComparison.OrdinalIgnoreCase)))
         {
@@ -171,7 +193,6 @@ public static class AccountEndpoints
     private static async Task<IResult> CompleteExternalLoginAsync(
         [FromQuery(Name = "returnUrl")] string? returnUrl,
         SignInManager<BocchiUser> signInManager,
-        UserManager<BocchiUser> users,
         DashboardLocalizationService localization)
     {
         var info = await signInManager.GetExternalLoginInfoAsync().ConfigureAwait(false);
@@ -190,28 +211,7 @@ public static class AccountEndpoints
             return Results.Redirect(IsLocalUrl(returnUrl) ? returnUrl! : "/Admin");
         }
 
-        var email = info.Principal.FindFirstValue(ClaimTypes.Email);
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return RedirectToLogin(returnUrl, localization["login.error.externalEmailMissing"]);
-        }
-
-        var user = await users.FindByEmailAsync(email).ConfigureAwait(false);
-        if (user is null || user.IsDisabled)
-        {
-            return RedirectToLogin(returnUrl, localization["login.error.externalUserMissing"]);
-        }
-
-        var bind = await users.AddLoginAsync(user, info).ConfigureAwait(false);
-        if (!bind.Succeeded && !bind.Errors.Any(x => x.Code.Contains("LoginAlreadyAssociated", StringComparison.OrdinalIgnoreCase)))
-        {
-            return RedirectToLogin(returnUrl, localization["login.error.externalBindFailed"]);
-        }
-
-        user.LastLoginAt = DateTimeOffset.UtcNow;
-        await users.UpdateAsync(user).ConfigureAwait(false);
-        await signInManager.SignInAsync(user, isPersistent: true, info.LoginProvider).ConfigureAwait(false);
-        return Results.Redirect(IsLocalUrl(returnUrl) ? returnUrl! : "/Admin");
+        return RedirectToLogin(returnUrl, localization["login.error.externalLoginNotLinked"]);
     }
 
     private static IResult SetPublicUiLanguage(
@@ -220,6 +220,11 @@ public static class AccountEndpoints
         [FromForm] string? returnUrl,
         DashboardLocalizationService localization)
     {
+        if (RejectCrossSiteFormPost(context) is { } rejected)
+        {
+            return rejected;
+        }
+
         var language = localization.ResolveLanguage(uiLanguage);
         context.Response.Cookies.Append(
             CookieRequestCultureProvider.DefaultCookieName,
@@ -334,4 +339,47 @@ public static class AccountEndpoints
         => !string.IsNullOrWhiteSpace(returnUrl)
             && returnUrl.StartsWith('/')
             && !returnUrl.StartsWith("//", StringComparison.Ordinal);
+
+    /// <summary>对仍禁用 antiforgery token 的账户表单做同源守卫；缺少浏览器元数据时保留本地测试和 CLI 客户端兼容性。</summary>
+    private static IResult? RejectCrossSiteFormPost(HttpContext context)
+    {
+        var fetchSite = context.Request.Headers["Sec-Fetch-Site"].ToString();
+        if (string.Equals(fetchSite, "cross-site", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.BadRequest();
+        }
+
+        var origin = context.Request.Headers.Origin.ToString();
+        if (!string.IsNullOrWhiteSpace(origin) && !IsSameOrigin(context, origin))
+        {
+            return Results.BadRequest();
+        }
+
+        var referer = context.Request.Headers.Referer.ToString();
+        if (!string.IsNullOrWhiteSpace(referer) && !IsSameOrigin(context, referer))
+        {
+            return Results.BadRequest();
+        }
+
+        return null;
+    }
+
+    /// <summary>比较请求来源是否与当前 Host 同源；用于补足没有 antiforgery token 的 SSR 表单边界。</summary>
+    private static bool IsSameOrigin(HttpContext context, string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        var request = context.Request;
+        var requestPort = request.Host.Port ?? DefaultPort(request.Scheme);
+        var sourcePort = uri.IsDefaultPort ? DefaultPort(uri.Scheme) : uri.Port;
+        return string.Equals(uri.Scheme, request.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(uri.Host, request.Host.Host, StringComparison.OrdinalIgnoreCase)
+            && sourcePort == requestPort;
+    }
+
+    private static int DefaultPort(string scheme)
+        => string.Equals(scheme, "https", StringComparison.OrdinalIgnoreCase) ? 443 : 80;
 }

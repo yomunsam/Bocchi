@@ -108,6 +108,7 @@ public sealed class IsolatedDataRootWebApplicationFactory
             EmailConfirmed = !string.IsNullOrWhiteSpace(email),
             DisplayName = userName,
             CreatedAt = DateTimeOffset.UtcNow,
+            LockoutEnabled = true,
         };
         var create = await users.CreateAsync(user, password);
         create.Succeeded.Should().BeTrue(string.Join("; ", create.Errors.Select(x => x.Description)));

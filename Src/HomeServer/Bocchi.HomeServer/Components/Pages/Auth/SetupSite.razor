@@ -5,8 +5,8 @@
 @inject DashboardLocalizationService I18n
 @inject HomeServerSetupService SetupService
 @inject IHttpContextAccessor HttpContextAccessor
-@inject IDataProtectionProvider Protection
 @inject NavigationManager Navigation
+@inject SetupPendingAdminStore PendingAdmins
 @inject SiteProfileSettingsService SiteProfile
 @inject ThemeSettingsService ThemeSettings
 
@@ -149,7 +149,7 @@
         }
 
         var context = HttpContextAccessor.HttpContext;
-        if (context is null || !SetupPendingAdminCookie.TryRead(context, Protection, out _))
+        if (context is null || !PendingAdmins.TryRead(context, out _))
         {
             var message = Uri.EscapeDataString(I18n["setup.error.payloadExpired"]);
             Navigation.NavigateTo($"/Setup?message={message}", replace: true);

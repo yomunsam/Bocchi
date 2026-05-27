@@ -55,6 +55,7 @@
   "login.error.externalMissing": "无法读取第三方登录结果。",
   "login.error.externalEmailMissing": "第三方账号没有返回可绑定的 email。",
   "login.error.externalUserMissing": "第三方账号已验证，但需要先由 Admin 创建或启用对应用户。",
+  "login.error.externalLoginNotLinked": "第三方账号尚未绑定。请使用本地账号登录；Bocchi 不会仅凭 email 自动绑定第三方账号。",
   "login.error.externalBindFailed": "第三方账号绑定失败，请在 Users 页面检查该账号。",
   "denied.page.title": "无权访问",
   "denied.page.heading": "需要 Dashboard 权限",

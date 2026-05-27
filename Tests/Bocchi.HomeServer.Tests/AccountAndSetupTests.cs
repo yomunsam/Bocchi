@@ -1,14 +1,21 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 
 using Bocchi.GeneratorContract;
 using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Security;
 using Bocchi.HomeServer.Services;
 using Bocchi.Workspace;
 
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 
 namespace Bocchi.HomeServer.Tests;
 
@@ -104,6 +111,133 @@ public sealed class AccountAndSetupTests
         siteBody.Should().NotContain("workspace/site/site.yaml");
         siteBody.Should().NotContain("http://127.0.0.1");
         siteBody.Should().NotContain("name=\"password\"");
+    }
+
+    [Fact]
+    public async Task SetupPendingAdminCookie_StoresOnlyServerSideHandle()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var siteStep = await client.PostAsync("/Setup/Admin", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["displayName"] = "Bocchi Admin",
+            ["email"] = string.Empty,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+            ["confirmPassword"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+
+        siteStep.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var cookie = SetCookieHeaderValue.ParseList(siteStep.Headers.GetValues(HeaderNames.SetCookie).ToList())
+            .Single(x => string.Equals(x.Name.Value, SetupPendingAdminStore.Name, StringComparison.Ordinal));
+        var protection = factory.Services.GetRequiredService<IDataProtectionProvider>();
+        var payload = protection
+            .CreateProtector(SetupPendingAdminStore.ProtectorPurpose)
+            .ToTimeLimitedDataProtector()
+            .Unprotect(cookie.Value.ToString());
+
+        payload.Should().StartWith("Bocchi.HomeServer.Setup.PendingAdminStore:", "Cookie 只应携带服务端 pending admin 状态句柄");
+        payload.Should().NotContain(IsolatedDataRootWebApplicationFactory.AdminPassword);
+        payload.Contains("password", StringComparison.OrdinalIgnoreCase)
+            .Should().BeFalse("pending admin 密码不应出现在 Cookie payload 中");
+    }
+
+    [Fact]
+    public async Task AccountPost_RejectsCrossSiteOrigin()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var setupClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var setup = await setupClient.SendAsync(CreateCrossSiteFormPost("/Setup/Admin", new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+            ["confirmPassword"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+        setup.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.SendAsync(CreateCrossSiteFormPost("/Account/Login/Submit", new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+        var external = await client.SendAsync(CreateCrossSiteFormPost("/Account/ExternalLogin", new Dictionary<string, string>
+        {
+            ["provider"] = "github",
+        }));
+        var language = await client.SendAsync(CreateCrossSiteFormPost("/Account/UiLanguage", new Dictionary<string, string>
+        {
+            ["uiLanguage"] = "en-US",
+        }));
+
+        login.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        external.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        language.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task LoginPost_LocksOutAfterRepeatedFailures()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        for (var i = 0; i < 5; i++)
+        {
+            var failed = await client.PostAsync("/Account/Login/Submit", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+                ["password"] = "wrong-password",
+            }));
+            failed.StatusCode.Should().Be(HttpStatusCode.Redirect);
+            failed.Headers.Location!.ToString().Should().StartWith("/Account/Login?message=");
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<BocchiUser>>();
+        var user = await users.FindByNameAsync(IsolatedDataRootWebApplicationFactory.AdminUserName);
+        user.Should().NotBeNull();
+        (await users.IsLockedOutAsync(user!)).Should().BeTrue();
+
+        var correct = await client.PostAsync("/Account/Login/Submit", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["username"] = IsolatedDataRootWebApplicationFactory.AdminUserName,
+            ["password"] = IsolatedDataRootWebApplicationFactory.AdminPassword,
+        }));
+        correct.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        correct.Headers.Location!.ToString().Should().StartWith("/Account/Login?message=");
+    }
+
+    [Fact]
+    public async Task ExternalLoginCallback_DoesNotAutoBindByMatchingEmail()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+        await factory.CreateLocalUserAsync("email-admin", "email-admin-password", isAdmin: true, email: "owner@example.test");
+
+        var externalCookie = CreateExternalLoginCookie(factory, "github", "remote-owner", "owner@example.test");
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add(HeaderNames.Cookie, $"{externalCookie.Name}={externalCookie.Value}");
+
+        var callback = await client.GetAsync("/Account/ExternalLoginCallback?returnUrl=%2FAdmin");
+
+        callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callback.Headers.Location!.ToString().Should().StartWith("/Account/Login?message=");
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<BocchiUser>>();
+        var user = await users.FindByNameAsync("email-admin");
+        user.Should().NotBeNull();
+        (await users.GetLoginsAsync(user!)).Should().BeEmpty();
     }
 
     [Fact]
@@ -426,6 +560,39 @@ public sealed class AccountAndSetupTests
         }
 
         response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>构造带跨站浏览器元数据的表单请求，覆盖没有 antiforgery token 的账户端点守卫。</summary>
+    private static HttpRequestMessage CreateCrossSiteFormPost(string path, Dictionary<string, string> form)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = new FormUrlEncodedContent(form),
+        };
+        request.Headers.TryAddWithoutValidation(HeaderNames.Origin, "https://evil.example");
+        request.Headers.TryAddWithoutValidation("Sec-Fetch-Site", "cross-site");
+        return request;
+    }
+
+    /// <summary>构造 Identity external sign-in Cookie，避免测试依赖真实 OAuth provider。</summary>
+    private static (string Name, string Value) CreateExternalLoginCookie(
+        IsolatedDataRootWebApplicationFactory factory,
+        string provider,
+        string providerKey,
+        string email)
+    {
+        using var scope = factory.Services.CreateScope();
+        var signInManager = scope.ServiceProvider.GetRequiredService<SignInManager<BocchiUser>>();
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, "/Account/ExternalLoginCallback");
+        var identity = new ClaimsIdentity(IdentityConstants.ExternalScheme);
+        identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, providerKey));
+        identity.AddClaim(new Claim(ClaimTypes.Email, email));
+        var principal = new ClaimsPrincipal(identity);
+        var options = scope.ServiceProvider
+            .GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>()
+            .Get(IdentityConstants.ExternalScheme);
+        var ticket = new AuthenticationTicket(principal, properties, IdentityConstants.ExternalScheme);
+        return (options.Cookie.Name!, options.TicketDataFormat.Protect(ticket));
     }
 
 }

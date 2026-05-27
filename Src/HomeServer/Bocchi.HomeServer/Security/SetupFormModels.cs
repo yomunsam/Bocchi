@@ -1,10 +1,9 @@
 using System.Security.Cryptography;
-using System.Text.Json;
-
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
 
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Bocchi.HomeServer.Security;
 
@@ -141,19 +140,44 @@ internal sealed record PendingSetupAdmin
     public string Password { get; init; } = string.Empty;
 }
 
-/// <summary>Setup 两步之间的短期 Cookie 存储，只保存被 Data Protection 保护后的 Admin 输入。</summary>
-internal static class SetupPendingAdminCookie
+/// <summary>Setup 两步之间的短期服务端状态；Cookie 只保存限时保护后的随机句柄，不携带密码 payload。</summary>
+internal sealed class SetupPendingAdminStore
 {
     /// <summary>Setup pending admin Cookie 名称。</summary>
     public const string Name = "Bocchi.Setup.PendingAdmin";
 
+    /// <summary>Setup pending admin Data Protection purpose；测试用它确认 Cookie payload 不再是 Admin JSON。</summary>
+    public const string ProtectorPurpose = "Bocchi.HomeServer.Setup.PendingAdmin";
+
     /// <summary>第一页 Admin 输入在第二页表单中携带的短期保护时长。</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(20);
 
-    /// <summary>写入短期 Cookie，供第二页提交时读取。</summary>
-    public static void Write(HttpContext context, IDataProtectionProvider protection, PendingSetupAdmin pendingAdmin)
+    private const string CacheKeyPrefix = "Bocchi.HomeServer.Setup.PendingAdminStore:";
+
+    private readonly IMemoryCache _cache;
+    private readonly ITimeLimitedDataProtector _protector;
+
+    /// <summary>构造 Setup pending admin 服务端短期状态。</summary>
+    public SetupPendingAdminStore(IMemoryCache cache, IDataProtectionProvider protection)
     {
-        var payload = CreateProtector(protection).Protect(JsonSerializer.Serialize(pendingAdmin), Lifetime);
+        _cache = cache;
+        _protector = protection
+            .CreateProtector(ProtectorPurpose)
+            .ToTimeLimitedDataProtector();
+    }
+
+    /// <summary>写入短期 Cookie，供第二页提交时读取。</summary>
+    public void Write(HttpContext context, PendingSetupAdmin pendingAdmin)
+    {
+        var cacheKey = CacheKeyPrefix + Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        _cache.Set(
+            cacheKey,
+            pendingAdmin,
+            new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = Lifetime,
+            });
+        var payload = _protector.Protect(cacheKey, Lifetime);
         context.Response.Cookies.Append(
             Name,
             payload,
@@ -168,9 +192,43 @@ internal static class SetupPendingAdminCookie
     }
 
     /// <summary>读取并解保护 pending Admin 输入；过期或被篡改时返回 false。</summary>
-    public static bool TryRead(HttpContext context, IDataProtectionProvider protection, out PendingSetupAdmin pendingAdmin)
+    public bool TryRead(HttpContext context, out PendingSetupAdmin pendingAdmin)
     {
         pendingAdmin = new PendingSetupAdmin();
+        if (!TryReadCacheKey(context, out var cacheKey))
+        {
+            return false;
+        }
+
+        if (!_cache.TryGetValue(cacheKey, out PendingSetupAdmin? cached) || cached is null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(cached.UserName) || string.IsNullOrWhiteSpace(cached.Password))
+        {
+            return false;
+        }
+
+        pendingAdmin = cached;
+        return true;
+    }
+
+    /// <summary>清理 Setup pending Admin Cookie。</summary>
+    public void Clear(HttpContext context)
+    {
+        if (TryReadCacheKey(context, out var cacheKey))
+        {
+            _cache.Remove(cacheKey);
+        }
+
+        context.Response.Cookies.Delete(Name);
+    }
+
+    /// <summary>从 Cookie 中还原服务端 cache key；失败时说明 Cookie 已过期或被篡改。</summary>
+    private bool TryReadCacheKey(HttpContext context, out string cacheKey)
+    {
+        cacheKey = string.Empty;
         if (!context.Request.Cookies.TryGetValue(Name, out var payload) || string.IsNullOrWhiteSpace(payload))
         {
             return false;
@@ -178,31 +236,12 @@ internal static class SetupPendingAdminCookie
 
         try
         {
-            var json = CreateProtector(protection).Unprotect(payload);
-            var parsed = JsonSerializer.Deserialize<PendingSetupAdmin>(json);
-            if (parsed is null || string.IsNullOrWhiteSpace(parsed.UserName) || string.IsNullOrWhiteSpace(parsed.Password))
-            {
-                return false;
-            }
-
-            pendingAdmin = parsed;
-            return true;
+            cacheKey = _protector.Unprotect(payload);
+            return cacheKey.StartsWith(CacheKeyPrefix, StringComparison.Ordinal);
         }
-        catch (Exception ex) when (ex is CryptographicException or JsonException)
+        catch (CryptographicException)
         {
             return false;
         }
     }
-
-    /// <summary>清理 Setup pending Admin Cookie。</summary>
-    public static void Clear(HttpContext context)
-    {
-        context.Response.Cookies.Delete(Name);
-    }
-
-    /// <summary>创建 Setup 专用的限时 Data Protection protector。</summary>
-    private static ITimeLimitedDataProtector CreateProtector(IDataProtectionProvider protection)
-        => protection
-            .CreateProtector("Bocchi.HomeServer.Setup.PendingAdmin")
-            .ToTimeLimitedDataProtector();
 }
