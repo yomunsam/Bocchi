@@ -232,7 +232,8 @@ public sealed partial class EditorDraftService
                 "# New Post\n\n"),
         };
 
-    private static string CreateSafeAssetFileName(string fileName)
+    /// <summary>把用户上传文件名归一为 assets/ 下可保存的安全文件名。</summary>
+    internal static string CreateSafeAssetFileName(string fileName)
     {
         var name = Path.GetFileName(fileName);
         var extension = Path.GetExtension(name);
@@ -247,7 +248,8 @@ public sealed partial class EditorDraftService
         return stem + extension;
     }
 
-    private static string CreateUniqueAssetName(string directory, string fileName)
+    /// <summary>在目标目录中生成不覆盖已有文件的资产文件名。</summary>
+    internal static string CreateUniqueAssetName(string directory, string fileName)
     {
         var stem = Path.GetFileNameWithoutExtension(fileName);
         var extension = Path.GetExtension(fileName);
