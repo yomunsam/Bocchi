@@ -508,6 +508,11 @@ public sealed class AccountAndSetupTests
                         ["en-US"] = [],
                     },
                 },
+                new ThemeConfigValueInput
+                {
+                    Key = "reading.timeZoneDisplayStyle",
+                    Value = "ianaTimeZone",
+                },
             ]);
 
         var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
@@ -522,6 +527,18 @@ public sealed class AccountAndSetupTests
         root.GetProperty("home").GetProperty("tags").GetProperty("zh-CN").EnumerateArray()
             .Select(item => item.GetString())
             .Should().Equal("设计", "构建");
+        root.GetProperty("reading").GetProperty("timeZoneDisplayStyle").GetString().Should().Be("ianaTimeZone");
+
+        var invalid = () => settings.SaveCustomizationAsync(
+            "default-static",
+            [
+                new ThemeConfigValueInput
+                {
+                    Key = "reading.timeZoneDisplayStyle",
+                    Value = "windowsTimeZone",
+                },
+            ]);
+        await invalid.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -548,6 +565,15 @@ public sealed class AccountAndSetupTests
         tags.Type.Should().Be(ThemeConfigFieldType.LocalizedTextList);
         tags.TextFormat.Should().Be("plain");
         tags.DefaultLocalizedTextListValues["zh-CN"].Should().Equal("个人站点", "软件与文字", "静态优先");
+
+        var readingFields = view.Groups.Single(group => group.Id == "reading").Fields;
+        var timeZoneDisplayStyle = readingFields.Single(field => field.Key == "reading.timeZoneDisplayStyle");
+        timeZoneDisplayStyle.Type.Should().Be(ThemeConfigFieldType.Select);
+        timeZoneDisplayStyle.TextValue.Should().Be("utcOffset");
+        timeZoneDisplayStyle.Options.Select(option => (option.Value, option.Label))
+            .Should().Equal(
+                ("utcOffset", "UTC offset（UTC+8）"),
+                ("ianaTimeZone", "IANA time zone（Asia/Shanghai）"));
     }
 
     [Fact]

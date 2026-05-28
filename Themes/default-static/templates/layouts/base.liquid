@@ -11,12 +11,12 @@
   <link rel="stylesheet" href="/assets/app.css">
   <style>:root{--accent: {{ site.accentColor }};}</style>
 </head>
-<body>
+<body{% if page.hasLanguageHrefs %} data-bocchi-page-hrefs="{{ page.languageHrefsJson }}"{% endif %}>
   <header class="topbar">
     <div class="inner">
       <a class="wordmark" href="/">{{ site.title }}<span class="dot">.</span></a>
       <nav class="nav-links" aria-label="Primary">
-        {% for item in navigation %}<span class="nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} class="active" aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.childrenHtml | html }}</span>{% endfor %}
+        {% for item in navigation %}<span class="nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} class="active" aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}{% if item.hasLanguageHrefs %} data-bocchi-nav-hrefs="{{ item.languageHrefsJson }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.childrenHtml | html }}</span>{% endfor %}
       </nav>
       <div class="top-actions">
         <details class="theme-menu" data-bocchi-language-control>
@@ -53,7 +53,7 @@
       </div>
     </div>
     <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
-      {% for item in navigation %}<div class="mobile-nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="mobile-nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.mobileChildrenHtml | html }}</div>{% endfor %}
+      {% for item in navigation %}<div class="mobile-nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}{% if item.hasLanguageHrefs %} data-bocchi-nav-hrefs="{{ item.languageHrefsJson }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="mobile-nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.mobileChildrenHtml | html }}</div>{% endfor %}
     </nav>
   </header>
   <main>{{ content | html }}</main>

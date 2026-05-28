@@ -3,6 +3,13 @@
         grid-template-columns: 2.8rem minmax(0, 1fr) auto;
     }
 
+    .bocchi-content-item__actions {
+        grid-column: 3;
+        grid-row: 2;
+        align-self: start;
+        justify-self: end;
+    }
+
     .bocchi-content-item__date {
         display: none;
     }

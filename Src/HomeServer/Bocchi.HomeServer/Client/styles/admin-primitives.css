@@ -42,6 +42,98 @@ textarea:focus-visible {
     opacity: 0.58;
 }
 
+/* 通用 tooltip：由消费方通过 data-bocchi-tooltip 提供 i18n 后的文案，避免回退到浏览器原生 title。 */
+.bocchi-tooltip {
+    --bocchi-tooltip-bg: var(--bocchi-action);
+    --bocchi-tooltip-color: #fff;
+    --bocchi-tooltip-shadow: var(--bocchi-shadow-pop);
+    --bocchi-tooltip-offset: 0.5rem;
+    --bocchi-tooltip-arrow-size: 0.42rem;
+    position: relative;
+}
+
+:root[data-bocchi-effective-appearance="dark"] .bocchi-tooltip {
+    --bocchi-tooltip-bg: color-mix(in srgb, var(--bocchi-action) 32%, #000);
+    --bocchi-tooltip-color: var(--bocchi-text);
+}
+
+.bocchi-tooltip::before,
+.bocchi-tooltip::after {
+    position: absolute;
+    left: 50%;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.bocchi-tooltip::before {
+    content: attr(data-bocchi-tooltip);
+    bottom: calc(100% + var(--bocchi-tooltip-offset));
+    max-width: min(18rem, calc(100vw - 2rem));
+    width: max-content;
+    transform: translate(-50%, 0.2rem);
+    border-radius: var(--bocchi-radius-lg);
+    background: var(--bocchi-tooltip-bg);
+    box-shadow: var(--bocchi-tooltip-shadow);
+    color: var(--bocchi-tooltip-color);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+    padding: 0.48rem 0.66rem;
+    text-align: center;
+    white-space: normal;
+}
+
+.bocchi-tooltip::after {
+    content: "";
+    bottom: calc(100% + var(--bocchi-tooltip-offset) - var(--bocchi-tooltip-arrow-size));
+    transform: translate(-50%, 0.2rem);
+    border-width: var(--bocchi-tooltip-arrow-size) var(--bocchi-tooltip-arrow-size) 0 var(--bocchi-tooltip-arrow-size);
+    border-style: solid;
+    border-color: var(--bocchi-tooltip-bg) transparent transparent transparent;
+}
+
+.bocchi-tooltip:hover::before,
+.bocchi-tooltip:hover::after,
+.bocchi-tooltip:focus-visible::before,
+.bocchi-tooltip:focus-visible::after,
+.bocchi-tooltip:focus-within::before,
+.bocchi-tooltip:focus-within::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]::before {
+    top: calc(100% + var(--bocchi-tooltip-offset));
+    bottom: auto;
+    transform: translate(-50%, -0.2rem);
+}
+
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]::after {
+    top: calc(100% + var(--bocchi-tooltip-offset) - var(--bocchi-tooltip-arrow-size));
+    bottom: auto;
+    transform: translate(-50%, -0.2rem);
+    border-width: 0 var(--bocchi-tooltip-arrow-size) var(--bocchi-tooltip-arrow-size) var(--bocchi-tooltip-arrow-size);
+    border-color: transparent transparent var(--bocchi-tooltip-bg) transparent;
+}
+
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:hover::before,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:hover::after,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-visible::before,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-visible::after,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-within::before,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-within::after {
+    transform: translate(-50%, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bocchi-tooltip::before,
+    .bocchi-tooltip::after {
+        transition: none;
+    }
+}
+
 .bocchi-admin-shell button.bocchi-button--primary,
 .bocchi-button--primary {
     background: var(--bocchi-action);

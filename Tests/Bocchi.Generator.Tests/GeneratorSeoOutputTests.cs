@@ -83,7 +83,10 @@ public sealed class GeneratorSeoOutputTests
         zhTwWork.GetProperty("localization").GetProperty("sourceContentId").GetString().Should().Be("works/2026/portfolio@zh-CN");
 
         var navigation = await ReadNavigationItemsAsync(fixture);
-        navigation.Single().GetProperty("href").GetString().Should().Be("/about/");
+        var aboutNavigation = navigation.Single();
+        aboutNavigation.GetProperty("href").GetString().Should().Be("/about/");
+        aboutNavigation.GetProperty("languageHrefs").GetProperty("zh-CN").GetString().Should().Be("/about/");
+        aboutNavigation.GetProperty("languageHrefs").GetProperty("zh-TW").GetString().Should().Be("/zh-TW/about/");
     }
 
     [Fact]
@@ -166,7 +169,7 @@ public sealed class GeneratorSeoOutputTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_RendersContentLanguageSwitcherAndTranslationNotice()
+    public async Task DefaultStaticTheme_RendersPageLanguageContextAndTranslationNotice()
     {
         using var fixture = new TestWorkspaceFixture();
         await SeedMultilingualContentAsync(fixture);
@@ -182,13 +185,6 @@ public sealed class GeneratorSeoOutputTests
 
         result.Status.Should().Be(BuildStatus.Succeeded);
 
-        var themeContext = await ReadThemeContextAsync(fixture);
-        var switchDefaults = ReadThemeI18nDefaults(themeContext, "theme.defaultStatic.languageSwitchLabel");
-        switchDefaults.GetProperty("en-US").GetString().Should().Be("Read in");
-        switchDefaults.GetProperty("zh-CN").GetString().Should().Be("阅读语言");
-        switchDefaults.GetProperty("zh-TW").GetString().Should().Be("閱讀語言");
-        switchDefaults.GetProperty("ja-JP").GetString().Should().Be("読む言語");
-
         var zhTwPostHtml = await File.ReadAllTextAsync(Path.Combine(
             fixture.Layout.PublicOutputDirectory,
             "zh-TW",
@@ -196,15 +192,20 @@ public sealed class GeneratorSeoOutputTests
             "2025",
             "hello",
             "index.html"));
-        zhTwPostHtml.Should().Contain("""data-bocchi-language-switch""");
-        zhTwPostHtml.Should().Contain("data-bocchi-language-link=\"zh-CN\"");
-        zhTwPostHtml.Should().Contain("data-bocchi-language-link=\"zh-TW\" aria-current=\"page\"");
+        zhTwPostHtml.Should().Contain("""data-bocchi-page-hrefs=""");
+        zhTwPostHtml.Should().NotContain("""data-bocchi-language-switch""");
+        zhTwPostHtml.Should().Contain("""data-bocchi-article-time""");
+        zhTwPostHtml.Should().Contain("data-bocchi-i18n=\"content.time.updatedAt\"");
+        zhTwPostHtml.Should().NotContain("ASIA/SHANGHAI");
         var zhTwPostText = WebUtility.HtmlDecode(zhTwPostHtml);
         zhTwPostText.Should().Contain("简体中文");
-        zhTwPostText.Should().Contain("繁體中文");
+        zhTwPostText.Should().Contain("修改於");
+        zhTwPostText.Should().Contain("2026-01-02 02:20");
+        zhTwPostText.Should().Contain("UTC+8");
         zhTwPostHtml.Should().Contain("""data-bocchi-translation-notice""");
         zhTwPostText.Should().Contain("""data-bocchi-i18n="content.translationNotice">此頁面為翻譯版本。""");
         zhTwPostText.Should().Contain("""data-bocchi-i18n="content.viewOriginal">查看原文""");
+        zhTwPostHtml.Should().Contain("data-bocchi-language-link=\"zh-CN\"");
         zhTwPostHtml.Should().Contain("href=\"../../../../posts/2025/hello/\"");
 
         var zhTwPageHtml = await File.ReadAllTextAsync(Path.Combine(
@@ -212,8 +213,10 @@ public sealed class GeneratorSeoOutputTests
             "zh-TW",
             "about",
             "index.html"));
-        zhTwPageHtml.Should().Contain("""data-bocchi-language-switch""");
+        zhTwPageHtml.Should().Contain("""data-bocchi-page-hrefs=""");
+        zhTwPageHtml.Should().NotContain("""data-bocchi-language-switch""");
         zhTwPageHtml.Should().Contain("""data-bocchi-translation-notice""");
+        zhTwPageHtml.Should().Contain("data-bocchi-language-link=\"zh-CN\"");
         zhTwPageHtml.Should().Contain("href=\"../../about/\"");
 
         var zhTwWorkHtml = await File.ReadAllTextAsync(Path.Combine(
@@ -223,7 +226,8 @@ public sealed class GeneratorSeoOutputTests
             "2026",
             "portfolio",
             "index.html"));
-        zhTwWorkHtml.Should().Contain("""data-bocchi-language-switch""");
+        zhTwWorkHtml.Should().Contain("""data-bocchi-page-hrefs=""");
+        zhTwWorkHtml.Should().NotContain("""data-bocchi-language-switch""");
         zhTwWorkHtml.Should().Contain("""data-bocchi-translation-notice""");
         zhTwWorkHtml.Should().Contain("href=\"../../../../works/2026/portfolio/\"");
 
@@ -231,23 +235,8 @@ public sealed class GeneratorSeoOutputTests
             fixture.Layout.PublicOutputDirectory,
             "solo",
             "index.html"));
-        soloHtml.Should().NotContain("""data-bocchi-language-switch""");
+        soloHtml.Should().NotContain("""data-bocchi-page-hrefs=""");
         soloHtml.Should().NotContain("""data-bocchi-translation-notice""");
-    }
-
-    private static async Task<JsonElement> ReadThemeContextAsync(TestWorkspaceFixture fixture)
-    {
-        var json = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "theme-context.json"));
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.GetProperty("data").Clone();
-    }
-
-    /// <summary>读取 Theme manifest 默认文案，验证四种示范语言不会在 Theme input 中丢失。</summary>
-    private static JsonElement ReadThemeI18nDefaults(JsonElement themeContext, string key)
-    {
-        return themeContext.GetProperty("theme").GetProperty("i18n").GetProperty("keys").EnumerateArray()
-            .Single(item => item.GetProperty("key").GetString() == key)
-            .GetProperty("defaultValues");
     }
 
     private static async Task<JsonElement[]> ReadThemeInputArrayAsync(TestWorkspaceFixture fixture, string fileName)
@@ -304,6 +293,8 @@ public sealed class GeneratorSeoOutputTests
             slug: hello
             status: Published
             language: zh-TW
+            publishedAt: 2026-01-01T01:20:00+08:00
+            updatedAt: 2026-01-02T02:20:00+08:00
             localization:
               translationOf:
                 language: zh-CN

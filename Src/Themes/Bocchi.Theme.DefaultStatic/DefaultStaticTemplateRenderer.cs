@@ -20,14 +20,16 @@ public sealed partial class DefaultStaticTemplateRenderer
         var visibleWorks = FilterVisible(input.Works, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
         var visibleNotes = FilterVisible(input.Notes, input.IncludeDrafts).OrderByDescending(GetContentDate).ToArray();
         var visibleFriends = FilterVisible(input.Friends, input.IncludeDrafts).OrderBy(GetOrder).ThenBy(GetTitle).ToArray();
+        var listingPosts = SelectListingRepresentatives(visiblePosts, text.CurrentLanguage);
+        var listingWorks = SelectListingRepresentatives(visibleWorks, text.CurrentLanguage);
 
         await WriteAssetsAsync(request, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, configTextFormats, visiblePosts, visibleWorks, visibleNotes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, configTextFormats, listingPosts, visiblePosts, listingWorks, visibleWorks, visibleNotes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, listingPosts, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePostDetailsAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false);
-        await WritePostCategoryPagesAsync(request, site, text, visiblePosts, input.PostCategories, cancellationToken).ConfigureAwait(false);
+        await WritePostCategoryPagesAsync(request, site, text, listingPosts, visiblePosts, input.PostCategories, cancellationToken).ConfigureAwait(false);
         await WriteStandalonePagesAsync(request, site, text, visiblePages, cancellationToken).ConfigureAwait(false);
-        await WritePageAsync(request.OutputDirectory, "works/index.html", await RenderWorkListAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+        await WritePageAsync(request.OutputDirectory, "works/index.html", await RenderWorkListAsync(request, site, text, listingWorks, visibleWorks, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WriteWorkDetailsAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "notes/index.html", await RenderNotesAsync(request, site, text, visibleNotes, null, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WriteNoteYearPagesAsync(request, site, text, visibleNotes, cancellationToken).ConfigureAwait(false);
@@ -43,18 +45,20 @@ public sealed partial class DefaultStaticTemplateRenderer
         ThemeInputSet input,
         IReadOnlyDictionary<string, string> configTextFormats,
         JsonElement[] posts,
+        JsonElement[] allPosts,
         JsonElement[] works,
+        JsonElement[] allWorks,
         JsonElement[] notes,
         CancellationToken cancellationToken)
     {
-        var featuredPosts = MapContentItems(Limit(posts, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredPosts"], 5)), site);
-        var featuredWorks = MapContentItems(Limit(works, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredWorks"], 4)), site);
+        var featuredPosts = MapListingContentItems(Limit(posts, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredPosts"], 5)), allPosts, site, "/");
+        var featuredWorks = MapListingContentItems(Limit(works, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "featuredWorks"], 4)), allWorks, site, "/");
         var recentNotes = MapContentItems(Limit(notes, GetConfigInt(input.ThemeContext, ["theme", "config", "home", "recentNotes"], 3)), site);
         var homeCopy = CreateHomeCopyModel(input.ThemeContext, text, configTextFormats);
 
         var model = CreatePageModel(site, text, text.Get("menu.home"), "/");
         model["home"] = homeCopy.TemplateModel;
-        model["localization"] = CreateLocalizationModel(text, homeCopy.ClientText);
+        model["localization"] = CreateLocalizationModel(text, site.Navigation, homeCopy.ClientText);
         model["featuredPosts"] = featuredPosts;
         model["hasFeaturedPosts"] = featuredPosts.Length > 0;
         model["featuredWorks"] = featuredWorks;
@@ -70,9 +74,10 @@ public sealed partial class DefaultStaticTemplateRenderer
         SiteInfo site,
         DefaultStaticThemeText text,
         JsonElement[] posts,
+        JsonElement[] allPosts,
         CancellationToken cancellationToken)
     {
-        var items = MapContentItems(posts, site);
+        var items = MapListingContentItems(posts, allPosts, site, "/posts/");
         var model = CreateListingModel(site, text, text.Get("menu.posts"), "menu.posts", "/posts/", text.Get("theme.defaultStatic.postsDescription"), "theme.defaultStatic.postsDescription", "02", items, text.Get("theme.defaultStatic.emptyList"));
         return DefaultStaticFluidRenderer.RenderPageAsync(request.ThemeRoot, "posts", model, cancellationToken);
     }
@@ -83,9 +88,10 @@ public sealed partial class DefaultStaticTemplateRenderer
         SiteInfo site,
         DefaultStaticThemeText text,
         JsonElement[] works,
+        JsonElement[] allWorks,
         CancellationToken cancellationToken)
     {
-        var items = MapContentItems(works, site);
+        var items = MapListingContentItems(works, allWorks, site, "/works/");
         var model = CreateListingModel(site, text, text.Get("menu.works"), "menu.works", "/works/", text.Get("theme.defaultStatic.worksDescription"), "theme.defaultStatic.worksDescription", "03", items, text.Get("theme.defaultStatic.emptyList"));
         model["featuredWork"] = items.FirstOrDefault();
         model["hasFeaturedWork"] = items.Length > 0;
@@ -155,7 +161,19 @@ public sealed partial class DefaultStaticTemplateRenderer
         for (var i = 0; i < posts.Length; i++)
         {
             var post = posts[i];
-            var body = await RenderArticleAsync(request, site, text, "menu.posts", "/posts/", post, Previous(posts, i), Next(posts, i), cancellationToken).ConfigureAwait(false);
+            var neighbors = SelectListingRepresentatives(posts, GetString(post, "language", text.CurrentLanguage));
+            var index = Array.FindIndex(neighbors, item => IsSameContentItem(item, post));
+            var body = await RenderArticleAsync(
+                request,
+                site,
+                text,
+                "menu.posts",
+                "/posts/",
+                post,
+                index >= 0 ? Previous(neighbors, index) : null,
+                index >= 0 ? Next(neighbors, index) : null,
+                includeArticleTime: true,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(post)), body, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -166,6 +184,7 @@ public sealed partial class DefaultStaticTemplateRenderer
         SiteInfo site,
         DefaultStaticThemeText text,
         JsonElement[] posts,
+        JsonElement[] allPosts,
         JsonElement[] categories,
         CancellationToken cancellationToken)
     {
@@ -186,7 +205,7 @@ public sealed partial class DefaultStaticTemplateRenderer
                 $"{text.Get("menu.posts")} / {title}",
                 string.Empty,
                 "02",
-                MapContentItems(categoryPosts, site),
+                MapListingContentItems(categoryPosts, allPosts.Where(post => string.Equals(GetString(post, "categorySlug"), slug, StringComparison.Ordinal)), site, currentPath),
                 text.Get("theme.defaultStatic.emptyList"));
             await WritePageAsync(
                 request.OutputDirectory,
@@ -201,6 +220,7 @@ public sealed partial class DefaultStaticTemplateRenderer
                     site,
                     text,
                     posts,
+                    allPosts,
                     children.EnumerateArray().Select(child => child.Clone()).ToArray(),
                     cancellationToken).ConfigureAwait(false);
             }
@@ -229,7 +249,19 @@ public sealed partial class DefaultStaticTemplateRenderer
         for (var i = 0; i < works.Length; i++)
         {
             var work = works[i];
-            var body = await RenderArticleAsync(request, site, text, "menu.works", "/works/", work, Previous(works, i), Next(works, i), cancellationToken).ConfigureAwait(false);
+            var neighbors = SelectListingRepresentatives(works, GetString(work, "language", text.CurrentLanguage));
+            var index = Array.FindIndex(neighbors, item => IsSameContentItem(item, work));
+            var body = await RenderArticleAsync(
+                request,
+                site,
+                text,
+                "menu.works",
+                "/works/",
+                work,
+                index >= 0 ? Previous(neighbors, index) : null,
+                index >= 0 ? Next(neighbors, index) : null,
+                includeArticleTime: false,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
             await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(work)), body, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -257,6 +289,7 @@ public sealed partial class DefaultStaticTemplateRenderer
         JsonElement item,
         JsonElement? previous,
         JsonElement? next,
+        bool includeArticleTime,
         CancellationToken cancellationToken)
     {
         var pageText = text.WithCurrentLanguage(GetString(item, "language"));
@@ -267,7 +300,7 @@ public sealed partial class DefaultStaticTemplateRenderer
             ["name"] = pageText.Get(sectionKey),
             ["url"] = sectionUrl,
         };
-        model["item"] = MapContentItem(item, site, pageText);
+        model["item"] = MapContentItem(item, site, pageText, includeArticleTime);
         model["previous"] = previous is null ? null : MapContentItem(previous.Value, site);
         model["hasPrevious"] = previous is not null;
         model["next"] = next is null ? null : MapContentItem(next.Value, site);

@@ -468,6 +468,7 @@
 .bocchi-row-icon-button {
     display: inline-flex;
     width: 2rem;
+    height: 2rem;
     min-height: 2rem;
     align-items: center;
     justify-content: center;
@@ -492,6 +493,7 @@
 
 .bocchi-row-delete {
     position: relative;
+    display: inline-flex;
 }
 
 .bocchi-row-delete summary {

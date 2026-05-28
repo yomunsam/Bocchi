@@ -130,7 +130,7 @@ public sealed partial class ThemeSettingsService
             Placeholder = TrimOrNull(ReadString(field["placeholder"])),
             HelpText = TrimOrNull(ReadString(field["helpText"])),
             Required = ReadBool(field["required"]),
-            Options = ReadStringOptions(field["options"]),
+            Options = ReadOptions(field["options"]),
             TextValue = JsonNodeToText(currentValue),
             BooleanValue = JsonNodeToBool(currentValue),
             SelectedValues = JsonNodeToStringList(currentValue),
@@ -204,9 +204,7 @@ public sealed partial class ThemeSettingsService
         }
 
         var normalized = value.Trim();
-        if (validateOptions &&
-            field.Options.Count > 0 &&
-            !field.Options.Contains(normalized, StringComparer.Ordinal))
+        if (validateOptions && !IsDeclaredOption(field, normalized))
         {
             throw new InvalidOperationException($"Theme 配置字段 '{field.Key}' 的选项无效。");
         }
@@ -222,7 +220,7 @@ public sealed partial class ThemeSettingsService
         var normalized = values
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())
-            .Where(value => field.Options.Count == 0 || field.Options.Contains(value, StringComparer.Ordinal))
+            .Where(value => IsDeclaredOption(field, value))
             .Distinct(StringComparer.Ordinal)
             .ToList();
         if (normalized.Count == 0)
@@ -422,7 +420,7 @@ public sealed partial class ThemeSettingsService
     private static bool ParseBoolean(string? value)
         => bool.TryParse(value, out var result) && result;
 
-    private static List<string> ReadStringOptions(JsonNode? node)
+    private static List<ThemeConfigOptionView> ReadOptions(JsonNode? node)
     {
         if (node is not JsonArray array)
         {
@@ -430,12 +428,45 @@ public sealed partial class ThemeSettingsService
         }
 
         return array
-            .Select(ReadString)
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value!.Trim())
-            .Distinct(StringComparer.Ordinal)
+            .Select(ReadOption)
+            .Where(option => option is not null)
+            .Cast<ThemeConfigOptionView>()
+            .DistinctBy(option => option.Value, StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>读取 select option，兼容旧版字符串和新版 value/label 对象。</summary>
+    private static ThemeConfigOptionView? ReadOption(JsonNode? node)
+    {
+        if (node is JsonObject obj)
+        {
+            var value = ReadString(obj["value"]);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            var label = ReadString(obj["label"]);
+            return new ThemeConfigOptionView
+            {
+                Value = value.Trim(),
+                Label = string.IsNullOrWhiteSpace(label) ? value.Trim() : label.Trim(),
+            };
+        }
+
+        var text = ReadString(node);
+        return string.IsNullOrWhiteSpace(text)
+            ? null
+            : new ThemeConfigOptionView
+            {
+                Value = text.Trim(),
+                Label = text.Trim(),
+            };
+    }
+
+    /// <summary>判断提交值是否属于 schema 声明的选项；没有声明选项时保持旧行为允许保存。</summary>
+    private static bool IsDeclaredOption(ThemeConfigFieldView field, string value)
+        => field.Options.Count == 0 || field.Options.Any(option => string.Equals(option.Value, value, StringComparison.Ordinal));
 
     private static string JsonNodeToText(JsonNode? node)
     {

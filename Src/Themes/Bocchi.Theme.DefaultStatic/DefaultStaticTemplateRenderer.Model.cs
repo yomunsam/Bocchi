@@ -11,6 +11,12 @@ public sealed partial class DefaultStaticTemplateRenderer
     /// <summary>默认 accent，配置值不合法时使用它避免 CSS 注入。</summary>
     private const string DefaultAccentColor = "#E85D3A";
 
+    /// <summary>文章时间 badge 默认使用 UTC offset 风格。</summary>
+    private const string TimeZoneDisplayStyleUtcOffset = "utcOffset";
+
+    /// <summary>文章时间 badge 可改用 IANA time zone 风格。</summary>
+    private const string TimeZoneDisplayStyleIana = "ianaTimeZone";
+
     /// <summary>首页配置文案注入浏览器端 i18n JSON 时使用的虚拟 key。</summary>
     private const string HomeHeroTitleClientKey = "theme.config.home.heroTitle";
 
@@ -53,6 +59,10 @@ public sealed partial class DefaultStaticTemplateRenderer
         "theme.defaultStatic.appearanceDark",
         "content.translationNotice",
         "content.viewOriginal",
+        "content.time.writtenAt",
+        "content.time.updatedAt",
+        "content.time.authorTimeZone",
+        "content.time.readerTime",
         "common.previous",
         "common.next",
         "common.backHome",
@@ -90,11 +100,13 @@ public sealed partial class DefaultStaticTemplateRenderer
         JsonElement? contentItem = null)
     {
         var fullTitle = string.Equals(title, text.Get("menu.home"), StringComparison.Ordinal) ? site.DefaultTitle : $"{title} · {site.Title}";
+        var pageDirectory = GetPageDirectory(ToOutputPath(currentPath));
+        var languageHrefsJson = MapPageLanguageHrefsJson(contentItem, pageDirectory);
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["site"] = CreateSiteModel(site),
             ["text"] = CreateTextModel(text),
-            ["localization"] = CreateLocalizationModel(text),
+            ["localization"] = CreateLocalizationModel(text, site.Navigation),
             ["page"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["title"] = title,
@@ -102,6 +114,8 @@ public sealed partial class DefaultStaticTemplateRenderer
                 ["currentPath"] = currentPath,
                 ["canonicalUrl"] = GetPageCanonicalUrl(site, currentPath, contentItem),
                 ["alternates"] = GetPageAlternates(contentItem).ToArray(),
+                ["languageHrefsJson"] = languageHrefsJson,
+                ["hasLanguageHrefs"] = !string.IsNullOrWhiteSpace(languageHrefsJson),
             },
             ["navigation"] = CreateNavigationModel(currentPath, site.Navigation),
         };
@@ -151,6 +165,36 @@ public sealed partial class DefaultStaticTemplateRenderer
         }
     }
 
+    /// <summary>把当前内容页的语言 URL 事实暴露给全局语言菜单，切换语言时直接跳到对应 variant。</summary>
+    private static string MapPageLanguageHrefsJson(JsonElement? contentItem, string pageDirectory)
+    {
+        if (contentItem is not { } item ||
+            !item.TryGetProperty("localization", out var localization) ||
+            localization.ValueKind != JsonValueKind.Object ||
+            !localization.TryGetProperty("alternates", out var alternates) ||
+            alternates.ValueKind != JsonValueKind.Array)
+        {
+            return string.Empty;
+        }
+
+        var values = alternates
+            .EnumerateArray()
+            .Where(alternate => alternate.ValueKind == JsonValueKind.Object)
+            .Select(alternate =>
+            {
+                var language = GetString(alternate, "language", GetString(alternate, "hreflang"));
+                var siteRelativeUrl = GetString(alternate, "siteRelativeUrl", GetString(alternate, "url"));
+                return new { Language = language, Url = siteRelativeUrl };
+            })
+            .Where(item => !string.IsNullOrWhiteSpace(item.Language) && !string.IsNullOrWhiteSpace(item.Url))
+            .GroupBy(item => item.Language, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => ToPageRelativeUrl(pageDirectory, group.First().Url),
+                StringComparer.OrdinalIgnoreCase);
+        return values.Count > 1 ? JsonSerializer.Serialize(values) : string.Empty;
+    }
+
     /// <summary>把站点根相对路径拼成绝对 URL；baseUrl 缺失或非法时保留相对路径，避免构建失败。</summary>
     private static string ToAbsoluteUrl(string baseUrl, string siteRelativeUrl)
     {
@@ -184,23 +228,30 @@ public sealed partial class DefaultStaticTemplateRenderer
 
     /// <summary>创建顶栏和移动端导航使用的链接模型，保留 Menu tree 的嵌套结构。</summary>
     private static Dictionary<string, object?>[] CreateNavigationModel(string currentPath, JsonElement[] navigation)
-        => navigation.Select(item => CreateNavigationItem(item, currentPath)).ToArray();
+    {
+        var pageDirectory = GetPageDirectory(ToOutputPath(currentPath));
+        return navigation.Select(item => CreateNavigationItem(item, currentPath, pageDirectory)).ToArray();
+    }
 
     /// <summary>创建单个导航链接模型并递归标记当前页。</summary>
-    private static Dictionary<string, object?> CreateNavigationItem(JsonElement item, string currentPath)
+    private static Dictionary<string, object?> CreateNavigationItem(JsonElement item, string currentPath, string pageDirectory)
     {
-        var href = GetString(item, "href");
+        var defaultHref = GetString(item, "href");
+        var href = ResolveCurrentNavigationHref(item, currentPath) ?? defaultHref;
         var hasHref = !string.IsNullOrWhiteSpace(href);
+        var languageHrefsJson = MapNavigationLanguageHrefsJson(item, pageDirectory);
         var children = item.TryGetProperty("children", out var childArray) && childArray.ValueKind == JsonValueKind.Array
-            ? childArray.EnumerateArray().Select(child => CreateNavigationItem(child, currentPath)).ToArray()
+            ? childArray.EnumerateArray().Select(child => CreateNavigationItem(child, currentPath, pageDirectory)).ToArray()
             : [];
-        var current = (hasHref && (string.Equals(href, currentPath, StringComparison.Ordinal) ||
-            href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal))) ||
+        var current = IsCurrentNavigationHref(defaultHref, currentPath) ||
+            IsCurrentNavigationLanguageHref(item, currentPath) ||
             children.Any(child => child.TryGetValue("current", out var childCurrent) && childCurrent is true);
         var model = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["href"] = hasHref ? href : null,
             ["hasHref"] = hasHref,
+            ["languageHrefsJson"] = languageHrefsJson,
+            ["hasLanguageHrefs"] = !string.IsNullOrWhiteSpace(languageHrefsJson),
             ["i18nKey"] = ReadNavigationI18nKey(item),
             ["label"] = GetString(item, "label"),
             ["current"] = current,
@@ -210,6 +261,64 @@ public sealed partial class DefaultStaticTemplateRenderer
         model["childrenHtml"] = RenderNavigationChildrenHtml(children, mobile: false);
         model["mobileChildrenHtml"] = RenderNavigationChildrenHtml(children, mobile: true);
         return model;
+    }
+
+    /// <summary>当当前页命中某个语言 variant 时，导航默认 href 也指向这个 variant，而不是固定回主语言。</summary>
+    private static string? ResolveCurrentNavigationHref(JsonElement item, string currentPath)
+    {
+        if (!item.TryGetProperty("languageHrefs", out var languageHrefs) || languageHrefs.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        foreach (var property in languageHrefs.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.String &&
+                IsCurrentNavigationHref(property.Value.GetString() ?? string.Empty, currentPath))
+            {
+                return property.Value.GetString();
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>判断导航节点是否通过任一语言 URL 命中当前页。</summary>
+    private static bool IsCurrentNavigationLanguageHref(JsonElement item, string currentPath)
+    {
+        if (!item.TryGetProperty("languageHrefs", out var languageHrefs) || languageHrefs.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        return languageHrefs
+            .EnumerateObject()
+            .Any(property => property.Value.ValueKind == JsonValueKind.String &&
+                IsCurrentNavigationHref(property.Value.GetString() ?? string.Empty, currentPath));
+    }
+
+    /// <summary>导航 active 判断沿用原有 section 前缀语义，同时支持多语言 variant URL。</summary>
+    private static bool IsCurrentNavigationHref(string href, string currentPath)
+        => !string.IsNullOrWhiteSpace(href) &&
+            (string.Equals(href, currentPath, StringComparison.Ordinal) ||
+                href != "/" && currentPath.StartsWith(href, StringComparison.Ordinal));
+
+    /// <summary>读取 Generator 解析好的 Page variant URL 映射，供前端语言上下文切换导航 href。</summary>
+    private static string MapNavigationLanguageHrefsJson(JsonElement item, string pageDirectory)
+    {
+        if (!item.TryGetProperty("languageHrefs", out var languageHrefs) || languageHrefs.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        var values = languageHrefs
+            .EnumerateObject()
+            .Where(property => property.Value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(property.Value.GetString()))
+            .ToDictionary(
+                property => property.Name,
+                property => ToPageRelativeUrl(pageDirectory, property.Value.GetString()!),
+                StringComparer.OrdinalIgnoreCase);
+        return values.Count == 0 ? string.Empty : JsonSerializer.Serialize(values);
     }
 
     private static string? ReadNavigationI18nKey(JsonElement item)
@@ -238,6 +347,9 @@ public sealed partial class DefaultStaticTemplateRenderer
             var hasHref = !string.IsNullOrWhiteSpace(href);
             var label = child.TryGetValue("label", out var labelValue) ? labelValue?.ToString() ?? string.Empty : string.Empty;
             var i18nKey = child.TryGetValue("i18nKey", out var keyValue) ? keyValue?.ToString() ?? string.Empty : string.Empty;
+            var languageHrefsJson = child.TryGetValue("languageHrefsJson", out var languageHrefValue)
+                ? languageHrefValue?.ToString() ?? string.Empty
+                : string.Empty;
             var current = child.TryGetValue("current", out var currentValue) && currentValue is true;
             var nestedHtml = child.TryGetValue(mobile ? "mobileChildrenHtml" : "childrenHtml", out var htmlValue)
                 ? htmlValue?.ToString() ?? string.Empty
@@ -254,6 +366,7 @@ public sealed partial class DefaultStaticTemplateRenderer
                 }
 
                 AppendI18nAttribute(builder, i18nKey);
+                AppendLanguageHrefsAttribute(builder, languageHrefsJson);
                 builder.Append('>')
                     .Append(WebUtility.HtmlEncode(label))
                     .Append("</a>");
@@ -281,6 +394,17 @@ public sealed partial class DefaultStaticTemplateRenderer
         if (!string.IsNullOrWhiteSpace(i18nKey))
         {
             builder.Append(" data-bocchi-i18n=\"").Append(WebUtility.HtmlEncode(i18nKey)).Append('"');
+        }
+    }
+
+    /// <summary>把导航多语言 URL 映射写入 data attribute，浏览器端只按这个事实切 href。</summary>
+    private static void AppendLanguageHrefsAttribute(StringBuilder builder, string languageHrefsJson)
+    {
+        if (!string.IsNullOrWhiteSpace(languageHrefsJson))
+        {
+            builder.Append(" data-bocchi-nav-hrefs=\"")
+                .Append(WebUtility.HtmlEncode(languageHrefsJson))
+                .Append('"');
         }
     }
 
@@ -485,6 +609,10 @@ public sealed partial class DefaultStaticTemplateRenderer
             ["appearanceDark"] = text.Get("theme.defaultStatic.appearanceDark"),
             ["translationNotice"] = text.Get("content.translationNotice"),
             ["viewOriginal"] = text.Get("content.viewOriginal"),
+            ["timeWrittenAt"] = text.Get("content.time.writtenAt"),
+            ["timeUpdatedAt"] = text.Get("content.time.updatedAt"),
+            ["timeAuthorTimeZone"] = text.Get("content.time.authorTimeZone"),
+            ["timeReaderTime"] = text.Get("content.time.readerTime"),
             ["previous"] = text.Get("common.previous"),
             ["next"] = text.Get("common.next"),
             ["backHome"] = text.Get("common.backHome"),
@@ -494,17 +622,21 @@ public sealed partial class DefaultStaticTemplateRenderer
     /// <summary>创建模板可访问的站点本地化模型；默认 Theme 目前只展示当前语言，路径切换留给内容多语言页生成。</summary>
     private static Dictionary<string, object?> CreateLocalizationModel(
         DefaultStaticThemeText text,
+        JsonElement[]? navigation = null,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? extraText = null)
     {
         var currentLanguage = text.EnabledLanguages.FirstOrDefault(
             language => string.Equals(language.Code, text.CurrentLanguage, StringComparison.OrdinalIgnoreCase));
+        var clientKeys = navigation is null
+            ? ClientI18nKeys
+            : ClientI18nKeys.Concat(EnumerateNavigationI18nKeys(navigation));
 
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["currentLanguage"] = text.CurrentLanguage,
             ["currentLanguageName"] = currentLanguage?.NativeName ?? currentLanguage?.EnglishName ?? text.CurrentLanguage,
             ["primaryLanguage"] = text.PrimaryLanguage,
-            ["textJson"] = text.BuildClientJson(ClientI18nKeys, extraText),
+            ["textJson"] = text.BuildClientJson(clientKeys, extraText),
             ["languages"] = text.EnabledLanguages
                 .Select(language => new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
@@ -515,6 +647,27 @@ public sealed partial class DefaultStaticTemplateRenderer
                 .ToArray(),
             ["hasMultipleLanguages"] = text.EnabledLanguages.Length > 1,
         };
+    }
+
+    /// <summary>收集 Menu tree 中的动态 i18n key，确保浏览器语言切换能更新用户自定义菜单文案。</summary>
+    private static IEnumerable<string> EnumerateNavigationI18nKeys(IEnumerable<JsonElement> navigation)
+    {
+        foreach (var item in navigation)
+        {
+            var key = ReadNavigationI18nKey(item);
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                yield return key;
+            }
+
+            if (item.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var childKey in EnumerateNavigationI18nKeys(children.EnumerateArray()))
+                {
+                    yield return childKey;
+                }
+            }
+        }
     }
 
     /// <summary>过滤发布内容；预览构建可以通过 includeDrafts 纳入草稿。</summary>
@@ -584,6 +737,18 @@ public sealed partial class DefaultStaticTemplateRenderer
         return value?.ValueKind == JsonValueKind.Number && value.Value.TryGetInt32(out var number) ? number : fallback;
     }
 
+    /// <summary>读取配置中的布尔值；缺失时使用 Theme schema 定义的默认语义。</summary>
+    private static bool GetConfigBool(JsonElement root, string[] path, bool fallback)
+    {
+        var value = TryGetPath(root, path);
+        return value?.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => fallback,
+        };
+    }
+
     /// <summary>按路径读取嵌套 JSON 值。</summary>
     private static JsonElement? TryGetPath(JsonElement root, IReadOnlyList<string> path)
     {
@@ -617,6 +782,12 @@ public sealed partial class DefaultStaticTemplateRenderer
 
         return value.Skip(1).All(Uri.IsHexDigit) ? value : DefaultAccentColor;
     }
+
+    /// <summary>归一化文章时间 badge 的时区显示风格；未知值回退默认 UTC offset。</summary>
+    private static string NormalizeTimeZoneDisplayStyle(string? value)
+        => string.Equals(value?.Trim(), TimeZoneDisplayStyleIana, StringComparison.Ordinal)
+            ? TimeZoneDisplayStyleIana
+            : TimeZoneDisplayStyleUtcOffset;
 
     /// <summary>默认 Theme 输入集合。</summary>
     private sealed record ThemeInputSet(
@@ -665,6 +836,12 @@ public sealed partial class DefaultStaticTemplateRenderer
         /// <summary>作者时区。</summary>
         public required string AuthorTimeZone { get; init; }
 
+        /// <summary>文章详情页默认是否优先展示更新时间。</summary>
+        public required bool ShowUpdatedAt { get; init; }
+
+        /// <summary>文章详情页时间 badge 的时区显示风格。</summary>
+        public required string TimeZoneDisplayStyle { get; init; }
+
         /// <summary>经过 CSS 安全归一化的 accent color。</summary>
         public required string AccentColor { get; init; }
 
@@ -688,6 +865,9 @@ public sealed partial class DefaultStaticTemplateRenderer
             var timeZone = TryGetPath(context, ["author", "timeZone"])?.GetString()
                 ?? TryGetPath(context, ["site", "timeZone"])?.GetString()
                 ?? "UTC";
+            var showUpdatedAt = GetConfigBool(context, ["theme", "config", "reading", "showUpdatedAt"], true);
+            var timeZoneDisplayStyle = NormalizeTimeZoneDisplayStyle(
+                TryGetPath(context, ["theme", "config", "reading", "timeZoneDisplayStyle"])?.GetString());
             var accent = NormalizeAccentColor(TryGetPath(context, ["theme", "config", "visual", "accentColor"])?.GetString());
             var generatedAtRaw = TryGetPath(context, ["build", "generatedAt"])?.GetString();
             var generatedYear = DateTimeOffset.TryParse(generatedAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var generatedAt)
@@ -704,6 +884,8 @@ public sealed partial class DefaultStaticTemplateRenderer
                 CopyrightNotice = string.IsNullOrWhiteSpace(copyright) ? $"{title} · {generatedYear}" : copyright!,
                 AuthorName = author,
                 AuthorTimeZone = timeZone,
+                ShowUpdatedAt = showUpdatedAt,
+                TimeZoneDisplayStyle = timeZoneDisplayStyle,
                 AccentColor = accent,
                 GeneratedYear = generatedYear,
             };

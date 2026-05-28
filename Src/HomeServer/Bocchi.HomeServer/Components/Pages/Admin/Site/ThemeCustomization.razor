@@ -208,7 +208,7 @@
                                                         <option value="">@I18n["themeCustomization.field.defaultOption"]</option>
                                                         @foreach (var option in field.Options)
                                                         {
-                                                            <option value="@option">@option</option>
+                                                            <option value="@option.Value">@option.Label</option>
                                                         }
                                                     </select>
                                                     break;
@@ -219,9 +219,9 @@
                                                             <label class="bocchi-theme-choice">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked="@IsMultiSelectValueSelected(field.Key, option)"
-                                                                    @onchange="args => ToggleMultiSelectValue(field.Key, option, args)" />
-                                                                <span>@option</span>
+                                                                    checked="@IsMultiSelectValueSelected(field.Key, option.Value)"
+                                                                    @onchange="args => ToggleMultiSelectValue(field.Key, option.Value, args)" />
+                                                                <span>@option.Label</span>
                                                             </label>
                                                         }
                                                     </div>

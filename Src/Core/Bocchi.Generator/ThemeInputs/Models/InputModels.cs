@@ -37,6 +37,8 @@ public sealed record NavigationItemInput
     public NavigationLabelI18nRefInput? LabelI18n { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public required string? Href { get; init; }
+    /// <summary>按语言索引的已解析 URL；用于前台语言上下文切换时更新 Page target 链接。</summary>
+    public IReadOnlyDictionary<string, string>? LanguageHrefs { get; init; }
     public NavigationTargetInput? Target { get; init; }
     public required IReadOnlyList<NavigationItemInput> Children { get; init; }
 }

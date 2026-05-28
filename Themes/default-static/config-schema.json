@@ -85,6 +85,23 @@
           "type": "boolean",
           "title": "显示更新时间",
           "default": true
+        },
+        {
+          "key": "reading.timeZoneDisplayStyle",
+          "type": "select",
+          "title": "时区显示风格",
+          "description": "文章详情页时间 badge 的时区显示方式；popover 中仍会展示完整作者时区。",
+          "default": "utcOffset",
+          "options": [
+            {
+              "value": "utcOffset",
+              "label": "UTC offset（UTC+8）"
+            },
+            {
+              "value": "ianaTimeZone",
+              "label": "IANA time zone（Asia/Shanghai）"
+            }
+          ]
         }
       ]
     }

@@ -7,6 +7,9 @@
 @inject IContentStateStore Store
 @inject ContentEditingService Editor
 @inject ContentScanner Scanner
+@inject LocalizationSettingsService Localization
+
+<PageTitle>@I18n[$"kind.{KindSlug}.title"] · Bocchi</PageTitle>
 
 <article class="bocchi-shell bocchi-shell--dashboard">
     <header class="bocchi-page-intro">
@@ -50,7 +53,7 @@
         </button>
     </section>
 
-    @if (_items.Count == 0)
+    @if (_groups.Length == 0)
     {
         <div class="bocchi-kind-empty">
             <div class="bocchi-kind-empty__body">
@@ -70,45 +73,92 @@
     {
         <section aria-label='@I18n["kind.index.aria.list"]'>
             <div class="bocchi-content-list bocchi-content-list--actions">
-                @foreach (var item in _items)
+                @foreach (var group in _groups)
                 {
-                    <div class="bocchi-content-item">
+                    var item = group.Representative;
+                    <div class="@ContentItemClass(group)">
                         <span class="bocchi-content-item__icon @KindIconClass">
                             <Blazicon Svg="@KindIcon" />
                         </span>
                         <a class="bocchi-content-item__main" href="@ContentEditingService.EditUrl(item.RelativePath)">
                             <strong>@(string.IsNullOrWhiteSpace(item.Title) ? item.ContentId : item.Title)</strong>
-                            <small>@item.RelativePath</small>
+                            @if (!group.HasMultipleVariants)
+                            {
+                                <small>@group.DisplayRelativePath</small>
+                            }
                         </a>
                         <BocchiStatusPill Tone="@StatusTone(item.Status)">@StatusLabel(item.Status)</BocchiStatusPill>
                         <span class="bocchi-content-item__date">@TimeLabel(item)</span>
-                        <span class="bocchi-content-item__actions">
-                            <a class="bocchi-row-icon-button"
-                               href="@ContentEditingService.EditUrl(item.RelativePath)"
-                               aria-label='@I18n["home.action.edit"]'
-                               title='@I18n["home.action.edit"]'>
-                                <Blazicon Svg="Lucide.Pencil" />
-                            </a>
-                            <details class="bocchi-row-delete">
-                                <summary class="bocchi-row-icon-button"
-                                         aria-label='@I18n["kind.index.delete"]'
-                                         title='@I18n["kind.index.delete"]'>
-                                    <Blazicon Svg="Lucide.Trash2" />
-                                </summary>
-                                <div class="bocchi-row-delete__popup" role="dialog" aria-label='@I18n["kind.index.delete.confirm"]'>
-                                    <strong>@I18n["kind.index.delete.confirm"]</strong>
-                                    <div class="bocchi-row-delete__actions">
-                                        <button type="button" data-bocchi-close-delete>@I18n["kind.index.delete.cancel"]</button>
-                                        <button type="button"
-                                                class="bocchi-row-delete__danger"
-                                                disabled="@IsDeleting(item.RelativePath)"
-                                                @onclick="() => DeleteAsync(item.RelativePath)">
-                                            @I18n["kind.index.delete.confirmAction"]
-                                        </button>
+                        @if (!group.HasMultipleVariants)
+                        {
+                            <span class="bocchi-content-item__actions">
+                                <a class="bocchi-row-icon-button"
+                                   href="@ContentEditingService.EditUrl(item.RelativePath)"
+                                   aria-label='@I18n["home.action.edit"]'
+                                   title='@I18n["home.action.edit"]'>
+                                    <Blazicon Svg="Lucide.Pencil" />
+                                </a>
+                                <details class="bocchi-row-delete">
+                                    <summary class="bocchi-row-icon-button"
+                                             aria-label='@I18n["kind.index.delete"]'
+                                             title='@I18n["kind.index.delete"]'>
+                                        <Blazicon Svg="Lucide.Trash2" />
+                                    </summary>
+                                    <div class="bocchi-row-delete__popup" role="dialog" aria-label='@I18n["kind.index.delete.confirm"]'>
+                                        <strong>@I18n["kind.index.delete.confirm"]</strong>
+                                        <div class="bocchi-row-delete__actions">
+                                            <button type="button" data-bocchi-close-delete>@I18n["kind.index.delete.cancel"]</button>
+                                            <button type="button"
+                                                    class="bocchi-row-delete__danger"
+                                                    disabled="@IsDeleting(item.RelativePath)"
+                                                    @onclick="() => DeleteAsync(item.RelativePath)">
+                                                @I18n["kind.index.delete.confirmAction"]
+                                            </button>
+                                        </div>
                                     </div>
+                                </details>
+                            </span>
+                        }
+                        @if (group.HasMultipleVariants)
+                        {
+                            <details class="bocchi-content-item__variants">
+                                <summary>
+                                    <Blazicon Svg="Lucide.ChevronRight" />
+                                    <span class="bocchi-content-item__variant-count">@FormatText("kind.index.localization.versionsFormat", group.Variants.Length)</span>
+                                    <span class="bocchi-content-item__group-path">@group.DisplayRelativePath</span>
+                                </summary>
+                                <div class="bocchi-content-item__variant-list">
+                                    @foreach (var variant in group.Variants)
+                                    {
+                                        <a class="bocchi-content-item__variant"
+                                           href="@ContentEditingService.EditUrl(variant.RelativePath)">
+                                            <span class="bocchi-content-item__variant-language">
+                                                <strong>@LanguageLabel(variant)</strong>
+                                                <span class="bocchi-content-item__variant-badges">
+                                                    @if (IsPrimaryLanguage(variant))
+                                                    {
+                                                        <span class="bocchi-tooltip bocchi-content-item__variant-badge bocchi-content-item__variant-badge--primary"
+                                                              data-bocchi-tooltip='@I18n["kind.index.localization.primaryLanguageTitle"]'
+                                                              aria-label='@I18n["kind.index.localization.primaryLanguageTitle"]'>
+                                                            @I18n["kind.index.localization.primaryLanguage"]
+                                                        </span>
+                                                    }
+                                                    <span class="bocchi-tooltip bocchi-content-item__variant-badge"
+                                                          data-bocchi-tooltip="@VariantKindTitle(variant)"
+                                                          aria-label="@VariantKindTitle(variant)">
+                                                        @VariantKindLabel(variant)
+                                                    </span>
+                                                </span>
+                                            </span>
+                                            <span class="bocchi-content-item__variant-title">
+                                                @(string.IsNullOrWhiteSpace(variant.Title) ? variant.ContentId : variant.Title)
+                                            </span>
+                                            <span class="bocchi-content-item__variant-path">@FileName(variant.RelativePath)</span>
+                                        </a>
+                                    }
                                 </div>
                             </details>
-                        </span>
+                        }
                     </div>
                 }
             </div>
@@ -131,6 +181,18 @@
 
     private IReadOnlyList<ContentSummary> _items = [];
 
+    /// <summary>当前列表的展示行；Post/Page/Work 会按 localization group 收口成一条主行。</summary>
+    private ContentSummaryGroup[] _groups = [];
+
+    /// <summary>站点可用语言的展示名索引；未知语言仍回退为原始 language code。</summary>
+    private IReadOnlyDictionary<string, string> _languageLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>站点主语言，用于 Dashboard 当前语言没有命中时挑选代表 variant。</summary>
+    private string _sitePrimaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+
+    /// <summary>当前 Dashboard UI 语言；服务端渲染时来自当前请求 culture。</summary>
+    private string _dashboardLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+
     /// <summary>刷新按钮的忙碌状态；扫描期间禁用按钮，避免重复写入 ScanRun。</summary>
     private bool _refreshing;
 
@@ -138,7 +200,25 @@
     private string? _deletingPath;
 
     protected override async Task OnInitializedAsync()
-        => await LoadItemsAsync();
+    {
+        await LoadLanguageLabelsAsync();
+        await LoadItemsAsync();
+    }
+
+    /// <summary>读取 Site languages 的展示名，列表页只展示人能识别的语言名，不把 locale code 当主文案。</summary>
+    private async Task LoadLanguageLabelsAsync()
+    {
+        var settings = await Localization.GetAsync();
+        _sitePrimaryLanguage = settings.PrimaryLanguage.Code;
+        _dashboardLanguage = string.IsNullOrWhiteSpace(CultureInfo.CurrentUICulture.Name)
+            ? CultureInfo.CurrentCulture.Name
+            : CultureInfo.CurrentUICulture.Name;
+        var languages = await Localization.ListAvailableLanguagesAsync();
+        _languageLabels = languages.ToDictionary(
+            language => language.Code,
+            FormatLanguageDisplayName,
+            StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <summary>按当前内容类型重新读取数据库索引，保持列表排序逻辑集中。</summary>
     private async Task LoadItemsAsync()
@@ -148,7 +228,70 @@
             .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
             .ThenBy(x => x.Title ?? x.ContentId)
             .ToList();
+        _groups = BuildContentGroups(_items);
     }
+
+    /// <summary>把内容摘要折叠成展示组；不支持多语言版本的内容类型保持一项一行。</summary>
+    private ContentSummaryGroup[] BuildContentGroups(IReadOnlyList<ContentSummary> summaries)
+    {
+        if (!SupportsLocalizationGroups)
+        {
+            return summaries
+                .Select(item => new ContentSummaryGroup(CreateUngroupedKey(item), item, [item]))
+                .ToArray();
+        }
+
+        return summaries
+            .GroupBy(GroupKey, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var variants = group
+                    .OrderBy(item => LanguageSort(item.Language))
+                    .ThenByDescending(item => item.UpdatedAt ?? item.PublishedAt)
+                    .ThenBy(item => item.Title ?? item.ContentId)
+                    .ToArray();
+                return new ContentSummaryGroup(group.Key, SelectRepresentative(variants), variants);
+            })
+            .OrderByDescending(group => group.Representative.UpdatedAt ?? group.Representative.PublishedAt)
+            .ThenBy(group => group.Representative.Title ?? group.Representative.ContentId)
+            .ToArray();
+    }
+
+    /// <summary>选择 localization group 主行展示的代表 variant，优先贴近当前 Dashboard 语言。</summary>
+    private ContentSummary SelectRepresentative(IReadOnlyList<ContentSummary> variants)
+        => variants.FirstOrDefault(item => SameLanguage(item.Language, _dashboardLanguage))
+            ?? variants.FirstOrDefault(item => SameLanguage(item.Language, _sitePrimaryLanguage))
+            ?? variants[0];
+
+    /// <summary>创建稳定分组 key；没有 localization group 的旧数据仍保持独立行。</summary>
+    private static string GroupKey(ContentSummary item)
+        => string.IsNullOrWhiteSpace(item.LocalizationGroup)
+            ? CreateUngroupedKey(item)
+            : item.LocalizationGroup;
+
+    /// <summary>未进入 localization group 的内容不互相折叠，避免旧内容被路径或标题误合并。</summary>
+    private static string CreateUngroupedKey(ContentSummary item)
+        => item.RelativePath;
+
+    /// <summary>变体展开层的排序优先级，和代表选择顺序保持一致。</summary>
+    private int LanguageSort(string? language)
+    {
+        if (SameLanguage(language, _dashboardLanguage))
+        {
+            return 0;
+        }
+
+        return SameLanguage(language, _sitePrimaryLanguage) ? 1 : 2;
+    }
+
+    /// <summary>以大小写不敏感方式比较语言代码，空值永不命中。</summary>
+    private static bool SameLanguage(string? left, string? right)
+        => !string.IsNullOrWhiteSpace(left) &&
+            !string.IsNullOrWhiteSpace(right) &&
+            string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>只有 Post/Page/Work 支持内容语言版本；Note 等仍保持普通平铺列表。</summary>
+    private bool SupportsLocalizationGroups => Kind is ContentKind.Post or ContentKind.Page or ContentKind.Work;
 
     /// <summary>手动重扫整个 workspace，用于外部修改文件或重建数据库后刷新内容索引。</summary>
     private async Task RefreshWorkspaceAsync()
@@ -187,6 +330,64 @@
     private static string TimeLabel(ContentSummary item)
         => (item.UpdatedAt ?? item.PublishedAt)?.ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) ?? "-";
 
+    /// <summary>把 language code 映射为用户可读名称；自定义或旧数据中的未知代码保留原值，避免空白 chip。</summary>
+    private string LanguageLabel(ContentSummary item)
+    {
+        if (string.IsNullOrWhiteSpace(item.Language))
+        {
+            return I18n["kind.index.localization.unknownLanguage"];
+        }
+
+        return _languageLabels.TryGetValue(item.Language, out var label) ? label : item.Language;
+    }
+
+    /// <summary>展示当前 variant 的角色；Translation 同时标明来源语言，帮助用户识别同组关系。</summary>
+    private string VariantKindLabel(ContentSummary item)
+    {
+        if (!item.IsTranslation)
+        {
+            return I18n["kind.index.localization.nativeShort"];
+        }
+
+        if (string.IsNullOrWhiteSpace(item.SourceLanguage))
+        {
+            return I18n["kind.index.localization.translation"];
+        }
+
+        var sourceLabel = _languageLabels.TryGetValue(item.SourceLanguage, out var label) ? label : item.SourceLanguage;
+        return FormatText("kind.index.localization.translationFromFormat", sourceLabel);
+    }
+
+    /// <summary>为 variant 角色 badge 提供 hover 解释；原生版本需要比短标签更完整的说明。</summary>
+    private string VariantKindTitle(ContentSummary item)
+        => item.IsTranslation ? VariantKindLabel(item) : I18n["kind.index.localization.nativeTitle"];
+
+    /// <summary>判断当前 variant 是否为站点主语言，用于给展开层补充上下文 badge。</summary>
+    private bool IsPrimaryLanguage(ContentSummary item)
+        => SameLanguage(item.Language, _sitePrimaryLanguage);
+
+    /// <summary>多语言展示组不是具体文件，给 DOM 标记 group 语义并移除行级编辑/删除入口。</summary>
+    private static string ContentItemClass(ContentSummaryGroup group)
+        => group.HasMultipleVariants
+            ? "bocchi-content-item bocchi-content-item--grouped"
+            : "bocchi-content-item";
+
+    /// <summary>格式化 Dashboard 文案资源，集中使用当前 culture 处理数字和短句。</summary>
+    private string FormatText(string key, params object[] args)
+        => string.Format(CultureInfo.CurrentCulture, I18n[key], args);
+
+    /// <summary>列表 chip 使用紧凑语言名；不同 native / English 的语言优先展示 native name。</summary>
+    private static string FormatLanguageDisplayName(LanguageRecord language)
+        => string.IsNullOrWhiteSpace(language.NativeName) ? language.EnglishName : language.NativeName;
+
+    /// <summary>展开层只展示具体 variant 文件名，主行已经承担了内容文件夹路径。</summary>
+    private static string FileName(string relativePath)
+    {
+        var normalizedPath = relativePath.Replace('\\', '/');
+        var slashIndex = normalizedPath.LastIndexOf('/');
+        return slashIndex >= 0 ? normalizedPath[(slashIndex + 1)..] : normalizedPath;
+    }
+
     /// <summary>删除源文件和状态索引，然后从当前列表移除该行。</summary>
     private async Task DeleteAsync(string relativePath)
     {
@@ -203,6 +404,7 @@
             _items = _items
                 .Where(x => !string.Equals(x.RelativePath, relativePath, StringComparison.Ordinal))
                 .ToList();
+            _groups = BuildContentGroups(_items);
         }
         finally
         {
@@ -229,4 +431,5 @@
 
     /// <summary>跳转到独立类别树页时，透传当前 kind，让该页默认选中对应分档。</summary>
     private string CategoriesUrl => $"/Admin/Site/Categories?kind={CreateKindValue}";
+
 }

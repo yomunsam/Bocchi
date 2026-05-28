@@ -10,3 +10,152 @@
 .bocchi-kind-action--refresh:disabled {
     transform: none;
 }
+
+.bocchi-content-item__variants {
+    grid-column: 2 / -1;
+    margin-top: -0.25rem;
+}
+
+.bocchi-content-item__variants summary {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 1.7rem;
+    align-items: center;
+    gap: 0.32rem;
+    cursor: pointer;
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    list-style: none;
+    border-radius: var(--bocchi-radius-pill);
+    padding: 0 0.45rem 0 0.25rem;
+}
+
+.bocchi-content-item__variants summary::-webkit-details-marker {
+    display: none;
+}
+
+.bocchi-content-item__variants summary:hover {
+    background: color-mix(in srgb, var(--bocchi-surface-soft) 72%, transparent);
+    color: var(--bocchi-action);
+}
+
+.bocchi-content-item__variants summary svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    transition: transform 150ms ease;
+}
+
+.bocchi-content-item__variants[open] summary svg {
+    transform: rotate(90deg);
+}
+
+.bocchi-content-item__variant-count {
+    flex: 0 0 auto;
+    color: var(--bocchi-text-muted);
+    white-space: nowrap;
+}
+
+.bocchi-content-item__group-path {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    margin-left: 0.2rem;
+    border-left: 1px solid color-mix(in srgb, var(--bocchi-border) 72%, transparent);
+    color: var(--bocchi-text-subtle);
+    font-weight: 500;
+    padding-left: 0.55rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-content-item__variant-list {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 0.45rem;
+}
+
+.bocchi-content-item__variant {
+    display: grid;
+    grid-template-columns: minmax(7.5rem, auto) minmax(0, 0.65fr) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: baseline;
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 82%, transparent);
+    border-radius: var(--bocchi-radius-sm);
+    background: color-mix(in srgb, var(--bocchi-surface-soft) 54%, transparent);
+    color: var(--bocchi-text);
+    padding: 0.45rem 0.6rem;
+    text-decoration: none;
+}
+
+.bocchi-content-item__variant:hover {
+    border-color: var(--bocchi-border-strong);
+    background: var(--bocchi-surface);
+}
+
+.bocchi-content-item__variant-language {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.bocchi-content-item__variant-language strong {
+    font-size: 0.8rem;
+}
+
+.bocchi-content-item__variant-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.bocchi-content-item__variant-badge {
+    display: inline-flex;
+    min-height: 1.25rem;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 82%, transparent);
+    border-radius: var(--bocchi-radius-pill);
+    background: color-mix(in srgb, var(--bocchi-surface) 78%, transparent);
+    color: var(--bocchi-text-subtle);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0 0.45rem;
+    white-space: nowrap;
+}
+
+.bocchi-content-item__variant-badge--primary {
+    border-color: color-mix(in srgb, var(--bocchi-action) 28%, var(--bocchi-border));
+    background: color-mix(in srgb, var(--bocchi-action) 8%, var(--bocchi-surface));
+    color: var(--bocchi-action);
+}
+
+.bocchi-content-item__variant-path {
+    color: var(--bocchi-text-subtle);
+    font-size: 0.74rem;
+}
+
+.bocchi-content-item__variant-title,
+.bocchi-content-item__variant-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .bocchi-content-item__variants {
+        grid-column: 1 / -1;
+        width: 100%;
+        margin-top: 0.25rem;
+    }
+
+    .bocchi-content-item__variants summary {
+        width: 100%;
+        min-width: 0;
+        padding-block: 0.12rem;
+    }
+
+    .bocchi-content-item__variant {
+        grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr) auto;
+    }
+}

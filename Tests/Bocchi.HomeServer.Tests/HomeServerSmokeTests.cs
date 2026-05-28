@@ -55,6 +55,28 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
     }
 
     [Fact]
+    public async Task DashboardPages_RenderDocumentTitles()
+    {
+        using var client = await _factory.CreateAdminClientAsync();
+
+        var expectedTitles = new Dictionary<string, string>
+        {
+            ["/Admin"] = "Overview · Bocchi",
+            ["/Admin/Posts"] = "Posts · Bocchi",
+            ["/Admin/Site/Categories"] = "Category tree · Bocchi",
+        };
+
+        foreach (var (path, title) in expectedTitles)
+        {
+            var response = await client.GetAsync(path);
+
+            response.EnsureSuccessStatusCode();
+            var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+            body.Should().Contain($"<title>{title}</title>");
+        }
+    }
+
+    [Fact]
     public async Task WorkspacePage_RendersAndShowsConfiguredRoot()
     {
         using var client = await _factory.CreateAdminClientAsync();
@@ -86,6 +108,75 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
             body.Should().Contain("bocchi-kind-action--refresh");
             body.Should().Contain("Refresh workspace index");
         }
+    }
+
+    /// <summary>文章列表应按 localization group 收口为主行，并在展开层保留各语言 variant 入口。</summary>
+    [Fact]
+    public async Task ContentKindPage_RendersLocalizationVariantContext()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            await services.GetRequiredService<LocalizationSettingsService>()
+                .SaveAsync("zh-CN", ["zh-CN", "en-US"], []);
+
+            var postDir = Path.Combine(factory.DataRoot, "workspace", "posts", "2026", "second-post");
+            Directory.CreateDirectory(postDir);
+            await File.WriteAllTextAsync(Path.Combine(postDir, "index.md"), """
+                ---
+                title: 第二篇文章
+                slug: second-post
+                status: Published
+                ---
+                中文正文。
+                """);
+            await File.WriteAllTextAsync(Path.Combine(postDir, "index.en-US.md"), """
+                ---
+                title: Second post
+                slug: second-post
+                status: Published
+                language: en-US
+                localization:
+                  translationOf:
+                    language: zh-CN
+                ---
+                English body.
+                """);
+            await services.GetRequiredService<Bocchi.Workspace.Scanning.ContentScanner>().ScanAsync();
+        }
+
+        var response = await client.GetAsync("/Admin/Posts");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("第二篇文章");
+        body.Should().Contain("Second post");
+        body.Should().Contain("简体中文");
+        body.Should().Contain("English");
+        body.Should().Contain("Native");
+        body.Should().Contain("Translation from 简体中文");
+        body.Should().Contain("2 language versions");
+        CountOccurrences(body, "2 language versions").Should().Be(1);
+        body.Should().Contain("bocchi-content-item bocchi-content-item--grouped");
+        body.Should().NotMatchRegex("""bocchi-content-item bocchi-content-item--grouped[\s\S]*?bocchi-content-item__actions[\s\S]*?bocchi-content-item__variants""");
+        body.Should().Contain("bocchi-content-item__variants");
+        body.Should().MatchRegex("<span[^>]*class=\"bocchi-content-item__group-path\"[^>]*>posts/2026/second-post</span>");
+        body.Should().MatchRegex("<span[^>]*class=\"bocchi-content-item__variant-path\"[^>]*>index\\.md</span>");
+        body.Should().MatchRegex("<span[^>]*class=\"bocchi-content-item__variant-path\"[^>]*>index\\.en-US\\.md</span>");
+        body.Should().Contain("data-bocchi-tooltip=\"Site primary language\"");
+        body.Should().Contain("data-bocchi-tooltip=\"Declared as an independently written language version, not a direct translation.\"");
+        body.Should().NotContain("title=\"Site primary language\"");
+
+        var workspaceResponse = await client.GetAsync("/Admin/Content?kind=Post");
+        workspaceResponse.EnsureSuccessStatusCode();
+        var workspaceBody = WebUtility.HtmlDecode(await workspaceResponse.Content.ReadAsStringAsync());
+        workspaceBody.Should().Contain("Second post");
+        workspaceBody.Should().Contain("第二篇文章");
+        workspaceBody.Should().Contain("bocchi-workspace-variants");
+        workspaceBody.Should().MatchRegex("<code[^>]*>posts/2026/second-post</code>");
+        workspaceBody.Should().Contain("data-bocchi-tooltip=\"Site primary language\"");
     }
 
     [Fact]
@@ -622,5 +713,18 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Delete permanently");
         body.Should().NotContain("Withdraw");
         body.Should().NotContain("value=\"Archived\"");
+    }
+
+    private static int CountOccurrences(string value, string needle)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += needle.Length;
+        }
+
+        return count;
     }
 }

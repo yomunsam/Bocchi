@@ -1,0 +1,26 @@
+.bocchi-workspace-variants__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.bocchi-workspace-variants__badge {
+    display: inline-flex;
+    min-height: 1.2rem;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 82%, transparent);
+    border-radius: var(--bocchi-radius-pill);
+    background: color-mix(in srgb, var(--bocchi-surface) 78%, transparent);
+    color: var(--bocchi-text-subtle);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0 0.42rem;
+    white-space: nowrap;
+}
+
+.bocchi-workspace-variants__badge--primary {
+    border-color: color-mix(in srgb, var(--bocchi-action) 28%, var(--bocchi-border));
+    background: color-mix(in srgb, var(--bocchi-action) 8%, var(--bocchi-surface));
+    color: var(--bocchi-action);
+}

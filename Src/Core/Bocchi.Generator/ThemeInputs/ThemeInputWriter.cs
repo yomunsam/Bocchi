@@ -474,11 +474,9 @@ public sealed class ThemeInputWriter
         var siteLanguage = graph.Site.Settings.Language;
         var pages = graph.Pages
             .GroupBy(page => page.Slug, StringComparer.Ordinal)
-            // Menu 是站点级 primary menu；T07 前先稳定解析到主语言 variant，避免 Theme 自己从 slug 推导。
             .ToDictionary(
                 group => group.Key,
-                group => group.FirstOrDefault(page => SameCode(page.Language, siteLanguage))
-                    ?? group.OrderBy(page => page.Language, StringComparer.OrdinalIgnoreCase).First(),
+                group => CreatePageNavigationTarget(group, siteLanguage),
                 StringComparer.Ordinal);
         var specialPages = NormalizeSpecialPages(manifest).ToDictionary(page => page.Name, StringComparer.Ordinal);
         var postCategories = graph.PostCategories.FlattenDepthFirst().ToDictionary(category => category.Slug, StringComparer.Ordinal);
@@ -492,7 +490,7 @@ public sealed class ThemeInputWriter
 
     private static NavigationItemInput? MapNavigationItem(
         NavigationItem item,
-        IReadOnlyDictionary<string, GraphPage> pages,
+        IReadOnlyDictionary<string, PageNavigationTarget> pages,
         IReadOnlyDictionary<string, ThemeSpecialPageManifest> specialPages,
         IReadOnlyDictionary<string, GraphPostCategory> postCategories,
         ThemeManifest? manifest,
@@ -519,6 +517,7 @@ public sealed class ThemeInputWriter
                 Label = groupDisplay.Text,
                 LabelI18n = groupDisplay.I18n,
                 Href = null,
+                LanguageHrefs = null,
                 Target = null,
                 Children = children,
             };
@@ -538,6 +537,7 @@ public sealed class ThemeInputWriter
             Label = display.Text,
             LabelI18n = display.I18n,
             Href = href,
+            LanguageHrefs = ResolveNavigationLanguageHrefs(target, pages),
             Target = new NavigationTargetInput
             {
                 Type = target.Type,
@@ -549,7 +549,7 @@ public sealed class ThemeInputWriter
 
     private static string? ResolveNavigationHref(
         NavigationTarget target,
-        IReadOnlyDictionary<string, GraphPage> pages,
+        IReadOnlyDictionary<string, PageNavigationTarget> pages,
         IReadOnlyDictionary<string, ThemeSpecialPageManifest> specialPages,
         IReadOnlyDictionary<string, GraphPostCategory> postCategories)
     {
@@ -557,7 +557,7 @@ public sealed class ThemeInputWriter
         return target.Type.Trim() switch
         {
             "builtin" => BuiltinHref(value),
-            "page" => pages.TryGetValue(value, out var page) ? page.SiteRelativeUrl : null,
+            "page" => pages.TryGetValue(value, out var page) ? page.Fallback.SiteRelativeUrl : null,
             "themePage" => specialPages.TryGetValue(value, out var page) && IsValidThemeSpecialPageRoute(page.Route)
                 ? NormalizeRoute(page.Route)
                 : null,
@@ -568,7 +568,7 @@ public sealed class ThemeInputWriter
 
     private static string ResolveNavigationFallbackLabel(
         NavigationTarget target,
-        IReadOnlyDictionary<string, GraphPage> pages,
+        IReadOnlyDictionary<string, PageNavigationTarget> pages,
         IReadOnlyDictionary<string, ThemeSpecialPageManifest> specialPages,
         IReadOnlyDictionary<string, GraphPostCategory> postCategories)
     {
@@ -576,7 +576,7 @@ public sealed class ThemeInputWriter
         return target.Type.Trim() switch
         {
             "builtin" => BuiltinDisplayRef(value) ?? value,
-            "page" => pages.TryGetValue(value, out var page) ? page.Title : value,
+            "page" => pages.TryGetValue(value, out var page) ? page.Fallback.Title : value,
             "themePage" => specialPages.TryGetValue(value, out var page) ? page.DisplayName : value,
             "postCategory" => postCategories.TryGetValue(value, out var category) ? category.Name : value,
             _ => value,
@@ -602,6 +602,35 @@ public sealed class ThemeInputWriter
         "friends" => "i18n://common@menu.friends",
         _ => null,
     };
+
+    /// <summary>创建 Page menu target 的多语言 URL 事实；Theme 只消费这里给出的路径，不再从 slug 拼 URL。</summary>
+    private static PageNavigationTarget CreatePageNavigationTarget(IEnumerable<GraphPage> pages, string siteLanguage)
+    {
+        var variants = pages
+            .OrderBy(page => page.Language, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var fallback = variants.FirstOrDefault(page => SameCode(page.Language, siteLanguage)) ?? variants[0];
+        var languageHrefs = variants
+            .GroupBy(page => page.Language, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.First().Language,
+                group => group.First().SiteRelativeUrl,
+                StringComparer.OrdinalIgnoreCase);
+        return new PageNavigationTarget(fallback, languageHrefs);
+    }
+
+    /// <summary>只为 Page target 暴露实际存在的语言 variant URL；内置集合页保持现有固定 URL。</summary>
+    private static IReadOnlyDictionary<string, string>? ResolveNavigationLanguageHrefs(
+        NavigationTarget target,
+        IReadOnlyDictionary<string, PageNavigationTarget> pages)
+    {
+        var value = string.IsNullOrWhiteSpace(target.Value) ? string.Empty : target.Value.Trim();
+        return string.Equals(target.Type.Trim(), "page", StringComparison.Ordinal) &&
+            pages.TryGetValue(value, out var page) &&
+            page.LanguageHrefs.Count > 1
+            ? page.LanguageHrefs
+            : null;
+    }
 
     private static DisplayText ResolveDisplayText(
         string? raw,
@@ -893,5 +922,8 @@ public sealed class ThemeInputWriter
     };
 
     /// <summary>解析后的展示文案与可选 i18n 元数据。</summary>
+    /// <summary>Page menu target 的代表 variant 与各语言 URL 映射。</summary>
+    private sealed record PageNavigationTarget(GraphPage Fallback, IReadOnlyDictionary<string, string> LanguageHrefs);
+
     private sealed record DisplayText(string Text, NavigationLabelI18nRefInput? I18n);
 }

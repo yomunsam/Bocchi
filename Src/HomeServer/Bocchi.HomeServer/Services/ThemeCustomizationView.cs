@@ -79,8 +79,8 @@ public sealed class ThemeConfigFieldView
     /// <summary>字段是否必填，当前用于展示语义，保存逻辑仍保持 Theme 默认值可回退。</summary>
     public bool Required { get; init; }
 
-    /// <summary>Select 和 MultiSelect 可用选项；当前 schema 只支持字符串选项。</summary>
-    public required IReadOnlyList<string> Options { get; init; }
+    /// <summary>Select 和 MultiSelect 可用选项；Value 用于保存，Label 用于展示。</summary>
+    public required IReadOnlyList<ThemeConfigOptionView> Options { get; init; }
 
     /// <summary>当前有效文本值；没有用户配置时使用 schema 默认值。</summary>
     public required string TextValue { get; init; }
@@ -105,6 +105,16 @@ public sealed class ThemeConfigFieldView
 
     /// <summary>schema 默认值的文本表示，用于占位提示和只读辅助信息。</summary>
     public string? DefaultText { get; init; }
+}
+
+/// <summary>Theme 配置字段的选项视图，兼容 schema 中的字符串选项和 value/label 对象。</summary>
+public sealed class ThemeConfigOptionView
+{
+    /// <summary>写入 Theme 配置 JSON 的稳定值。</summary>
+    public required string Value { get; init; }
+
+    /// <summary>展示给 Dashboard 用户看的标签；缺失时与 Value 相同。</summary>
+    public required string Label { get; init; }
 }
 
 /// <summary>主题定制页提交给服务层的单个字段值。</summary>

@@ -15,10 +15,10 @@
   {% if hasItems %}
   <div class="article-list">
     {% for item in items %}
-    <a href="{{ item.url }}" class="row">
-      <span class="date">{{ item.yearMonth }}</span>
-      <span class="title">{{ item.title }}</span>
-      <span class="cat">{{ item.meta }}</span>
+    <a href="{{ item.url }}" class="row"{% if item.hasLanguageVariants %} data-bocchi-content-variants="{{ item.languageVariantsJson }}"{% endif %}>
+      <span class="date" data-bocchi-content-year-month>{{ item.yearMonth }}</span>
+      <span class="title" data-bocchi-content-title>{{ item.title }}</span>
+      <span class="cat" data-bocchi-content-meta>{{ item.meta }}</span>
       <span class="arrow">→</span>
     </a>
     {% endfor %}

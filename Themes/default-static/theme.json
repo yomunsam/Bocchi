@@ -322,6 +322,50 @@
           "zh-TW": "深色",
           "ja-JP": "ダーク"
         }
+      },
+      {
+        "key": "content.time.writtenAt",
+        "title": "Article written-at label",
+        "description": "Label for the article original writing time.",
+        "defaultValues": {
+          "en-US": "Written at",
+          "zh-CN": "编写于",
+          "zh-TW": "編寫於",
+          "ja-JP": "執筆"
+        }
+      },
+      {
+        "key": "content.time.updatedAt",
+        "title": "Article updated-at label",
+        "description": "Label for the article update time.",
+        "defaultValues": {
+          "en-US": "Updated at",
+          "zh-CN": "修改于",
+          "zh-TW": "修改於",
+          "ja-JP": "更新"
+        }
+      },
+      {
+        "key": "content.time.authorTimeZone",
+        "title": "Author timezone label",
+        "description": "Popover label for the author's timezone.",
+        "defaultValues": {
+          "en-US": "Author time zone",
+          "zh-CN": "作者时区",
+          "zh-TW": "作者時區",
+          "ja-JP": "作者のタイムゾーン"
+        }
+      },
+      {
+        "key": "content.time.readerTime",
+        "title": "Reader timezone label",
+        "description": "Popover label for the reader's local timezone.",
+        "defaultValues": {
+          "en-US": "My time",
+          "zh-CN": "我的时区",
+          "zh-TW": "我的時區",
+          "ja-JP": "自分のタイムゾーン"
+        }
       }
     ]
   }

@@ -186,6 +186,10 @@ internal sealed class DefaultStaticThemeText
             ["common.next"] = CreateLanguageValues("Next", "下一篇", "下一篇", "次へ"),
             ["content.translationNotice"] = CreateLanguageValues("This page is a translation.", "此页面为翻译版本。", "此頁面為翻譯版本。", "このページは翻訳版です。"),
             ["content.viewOriginal"] = CreateLanguageValues("View original", "查看原文", "查看原文", "原文を見る"),
+            ["content.time.writtenAt"] = CreateLanguageValues("Written at", "编写于", "編寫於", "執筆"),
+            ["content.time.updatedAt"] = CreateLanguageValues("Updated at", "修改于", "修改於", "更新"),
+            ["content.time.authorTimeZone"] = CreateLanguageValues("Author time zone", "作者时区", "作者時區", "作者のタイムゾーン"),
+            ["content.time.readerTime"] = CreateLanguageValues("My time", "我的时区", "我的時區", "自分のタイムゾーン"),
         };
     }
 

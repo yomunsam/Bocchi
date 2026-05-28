@@ -14,6 +14,7 @@
 @inject GitProviderConnectionService GitConnections
 @inject GitHubDeviceFlowService GitHubFlow
 @inject DashboardLocalizationService I18n
+@inject LocalizationSettingsService Localization
 
 <PageTitle>Content · Bocchi</PageTitle>
 
@@ -57,11 +58,42 @@
             }
             else
             {
-                @foreach (var item in FilteredSummaries)
+                @foreach (var group in FilteredSummaryGroups)
                 {
+                    var item = group.Representative;
                     <BocchiListRow Kicker="@item.Kind.ToString()" Title="@(item.Title ?? item.ContentId)">
                         <ChildContent>
-                            <p><code>@item.RelativePath</code></p>
+                            <p><code>@group.DisplayRelativePath</code></p>
+                            @if (group.HasMultipleVariants)
+                            {
+                                <details class="bocchi-workspace-variants">
+                                    <summary>@FormatText("kind.index.localization.versionsFormat", group.Variants.Length)</summary>
+                                    <div class="bocchi-workspace-variants__list">
+                                        @foreach (var variant in group.Variants)
+                                        {
+                                            <a href="@ContentEditingService.EditUrl(variant.RelativePath)">
+                                                <span>@LanguageLabel(variant)</span>
+                                                <strong>@(variant.Title ?? variant.ContentId)</strong>
+                                                <span class="bocchi-workspace-variants__badges">
+                                                    @if (IsPrimaryLanguage(variant))
+                                                    {
+                                                        <small class="bocchi-tooltip bocchi-workspace-variants__badge bocchi-workspace-variants__badge--primary"
+                                                               data-bocchi-tooltip='@I18n["kind.index.localization.primaryLanguageTitle"]'
+                                                               aria-label='@I18n["kind.index.localization.primaryLanguageTitle"]'>
+                                                            @I18n["kind.index.localization.primaryLanguage"]
+                                                        </small>
+                                                    }
+                                                    <small class="bocchi-tooltip bocchi-workspace-variants__badge"
+                                                           data-bocchi-tooltip="@VariantKindTitle(variant)"
+                                                           aria-label="@VariantKindTitle(variant)">
+                                                        @VariantKindLabel(variant)
+                                                    </small>
+                                                </span>
+                                            </a>
+                                        }
+                                    </div>
+                                </details>
+                            }
                         </ChildContent>
                         <Metadata>
                             <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
@@ -249,6 +281,15 @@
     /// <summary>SQLite 中的内容摘要，主列表不读取正文。</summary>
     private IReadOnlyList<ContentSummary> _summaries = [];
 
+    /// <summary>站点可用语言的展示名索引，用于 Workspace 中的语言版本展开层。</summary>
+    private IReadOnlyDictionary<string, string> _languageLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>站点主语言，用于选择 Workspace 内容组代表 variant。</summary>
+    private string _sitePrimaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+
+    /// <summary>当前 Dashboard UI 语言，优先作为内容组代表 variant。</summary>
+    private string _dashboardLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
+
     /// <summary>内容 workspace remote 配置列表。</summary>
     private IReadOnlyList<ContentWorkspaceRemoteRecord> _workspaceRemotes = [];
 
@@ -297,6 +338,10 @@
         .OrderByDescending(x => x.UpdatedAt ?? x.PublishedAt)
         .ThenBy(x => x.Title ?? x.ContentId);
 
+    /// <summary>根据筛选结果按 localization group 收口，避免 Workspace 总览把同一内容 variant 平铺成多行。</summary>
+    private IEnumerable<WorkspaceContentGroup> FilteredSummaryGroups
+        => BuildSummaryGroups(FilteredSummaries.ToArray());
+
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
@@ -311,6 +356,15 @@
             ? []
             : (await Store.ListErrorsAsync(_lastRun.Id)).Take(50).ToList();
         _summaries = await Store.ListContentSummariesAsync(null);
+        var localization = await Localization.GetAsync();
+        _sitePrimaryLanguage = localization.PrimaryLanguage.Code;
+        _dashboardLanguage = string.IsNullOrWhiteSpace(System.Globalization.CultureInfo.CurrentUICulture.Name)
+            ? System.Globalization.CultureInfo.CurrentCulture.Name
+            : System.Globalization.CultureInfo.CurrentUICulture.Name;
+        _languageLabels = localization.EnabledLanguages.ToDictionary(
+            language => language.Code,
+            FormatLanguageDisplayName,
+            StringComparer.OrdinalIgnoreCase);
         _workspaceRemotes = await WorkspaceRemotes.ListAsync();
         _gitConnections = await GitConnections.ListAsync();
         _selectedGitConnectionId ??= _gitConnections.FirstOrDefault(x => x.ProviderKey == GitProviderKeys.GitHub)?.Id;
@@ -497,6 +551,97 @@
     private static string ContentTimeLabel(ContentSummary summary)
         => (summary.UpdatedAt ?? summary.PublishedAt)?.ToString("yyyy-MM-dd") ?? "No date";
 
+    /// <summary>按内容语言组生成 Workspace 展示行；不支持语言版本的内容保持一项一行。</summary>
+    private WorkspaceContentGroup[] BuildSummaryGroups(IReadOnlyList<ContentSummary> summaries)
+        => summaries
+            .GroupBy(SummaryGroupKey, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var variants = group
+                    .OrderBy(item => LanguageSort(item.Language))
+                    .ThenByDescending(item => item.UpdatedAt ?? item.PublishedAt)
+                    .ThenBy(item => item.Title ?? item.ContentId)
+                    .ToArray();
+                return new WorkspaceContentGroup(group.Key, SelectRepresentative(variants), variants);
+            })
+            .OrderByDescending(group => group.Representative.UpdatedAt ?? group.Representative.PublishedAt)
+            .ThenBy(group => group.Representative.Title ?? group.Representative.ContentId)
+            .ToArray();
+
+    /// <summary>Workspace 总览跨类型展示，group key 需要包含 kind，避免不同内容类型误折叠。</summary>
+    private static string SummaryGroupKey(ContentSummary summary)
+        => summary.Kind is ContentKind.Post or ContentKind.Page or ContentKind.Work &&
+            !string.IsNullOrWhiteSpace(summary.LocalizationGroup)
+            ? $"{summary.Kind}:{summary.LocalizationGroup}"
+            : $"{summary.Kind}:{summary.RelativePath}";
+
+    /// <summary>选择 Workspace 内容组代表 variant，顺序与分类型列表保持一致。</summary>
+    private ContentSummary SelectRepresentative(IReadOnlyList<ContentSummary> variants)
+        => variants.FirstOrDefault(item => SameLanguage(item.Language, _dashboardLanguage))
+            ?? variants.FirstOrDefault(item => SameLanguage(item.Language, _sitePrimaryLanguage))
+            ?? variants[0];
+
+    /// <summary>变体展开层排序优先当前 Dashboard 语言，其次站点主语言。</summary>
+    private int LanguageSort(string? language)
+    {
+        if (SameLanguage(language, _dashboardLanguage))
+        {
+            return 0;
+        }
+
+        return SameLanguage(language, _sitePrimaryLanguage) ? 1 : 2;
+    }
+
+    /// <summary>把 language code 映射为用户可读名称。</summary>
+    private string LanguageLabel(ContentSummary summary)
+    {
+        if (string.IsNullOrWhiteSpace(summary.Language))
+        {
+            return I18n["kind.index.localization.unknownLanguage"];
+        }
+
+        return _languageLabels.TryGetValue(summary.Language, out var label) ? label : summary.Language;
+    }
+
+    /// <summary>展示当前 variant 的角色；Translation 同时标明来源语言。</summary>
+    private string VariantKindLabel(ContentSummary summary)
+    {
+        if (!summary.IsTranslation)
+        {
+            return I18n["kind.index.localization.nativeShort"];
+        }
+
+        if (string.IsNullOrWhiteSpace(summary.SourceLanguage))
+        {
+            return I18n["kind.index.localization.translation"];
+        }
+
+        var sourceLabel = _languageLabels.TryGetValue(summary.SourceLanguage, out var label) ? label : summary.SourceLanguage;
+        return FormatText("kind.index.localization.translationFromFormat", sourceLabel);
+    }
+
+    /// <summary>为 variant 角色 badge 提供 hover 解释。</summary>
+    private string VariantKindTitle(ContentSummary summary)
+        => summary.IsTranslation ? VariantKindLabel(summary) : I18n["kind.index.localization.nativeTitle"];
+
+    /// <summary>判断当前 variant 是否为站点主语言。</summary>
+    private bool IsPrimaryLanguage(ContentSummary summary)
+        => SameLanguage(summary.Language, _sitePrimaryLanguage);
+
+    /// <summary>格式化 Dashboard 文案资源，复用当前 culture 的数字和短句规则。</summary>
+    private string FormatText(string key, params object[] args)
+        => string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n[key], args);
+
+    /// <summary>列表使用紧凑语言名；native name 缺失时回退英文名。</summary>
+    private static string FormatLanguageDisplayName(LanguageRecord language)
+        => string.IsNullOrWhiteSpace(language.NativeName) ? language.EnglishName : language.NativeName;
+
+    /// <summary>以大小写不敏感方式比较语言代码。</summary>
+    private static bool SameLanguage(string? left, string? right)
+        => !string.IsNullOrWhiteSpace(left) &&
+            !string.IsNullOrWhiteSpace(right) &&
+            string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>执行普通用户入口的轻量搜索；不读取正文，只匹配列表投影字段。</summary>
     private bool MatchesSearch(ContentSummary summary)
     {
@@ -544,5 +689,26 @@
         return _gitStatus.DirtyFileCount == 0
             ? "Clean"
             : $"{_gitStatus.DirtyFileCount} changed files";
+    }
+
+    /// <summary>Workspace 总览中的内容展示组。</summary>
+    private sealed record WorkspaceContentGroup(
+        string Key,
+        ContentSummary Representative,
+        ContentSummary[] Variants)
+    {
+        /// <summary>是否存在多个语言版本，用于决定是否显示展开入口。</summary>
+        public bool HasMultipleVariants => Variants.Length > 1;
+
+        /// <summary>总览主行展示路径；多语言组显示内容文件夹，避免误指向单个 variant 文件。</summary>
+        public string DisplayRelativePath => HasMultipleVariants ? ContainingFolderPath(Representative.RelativePath) : Representative.RelativePath;
+
+        /// <summary>从具体 Markdown 文件路径取父级内容文件夹。</summary>
+        private static string ContainingFolderPath(string relativePath)
+        {
+            var normalizedPath = relativePath.Replace('\\', '/');
+            var slashIndex = normalizedPath.LastIndexOf('/');
+            return slashIndex > 0 ? normalizedPath[..slashIndex] : normalizedPath;
+        }
     }
 }

@@ -17,10 +17,10 @@
   {% if hasFeaturedPosts %}
   <div class="article-list">
     {% for item in featuredPosts %}
-    <a href="{{ item.url }}" class="row">
-      <span class="date">{{ item.yearMonth }}</span>
-      <span class="title">{{ item.title }}</span>
-      <span class="cat">{{ item.meta }}</span>
+    <a href="{{ item.url }}" class="row"{% if item.hasLanguageVariants %} data-bocchi-content-variants="{{ item.languageVariantsJson }}"{% endif %}>
+      <span class="date" data-bocchi-content-year-month>{{ item.yearMonth }}</span>
+      <span class="title" data-bocchi-content-title>{{ item.title }}</span>
+      <span class="cat" data-bocchi-content-meta>{{ item.meta }}</span>
       <span class="arrow">→</span>
     </a>
     {% endfor %}
@@ -38,9 +38,9 @@
   {% if hasFeaturedWorks %}
   <div class="proj-grid">
     {% for item in featuredWorks %}
-    <article class="proj-card">
-      <div class="head"><h3><a href="{{ item.url }}">{{ item.title }}</a></h3><span class="fig-num">{{ forloop.index }}</span></div>
-      <p class="desc">{{ item.summary }}</p>
+    <article class="proj-card"{% if item.hasLanguageVariants %} data-bocchi-content-variants="{{ item.languageVariantsJson }}"{% endif %}>
+      <div class="head"><h3><a href="{{ item.url }}" data-bocchi-content-title>{{ item.title }}</a></h3><span class="fig-num">{{ forloop.index }}</span></div>
+      <p class="desc" data-bocchi-content-summary>{{ item.summary }}</p>
       {% if item.hasStack %}<div class="stack">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
       {% if item.hasLinks %}<div class="links">{% for link in item.links %}<a href="{{ link.url }}">{{ link.label }} →</a>{% endfor %}</div>{% endif %}
     </article>

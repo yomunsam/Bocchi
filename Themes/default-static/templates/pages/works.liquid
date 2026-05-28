@@ -12,16 +12,16 @@
 
 {% if hasFeaturedWork %}
 <section class="content featured-work-section">
-  <article class="featured-work">
+  <article class="featured-work"{% if featuredWork.hasLanguageVariants %} data-bocchi-content-variants="{{ featuredWork.languageVariantsJson }}"{% endif %}>
     <div>
       <div class="caption">Featured · {{ featuredWork.year }}</div>
-      <h2 class="display">{{ featuredWork.title }}</h2>
-      <p>{{ featuredWork.summary }}</p>
+      <h2 class="display" data-bocchi-content-title>{{ featuredWork.title }}</h2>
+      <p data-bocchi-content-summary>{{ featuredWork.summary }}</p>
       {% if featuredWork.hasStack %}<div class="stack">{% for tag in featuredWork.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
       {% if featuredWork.hasLinks %}<div class="links">{% for link in featuredWork.links %}<a href="{{ link.url }}" class="arrow-link">{{ link.label }} <span class="arrow">→</span></a>{% endfor %}</div>{% endif %}
     </div>
     <a class="featured-work__figure" href="{{ featuredWork.url }}">
-      {% if featuredWork.hasCover %}<img src="{{ featuredWork.cover.path }}" alt="{{ featuredWork.cover.alt }}">{% else %}<span>{{ featuredWork.title }}</span>{% endif %}
+      {% if featuredWork.hasCover %}<img src="{{ featuredWork.cover.path }}" alt="{{ featuredWork.cover.alt }}">{% else %}<span data-bocchi-content-title>{{ featuredWork.title }}</span>{% endif %}
     </a>
   </article>
 </section>
@@ -31,9 +31,9 @@
   {% if hasWorkItems %}
   <div class="proj-grid">
     {% for item in workItems %}
-    <article class="proj-card">
-      <div class="head"><h3><a href="{{ item.url }}">{{ item.title }}</a></h3><span class="fig-num">{{ forloop.index }}</span></div>
-      <p class="desc">{{ item.summary }}</p>
+    <article class="proj-card"{% if item.hasLanguageVariants %} data-bocchi-content-variants="{{ item.languageVariantsJson }}"{% endif %}>
+      <div class="head"><h3><a href="{{ item.url }}" data-bocchi-content-title>{{ item.title }}</a></h3><span class="fig-num">{{ forloop.index }}</span></div>
+      <p class="desc" data-bocchi-content-summary>{{ item.summary }}</p>
       {% if item.hasStack %}<div class="stack">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
       {% if item.hasLinks %}<div class="links">{% for link in item.links %}<a href="{{ link.url }}">{{ link.label }} →</a>{% endfor %}</div>{% endif %}
     </article>

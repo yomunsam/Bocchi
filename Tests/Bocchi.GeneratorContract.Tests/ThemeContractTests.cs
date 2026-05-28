@@ -2,6 +2,14 @@ namespace Bocchi.GeneratorContract.Tests;
 
 public sealed class ThemeContractTests
 {
+    /// <summary>Theme package validation 同等 JSON 配置，复用以避免测试里重复创建 serializer options。</summary>
+    private static readonly System.Text.Json.JsonSerializerOptions SchemaJsonOptions = new(System.Text.Json.JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+        ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
     [Fact]
     public void ContractVersion_IsV1()
     {
@@ -159,6 +167,69 @@ public sealed class ThemeContractTests
     }
 
     [Fact]
+    public void ThemeConfigSchema_DeserializesLegacyStringOptions()
+    {
+        var schema = DeserializeThemeConfigSchema("""
+            {
+              "groups": [
+                {
+                  "id": "reading",
+                  "title": "Reading",
+                  "fields": [
+                    {
+                      "key": "reading.timeZoneDisplayStyle",
+                      "type": "select",
+                      "title": "Time zone display",
+                      "options": ["utcOffset", "ianaTimeZone"]
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        var field = schema.Groups.Single().Fields.Single();
+        field.Type.Should().Be(ThemeConfigFieldType.Select);
+        field.Options.Should().NotBeNull();
+        field.Options!.Select(option => (option.Value, option.Label))
+            .Should().Equal(("utcOffset", "utcOffset"), ("ianaTimeZone", "ianaTimeZone"));
+    }
+
+    [Fact]
+    public void ThemeConfigSchema_DeserializesValueLabelOptions()
+    {
+        var schema = DeserializeThemeConfigSchema("""
+            {
+              "groups": [
+                {
+                  "id": "reading",
+                  "title": "Reading",
+                  "fields": [
+                    {
+                      "key": "reading.timeZoneDisplayStyle",
+                      "type": "select",
+                      "title": "Time zone display",
+                      "options": [
+                        { "value": "utcOffset", "label": "UTC offset（UTC+8）" },
+                        { "value": "ianaTimeZone", "label": "IANA time zone（Asia/Shanghai）" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        var field = schema.Groups.Single().Fields.Single();
+        field.Type.Should().Be(ThemeConfigFieldType.Select);
+        field.Options.Should().NotBeNull();
+        field.Options!.Select(option => (option.Value, option.Label))
+            .Should().Equal(
+                ("utcOffset", "UTC offset（UTC+8）"),
+                ("ianaTimeZone", "IANA time zone（Asia/Shanghai）"));
+    }
+
+    [Fact]
     public void BuildContext_RoundTripsRequiredFields()
     {
         var ctx = new BuildContext
@@ -174,4 +245,8 @@ public sealed class ThemeContractTests
         ctx.BaseUrl.Should().Be(new Uri("https://example.invalid/"));
         ctx.ThemeId.Should().Be("default-svelte");
     }
+
+    /// <summary>使用 Theme package validation 同等 JSON 配置验证 Contract DTO 的解析边界。</summary>
+    private static ThemeConfigSchema DeserializeThemeConfigSchema(string json)
+        => System.Text.Json.JsonSerializer.Deserialize<ThemeConfigSchema>(json, SchemaJsonOptions)!;
 }
