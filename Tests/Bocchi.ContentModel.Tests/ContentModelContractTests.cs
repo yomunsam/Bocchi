@@ -60,12 +60,59 @@ public sealed class ContentModelContractTests
     }
 
     [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("!!!", "")]
     [InlineData("我的 第一篇文章！", "我的-第一篇文章")]
     [InlineData("吾輩は猫である", "吾輩は猫である")]
     [InlineData("Hello, Bocchi!", "hello-bocchi")]
     [InlineData("設計 2026 / Devlog", "設計-2026-devlog")]
-    public void ContentSlug_NormalizesUnicodePathSegments(string value, string expected)
+    [InlineData("  Hello---Bocchi___LIVE  ", "hello-bocchi-live")]
+    [InlineData("孤独🚀ROCK 2026", "孤独-rock-2026")]
+    [InlineData("Ｃ＃ 入門 １２３", "c-入門-123")]
+    [InlineData("Café Été", "café-été")]
+    public void ContentSlug_NormalizesUnicodePathSegments(string? value, string expected)
     {
         ContentSlug.Normalize(value).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ContentSlug_KeepsLongValidInputWithoutTruncation()
+    {
+        ContentSlug.Normalize(new string('A', 300)).Should().Be(new string('a', 300));
+    }
+
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("   ", "")]
+    [InlineData("!!!", "")]
+    [InlineData("我的 第一篇文章！", "")]
+    [InlineData("吾輩は猫である", "")]
+    [InlineData("Hello, Bocchi!", "hello-bocchi")]
+    [InlineData("設計 2026 / Devlog", "2026-devlog")]
+    [InlineData("  Hello---Bocchi___LIVE  ", "hello-bocchi-live")]
+    [InlineData("孤独🚀ROCK 2026", "rock-2026")]
+    [InlineData("Café Été", "cafe-ete")]
+    [InlineData("C#/.NET Tips", "c-net-tips")]
+    public void CategorySlug_NormalizesAsciiUrlSegments(string? value, string expected)
+    {
+        CategorySlug.Normalize(value).Should().Be(expected);
+    }
+
+    [Fact]
+    public void CategorySlug_KeepsLongValidAsciiInputWithoutTruncation()
+    {
+        CategorySlug.Normalize(new string('A', 300)).Should().Be(new string('a', 300));
+    }
+
+    [Fact]
+    public void ContentSlugAndCategorySlug_HaveDifferentUnicodeContracts()
+    {
+        const string value = "設計 2026 / Devlog";
+
+        ContentSlug.Normalize(value).Should().Be("設計-2026-devlog");
+        CategorySlug.Normalize(value).Should().Be("2026-devlog");
     }
 }
