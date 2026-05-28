@@ -150,3 +150,13 @@ Standard components like buttons and input fields use a 12px (`0.5rem`) radius. 
 - **Lists & Tables:** Use subtle horizontal dividers in a light neutral tint. Avoid alternating row colors; instead, use a soft hover state change.
 - **Chips:** Small, pill-shaped elements with light "Berry" backgrounds (10% opacity) and "Berry" text for a soft, professional accent.
 - **Iconography:** Use line icons with a consistent 2px stroke weight, utilizing the "Berry" color for active states and "Charcoal" for inactive.
+
+## Dark Mode
+Dark mode follows the same Milk & Berry philosophy but inverts the surface hierarchy. The palette **retains a subtle Berry pink undertone** (H:330-340°, saturation 2-5%) across all surface layers as a deliberate brand signature — this warmth distinguishes it from generic dark themes. The key is restraint: the undertone should feel like a faint warmth, never an obvious tint.
+
+- **Background (`#1e1a1d`):** Very dark with a whisper of Berry warmth. Avoids the cold neutrality of pure gray and the harshness of pure black.
+- **Surface (`#282427`):** Cards and panels sit ~3 lightness points above the background. The gap is deliberately small to maintain a "flat" feel rather than a stacked construction-paper look.
+- **Surface Layers:** `muted` → `soft` → `pink` form a 3-step tonal ladder. All carry the faint Berry undertone; only `surface-pink` (`#352530`) pushes saturation higher for icon containers and brand-colored badges.
+- **Text:** `#f4f1ef` (warm near-white) for primary content; `#bfadb5` (pink-gray) for secondary; `#907e86` for the least prominent labels. The secondary/subtle tones deliberately echo the Berry warmth.
+- **Borders:** `#453d41` for standard dividers, `#66595e` for strong/emphasized borders. Both carry the pink undertone to stay cohesive with the surface palette.
+- **Shadows:** Pure black at reduced opacity (28-40%) since the dark background absorbs colored shadows.

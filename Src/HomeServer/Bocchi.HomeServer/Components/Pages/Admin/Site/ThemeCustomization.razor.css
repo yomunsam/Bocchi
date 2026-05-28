@@ -1,216 +1,250 @@
 .bocchi-theme-shell {
-    gap: 0.75rem;
+    gap: 0.6rem;
 }
 
-/* Theme 概览条：用作页面的 "当前 Theme" hero 区。
-   - 强调 ThemeName 与 ThemeId；
-   - 右侧塞统计 + 状态 pill + 【切换 Theme】入口（用户反馈入口不够醒目）。 */
-.bocchi-theme-overview {
-    display: grid;
-    grid-template-columns: minmax(14rem, 1fr) auto auto auto;
-    gap: 1rem;
+/* ── Theme 信息条 ── */
+.bocchi-theme-infobar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
     align-items: center;
+    padding: 0.55rem 0.75rem;
     border: 1px solid var(--bocchi-border);
     border-radius: var(--bocchi-radius-md);
     background: var(--bocchi-surface);
-    padding: 0.8rem 1rem;
+    box-shadow: var(--bocchi-shadow-sm);
 }
 
-.bocchi-theme-overview__switch {
-    display: inline-flex;
-    align-items: center;
+.bocchi-theme-infobar__identity {
+    display: flex;
     gap: 0.4rem;
-    border: 1px solid var(--bocchi-border-strong);
-    border-radius: var(--bocchi-radius-pill);
-    background: var(--bocchi-action-soft);
-    color: var(--bocchi-action-strong);
-    padding: 0.4rem 0.85rem;
-    font-size: 0.86rem;
-    font-weight: 660;
-    text-decoration: none;
-    transition: background 120ms ease, border-color 120ms ease;
-}
-
-.bocchi-theme-overview__switch:hover {
-    background: var(--bocchi-action-soft-strong);
-    border-color: var(--bocchi-action-strong);
-}
-
-.bocchi-theme-overview__switch ::deep svg {
-    width: 0.95rem;
-    height: 0.95rem;
-}
-
-.bocchi-theme-overview__identity {
-    display: grid;
-    gap: 0.22rem;
+    align-items: baseline;
     min-width: 0;
 }
 
-.bocchi-theme-overview__identity span,
-.bocchi-theme-panel-heading span {
+.bocchi-theme-infobar__identity strong {
+    color: var(--bocchi-text);
+    font-size: 0.88rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-theme-infobar__identity code {
     color: var(--bocchi-text-muted);
+    font-size: 0.72rem;
+}
+
+.bocchi-theme-infobar__meta {
+    display: flex;
+    gap: 0.4rem;
+    color: var(--bocchi-text-subtle);
+    font-size: 0.72rem;
+}
+
+.bocchi-theme-infobar__switcher {
+    margin-left: auto;
+}
+
+.bocchi-theme-infobar__switcher select {
+    min-height: 1.75rem;
     font-size: 0.78rem;
-    font-weight: 780;
+    padding: 0 0.5rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-sm);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
 }
 
-.bocchi-theme-overview__identity h2,
-.bocchi-theme-overview__identity code {
+.bocchi-theme-infobar__message {
+    width: 100%;
     margin: 0;
-}
-
-.bocchi-theme-overview__root {
-    display: grid;
-    gap: 0.12rem;
-    min-width: 0;
-    color: var(--bocchi-text-muted);
+    color: var(--bocchi-danger-strong);
     font-size: 0.76rem;
 }
 
-.bocchi-theme-overview__root code {
-    overflow: hidden;
-    color: var(--bocchi-text-subtle);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.bocchi-theme-overview__identity h2 {
-    color: var(--bocchi-text);
-    font-size: 1.08rem;
-    letter-spacing: 0;
-}
-
-.bocchi-theme-summary-list {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(5rem, auto));
-    gap: 0.7rem;
-    margin: 0;
-}
-
-.bocchi-theme-summary-list div {
-    display: grid;
-    gap: 0.12rem;
-    min-width: 0;
-}
-
-.bocchi-theme-summary-list dt {
-    color: var(--bocchi-text-muted);
-    font-size: 0.78rem;
-    font-weight: 720;
-}
-
-.bocchi-theme-summary-list dd {
-    margin: 0;
-    color: var(--bocchi-text);
-    font-size: 1.02rem;
-    font-weight: 760;
-    line-height: 1.1;
-}
-
-.bocchi-theme-status-stack {
+/* ── Section Tabs ── */
+.bocchi-theme-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
-    justify-content: flex-end;
+    gap: 0.3rem;
+    align-items: center;
+    padding: 0.3rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-md);
+    background: color-mix(in srgb, var(--bocchi-surface) 82%, var(--bocchi-bg));
 }
 
-/* Theme tab 的视觉 primitive 在 app.css 中统一维护；这里仅保留本页内部文字结构。 */
-.bocchi-theme-tab span {
+.bocchi-theme-tabs__spacer {
+    flex: 1;
+}
+
+.bocchi-theme-tabs__save {
+    font-size: 0.8rem;
+    min-height: 1.85rem;
+}
+
+.bocchi-theme-tab {
     display: inline-flex;
-    min-width: 0;
-}
-
-.bocchi-theme-tab strong {
-    font-weight: inherit;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* segmented 下不需要每项的说明文本，隐藏。 */
-.bocchi-theme-tab small {
-    display: none;
-}
-
-.bocchi-theme-workbench {
-    display: grid;
-    grid-template-columns: minmax(12rem, 0.24fr) minmax(0, 1fr);
-    gap: 0.75rem;
-    align-items: start;
-    min-width: 0;
-}
-
-.bocchi-theme-side-list {
-    position: sticky;
-    top: 5.4rem;
-    display: grid;
-    gap: 0.38rem;
-    min-width: 0;
-    max-width: 100%;
-}
-
-/* Theme 编辑的分组侧边栏按钮：使用与主 sidebar、SettingsNav 同款的 soft active 风格。
-   - active：左 3px 粉条 + 8% 粉底；
-   - hover：8% 粉底；default：透明；
-   - 去掉原有的 1px border，生产出更轻量的视觉。 */
-.bocchi-theme-side-button,
-.bocchi-theme-key-button {
-    position: relative;
-    display: grid;
-    width: 100%;
-    min-height: 2.2rem;
-    min-width: 0;
-    justify-content: stretch;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 1.85rem;
     border: none;
     border-radius: var(--bocchi-radius-sm);
     background: transparent;
     color: var(--bocchi-text-muted);
-    padding: 0.4rem 0.65rem 0.4rem 0.85rem;
-    text-align: left;
+    font-size: 0.82rem;
+    padding: 0 0.6rem;
     cursor: pointer;
     transition: background 120ms ease, color 120ms ease;
 }
 
-.bocchi-theme-side-button:hover:not(:disabled),
-.bocchi-theme-key-button:hover:not(:disabled) {
+.bocchi-theme-tab:hover:not(:disabled) {
     background: var(--bocchi-action-soft);
     color: var(--bocchi-text);
 }
 
-.bocchi-theme-side-button--active,
-.bocchi-theme-key-button--active {
+.bocchi-theme-tab--active {
     background: var(--bocchi-action-soft-strong);
-    color: var(--bocchi-nav-active-text);
-    font-weight: 660;
+    color: var(--bocchi-action-strong);
+    font-weight: 600;
 }
 
-.bocchi-theme-side-button--active::before,
-.bocchi-theme-key-button--active::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0.4rem;
-    bottom: 0.4rem;
-    width: 3px;
-    border-radius: 0 3px 3px 0;
-    background: var(--bocchi-nav-active-bar);
+.bocchi-theme-tab ::deep svg {
+    width: 0.85rem;
+    height: 0.85rem;
 }
 
-.bocchi-theme-side-button span {
+/* ── 状态行 ── */
+.bocchi-theme-status-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+/* ── Config 分组 pills ── */
+.bocchi-theme-group-pills {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding: 0.1rem 0;
+    scrollbar-width: thin;
+}
+
+.bocchi-theme-pill {
+    display: inline-flex;
+    min-height: 1.7rem;
+    align-items: center;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-pill);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0 0.55rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bocchi-theme-pill:hover:not(:disabled) {
+    background: var(--bocchi-action-soft);
+    color: var(--bocchi-text);
+}
+
+.bocchi-theme-pill--active {
+    background: var(--bocchi-action-soft-strong);
+    color: var(--bocchi-action-strong);
+    border-color: color-mix(in srgb, var(--bocchi-action) 30%, var(--bocchi-border));
+    font-weight: 600;
+}
+
+/* ── i18n 可搜索纵向列表 ── */
+.bocchi-theme-i18n-layout {
     display: grid;
-    gap: 0.1rem;
+    grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
 }
 
-.bocchi-theme-side-button small,
-.bocchi-theme-key-button code,
-.bocchi-theme-muted,
-.bocchi-theme-empty-note {
+.bocchi-theme-i18n-picker {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.6rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-md);
+    background: var(--bocchi-surface);
+}
+
+.bocchi-theme-i18n-picker__search {
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr);
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.bocchi-theme-i18n-picker__search ::deep svg {
+    width: 0.85rem;
+    height: 0.85rem;
     color: var(--bocchi-text-muted);
 }
 
+.bocchi-theme-i18n-picker__search input {
+    min-height: 1.75rem;
+    font-size: 0.78rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--bocchi-radius-sm);
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text);
+}
+
+.bocchi-theme-i18n-picker__list {
+    display: grid;
+    gap: 0.1rem;
+    max-height: calc(100vh - 18rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.bocchi-theme-i18n-picker__empty {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.76rem;
+    padding: 0.35rem 0;
+    text-align: center;
+}
+
+/* i18n key 按钮：纵向列表，显示完整 key + title */
+.bocchi-theme-i18n-picker .bocchi-theme-pill {
+    justify-content: flex-start;
+    min-height: 1.9rem;
+    border-radius: var(--bocchi-radius-sm);
+    padding: 0.2rem 0.55rem;
+}
+
+.bocchi-theme-i18n-picker .bocchi-theme-pill code {
+    font-size: 0.74rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-theme-i18n-picker .bocchi-theme-pill small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: 0.3rem;
+}
+
+/* ── Editor Panel ── */
 .bocchi-theme-editor-panel {
     display: grid;
-    gap: 0.6rem;
+    gap: 0.5rem;
     min-width: 0;
     max-width: 100%;
 }
@@ -218,24 +252,24 @@
 .bocchi-theme-panel-heading {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.55rem;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.bocchi-theme-panel-heading div {
-    display: grid;
-    gap: 0.12rem;
-    min-width: 0;
+    gap: 0.4rem;
+    align-items: baseline;
 }
 
 .bocchi-theme-panel-heading h2 {
     margin: 0;
     color: var(--bocchi-text);
-    font-size: 1.06rem;
+    font-size: 0.92rem;
     letter-spacing: 0;
 }
 
+.bocchi-theme-panel-heading span,
+.bocchi-theme-panel-heading code {
+    color: var(--bocchi-text-muted);
+    font-size: 0.74rem;
+}
+
+/* ── Field 列表：纵向堆叠 ── */
 .bocchi-theme-field-list {
     display: grid;
     gap: 0;
@@ -244,13 +278,11 @@
 
 .bocchi-theme-field {
     display: grid;
-    grid-template-columns: minmax(11rem, 0.3fr) minmax(0, 1fr);
-    gap: 0.72rem;
-    align-items: start;
+    gap: 0.35rem;
     min-width: 0;
     max-width: 100%;
     border-top: 1px solid var(--bocchi-border);
-    padding: 0.62rem 0;
+    padding: 0.55rem 0;
 }
 
 .bocchi-theme-field:first-child {
@@ -258,90 +290,213 @@
     padding-top: 0;
 }
 
-.bocchi-theme-field__label,
-.bocchi-theme-field__control,
-.bocchi-theme-field__meta {
+.bocchi-theme-field-group {
     display: grid;
-    gap: 0.28rem;
+    gap: 0.1rem;
+    padding: 0.6rem 0 0.3rem;
+    border-top: 1px solid var(--bocchi-border);
+}
+
+.bocchi-theme-field-group strong {
+    color: var(--bocchi-text);
+    font-size: 0.82rem;
+}
+
+.bocchi-theme-field-group small {
+    color: var(--bocchi-text-muted);
+    font-size: 0.74rem;
+}
+
+/* ── Field label：title + tooltip icons ── */
+.bocchi-theme-field__label {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
     min-width: 0;
-    max-width: 100%;
 }
 
 .bocchi-theme-field__label strong {
     color: var(--bocchi-text);
+    font-size: 0.84rem;
 }
 
-.bocchi-theme-field__label code,
-.bocchi-theme-field__label small,
-.bocchi-theme-field__meta small {
+.bocchi-theme-field__label .bocchi-tooltip {
+    display: inline-flex;
+    width: 1.15rem;
+    height: 1.15rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--bocchi-text-subtle);
+    cursor: help;
+    transition: color 120ms ease, background 120ms ease;
+}
+
+.bocchi-theme-field__label .bocchi-tooltip:hover,
+.bocchi-theme-field__label .bocchi-tooltip:focus-visible {
+    color: var(--bocchi-text);
+    background: var(--bocchi-surface-muted);
+}
+
+.bocchi-theme-field__label .bocchi-tooltip ::deep svg {
+    width: 0.78rem;
+    height: 0.78rem;
+}
+
+/* ── Field control ── */
+.bocchi-theme-field__control {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    color: var(--bocchi-text-muted);
-    line-height: 1.45;
-    text-overflow: ellipsis;
 }
 
-.bocchi-theme-field__label code {
-    display: inline-block;
-    white-space: nowrap;
+.bocchi-theme-field__control-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
+.bocchi-theme-field__control-row > input[type="text"],
+.bocchi-theme-field__control-row > input[type="url"],
+.bocchi-theme-field__control-row > textarea,
+.bocchi-theme-field__control-row > .bocchi-theme-option-list {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.bocchi-theme-field__control-row > input[type="number"] {
+    flex: 0 1 11rem;
+}
+
+.bocchi-theme-field__control-row > select {
+    flex: 0 1 15rem;
+}
+
+.bocchi-theme-field__control-row > .bocchi-color-field,
+.bocchi-theme-field__control-row > .bocchi-theme-switch {
+    flex: 0 1 auto;
+}
+
+.bocchi-theme-field__control-row ::deep .bocchi-loc-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.bocchi-theme-field__control-prefix {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--bocchi-text-subtle);
+    cursor: help;
+    transition: color 120ms ease, background 120ms ease;
+}
+
+.bocchi-theme-field__control-prefix:hover,
+.bocchi-theme-field__control-prefix:focus-visible {
+    color: var(--bocchi-text);
+    background: var(--bocchi-surface-muted);
+}
+
+.bocchi-theme-field__control-prefix ::deep svg {
+    width: 0.78rem;
+    height: 0.78rem;
+}
+
+.bocchi-theme-field__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.bocchi-theme-field__meta .bocchi-tooltip {
+    display: inline-flex;
+    width: 1.15rem;
+    height: 1.15rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--bocchi-text-subtle);
+    cursor: help;
+    transition: color 120ms ease, background 120ms ease;
+}
+
+.bocchi-theme-field__meta .bocchi-tooltip:hover,
+.bocchi-theme-field__meta .bocchi-tooltip:focus-visible {
+    color: var(--bocchi-text);
+    background: var(--bocchi-surface-muted);
+}
+
+.bocchi-theme-field__meta .bocchi-tooltip ::deep svg {
+    width: 0.78rem;
+    height: 0.78rem;
+}
+
+/* ── Field 输入控件 ── */
 .bocchi-theme-field input[type="text"],
 .bocchi-theme-field input[type="number"],
 .bocchi-theme-field input[type="url"],
 .bocchi-theme-field select,
-.bocchi-theme-field textarea,
-.bocchi-theme-search input {
+.bocchi-theme-field textarea {
     width: 100%;
     max-width: 100%;
-    min-height: 2.16rem;
+    min-height: 1.9rem;
     min-width: 0;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
     font-weight: 400;
-    padding: 0 0.62rem;
+    padding: 0 0.5rem;
+    font-size: 0.82rem;
 }
 
 .bocchi-theme-field textarea {
-    min-height: 4.8rem;
-    padding: 0.52rem 0.62rem;
+    min-height: 3.8rem;
+    padding: 0.4rem 0.5rem;
     resize: vertical;
 }
 
 .bocchi-theme-field input[type="number"] {
-    width: min(100%, 13rem);
+    width: min(100%, 11rem);
 }
 
 .bocchi-theme-field select {
-    width: min(100%, 18rem);
+    width: min(100%, 15rem);
 }
 
 .bocchi-color-field {
     display: grid;
-    grid-template-columns: 2.55rem minmax(0, 13rem);
-    gap: 0.45rem;
+    grid-template-columns: 2.1rem minmax(0, 11rem);
+    gap: 0.35rem;
     align-items: center;
     max-width: 100%;
 }
 
 .bocchi-color-field input[type="color"] {
-    width: 2.55rem;
-    min-height: 2.16rem;
+    width: 2.1rem;
+    min-height: 1.9rem;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
-    padding: 0.2rem;
+    padding: 0.15rem;
 }
 
 .bocchi-theme-switch,
 .bocchi-theme-choice {
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.45rem;
     color: var(--bocchi-text);
-    font-weight: 700;
+    font-size: 0.82rem;
 }
 
 .bocchi-theme-switch input {
@@ -353,8 +508,8 @@
 .bocchi-theme-switch__track {
     position: relative;
     display: inline-flex;
-    width: 2.35rem;
-    height: 1.32rem;
+    width: 2rem;
+    height: 1.1rem;
     flex: 0 0 auto;
     align-items: center;
     border: 1px solid var(--bocchi-border);
@@ -364,22 +519,22 @@
 }
 
 .bocchi-theme-switch__track span {
-    width: 1rem;
-    height: 1rem;
+    width: 0.85rem;
+    height: 0.85rem;
     border-radius: 999px;
     background: var(--bocchi-surface);
-    box-shadow: 0 1px 4px rgba(38, 37, 58, 0.2);
-    margin-left: 0.15rem;
+    box-shadow: 0 1px 3px rgba(38, 37, 58, 0.18);
+    margin-left: 0.1rem;
     transition: transform 140ms ease;
 }
 
 .bocchi-theme-switch input:checked + .bocchi-theme-switch__track {
-    border-color: color-mix(in srgb, var(--bocchi-action) 48%, var(--bocchi-border));
-    background: var(--bocchi-action);
+    border-color: color-mix(in srgb, var(--bocchi-action-fill) 48%, var(--bocchi-border));
+    background: var(--bocchi-action-fill);
 }
 
 .bocchi-theme-switch input:checked + .bocchi-theme-switch__track span {
-    transform: translateX(1rem);
+    transform: translateX(0.9rem);
 }
 
 .bocchi-theme-switch input:focus-visible + .bocchi-theme-switch__track {
@@ -389,117 +544,84 @@
 .bocchi-theme-option-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.3rem;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface-soft);
-    padding: 0.5rem;
+    padding: 0.4rem;
 }
 
 .bocchi-theme-choice {
-    min-height: 1.85rem;
+    min-height: 1.6rem;
     border: 1px solid var(--bocchi-border);
     border-radius: 8px;
     background: var(--bocchi-surface);
-    padding: 0 0.65rem;
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
 }
 
-.bocchi-theme-search {
-    display: grid;
-    gap: 0.32rem;
-    color: var(--bocchi-text-muted);
-    font-size: 0.9rem;
-    font-weight: 700;
-}
-
-.bocchi-theme-i18n-list {
-    max-height: calc(100vh - 6rem);
-    overflow: auto;
-}
-
-.bocchi-theme-key-list {
-    display: grid;
-    gap: 0.48rem;
-}
-
-.bocchi-theme-key-button {
-    gap: 0.15rem;
-}
-
-.bocchi-theme-key-button code,
-.bocchi-theme-key-button strong {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.bocchi-theme-key-button strong {
-    color: var(--bocchi-text);
-    font-size: 0.9rem;
-}
-
+/* ── 空状态 ── */
 .bocchi-theme-empty {
     display: grid;
-    min-height: 13rem;
+    min-height: 10rem;
     place-items: center;
     align-content: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     color: var(--bocchi-text-muted);
     text-align: center;
 }
 
 .bocchi-theme-empty ::deep svg {
-    width: 1.85rem;
-    height: 1.85rem;
+    width: 1.5rem;
+    height: 1.5rem;
     color: var(--bocchi-blue-strong);
 }
 
 .bocchi-theme-empty h2,
 .bocchi-theme-empty p,
-.bocchi-theme-muted,
-.bocchi-theme-empty-note {
+.bocchi-theme-muted {
     margin: 0;
 }
 
 .bocchi-theme-empty h2 {
     color: var(--bocchi-text);
-    font-size: 1.08rem;
+    font-size: 0.88rem;
 }
 
-.bocchi-theme-muted,
-.bocchi-theme-empty-note {
-    line-height: 1.55;
+.bocchi-theme-muted {
+    color: var(--bocchi-text-muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
 }
 
-@media (max-width: 980px) {
-    .bocchi-theme-overview,
-    .bocchi-theme-workbench {
+/* ── 响应式 ── */
+@media (max-width: 900px) {
+    .bocchi-theme-i18n-layout {
         grid-template-columns: 1fr;
     }
 
-    .bocchi-theme-status-stack {
-        justify-content: flex-start;
-    }
-
-    .bocchi-theme-side-list {
-        position: static;
-    }
-
-    .bocchi-theme-i18n-list {
-        max-height: none;
-        overflow: visible;
+    .bocchi-theme-i18n-picker__list {
+        max-height: 14rem;
     }
 }
 
 @media (max-width: 720px) {
-    .bocchi-theme-tabs,
-    .bocchi-theme-field,
-    .bocchi-theme-summary-list {
-        grid-template-columns: 1fr;
+    .bocchi-theme-infobar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.4rem;
     }
 
-    .bocchi-theme-tab small {
-        white-space: normal;
+    .bocchi-theme-infobar__switcher {
+        margin-left: 0;
+    }
+
+    .bocchi-theme-tabs__spacer {
+        display: none;
+    }
+
+    .bocchi-theme-tabs__save {
+        width: 100%;
+        justify-content: center;
     }
 }

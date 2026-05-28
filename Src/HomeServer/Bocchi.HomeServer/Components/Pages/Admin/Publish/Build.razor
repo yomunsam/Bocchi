@@ -68,6 +68,7 @@
 @code {
     /// <summary>发布首页：主操作、发布方案和辅助状态分栏展示，避免把配置表单压到第一屏。</summary>
     private RenderFragment RenderPublishDashboard() => @<div class="bocchi-publish-dashboard">
+        @RenderStatsBar()
         <div class="bocchi-publish-main">
             @RenderOneClickCard()
             @RenderPublishPlans()
@@ -79,10 +80,7 @@
     </div>;
 
     /// <summary>渲染视觉中心的一键发布卡片；没有默认方案时退化为本地静态生成。</summary>
-    private RenderFragment RenderOneClickCard() => @<section class="bocchi-panel bocchi-publish-hero" aria-labelledby="publish-one-click-heading">
-        <span class="bocchi-publish-hero__icon" aria-hidden="true">
-            <Blazicon Svg="Lucide.Send" />
-        </span>
+    private RenderFragment RenderOneClickCard() => @<section class="bocchi-panel bocchi-publish-hero bocchi-publish-hero--gradient" aria-labelledby="publish-one-click-heading">
         <div class="bocchi-publish-hero__content">
             <div class="bocchi-publish-hero__heading">
                 <h2 id="publish-one-click-heading">@I18n["publish.oneClick.title"]</h2>
@@ -488,5 +486,21 @@
             <small>@time</small>
         </div>
         <BocchiStatusPill Tone="@tone">@status</BocchiStatusPill>
+    </div>;
+
+    /// <summary>渲染发布中心顶部统计概览，用最少的空间展示最关键的指标。</summary>
+    private RenderFragment RenderStatsBar() => @<div class="bocchi-publish-stats" aria-label='@I18n["publish.statusCard.title"]'>
+        @RenderStatItem(Lucide.Layers, I18n["publish.statusCard.planCount"], PublishPlanCountText())
+        @RenderStatItem(Lucide.Hammer, I18n["publish.statusCard.lastBuild"], LatestBuildTimeText())
+        @RenderStatItem(Lucide.Send, I18n["publish.statusCard.lastPublish"], LatestRemotePublishText())
+    </div>;
+
+    /// <summary>渲染统计概览单个指标项。</summary>
+    private RenderFragment RenderStatItem(SvgIcon icon, string label, string value) => @<div class="bocchi-publish-stat-item">
+        <span class="bocchi-publish-stat-item__icon" aria-hidden="true"><Blazicon Svg="@icon" /></span>
+        <div>
+            <span class="bocchi-publish-stat-item__label">@label</span>
+            <strong class="bocchi-publish-stat-item__value">@value</strong>
+        </div>
     </div>;
 }

@@ -565,16 +565,59 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("bocchi-page-intro");
-        body.Should().Contain("bocchi-theme-overview");
-        body.Should().Contain("Theme customization");
+        body.Should().Contain("bocchi-theme-infobar");
         body.Should().Contain("Bocchi Mono");
-        body.Should().Contain("Settings unchanged");
+        body.Should().Contain("id=\"theme-switcher\"");
+        body.Should().Contain("aria-label=\"Active theme\"");
         body.Should().Contain("visual.accentColor");
         body.Should().Contain("首页");
-        body.Should().Contain("Save");
-        body.Should().Contain("Theme private text");
-        body.Should().Contain("Private text keys");
-        body.Should().Contain("Override Theme-owned labels");
+        body.Should().Contain("bocchi-theme-tabs");
+        body.Should().Contain("bocchi-theme-group-pills");
+        body.Should().Contain("class=\"bocchi-theme-tabs\" role=\"group\"");
+        body.Should().Contain("class=\"bocchi-theme-group-pills\" role=\"group\"");
+        body.Should().Contain("bocchi-theme-field__control-prefix");
+        body.Should().NotContain("class=\"bocchi-theme-tabs\" role=\"tablist\"");
+        body.Should().NotContain("class=\"bocchi-theme-group-pills\" role=\"tablist\"");
+        body.Should().NotContain("role=\"tab\"");
+        body.Should().NotContain("role=\"listbox\"");
+    }
+
+    [Fact]
+    public async Task ThemeCustomizationPage_RendersLocalizedDefaultsAsPlaceholders()
+    {
+        const string themeId = "localized-placeholder-theme";
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        await WriteLocalizedPlaceholderThemeAsync(factory.DataRoot, themeId);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var settings = scope.ServiceProvider.GetRequiredService<SiteProfileSettingsService>();
+            var current = await settings.GetAsync();
+            await settings.SaveAsync(new SiteProfileSettingsUpdate
+            {
+                SiteName = current.SiteName,
+                DefaultTitle = current.DefaultTitle,
+                Description = current.Description,
+                PublicBaseUrl = current.PublicBaseUrl,
+                CopyrightNotice = current.CopyrightNotice,
+                Language = current.Language,
+                TimeZone = current.TimeZone,
+                DefaultThemeId = themeId,
+            });
+        }
+
+        var response = await client.GetAsync("/Admin/Site/Theme");
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("Localized Placeholder Theme");
+        // LocalizedText 默认值应进入对应语言的 placeholder，不能再把整段默认 JSON 泄漏到页面。
+        body.Should().Contain("placeholder=\"默认标题\"");
+        body.Should().Contain("placeholder=\"甲");
+        body.Should().Contain("乙\"");
+        body.Should().NotContain("{\"en-US\"");
+        body.Should().NotContain("\\u2014");
     }
 
     [Fact]
@@ -726,5 +769,72 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         }
 
         return count;
+    }
+
+    /// <summary>写入一个首个配置分组就是本地化字段的 Theme，方便 HTTP prerender 直接验证 placeholder。</summary>
+    private static async Task WriteLocalizedPlaceholderThemeAsync(string dataRoot, string id)
+    {
+        var root = Path.Combine(dataRoot, "themes", id);
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "theme.json"),
+            $$"""
+            {
+              "id": "{{id}}",
+              "name": "Localized Placeholder Theme",
+              "version": "1.0.0",
+              "contractVersion": "1.0",
+              "runner": {
+                "kind": "fluid-static",
+                "entry": "fluid"
+              },
+              "i18n": {
+                "supportedLanguages": ["en-US", "zh-CN"],
+                "defaultLanguage": "en-US",
+                "keys": [
+                  {
+                    "key": "theme.placeholder.footer",
+                    "title": "Footer text",
+                    "defaultValues": {
+                      "en-US": "Built for tests.",
+                      "zh-CN": "测试默认页脚。"
+                    }
+                  }
+                ]
+              }
+            }
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(root, "config-schema.json"),
+            """
+            {
+              "groups": [
+                {
+                  "id": "home",
+                  "title": "首页",
+                  "fields": [
+                    {
+                      "key": "home.title",
+                      "type": "localizedText",
+                      "title": "首页标题",
+                      "default": {
+                        "en-US": "English title",
+                        "zh-CN": "默认标题"
+                      }
+                    },
+                    {
+                      "key": "home.tags",
+                      "type": "localizedTextList",
+                      "title": "首页标签",
+                      "default": {
+                        "en-US": ["Alpha", "Beta"],
+                        "zh-CN": ["甲", "乙"]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
     }
 }

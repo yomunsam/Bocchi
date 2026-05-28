@@ -69,6 +69,15 @@ public partial class ThemeCustomization
     /// <summary>Theme 私有 i18n 覆盖编辑缓冲区，形态为 key -> language -> plain text。</summary>
     private Dictionary<string, Dictionary<string, string>> _themeI18nTextOverrides = new(StringComparer.Ordinal);
 
+    /// <summary>可用 Theme 列表，用于侧边栏切换下拉。</summary>
+    private IReadOnlyList<ThemeCatalogItem> _availableThemes = [];
+
+    /// <summary>Theme 切换进行中。</summary>
+    private bool _switchBusy;
+
+    /// <summary>Theme 切换错误消息。</summary>
+    private string? _switchMessage;
+
     /// <summary>全页保存中标记；配置和私有文本共用一个保存入口。</summary>
     private bool _saveBusy;
 
@@ -97,10 +106,27 @@ public partial class ThemeCustomization
         await LoadLocalizationAsync();
         await LoadCustomizationAsync();
         await LoadThemeI18nAsync();
+        await LoadAvailableThemesAsync();
     }
 
     /// <summary>顶部保存按钮是否可用；没有脏数据时保持禁用，避免用户误判保存范围。</summary>
     private bool CanSaveChanges => !_saveBusy && (_configDirty || _themeI18nDirty);
+
+    /// <summary>Theme 配置或私有文本是否还有未保存编辑；Theme 切换必须先守住这层缓冲区。</summary>
+    private bool HasUnsavedThemeEdits => _configDirty || _themeI18nDirty;
+
+    /// <summary>Theme 切换下拉是否可操作；保存中的 busy 状态由 dirty guard 间接锁住。</summary>
+    private bool CanSwitchTheme => !_switchBusy && !HasUnsavedThemeEdits;
+
+    /// <summary>Theme 切换区当前需要给用户看的提示，dirty 提示优先于服务异常。</summary>
+    private string? SwitcherMessageText
+        => HasUnsavedThemeEdits
+            ? I18n["themeCustomization.switcher.unsavedGuard"]
+            : _switchMessage;
+
+    /// <summary>切换提示存在时提供描述元素 id，供 select 通过 aria-describedby 关联。</summary>
+    private string? SwitcherMessageId
+        => string.IsNullOrWhiteSpace(SwitcherMessageText) ? null : "theme-switcher-message";
 
     /// <summary>顶部保存按钮文案。</summary>
     private string SaveButtonText
@@ -419,6 +445,10 @@ public partial class ThemeCustomization
     private string ConfigGroupButtonClass(ThemeConfigGroupView group)
         => IsActiveConfigGroup(group) ? "bocchi-theme-side-button bocchi-theme-side-button--active" : "bocchi-theme-side-button";
 
+    /// <summary>生成配置分组 pill class。</summary>
+    private string ConfigGroupPillClass(ThemeConfigGroupView group)
+        => IsActiveConfigGroup(group) ? "bocchi-theme-pill bocchi-theme-pill--active" : "bocchi-theme-pill";
+
     /// <summary>确保配置分组选择始终落在 schema 声明范围内。</summary>
     private void EnsureActiveConfigGroup()
     {
@@ -450,6 +480,10 @@ public partial class ThemeCustomization
     /// <summary>生成 Theme 私有文本 key 按钮 class。</summary>
     private string ThemeI18nKeyButtonClass(ThemeI18nKeyView key)
         => IsSelectedThemeI18nKey(key) ? "bocchi-theme-key-button bocchi-theme-key-button--active" : "bocchi-theme-key-button";
+
+    /// <summary>生成 Theme 私有文本 key pill class。</summary>
+    private string ThemeI18nKeyPillClass(ThemeI18nKeyView key)
+        => IsSelectedThemeI18nKey(key) ? "bocchi-theme-pill bocchi-theme-pill--active" : "bocchi-theme-pill";
 
     /// <summary>更新 Theme 私有文本搜索词，并把编辑面板同步到搜索结果中的第一个 key。</summary>
     private void SetThemeI18nSearch(string? value)
@@ -609,6 +643,13 @@ public partial class ThemeCustomization
             ? string.Join(Environment.NewLine, value)
             : string.Empty;
 
+    /// <summary>把 LocalizedTextList 的 schema 默认列表转换为逐语言 placeholder 文本。</summary>
+    private static IReadOnlyDictionary<string, string> GetDefaultLocalizedTextListPlaceholderValues(ThemeConfigFieldView field)
+        => field.DefaultLocalizedTextListValues.ToDictionary(
+            pair => pair.Key,
+            pair => string.Join(Environment.NewLine, pair.Value),
+            StringComparer.OrdinalIgnoreCase);
+
     /// <summary>把 Dashboard 文本域拆成列表项，保持用户填写顺序并移除空行。</summary>
     private static List<string> SplitLocalizedListInput(string? value)
         => (value ?? string.Empty)
@@ -765,5 +806,62 @@ public partial class ThemeCustomization
         }
 
         return dict;
+    }
+
+    /// <summary>加载可用 Theme 目录，用于侧边栏切换下拉。</summary>
+    private async Task LoadAvailableThemesAsync()
+    {
+        _availableThemes = await ThemeSettings.ListThemeCatalogAsync();
+    }
+
+    /// <summary>切换到指定 Theme；如有 i18n://theme@ 引用需要迁移则跳转迁移向导。</summary>
+    private async Task SwitchThemeAsync(string newThemeId)
+    {
+        if (string.Equals(newThemeId, _activeThemeId, StringComparison.Ordinal) || _switchBusy)
+        {
+            return;
+        }
+
+        if (HasUnsavedThemeEdits)
+        {
+            return;
+        }
+
+        _switchBusy = true;
+        _switchMessage = null;
+        try
+        {
+            var current = await SiteProfileSettings.GetAsync();
+            var fromThemeId = string.IsNullOrWhiteSpace(current.DefaultThemeId) ? _activeThemeId : current.DefaultThemeId;
+            var migration = await ThemeMigration.ScanAsync(fromThemeId, newThemeId);
+            if (migration.Entries.Count > 0)
+            {
+                Navigation.NavigateTo($"/Admin/Site/ThemeMigration?from={Uri.EscapeDataString(fromThemeId)}&to={Uri.EscapeDataString(newThemeId)}");
+                return;
+            }
+
+            await SiteProfileSettings.SaveAsync(new SiteProfileSettingsUpdate
+            {
+                SiteName = current.SiteName,
+                DefaultTitle = current.DefaultTitle,
+                Description = current.Description,
+                PublicBaseUrl = current.PublicBaseUrl,
+                CopyrightNotice = current.CopyrightNotice,
+                Language = current.Language,
+                TimeZone = current.TimeZone,
+                DefaultThemeId = newThemeId,
+            });
+            _activeThemeId = newThemeId;
+            await LoadCustomizationAsync();
+            await LoadThemeI18nAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _switchMessage = ex.Message;
+        }
+        finally
+        {
+            _switchBusy = false;
+        }
     }
 }

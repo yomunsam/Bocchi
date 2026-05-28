@@ -27,7 +27,7 @@
 }
 
 .bocchi-guide-stack__body strong {
-    font-size: 1.05rem;
+    font-size: 0.96rem;
     color: var(--bocchi-text);
 }
 
@@ -228,7 +228,7 @@
     border-radius: 8px;
     background: var(--bocchi-surface);
     box-shadow: var(--bocchi-shadow-soft);
-    padding: 2.75rem 1.4rem;
+    padding: 1.8rem 1.2rem;
     text-align: center;
 }
 
@@ -263,7 +263,7 @@
 .bocchi-home-empty p {
     margin: 0;
     color: var(--bocchi-text-muted);
-    font-size: 0.9rem;
+    font-size: 0.84rem;
     line-height: 1.55;
 }
 

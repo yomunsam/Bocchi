@@ -17,7 +17,7 @@
             <textarea class="bocchi-loc-input__field"
                       rows="@(Rows ?? 3)"
                       value="@PrimaryValue"
-                      placeholder="@Placeholder"
+                      placeholder="@PlaceholderFor(PrimaryLanguageCode)"
                       aria-label="@AriaLabel"
                       @oninput="e => UpdateValueAsync(PrimaryLanguageCode, e.Value?.ToString() ?? string.Empty)"></textarea>
         }
@@ -26,7 +26,7 @@
             <input class="bocchi-loc-input__field"
                    type="text"
                    value="@PrimaryValue"
-                   placeholder="@Placeholder"
+                   placeholder="@PlaceholderFor(PrimaryLanguageCode)"
                    aria-label="@AriaLabel"
                    @oninput="e => UpdateValueAsync(PrimaryLanguageCode, e.Value?.ToString() ?? string.Empty)" />
         }
@@ -92,7 +92,7 @@
                 <textarea class="bocchi-loc-input__field"
                           rows="@(Rows ?? 3)"
                           value="@GetValue(langCode)"
-                          placeholder="@SecondaryPlaceholder()"
+                          placeholder="@PlaceholderFor(langCode)"
                           aria-label="@SecondaryAriaLabel(langCode)"
                           @oninput="e => UpdateValueAsync(langCode, e.Value?.ToString() ?? string.Empty)"></textarea>
             }
@@ -101,7 +101,7 @@
                 <input class="bocchi-loc-input__field"
                        type="text"
                        value="@GetValue(langCode)"
-                       placeholder="@SecondaryPlaceholder()"
+                       placeholder="@PlaceholderFor(langCode)"
                        aria-label="@SecondaryAriaLabel(langCode)"
                        @oninput="e => UpdateValueAsync(langCode, e.Value?.ToString() ?? string.Empty)" />
             }
@@ -137,6 +137,9 @@
 
     /// <summary>主输入框 placeholder（次级 placeholder 会回退到主值或本值）。</summary>
     [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>按语言提供的 placeholder；用于 Theme 默认多语言文案这类需要逐语言提示的场景。</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? PlaceholderValues { get; set; }
 
     /// <summary>textarea 行数；仅在 MultiLine 模式下生效。</summary>
     [Parameter] public int? Rows { get; set; }
@@ -205,6 +208,20 @@
 
     private string SecondaryPlaceholder() =>
         string.IsNullOrEmpty(PrimaryValue) ? Placeholder ?? string.Empty : PrimaryValue;
+
+    private string PlaceholderFor(string code)
+    {
+        if (PlaceholderValues is not null &&
+            PlaceholderValues.TryGetValue(code, out var value) &&
+            !string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        return string.Equals(code, PrimaryLanguageCode, StringComparison.OrdinalIgnoreCase)
+            ? Placeholder ?? string.Empty
+            : SecondaryPlaceholder();
+    }
 
     private string SecondaryAriaLabel(string code) =>
         string.IsNullOrEmpty(AriaLabel) ? code : $"{AriaLabel} ({code})";

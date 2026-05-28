@@ -138,7 +138,9 @@ public sealed partial class ThemeSettingsService
             DefaultLocalizedTextValues = JsonNodeToLocalizedText(defaultValue),
             LocalizedTextListValues = JsonNodeToLocalizedTextList(savedValue),
             DefaultLocalizedTextListValues = JsonNodeToLocalizedTextList(defaultValue),
-            DefaultText = TrimOrNull(JsonNodeToText(defaultValue)),
+            DefaultText = type is ThemeConfigFieldType.LocalizedText or ThemeConfigFieldType.LocalizedTextList
+                ? null
+                : TrimOrNull(JsonNodeToText(defaultValue)),
         };
     }
 

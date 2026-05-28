@@ -44,14 +44,14 @@
 }
 
 .bocchi-category-workbench__toolbar-main button:not(.secondary) {
-    background: var(--bocchi-action);
-    border-color: var(--bocchi-action);
+    background: var(--bocchi-action-fill);
+    border-color: var(--bocchi-action-fill);
     color: #fff;
 }
 
 .bocchi-category-workbench__toolbar-main button:not(.secondary):hover:not(:disabled) {
-    background: var(--bocchi-action-strong);
-    border-color: var(--bocchi-action-strong);
+    background: color-mix(in srgb, var(--bocchi-action-fill) 85%, #000);
+    border-color: color-mix(in srgb, var(--bocchi-action-fill) 85%, #000);
 }
 
 .bocchi-category-workbench__toolbar-main button.secondary:hover:not(:disabled) {

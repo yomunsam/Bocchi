@@ -44,7 +44,7 @@
 .bocchi-navigation-panel-heading h2 {
     margin: 0;
     color: var(--bocchi-text);
-    font-size: 1.16rem;
+    font-size: 1.08rem;
     letter-spacing: 0;
 }
 
@@ -142,8 +142,8 @@
     display: grid;
     gap: 0.35rem;
     color: var(--bocchi-text-muted);
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: 0.84rem;
+    font-weight: 500;
 }
 
 .bocchi-navigation-field input,
@@ -173,7 +173,7 @@
 .bocchi-navigation-label-mode legend {
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
-    font-weight: 780;
+    font-weight: 500;
     padding: 0 0.25rem;
 }
 
@@ -214,7 +214,7 @@
     gap: 0.32rem;
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .bocchi-navigation-readonly-ref {
@@ -230,7 +230,7 @@
 .bocchi-navigation-readonly-ref span {
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
-    font-weight: 780;
+    font-weight: 500;
 }
 
 .bocchi-navigation-readonly-ref code {

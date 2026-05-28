@@ -137,13 +137,13 @@
 .bocchi-theme-library-inspection dt {
     color: var(--bocchi-text-muted);
     font-size: 0.78rem;
-    font-weight: 720;
+    font-weight: 500;
 }
 
 .bocchi-theme-library-inspection dd {
     margin: 0;
     color: var(--bocchi-text);
-    font-weight: 680;
+    font-weight: 600;
 }
 
 @media (max-width: 780px) {

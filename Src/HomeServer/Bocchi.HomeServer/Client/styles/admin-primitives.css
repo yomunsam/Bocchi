@@ -136,14 +136,14 @@ textarea:focus-visible {
 
 .bocchi-admin-shell button.bocchi-button--primary,
 .bocchi-button--primary {
-    background: var(--bocchi-action);
+    background: var(--bocchi-action-fill);
     color: #fff;
     padding: 0 1.15rem;
 }
 
 .bocchi-admin-shell button.bocchi-button--primary:hover:not(:disabled),
 .bocchi-button--primary:hover {
-    background: color-mix(in srgb, var(--bocchi-action) 85%, #000);
+    background: color-mix(in srgb, var(--bocchi-action-fill) 85%, #000);
 }
 
 /* Admin segmented control：用于页面级二选一/少量任务切换。

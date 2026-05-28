@@ -61,6 +61,9 @@
     --bocchi-action-strong: #8b0e45;
     --bocchi-action-soft: rgba(171, 44, 93, 0.08);
     --bocchi-action-soft-strong: rgba(171, 44, 93, 0.14);
+    /* action-fill：需要承载白色文字的填充色（按钮、徽章等大面积背景）。
+       浅色模式下与 action 相同；深色模式下保持足够深度以确保对比度。 */
+    --bocchi-action-fill: var(--bocchi-action);
     /* nav active (soft sink) */
     --bocchi-nav-active-bg: var(--bocchi-action-soft);
     --bocchi-nav-active-bar: var(--bocchi-action);
@@ -108,20 +111,24 @@
 
 :root[data-bocchi-effective-appearance="dark"] {
     color-scheme: dark;
-    --bocchi-bg: #181617;
-    --bocchi-surface: #211f20;
-    --bocchi-surface-muted: #2a2729;
-    --bocchi-surface-soft: #302c2f;
-    --bocchi-surface-pink: #322129;
+    /* 深色模式 surface 色阶：保留 Berry 的粉色底调作为品牌语言，
+       但将饱和度压到 2-5%（之前 7-20%），只留一丝暖意而非明显粉色。
+       bg → surface → muted → soft 形成 3 lightness 的平缓阶梯，
+       surface-pink 保留更高饱和度用于图标容器等品牌点缀。 */
+    --bocchi-bg: #151117;
+    --bocchi-surface: #282427;
+    --bocchi-surface-muted: #302b2e;
+    --bocchi-surface-soft: #383236;
+    --bocchi-surface-pink: #352530;
     --bocchi-text: #f4f1ef;
-    --bocchi-text-muted: #ccc4cf;
-    --bocchi-text-subtle: #9b9098;
-    --bocchi-border: #40383c;
-    --bocchi-border-strong: #6f535b;
+    --bocchi-text-muted: #bfadb5;
+    --bocchi-text-subtle: #907e86;
+    --bocchi-border: #453d41;
+    --bocchi-border-strong: #66595e;
     --bocchi-blue: #8ba8c6;
     --bocchi-blue-strong: #bfd5ee;
     --bocchi-pink: #ffb1c5;
-    --bocchi-lavender: #ccc4cf;
+    --bocchi-lavender: #bfadb5;
     --bocchi-success-soft: #173226;
     --bocchi-success-strong: #4daf50;
     --bocchi-warning-soft: #332a18;
@@ -137,8 +144,11 @@
     --bocchi-action-strong: #ffd9e1;
     --bocchi-action-soft: rgba(255, 177, 197, 0.08);
     --bocchi-action-soft-strong: rgba(255, 177, 197, 0.12);
+    /* 深色模式下 action 用于图标/边框等小面积点缀（浅粉），
+       fill 用于按钮等需要白字的填充（保持品牌深粉，对比度 >7:1）。 */
+    --bocchi-action-fill: #ab2c5d;
     --bocchi-nav-active-bg: var(--bocchi-action-soft);
     --bocchi-nav-active-bar: var(--bocchi-action);
     --bocchi-nav-active-text: var(--bocchi-text);
-    --bocchi-avatar-bg: #28303a;
+    --bocchi-avatar-bg: #302a2e;
 }

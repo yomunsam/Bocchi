@@ -134,7 +134,7 @@
     border: 0;
     background: transparent;
     color: var(--bocchi-text);
-    font-weight: 600;
+    font-weight: 500;
     outline: none;
 }
 
@@ -301,8 +301,8 @@
     display: grid;
     gap: 0.5rem;
     color: var(--bocchi-color-on-surface-variant);
-    font-size: 0.875rem;
-    font-weight: 600;
+    font-size: 0.84rem;
+    font-weight: 500;
     line-height: 1.25rem;
 }
 
@@ -468,7 +468,7 @@
 
 .bocchi-setup-note {
     margin: 0;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .bocchi-setup-card-actions {
@@ -497,7 +497,7 @@
 .bocchi-setup-submit {
     min-width: 10.625rem;
     border: 0;
-    background: var(--bocchi-action);
+    background: var(--bocchi-action-fill);
     color: #ffffff;
     cursor: pointer;
     padding: 0.75rem 2rem;
@@ -505,13 +505,9 @@
 }
 
 .bocchi-setup-submit:hover {
-    background: var(--bocchi-action-strong);
+    background: color-mix(in srgb, var(--bocchi-action-fill) 85%, #000);
     box-shadow: var(--bocchi-shadow-sm);
     transform: translateY(-1px);
-}
-
-:root[data-bocchi-effective-appearance="dark"] .bocchi-setup-submit {
-    color: #211827;
 }
 
 .bocchi-setup-secondary {

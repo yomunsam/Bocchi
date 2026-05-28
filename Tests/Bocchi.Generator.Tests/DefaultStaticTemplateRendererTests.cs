@@ -235,6 +235,9 @@ public sealed class DefaultStaticTemplateRendererTests
             var indexText = System.Net.WebUtility.HtmlDecode(indexHtml);
             indexText.Should().Contain("Direct Post");
             indexText.Should().Contain("Direct Work");
+            indexHtml.Should().Contain("""<h3><a href="works/2026/direct/" aria-label="Direct Work" data-bocchi-content-link><span data-bocchi-content-title>Direct Work</span></a></h3>""");
+            indexHtml.Should().NotContain("proj-card__link");
+            indexHtml.Should().Contain("data-bocchi-content-link");
             indexHtml.Should().Contain("data-bocchi-content-variants=");
             indexHtml.Should().Contain("zh-TW/posts/2025/direct/");
             indexHtml.Should().Contain("zh-TW/works/2026/direct/");

@@ -560,11 +560,13 @@ public sealed class AccountAndSetupTests
         heroTitle.TextFormat.Should().Be("inlineColor");
         heroTitle.LocalizedTextValues.Should().BeEmpty();
         heroTitle.DefaultLocalizedTextValues["zh-CN"].Should().Be("Bocchi — 写作、\n作品[color=accent]与札记。[/color]");
+        heroTitle.DefaultText.Should().BeNull();
 
         var tags = homeFields.Single(field => field.Key == "home.tags");
         tags.Type.Should().Be(ThemeConfigFieldType.LocalizedTextList);
         tags.TextFormat.Should().Be("plain");
         tags.DefaultLocalizedTextListValues["zh-CN"].Should().Equal("个人站点", "软件与文字", "静态优先");
+        tags.DefaultText.Should().BeNull();
 
         var readingFields = view.Groups.Single(group => group.Id == "reading").Fields;
         var timeZoneDisplayStyle = readingFields.Single(field => field.Key == "reading.timeZoneDisplayStyle");
@@ -587,7 +589,8 @@ public sealed class AccountAndSetupTests
         using var scope = factory.Services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
         var view = await settings.GetI18nAsync("default-static");
-        view.Keys.Should().ContainSingle(key => key.Key == "theme.defaultStatic.colophonBuiltWith");
+        var colophonKey = view.Keys.Should().ContainSingle(key => key.Key == "theme.defaultStatic.colophonBuiltWith").Subject;
+        colophonKey.DefaultValues["zh-CN"].Should().Be("由 Bocchi 构建。");
 
         await settings.SaveI18nTextOverridesAsync(
             "default-static",

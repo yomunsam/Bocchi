@@ -1,8 +1,8 @@
-/* 统一多语言输入控件样式：默认形态视觉等同 BocchiInput；次级行紧凑、可识别。 */
+/* 统一多语言输入控件样式：现代化设计，清晰的视觉层次 */
 .bocchi-loc-input {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: 0.5rem;
     min-width: 0;
 }
 
@@ -10,7 +10,7 @@
     position: relative;
     display: flex;
     align-items: stretch;
-    gap: var(--space-2);
+    gap: 0;
     min-width: 0;
 }
 
@@ -18,21 +18,39 @@
     flex: 1 1 auto;
     min-width: 0;
     width: 100%;
+    border: 1px solid var(--bocchi-border);
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    background: var(--bocchi-surface);
+    color: var(--bocchi-text);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* 触发按钮：方形 icon button，紧贴输入框右侧。 */
+.bocchi-loc-input__field:focus {
+    outline: none;
+    border-color: var(--bocchi-action);
+    box-shadow: 0 0 0 2px var(--bocchi-action-soft);
+}
+
+.bocchi-loc-input__field::placeholder {
+    color: var(--bocchi-text-muted);
+}
+
+/* 触发按钮：与输入框无缝连接 */
 .bocchi-loc-input__trigger {
     position: relative;
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-1);
+    gap: 0.35rem;
     min-width: 2.5rem;
-    padding: 0 var(--space-3);
+    padding: 0 0.5rem;
     border: 1px solid var(--bocchi-border);
-    border-radius: var(--radius-md);
-    background: var(--bocchi-surface);
+    border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--bocchi-surface-muted);
     color: var(--bocchi-text-muted);
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
@@ -46,16 +64,21 @@
     outline: none;
 }
 
+.bocchi-loc-input__trigger svg {
+    width: 1rem;
+    height: 1rem;
+}
+
 /* 已添加翻译数量徽标 */
 .bocchi-loc-input__count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.1rem;
-    height: 1.1rem;
-    padding: 0 0.3rem;
-    border-radius: var(--radius-pill);
-    background: var(--bocchi-action);
+    min-width: 1.2rem;
+    height: 1.2rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--bocchi-action-fill);
     color: #fff;
     font-size: 0.7rem;
     font-weight: 600;
@@ -72,50 +95,65 @@
 
 .bocchi-loc-input__menu {
     position: absolute;
-    top: calc(100% + var(--space-1));
+    top: calc(100% + 0.5rem);
     right: 0;
     z-index: 40;
-    min-width: 16rem;
-    max-width: min(22rem, calc(100vw - var(--space-4)));
-    max-height: 18rem;
+    min-width: 18rem;
+    max-width: min(24rem, calc(100vw - 1rem));
+    max-height: 20rem;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: var(--space-2);
+    gap: 0.125rem;
+    padding: 0.5rem;
     border: 1px solid var(--bocchi-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     background: var(--bocchi-surface);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+    animation: bocchi-loc-menu-in 0.15s ease-out;
+}
+
+@keyframes bocchi-loc-menu-in {
+    from {
+        opacity: 0;
+        transform: translateY(-0.5rem) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .bocchi-loc-input__menu-title {
-    margin: 0 0 var(--space-1);
-    padding: 0 var(--space-2);
+    margin: 0 0 0.35rem;
+    padding: 0.5rem 0.75rem 0.25rem;
     color: var(--bocchi-text-subtle);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
 }
 
 .bocchi-loc-input__menu-empty {
     margin: 0;
-    padding: var(--space-2) var(--space-3);
+    padding: 0.75rem 1rem;
     color: var(--bocchi-text-muted);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+    text-align: center;
 }
 
 .bocchi-loc-input__menu-item {
     display: flex;
     align-items: baseline;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--bocchi-text);
     text-align: left;
     cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
 }
 
 .bocchi-loc-input__menu-item:hover,
@@ -128,77 +166,103 @@
 .bocchi-loc-input__menu-code {
     flex: 0 0 auto;
     font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--bocchi-text-muted);
+    background: var(--bocchi-surface-muted);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-sm);
 }
 
 .bocchi-loc-input__menu-name {
     flex: 1 1 auto;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
 }
 
 /* 次级语言行 */
 .bocchi-loc-input__secondary {
     display: flex;
     align-items: stretch;
-    gap: var(--space-2);
-    padding-left: var(--space-4);
+    gap: 0;
+    margin-left: 1.5rem;
     min-width: 0;
+    position: relative;
+}
+
+/* 连接线 */
+.bocchi-loc-input__secondary::before {
+    content: "";
+    position: absolute;
+    left: -0.75rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--bocchi-border);
+}
+
+.bocchi-loc-input__secondary::after {
+    content: "";
+    position: absolute;
+    left: -0.75rem;
+    top: 50%;
+    width: 0.75rem;
+    height: 1px;
+    background: var(--bocchi-border);
 }
 
 .bocchi-loc-input--multi .bocchi-loc-input__secondary {
     align-items: flex-start;
 }
 
+/* 语言 badge */
 .bocchi-loc-input__badge {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    min-width: 5rem;
-    padding: 0 var(--space-2);
+    min-width: 4.5rem;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--bocchi-border);
-    border-radius: var(--radius-sm);
-    background: var(--bocchi-surface-soft);
+    border-right: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    background: var(--bocchi-surface-muted);
     color: var(--bocchi-text-muted);
     font-family: var(--font-mono, ui-monospace, monospace);
-    font-size: 0.78rem;
-    line-height: 1.6;
+    font-size: 0.75rem;
+    line-height: 1.4;
     align-self: stretch;
 }
 
 .bocchi-loc-input--multi .bocchi-loc-input__badge {
     align-self: flex-start;
-    margin-top: 0.25rem;
+    margin-top: 0;
 }
 
 .bocchi-loc-input__badge-name {
     font-family: inherit;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: var(--bocchi-text-subtle);
+    margin-left: 0.25rem;
 }
 
-.bocchi-loc-input__secondary--stale .bocchi-loc-input__badge {
-    background: var(--bocchi-warning-soft, rgba(217, 119, 6, 0.12));
-    border-color: var(--bocchi-warning, rgba(217, 119, 6, 0.6));
-    color: var(--bocchi-warning, #b45309);
+/* 次级语言输入框 */
+.bocchi-loc-input__secondary .bocchi-loc-input__field {
+    border-radius: 0;
+    border-right: none;
+    font-size: 0.82rem;
+    padding: 0.45rem 0.75rem;
 }
 
-.bocchi-loc-input__warn {
-    font-size: 0.85rem;
-    line-height: 1;
-}
-
+/* 次级语言移除按钮 */
 .bocchi-loc-input__remove {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
+    width: 2.25rem;
     padding: 0;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    background: transparent;
+    border: 1px solid var(--bocchi-border);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--bocchi-surface-muted);
     color: var(--bocchi-text-subtle);
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
@@ -212,13 +276,67 @@
     outline: none;
 }
 
-@media (max-width: 600px) {
+.bocchi-loc-input__remove svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+/* 已停用语言高亮 */
+.bocchi-loc-input__secondary--stale .bocchi-loc-input__badge {
+    background: var(--bocchi-warning-soft, rgba(217, 119, 6, 0.12));
+    border-color: var(--bocchi-warning, rgba(217, 119, 6, 0.6));
+    color: var(--bocchi-warning, #b45309);
+}
+
+.bocchi-loc-input__warn {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+/* 响应式布局 */
+@media (max-width: 640px) {
     .bocchi-loc-input__secondary {
+        margin-left: 0;
         flex-wrap: wrap;
-        padding-left: 0;
+    }
+
+    .bocchi-loc-input__secondary::before,
+    .bocchi-loc-input__secondary::after {
+        display: none;
     }
 
     .bocchi-loc-input__badge {
-        order: -1;
+        width: 100%;
+        border-right: 1px solid var(--bocchi-border);
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+        border-bottom: none;
     }
+
+    .bocchi-loc-input__secondary .bocchi-loc-input__field {
+        border-radius: 0 0 0 var(--radius-md);
+        border-right: none;
+        border-bottom: 1px solid var(--bocchi-border);
+    }
+
+    .bocchi-loc-input__remove {
+        width: 100%;
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        border-top: none;
+        height: 2rem;
+    }
+
+    .bocchi-loc-input__menu {
+        min-width: 14rem;
+        right: -1rem;
+    }
+}
+
+/* 多行模式调整 */
+.bocchi-loc-input--multi .bocchi-loc-input__field {
+    min-height: 3.5rem;
+    resize: vertical;
+}
+
+.bocchi-loc-input--multi .bocchi-loc-input__secondary .bocchi-loc-input__field {
+    min-height: 3rem;
 }

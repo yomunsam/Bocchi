@@ -219,6 +219,13 @@ const updateContentText = (rootElement, selector, value) => {
   });
 };
 
+const updateContentAttribute = (rootElement, selector, attribute, value) => {
+  if (typeof value !== "string") return;
+  rootElement.querySelectorAll(selector).forEach((element) => {
+    element.setAttribute(attribute, value);
+  });
+};
+
 const syncContentVariants = () => {
   document.querySelectorAll("[data-bocchi-content-variants]").forEach((element) => {
     const variants = readJsonAttribute(element, "data-bocchi-content-variants");
@@ -230,6 +237,7 @@ const syncContentVariants = () => {
     const link = element.matches("a[href]") ? element : element.querySelector("a[href]");
     if (link && typeof variant.url === "string") link.setAttribute("href", toRelativeSiteHref(variant.url));
     updateContentText(element, "[data-bocchi-content-title]", variant.title);
+    updateContentAttribute(element, "[data-bocchi-content-link]", "aria-label", variant.title);
     updateContentText(element, "[data-bocchi-content-summary]", variant.summary);
     updateContentText(element, "[data-bocchi-content-meta]", variant.meta);
     updateContentText(element, "[data-bocchi-content-year-month]", variant.yearMonth);

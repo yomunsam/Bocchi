@@ -4,22 +4,18 @@
 @using Bocchi.GeneratorContract
 @inject SiteProfileSettingsService SiteProfileSettings
 @inject ThemeSettingsService ThemeSettings
+@inject ThemeMigrationService ThemeMigration
 @inject LocalizationSettingsService LocalizationSettings
+@inject NavigationManager Navigation
 @inject DashboardLocalizationService I18n
 
 <PageTitle>@I18n["themeCustomization.page.title"] · Bocchi</PageTitle>
 
 <article class="bocchi-shell bocchi-shell--dashboard bocchi-theme-shell">
-    <header class="bocchi-page-intro bocchi-page-intro--with-actions">
+    <header class="bocchi-page-intro">
         <span class="bocchi-eyebrow">@I18n["themeCustomization.page.eyebrow"]</span>
         <h1>@I18n["themeCustomization.page.heading"]</h1>
         <p>@I18n["themeCustomization.page.description"]</p>
-        <div class="bocchi-page-intro__actions">
-            <button type="button" disabled="@(!CanSaveChanges)" @onclick="SaveChangesAsync">
-                <Blazicon Svg="Lucide.Save" />
-                <span>@SaveButtonText</span>
-            </button>
-        </div>
     </header>
 
     @if (_customization is null)
@@ -30,306 +26,324 @@
     }
     else
     {
-        <section class="bocchi-theme-overview" aria-labelledby="theme-meta-heading">
-            <div class="bocchi-theme-overview__identity">
-                <span>@I18n["themeCustomization.meta.title"]</span>
-                <h2 id="theme-meta-heading">@_customization.ThemeName</h2>
+        @* ── Theme 信息条 ── *@
+        <div class="bocchi-theme-infobar">
+            <div class="bocchi-theme-infobar__identity">
+                <strong>@_customization.ThemeName</strong>
                 <code>@_customization.ThemeId</code>
-                @if (!string.IsNullOrWhiteSpace(_customization.ThemeRoot))
+            </div>
+            <div class="bocchi-theme-infobar__meta">
+                <span>@ThemeSourceLabel(_customization.SourceKind)</span>
+                @if (!string.IsNullOrWhiteSpace(_customization.Version))
                 {
-                    <small class="bocchi-theme-overview__root">
-                        <span>@I18n["themeCustomization.meta.root"]</span>
-                        <code title="@_customization.ThemeRoot">@_customization.ThemeRoot</code>
-                    </small>
+                    <span>v@_customization.Version</span>
                 }
             </div>
-            <dl class="bocchi-theme-summary-list">
-                <div>
-                    <dt>@I18n["themeCustomization.meta.source"]</dt>
-                    <dd>@ThemeSourceLabel(_customization.SourceKind)</dd>
-                </div>
-                <div>
-                    <dt>@I18n["themeCustomization.meta.runner"]</dt>
-                    <dd>@(_customization.RunnerKind ?? I18n["themeCustomization.meta.unknown"])</dd>
-                </div>
-                <div>
-                    <dt>@I18n["themeCustomization.meta.version"]</dt>
-                    <dd>@(_customization.Version ?? I18n["themeCustomization.meta.unknown"])</dd>
-                </div>
-                <div>
-                    <dt>@I18n["themeCustomization.meta.contract"]</dt>
-                    <dd>@(_customization.ContractVersion ?? I18n["themeCustomization.meta.unknown"])</dd>
-                </div>
-                <div>
-                    <dt>@I18n["themeCustomization.meta.schemaGroups"]</dt>
-                    <dd>@_customization.Groups.Count</dd>
-                </div>
-                <div>
-                    <dt>@I18n["themeCustomization.meta.privateTextKeys"]</dt>
-                    <dd>@_themeI18nKeys.Count</dd>
-                </div>
-            </dl>
-            <div class="bocchi-theme-status-stack" aria-live="polite">
-                <BocchiStatusPill Tone="@ConfigStatusTone">@ConfigStatusText</BocchiStatusPill>
-                <BocchiStatusPill Tone="@ThemeI18nStatusTone">@ThemeI18nStatusText</BocchiStatusPill>
+            <label class="bocchi-theme-infobar__switcher" for="theme-switcher">
+                <select
+                    id="theme-switcher"
+                    value="@_activeThemeId"
+                    disabled="@(!CanSwitchTheme)"
+                    aria-label='@I18n["themeCustomization.switcher.label"]'
+                    aria-describedby="@SwitcherMessageId"
+                    @onchange="args => SwitchThemeAsync(args.Value?.ToString() ?? _activeThemeId)">
+                    @foreach (var theme in _availableThemes.Where(t => t.IsAvailable))
+                    {
+                        <option value="@theme.Id" selected="@string.Equals(theme.Id, _activeThemeId, StringComparison.Ordinal)">
+                            @theme.Name
+                        </option>
+                    }
+                </select>
+            </label>
+            @if (!string.IsNullOrWhiteSpace(SwitcherMessageText))
+            {
+                <p id="theme-switcher-message" class="bocchi-theme-infobar__message">@SwitcherMessageText</p>
+            }
+        </div>
+
+        @* ── Section Tabs ── *@
+        <div class="bocchi-theme-tabs" role="group" aria-label='@I18n["themeCustomization.tabs.aria"]'>
+            <button
+                type="button"
+                class="@TabButtonClass(ConfigTab)"
+                aria-pressed="@AriaBool(IsActiveTab(ConfigTab))"
+                @onclick="() => SetActiveTab(ConfigTab)">
+                <Blazicon Svg="Lucide.SlidersHorizontal" />
+                <span>@I18n["themeCustomization.tabs.config"]</span>
+            </button>
+            <button
+                type="button"
+                class="@TabButtonClass(TextTab)"
+                aria-pressed="@AriaBool(IsActiveTab(TextTab))"
+                @onclick="() => SetActiveTab(TextTab)">
+                <Blazicon Svg="Lucide.Languages" />
+                <span>@I18n["themeCustomization.tabs.text"]</span>
+            </button>
+            <div class="bocchi-theme-tabs__spacer"></div>
+            <button
+                type="button"
+                class="bocchi-button bocchi-button--primary bocchi-theme-tabs__save"
+                disabled="@(!CanSaveChanges)"
+                @onclick="SaveChangesAsync">
+                <Blazicon Svg="Lucide.Save" />
+                <span>@SaveButtonText</span>
+            </button>
+        </div>
+
+        @* ── 状态行 ── *@
+        @if (_configDirty || _themeI18nDirty || _configSaved || _themeI18nSaved || _customization.Diagnostics.Count > 0)
+        {
+            <div class="bocchi-theme-status-line" aria-live="polite">
+                @if (_configDirty || _configSaved || _configMessage is not null)
+                {
+                    <BocchiStatusPill Tone="@ConfigStatusTone">@ConfigStatusText</BocchiStatusPill>
+                }
+                @if (_themeI18nDirty || _themeI18nSaved || _themeI18nMessage is not null)
+                {
+                    <BocchiStatusPill Tone="@ThemeI18nStatusTone">@ThemeI18nStatusText</BocchiStatusPill>
+                }
                 @foreach (var diagnostic in _customization.Diagnostics)
                 {
                     <BocchiStatusPill Tone="@ThemeDiagnosticTone(diagnostic)">@ThemeDiagnosticText(diagnostic)</BocchiStatusPill>
                 }
             </div>
-            @* 切换 Theme 入口：实际的 Theme 选择字段位于 站点资料；这里给一个显眼的快捷入口，避免用户在多个页面之间盲找。 *@
-            <a class="bocchi-theme-overview__switch" href="/Admin/Settings/Profile" title='@I18n["themeCustomization.meta.switchThemeHint"]'>
-                <Blazicon Svg="Lucide.Repeat2" />
-                <span>@I18n["themeCustomization.meta.switchTheme"]</span>
-            </a>
-        </section>
-
-        <nav class="bocchi-theme-tabs" role="tablist" aria-label='@I18n["themeCustomization.tabs.aria"]'>
-            <button
-                id="theme-tab-config"
-                type="button"
-                role="tab"
-                class="@TabButtonClass(ConfigTab)"
-                aria-selected="@AriaBool(IsActiveTab(ConfigTab))"
-                aria-controls="theme-config-panel"
-                @onclick="() => SetActiveTab(ConfigTab)">
-                <Blazicon Svg="Lucide.SlidersHorizontal" />
-                <span>
-                    <strong>@I18n["themeCustomization.tabs.config"]</strong>
-                    <small>@I18n["themeCustomization.tabs.configDescription"]</small>
-                </span>
-            </button>
-            <button
-                id="theme-tab-text"
-                type="button"
-                role="tab"
-                class="@TabButtonClass(TextTab)"
-                aria-selected="@AriaBool(IsActiveTab(TextTab))"
-                aria-controls="theme-text-panel"
-                @onclick="() => SetActiveTab(TextTab)">
-                <Blazicon Svg="Lucide.Languages" />
-                <span>
-                    <strong>@I18n["themeCustomization.tabs.text"]</strong>
-                    <small>@I18n["themeCustomization.tabs.textDescription"]</small>
-                </span>
-            </button>
-        </nav>
+        }
 
         @if (IsActiveTab(ConfigTab))
         {
-            var activeConfigGroup = ActiveConfigGroup;
-            <div id="theme-config-panel" class="bocchi-theme-workbench" role="tabpanel" aria-labelledby="theme-tab-config">
-                @if (_customization.Groups.Count == 0)
-                {
-                    <section class="bocchi-panel bocchi-theme-empty">
-                        <Blazicon Svg="Lucide.SlidersHorizontal" />
-                        <h2>@I18n["themeCustomization.config.title"]</h2>
-                        <p>@I18n["themeCustomization.config.empty"]</p>
-                    </section>
-                }
-                else
-                {
-                    <aside class="bocchi-theme-side-list" aria-label='@I18n["themeCustomization.config.groupNavAria"]'>
-                        @foreach (var group in _customization.Groups)
-                        {
-                            <button
-                                type="button"
-                                class="@ConfigGroupButtonClass(group)"
-                                aria-pressed="@AriaBool(IsActiveConfigGroup(group))"
-                                @onclick="() => SelectConfigGroup(group.Id)">
-                                <span>
-                                    <strong>@group.Title</strong>
-                                    <small>@string.Format(CultureInfo.CurrentCulture, I18n["themeCustomization.config.groupCountFormat"], group.Fields.Count)</small>
-                                </span>
-                            </button>
-                        }
-                    </aside>
+            @if (_customization.Groups.Count == 0)
+            {
+                <section class="bocchi-panel bocchi-theme-empty">
+                    <Blazicon Svg="Lucide.SlidersHorizontal" />
+                    <h2>@I18n["themeCustomization.config.title"]</h2>
+                    <p>@I18n["themeCustomization.config.empty"]</p>
+                </section>
+            }
+            else
+            {
+                var activeConfigGroup = ActiveConfigGroup;
 
+                @* ── Config 分组 pills ── *@
+                <div class="bocchi-theme-group-pills" role="group" aria-label='@I18n["themeCustomization.config.groupNavAria"]'>
+                    @foreach (var group in _customization.Groups)
+                    {
+                        <button
+                            type="button"
+                            class="@ConfigGroupPillClass(group)"
+                            aria-pressed="@AriaBool(IsActiveConfigGroup(group))"
+                            @onclick="() => SelectConfigGroup(group.Id)">
+                            @group.Title
+                        </button>
+                    }
+                </div>
+
+                @* ── Config 字段 ── *@
+                @if (activeConfigGroup is not null)
+                {
                     <section class="bocchi-panel bocchi-theme-editor-panel" aria-labelledby="theme-config-heading">
-                        @if (activeConfigGroup is null)
-                        {
-                            <div class="bocchi-theme-empty">
-                                <Blazicon Svg="Lucide.SlidersHorizontal" />
-                                <h2 id="theme-config-heading">@I18n["themeCustomization.config.title"]</h2>
-                                <p>@I18n["themeCustomization.config.empty"]</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="bocchi-theme-panel-heading">
-                                <div>
-                                    <span>@string.Format(CultureInfo.CurrentCulture, I18n["themeCustomization.config.activeGroupCountFormat"], activeConfigGroup.Fields.Count)</span>
-                                    <h2 id="theme-config-heading">@activeConfigGroup.Title</h2>
-                                </div>
-                            </div>
+                        <div class="bocchi-theme-panel-heading">
+                            <h2 id="theme-config-heading">@activeConfigGroup.Title</h2>
+                            <span>@string.Format(CultureInfo.CurrentCulture, I18n["themeCustomization.config.activeGroupCountFormat"], activeConfigGroup.Fields.Count)</span>
+                        </div>
 
-                            <div class="bocchi-theme-field-list">
-                                @foreach (var field in activeConfigGroup.Fields)
+                        <div class="bocchi-theme-field-list">
+                            @foreach (var field in activeConfigGroup.Fields)
+                            {
+                                @if (field.Type == ThemeConfigFieldType.Group)
+                                {
+                                    <div class="bocchi-theme-field-group">
+                                        <strong>@field.Title</strong>
+                                        @if (!string.IsNullOrWhiteSpace(field.Description))
+                                        {
+                                            <small>@field.Description</small>
+                                        }
+                                    </div>
+                                }
+                                else
                                 {
                                     <section class="bocchi-theme-field" aria-labelledby="@FieldLabelId(field)">
                                         <div class="bocchi-theme-field__label">
                                             <strong id="@FieldLabelId(field)">@field.Title</strong>
-                                            <code>@field.Key</code>
-                                            @if (!string.IsNullOrWhiteSpace(field.Description))
+                                            <span class="bocchi-tooltip" tabindex="0" data-bocchi-tooltip="@field.Key" data-bocchi-tooltip-placement="bottom">
+                                                <Blazicon Svg="Lucide.KeyRound" />
+                                            </span>
+                                            @if (UsesInlineColorTextFormat(field))
                                             {
-                                                <small>@field.Description</small>
+                                                <span class="bocchi-tooltip" tabindex="0" data-bocchi-tooltip="@I18n["themeCustomization.field.inlineColorHelp"]" data-bocchi-tooltip-placement="bottom">
+                                                    <Blazicon Svg="Lucide.Palette" />
+                                                </span>
                                             }
                                         </div>
                                         <div class="bocchi-theme-field__control">
-                                            @switch (field.Type)
-                                            {
-                                                case ThemeConfigFieldType.Boolean:
-                                                    <label class="bocchi-theme-switch">
+                                            <div class="bocchi-theme-field__control-row">
+                                                @if (field.Type is not ThemeConfigFieldType.LocalizedText and not ThemeConfigFieldType.LocalizedTextList &&
+                                                     !string.IsNullOrWhiteSpace(field.DefaultText))
+                                                {
+                                                    <span class="bocchi-theme-field__control-prefix bocchi-tooltip" tabindex="0" data-bocchi-tooltip="@string.Format(CultureInfo.CurrentCulture, I18n["themeCustomization.field.defaultValueFormat"], field.DefaultText)" data-bocchi-tooltip-placement="bottom">
+                                                        <Blazicon Svg="Lucide.Settings2" />
+                                                    </span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(field.Description))
+                                                {
+                                                    <span class="bocchi-theme-field__control-prefix bocchi-tooltip" tabindex="0" data-bocchi-tooltip="@field.Description" data-bocchi-tooltip-placement="bottom">
+                                                        <Blazicon Svg="Lucide.Info" />
+                                                    </span>
+                                                }
+                                                @switch (field.Type)
+                                                {
+                                                    case ThemeConfigFieldType.Boolean:
+                                                        <label class="bocchi-theme-switch">
+                                                            <input
+                                                                type="checkbox"
+                                                                role="switch"
+                                                                aria-label="@field.Title"
+                                                                checked="@GetBooleanValue(field.Key)"
+                                                                @onchange="args => SetBooleanValue(field.Key, args)" />
+                                                            <span class="bocchi-theme-switch__track" aria-hidden="true">
+                                                                <span></span>
+                                                            </span>
+                                                            <span>@(GetBooleanValue(field.Key) ? I18n["themeCustomization.field.enabled"] : I18n["themeCustomization.field.disabled"])</span>
+                                                        </label>
+                                                        break;
+                                                    case ThemeConfigFieldType.Number:
                                                         <input
-                                                            type="checkbox"
-                                                            role="switch"
+                                                            type="number"
+                                                            step="any"
                                                             aria-label="@field.Title"
-                                                            checked="@GetBooleanValue(field.Key)"
-                                                            @onchange="args => SetBooleanValue(field.Key, args)" />
-                                                        <span class="bocchi-theme-switch__track" aria-hidden="true">
-                                                            <span></span>
-                                                        </span>
-                                                        <span>@(GetBooleanValue(field.Key) ? I18n["themeCustomization.field.enabled"] : I18n["themeCustomization.field.disabled"])</span>
-                                                    </label>
-                                                    break;
-                                                case ThemeConfigFieldType.Number:
-                                                    <input
-                                                        type="number"
-                                                        step="any"
-                                                        aria-label="@field.Title"
-                                                        value="@GetTextValue(field.Key)"
-                                                        @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
-                                                    break;
-                                                case ThemeConfigFieldType.Select:
-                                                    <select
-                                                        aria-label="@field.Title"
-                                                        value="@GetTextValue(field.Key)"
-                                                        @onchange="args => SetTextValue(field.Key, args.Value?.ToString())">
-                                                        <option value="">@I18n["themeCustomization.field.defaultOption"]</option>
-                                                        @foreach (var option in field.Options)
-                                                        {
-                                                            <option value="@option.Value">@option.Label</option>
-                                                        }
-                                                    </select>
-                                                    break;
-                                                case ThemeConfigFieldType.MultiSelect:
-                                                    <div class="bocchi-theme-option-list" role="group" aria-label="@field.Title">
-                                                        @foreach (var option in field.Options)
-                                                        {
-                                                            <label class="bocchi-theme-choice">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked="@IsMultiSelectValueSelected(field.Key, option.Value)"
-                                                                    @onchange="args => ToggleMultiSelectValue(field.Key, option.Value, args)" />
-                                                                <span>@option.Label</span>
-                                                            </label>
-                                                        }
-                                                    </div>
-                                                    break;
-                                                case ThemeConfigFieldType.LocalizedText:
-                                                    <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.SingleLine"
-                                                                          Values="LocalizedTextValuesFor(field.Key)"
-                                                                          ValuesChanged="dict => OnLocalizedTextChanged(field.Key, dict)"
-                                                                          PrimaryLanguageCode="@_primaryLanguageCode"
-                                                                          EnabledLanguageCodes="_enabledLanguageCodeList"
-                                                                          AvailableLanguages="_availableLanguages"
-                                                                          Placeholder="@GetDefaultLocalizedTextValue(field, _primaryLanguageCode)"
-                                                                          AriaLabel="@field.Title" />
-                                                    break;
-                                                case ThemeConfigFieldType.LocalizedTextList:
-                                                    <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.MultiLine"
-                                                                          Values="LocalizedTextListValuesFor(field.Key)"
-                                                                          ValuesChanged="dict => OnLocalizedTextListChanged(field.Key, dict)"
-                                                                          PrimaryLanguageCode="@_primaryLanguageCode"
-                                                                          EnabledLanguageCodes="_enabledLanguageCodeList"
-                                                                          AvailableLanguages="_availableLanguages"
-                                                                          Placeholder="@GetDefaultLocalizedTextListValue(field, _primaryLanguageCode)"
-                                                                          Rows="3"
-                                                                          AriaLabel="@field.Title" />
-                                                    break;
-                                                case ThemeConfigFieldType.Color:
-                                                    <div class="bocchi-color-field">
-                                                        <input
-                                                            type="color"
-                                                            aria-label="@field.Title"
-                                                            value="@InputColorValue(GetTextValue(field.Key))"
+                                                            value="@GetTextValue(field.Key)"
                                                             @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
+                                                    case ThemeConfigFieldType.Select:
+                                                        <select
+                                                            aria-label="@field.Title"
+                                                            value="@GetTextValue(field.Key)"
+                                                            @onchange="args => SetTextValue(field.Key, args.Value?.ToString())">
+                                                            <option value="">@I18n["themeCustomization.field.defaultOption"]</option>
+                                                            @foreach (var option in field.Options)
+                                                            {
+                                                                <option value="@option.Value">@option.Label</option>
+                                                            }
+                                                        </select>
+                                                        break;
+                                                    case ThemeConfigFieldType.MultiSelect:
+                                                        <div class="bocchi-theme-option-list" role="group" aria-label="@field.Title">
+                                                            @foreach (var option in field.Options)
+                                                            {
+                                                                <label class="bocchi-theme-choice">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked="@IsMultiSelectValueSelected(field.Key, option.Value)"
+                                                                        @onchange="args => ToggleMultiSelectValue(field.Key, option.Value, args)" />
+                                                                    <span>@option.Label</span>
+                                                                </label>
+                                                            }
+                                                        </div>
+                                                        break;
+                                                    case ThemeConfigFieldType.LocalizedText:
+                                                        <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.SingleLine"
+                                                                              Values="LocalizedTextValuesFor(field.Key)"
+                                                                              ValuesChanged="dict => OnLocalizedTextChanged(field.Key, dict)"
+                                                                              PrimaryLanguageCode="@_primaryLanguageCode"
+                                                                              EnabledLanguageCodes="_enabledLanguageCodeList"
+                                                                              AvailableLanguages="_availableLanguages"
+                                                                              Placeholder="@GetDefaultLocalizedTextValue(field, _primaryLanguageCode)"
+                                                                              PlaceholderValues="field.DefaultLocalizedTextValues"
+                                                                              AriaLabel="@field.Title" />
+                                                        break;
+                                                    case ThemeConfigFieldType.LocalizedTextList:
+                                                        <BocchiLocalizedInput Mode="BocchiLocalizedInputMode.MultiLine"
+                                                                              Values="LocalizedTextListValuesFor(field.Key)"
+                                                                              ValuesChanged="dict => OnLocalizedTextListChanged(field.Key, dict)"
+                                                                              PrimaryLanguageCode="@_primaryLanguageCode"
+                                                                              EnabledLanguageCodes="_enabledLanguageCodeList"
+                                                                              AvailableLanguages="_availableLanguages"
+                                                                              Placeholder="@GetDefaultLocalizedTextListValue(field, _primaryLanguageCode)"
+                                                                              PlaceholderValues="GetDefaultLocalizedTextListPlaceholderValues(field)"
+                                                                              Rows="3"
+                                                                              AriaLabel="@field.Title" />
+                                                        break;
+                                                    case ThemeConfigFieldType.Color:
+                                                        <div class="bocchi-color-field">
+                                                            <input
+                                                                type="color"
+                                                                aria-label="@field.Title"
+                                                                value="@InputColorValue(GetTextValue(field.Key))"
+                                                                @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                            <input
+                                                                type="text"
+                                                                aria-label="@field.Title"
+                                                                value="@GetTextValue(field.Key)"
+                                                                placeholder="@FieldPlaceholder(field)"
+                                                                @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        </div>
+                                                        break;
+                                                    case ThemeConfigFieldType.Url:
+                                                        <input
+                                                            type="url"
+                                                            aria-label="@field.Title"
+                                                            value="@GetTextValue(field.Key)"
+                                                            placeholder="@FieldPlaceholder(field)"
+                                                            @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
+                                                    case ThemeConfigFieldType.Image:
+                                                    case ThemeConfigFieldType.String:
                                                         <input
                                                             type="text"
                                                             aria-label="@field.Title"
                                                             value="@GetTextValue(field.Key)"
                                                             placeholder="@FieldPlaceholder(field)"
                                                             @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
-                                                    </div>
-                                                    break;
-                                                case ThemeConfigFieldType.Url:
-                                                    <input
-                                                        type="url"
-                                                        aria-label="@field.Title"
-                                                        value="@GetTextValue(field.Key)"
-                                                        placeholder="@FieldPlaceholder(field)"
-                                                        @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
-                                                    break;
-                                                case ThemeConfigFieldType.Image:
-                                                case ThemeConfigFieldType.String:
-                                                    <input
-                                                        type="text"
-                                                        aria-label="@field.Title"
-                                                        value="@GetTextValue(field.Key)"
-                                                        placeholder="@FieldPlaceholder(field)"
-                                                        @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
-                                                    break;
-                                                default:
-                                                    <input
-                                                        type="text"
-                                                        aria-label="@field.Title"
-                                                        value="@GetTextValue(field.Key)"
-                                                        placeholder="@FieldPlaceholder(field)"
-                                                        @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
-                                                    break;
-                                            }
-                                            <div class="bocchi-theme-field__meta">
-                                                @if (!string.IsNullOrWhiteSpace(field.DefaultText))
-                                                {
-                                                    <small>@string.Format(CultureInfo.CurrentCulture, I18n["themeCustomization.field.defaultValueFormat"], field.DefaultText)</small>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(field.HelpText))
-                                                {
-                                                    <small>@field.HelpText</small>
-                                                }
-                                                @if (UsesInlineColorTextFormat(field))
-                                                {
-                                                    <small>@I18n["themeCustomization.field.inlineColorHelp"]</small>
+                                                        break;
+                                                    default:
+                                                        <input
+                                                            type="text"
+                                                            aria-label="@field.Title"
+                                                            value="@GetTextValue(field.Key)"
+                                                            placeholder="@FieldPlaceholder(field)"
+                                                            @oninput="args => SetTextValue(field.Key, args.Value?.ToString())" />
+                                                        break;
                                                 }
                                             </div>
+                                            @if (!string.IsNullOrWhiteSpace(field.HelpText))
+                                            {
+                                                <div class="bocchi-theme-field__meta">
+                                                    @if (!string.IsNullOrWhiteSpace(field.HelpText))
+                                                    {
+                                                        <span class="bocchi-tooltip" tabindex="0" data-bocchi-tooltip="@field.HelpText" data-bocchi-tooltip-placement="bottom">
+                                                            <Blazicon Svg="Lucide.Info" />
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
                                         </div>
                                     </section>
                                 }
-                            </div>
-                        }
+                            }
+                        </div>
                     </section>
                 }
-            </div>
+            }
         }
         else
         {
             var selectedThemeKey = SelectedThemeI18nKey;
-            var filteredThemeKeys = FilteredThemeI18nKeys;
-            var themeI18nLanguages = EnabledLanguagesForDisplay;
-            <div id="theme-text-panel" class="bocchi-theme-workbench" role="tabpanel" aria-labelledby="theme-tab-text">
-                @if (_themeI18nKeys.Count == 0)
-                {
-                    <section class="bocchi-panel bocchi-theme-empty">
-                        <Blazicon Svg="Lucide.Languages" />
-                        <h2>@I18n["settings.theme.i18nTitle"]</h2>
-                        <p>@I18n["settings.theme.i18nEmpty"]</p>
-                    </section>
-                }
-                else
-                {
-                    <aside class="bocchi-theme-side-list bocchi-theme-i18n-list" aria-label='@I18n["themeCustomization.text.keyListAria"]'>
-                        <label class="bocchi-theme-search" for="theme-i18n-search">
-                            <span>@I18n["settings.theme.i18nSearch"]</span>
+
+            @* ── Theme 私有文本：key 选择器 + 编辑器 ── *@
+            @if (_themeI18nKeys.Count == 0)
+            {
+                <section class="bocchi-panel bocchi-theme-empty">
+                    <Blazicon Svg="Lucide.Languages" />
+                    <h2>@I18n["settings.theme.i18nTitle"]</h2>
+                    <p>@I18n["settings.theme.i18nEmpty"]</p>
+                </section>
+            }
+            else
+            {
+                <div class="bocchi-theme-i18n-layout">
+                    @* 左侧：可搜索的 key 列表 *@
+                    <div class="bocchi-theme-i18n-picker">
+                        <label class="bocchi-theme-i18n-picker__search" for="theme-i18n-search">
+                            <Blazicon Svg="Lucide.Search" />
                             <input
                                 id="theme-i18n-search"
                                 type="search"
@@ -337,40 +351,32 @@
                                 @oninput="args => SetThemeI18nSearch(args.Value?.ToString())"
                                 placeholder='@I18n["settings.theme.i18nSearchPlaceholder"]' />
                         </label>
-
-                        @if (filteredThemeKeys.Count == 0)
-                        {
-                            <p class="bocchi-theme-empty-note">@I18n["settings.theme.i18nNoResults"]</p>
-                        }
-                        else
-                        {
-                            <div class="bocchi-theme-key-list">
-                                @foreach (var key in filteredThemeKeys)
+                        <div class="bocchi-theme-i18n-picker__list" role="group" aria-label='@I18n["themeCustomization.text.keyListAria"]'>
+                            @if (FilteredThemeI18nKeys.Count == 0)
+                            {
+                                <p class="bocchi-theme-i18n-picker__empty">@I18n["settings.theme.i18nNoResults"]</p>
+                            }
+                            else
+                            {
+                                @foreach (var key in FilteredThemeI18nKeys)
                                 {
                                     <button
                                         type="button"
-                                        class="@ThemeI18nKeyButtonClass(key)"
+                                        class="@ThemeI18nKeyPillClass(key)"
                                         aria-pressed="@AriaBool(IsSelectedThemeI18nKey(key))"
                                         @onclick="() => SelectThemeI18nKey(key.Key)">
                                         <code>@key.Key</code>
-                                        <strong>@key.Title</strong>
+                                        <small>@key.Title</small>
                                     </button>
                                 }
-                            </div>
-                        }
-                    </aside>
+                            }
+                        </div>
+                    </div>
 
-                    <section class="bocchi-panel bocchi-theme-editor-panel" aria-labelledby="theme-i18n-heading">
-                        @if (selectedThemeKey is null)
-                        {
-                            <div class="bocchi-theme-empty">
-                                <Blazicon Svg="Lucide.Languages" />
-                                <h2 id="theme-i18n-heading">@I18n["themeCustomization.text.editorEmptyTitle"]</h2>
-                                <p>@I18n["themeCustomization.text.editorEmptyDescription"]</p>
-                            </div>
-                        }
-                        else
-                        {
+                    @* 右侧：编辑器 *@
+                    @if (selectedThemeKey is not null)
+                    {
+                        <section class="bocchi-panel bocchi-theme-editor-panel" aria-labelledby="theme-i18n-heading">
                             <div class="bocchi-theme-panel-heading">
                                 <div>
                                     <span>@I18n["settings.theme.i18nTitle"]</span>
@@ -390,11 +396,12 @@
                                                   EnabledLanguageCodes="_enabledLanguageCodeList"
                                                   AvailableLanguages="_availableLanguages"
                                                   Placeholder="@GetThemeI18nDefaultValue(selectedThemeKey, _primaryLanguageCode)"
+                                                  PlaceholderValues="selectedThemeKey.DefaultValues"
                                                   AriaLabel="@selectedThemeKey.Title" />
-                        }
-                    </section>
-                }
-            </div>
+                        </section>
+                    }
+                </div>
+            }
         }
     }
 </article>

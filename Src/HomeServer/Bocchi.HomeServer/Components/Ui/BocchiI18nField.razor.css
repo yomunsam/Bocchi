@@ -26,8 +26,8 @@
 
 .bocchi-i18n-field__caption strong {
     color: var(--bocchi-text);
-    font-size: 0.95rem;
-    font-weight: 780;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .bocchi-i18n-field__caption small {
@@ -50,7 +50,7 @@
     color: var(--bocchi-text);
     padding: 0 1.75rem 0 0.85rem;
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .bocchi-i18n-field__body {
@@ -61,7 +61,7 @@
 .bocchi-i18n-field__hint {
     margin: 0;
     color: var(--bocchi-text-muted);
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     line-height: 1.5;
 }
 
@@ -76,7 +76,7 @@
     background: var(--bocchi-surface);
     color: var(--bocchi-text);
     padding: 0 0.75rem;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
 }
 
 .bocchi-i18n-field__row {
@@ -89,7 +89,7 @@
     gap: 0.32rem;
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .bocchi-i18n-field__texts {
@@ -113,7 +113,7 @@
     gap: 0.65rem;
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
-    font-weight: 700;
+    font-weight: 500;
 }
 
 .bocchi-i18n-field__theme {
@@ -129,7 +129,7 @@
 .bocchi-i18n-field__theme-label {
     color: var(--bocchi-text-muted);
     font-size: 0.86rem;
-    font-weight: 780;
+    font-weight: 500;
 }
 
 .bocchi-i18n-field__theme code {

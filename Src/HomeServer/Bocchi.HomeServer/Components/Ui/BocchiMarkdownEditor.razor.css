@@ -156,7 +156,7 @@
     min-height: 16rem;
     place-items: center;
     color: var(--bocchi-text-subtle);
-    font-weight: 720;
+    font-weight: 500;
 }
 
 .bocchi-markdown-preview {

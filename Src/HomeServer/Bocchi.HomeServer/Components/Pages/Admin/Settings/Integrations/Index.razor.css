@@ -24,7 +24,7 @@
     margin: 0;
     color: var(--bocchi-text-subtle);
     font-size: 0.82rem;
-    font-weight: 650;
+    font-weight: 500;
 }
 
 .bocchi-settings-breadcrumb a {
@@ -89,8 +89,8 @@
 .bocchi-integration-entry__body strong {
     overflow: hidden;
     color: var(--bocchi-text);
-    font-size: 0.98rem;
-    font-weight: 680;
+    font-size: 0.92rem;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
