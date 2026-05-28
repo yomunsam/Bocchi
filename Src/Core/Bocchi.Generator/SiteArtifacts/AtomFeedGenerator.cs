@@ -4,6 +4,7 @@ using System.Xml;
 
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.SiteArtifacts;
 
@@ -129,7 +130,7 @@ public static class AtomFeedGenerator
         }
 
         var bytes = ms.ToArray();
-        var sha = HashUtil.Sha256Hex(bytes);
+        var sha = Sha256Hex.FromBytes(bytes);
         return (
             new BuildArtifact
             {

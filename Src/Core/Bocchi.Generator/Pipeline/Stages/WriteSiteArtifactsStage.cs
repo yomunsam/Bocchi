@@ -1,5 +1,6 @@
 using Bocchi.Generator.Exceptions;
 using Bocchi.Generator.SiteArtifacts;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
@@ -63,7 +64,7 @@ public sealed class WriteSiteArtifactsStage : IBuildStage
             Kind = ArtifactKind.SiteArtifact,
             ContentType = "text/plain; charset=utf-8",
             SizeBytes = NoJekyllBytes.Length,
-            Sha256 = Sha256Util.Hex(NoJekyllBytes),
+            Sha256 = Sha256Hex.FromBytes(NoJekyllBytes),
             ProducedBy = Name,
             Bytes = NoJekyllBytes,
         };

@@ -1,8 +1,6 @@
-using System.Globalization;
-using System.Security.Cryptography;
-
 using Bocchi.Generator.Exceptions;
 using Bocchi.Generator.Theme;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
@@ -59,7 +57,7 @@ public sealed class CollectThemeOutputStage : IBuildStage
                 Kind = ArtifactKind.ThemeOutput,
                 ContentType = ResolveContentType(file.ArtifactPath),
                 SizeBytes = info.Length,
-                Sha256 = await ComputeSha256Async(file.AbsolutePath, session.CancellationToken).ConfigureAwait(false),
+                Sha256 = await Sha256Hex.FromFileAsync(file.AbsolutePath, session.CancellationToken).ConfigureAwait(false),
                 ProducedBy = Name,
                 SourceAbsolutePath = file.AbsolutePath,
             };
@@ -132,22 +130,6 @@ public sealed class CollectThemeOutputStage : IBuildStage
             ".woff2" => "font/woff2",
             _ => "application/octet-stream",
         };
-    }
-
-    private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
-    {
-        await using var stream = new FileStream(
-            path,
-            new FileStreamOptions
-            {
-                Mode = FileMode.Open,
-                Access = FileAccess.Read,
-                Share = FileShare.Read,
-                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-            });
-        using var sha = SHA256.Create();
-        var hash = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
-        return string.Concat(hash.Select(b => b.ToString("x2", CultureInfo.InvariantCulture)));
     }
 
     private sealed record CollectedThemeFile(string AbsolutePath, string ArtifactPath);

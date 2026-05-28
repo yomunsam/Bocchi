@@ -4,6 +4,7 @@ using System.Xml;
 
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.SiteArtifacts;
 
@@ -71,7 +72,7 @@ public static class SitemapXmlGenerator
                 WriteUrl(post.SiteRelativeUrl, mtime, post.Localization.Alternates);
             }
 
-            foreach (var category in FlattenPostCategories(graph.PostCategories))
+            foreach (var category in graph.PostCategories.FlattenDepthFirst())
             {
                 WriteUrl(category.SiteRelativeUrl, null);
             }
@@ -87,7 +88,7 @@ public static class SitemapXmlGenerator
         }
 
         var bytes = ms.ToArray();
-        var sha = HashUtil.Sha256Hex(bytes);
+        var sha = Sha256Hex.FromBytes(bytes);
         return (
             new BuildArtifact
             {
@@ -100,17 +101,5 @@ public static class SitemapXmlGenerator
                 Bytes = bytes,
             },
             bytes);
-    }
-
-    private static IEnumerable<GraphPostCategory> FlattenPostCategories(IEnumerable<GraphPostCategory> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            yield return node;
-            foreach (var child in FlattenPostCategories(node.Children))
-            {
-                yield return child;
-            }
-        }
     }
 }

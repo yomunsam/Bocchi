@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 
 using Bocchi.Generator.ThemeInputs;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
@@ -31,7 +32,7 @@ public sealed class WriteManifestStage : IBuildStage
                 .ToArray(),
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(manifest, ThemeInputWriter.JsonOptions);
-        var sha = Sha256Util.Hex(bytes);
+        var sha = Sha256Hex.FromBytes(bytes);
         var artifact = new BuildArtifact
         {
             Path = ManifestPath,
@@ -59,20 +60,4 @@ public sealed class WriteManifestStage : IBuildStage
     }
 
     internal sealed record ManifestEntry(string Path, string Kind, string ContentType, long SizeBytes, string Sha256, string ProducedBy);
-}
-
-internal static class Sha256Util
-{
-    public static string Hex(ReadOnlyMemory<byte> bytes)
-    {
-        Span<byte> hash = stackalloc byte[32];
-        System.Security.Cryptography.SHA256.HashData(bytes.Span, hash);
-        var sb = new System.Text.StringBuilder(hash.Length * 2);
-        foreach (var b in hash)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return sb.ToString();
-    }
 }

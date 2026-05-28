@@ -1,10 +1,9 @@
-using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 
 using Bocchi.ContentModel;
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.SiteArtifacts;
 
@@ -34,7 +33,7 @@ public static class RobotsTxtGenerator
         }
 
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-        var sha = HashUtil.Sha256Hex(bytes);
+        var sha = Sha256Hex.FromBytes(bytes);
         return (
             new BuildArtifact
             {
@@ -47,21 +46,5 @@ public static class RobotsTxtGenerator
                 Bytes = bytes,
             },
             bytes);
-    }
-}
-
-internal static class HashUtil
-{
-    public static string Sha256Hex(ReadOnlyMemory<byte> bytes)
-    {
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(bytes.Span, hash);
-        var sb = new StringBuilder(hash.Length * 2);
-        foreach (var b in hash)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return sb.ToString();
     }
 }

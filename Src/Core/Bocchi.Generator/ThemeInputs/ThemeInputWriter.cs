@@ -1,6 +1,3 @@
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -9,6 +6,7 @@ using Bocchi.ContentModel;
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.ThemeInputs.Models;
+using Bocchi.Generator.Utilities;
 using Bocchi.GeneratorContract;
 
 namespace Bocchi.Generator.ThemeInputs;
@@ -106,7 +104,7 @@ public sealed class ThemeInputWriter
                 Data = data,
             };
             var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, JsonOptions);
-            var sha = ComputeSha256(bytes);
+            var sha = Sha256Hex.FromBytes(bytes);
             var artifact = new BuildArtifact
             {
                 Path = "/" + fileName,
@@ -483,7 +481,7 @@ public sealed class ThemeInputWriter
                     ?? group.OrderBy(page => page.Language, StringComparer.OrdinalIgnoreCase).First(),
                 StringComparer.Ordinal);
         var specialPages = NormalizeSpecialPages(manifest).ToDictionary(page => page.Name, StringComparer.Ordinal);
-        var postCategories = FlattenPostCategories(graph.PostCategories).ToDictionary(category => category.Slug, StringComparer.Ordinal);
+        var postCategories = graph.PostCategories.FlattenDepthFirst().ToDictionary(category => category.Slug, StringComparer.Ordinal);
         var items = graph.Site.Settings.Navigation
             .Select(item => MapNavigationItem(item, pages, specialPages, postCategories, manifest, localization, siteLanguage))
             .Where(item => item is not null)
@@ -734,18 +732,6 @@ public sealed class ThemeInputWriter
     private static string NormalizeRoute(string route)
         => route.Trim();
 
-    private static IEnumerable<GraphPostCategory> FlattenPostCategories(IEnumerable<GraphPostCategory> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            yield return node;
-            foreach (var child in FlattenPostCategories(node.Children))
-            {
-                yield return child;
-            }
-        }
-    }
-
     private static SiteInput MapSite(GraphSite site) => new()
     {
         Title = site.Settings.Title,
@@ -905,19 +891,6 @@ public sealed class ThemeInputWriter
         ContentStatus.Archived => "archived",
         _ => status.ToString().ToLowerInvariant(),
     };
-
-    private static string ComputeSha256(ReadOnlyMemory<byte> bytes)
-    {
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(bytes.Span, hash);
-        var sb = new StringBuilder(hash.Length * 2);
-        foreach (var b in hash)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return sb.ToString();
-    }
 
     /// <summary>解析后的展示文案与可选 i18n 元数据。</summary>
     private sealed record DisplayText(string Text, NavigationLabelI18nRefInput? I18n);

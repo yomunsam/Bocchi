@@ -1,10 +1,9 @@
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 
 using Bocchi.ContentModel;
 using Bocchi.Generator.Exceptions;
+using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.ContentGraph;
 
@@ -115,7 +114,7 @@ public sealed partial class MediaPathRewriter
         }
 
         var info = new FileInfo(sourceAbs);
-        var sha = ComputeSha256(sourceAbs);
+        var sha = Sha256Hex.FromFile(sourceAbs);
         var contentType = ContentTypeMap.GuessFromFileName(fileName);
         var asset = new MediaAsset
         {
@@ -144,20 +143,6 @@ public sealed partial class MediaPathRewriter
         return url.Contains("://", StringComparison.Ordinal)
             || url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
             || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string ComputeSha256(string path)
-    {
-        using var sha = SHA256.Create();
-        using var stream = File.OpenRead(path);
-        var hash = sha.ComputeHash(stream);
-        var sb = new StringBuilder(hash.Length * 2);
-        foreach (var b in hash)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return sb.ToString();
     }
 
     // 匹配 Markdown 行内图片：![alt](url "title")。alt / title 可空，title 可省。

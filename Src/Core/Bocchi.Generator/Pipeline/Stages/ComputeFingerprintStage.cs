@@ -1,10 +1,10 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Exceptions;
 using Bocchi.Generator.Theme;
+using Bocchi.Generator.Utilities;
 using Bocchi.Workspace;
 
 namespace Bocchi.Generator.Pipeline.Stages;
@@ -57,7 +57,7 @@ public sealed class ComputeFingerprintStage : IBuildStage
             AppendBodyHash(sha, post.BodyMarkdown);
         }
 
-        foreach (var category in FlattenPostCategories(session.Graph.PostCategories).OrderBy(c => c.Slug, StringComparer.Ordinal))
+        foreach (var category in session.Graph.PostCategories.FlattenDepthFirst().OrderBy(c => c.Slug, StringComparer.Ordinal))
         {
             AppendLine(sha, $"postCategory:{category.Slug}|name={category.Name}|url={category.SiteRelativeUrl}|count={category.Count}");
         }
@@ -90,14 +90,7 @@ public sealed class ComputeFingerprintStage : IBuildStage
             AppendLine(sha, $"media:{asset.SiteRelativePath}|sha={asset.Sha256}|size={asset.SizeBytes}");
         }
 
-        var digest = sha.GetCurrentHash();
-        var sb = new StringBuilder(digest.Length * 2);
-        foreach (var b in digest)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        session.Fingerprint = new BuildFingerprint(sb.ToString());
+        session.Fingerprint = new BuildFingerprint(Sha256Hex.ToLowerHex(sha.GetCurrentHash()));
         session.Log(Name, BuildLogLevel.Info, $"指纹 = {session.Fingerprint.Value}");
         return Task.FromResult(true);
     }
@@ -168,27 +161,7 @@ public sealed class ComputeFingerprintStage : IBuildStage
             return;
         }
 
-        Span<byte> fileHash = stackalloc byte[32];
-        SHA256.HashData(File.ReadAllBytes(path), fileHash);
-        var sb = new StringBuilder(fileHash.Length * 2);
-        foreach (var b in fileHash)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        AppendLine(sha, $"themeConfig={sb}");
-    }
-
-    private static IEnumerable<GraphPostCategory> FlattenPostCategories(IEnumerable<GraphPostCategory> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            yield return node;
-            foreach (var child in FlattenPostCategories(node.Children))
-            {
-                yield return child;
-            }
-        }
+        AppendLine(sha, $"themeConfig={Sha256Hex.FromFile(path)}");
     }
 
     /// <summary>把 Theme 源文件纳入构建指纹，避免模板或 CSS 修改后被错误短路。</summary>
@@ -208,9 +181,8 @@ public sealed class ComputeFingerprintStage : IBuildStage
             .OrderBy(path => Path.GetRelativePath(themeRoot, path), StringComparer.Ordinal))
         {
             var bytes = File.ReadAllBytes(file);
-            var fileHash = SHA256.HashData(bytes);
             var relativePath = Path.GetRelativePath(themeRoot, file).Replace(Path.DirectorySeparatorChar, '/');
-            AppendLine(sha, $"themeFile:{relativePath}|sha={ToHex(fileHash)}|size={bytes.Length}");
+            AppendLine(sha, $"themeFile:{relativePath}|sha={Sha256Hex.FromBytes(bytes)}|size={bytes.Length}");
         }
     }
 
@@ -237,15 +209,4 @@ public sealed class ComputeFingerprintStage : IBuildStage
         return path.StartsWith(normalizedDirectory, StringComparison.Ordinal);
     }
 
-    /// <summary>把 hash bytes 转为小写十六进制字符串。</summary>
-    private static string ToHex(ReadOnlySpan<byte> bytes)
-    {
-        var sb = new StringBuilder(bytes.Length * 2);
-        foreach (var b in bytes)
-        {
-            sb.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-        }
-
-        return sb.ToString();
-    }
 }

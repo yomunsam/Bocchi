@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
@@ -38,6 +40,7 @@ public sealed class GeneratorPipelineEndToEndTests
         result.Artifacts.Should().Contain(a => a.Path == "/feed.xml");
         result.Artifacts.Should().Contain(a => a.Path == "/.bocchi-manifest.json");
         result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/index.html");
+        result.Artifacts.Should().OnlyContain(a => Regex.IsMatch(a.Sha256, "^[0-9a-f]{64}$"));
         result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/posts/index.html");
         result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/assets/app.css");
 
@@ -354,6 +357,74 @@ public sealed class GeneratorPipelineEndToEndTests
         indexHtml.Should().Contain("<a href=\"notes/\"");
         indexHtml.Should().NotContain("empty-about");
         indexHtml.Should().NotContain("Missing page");
+    }
+
+    [Fact]
+    public async Task ThemeInputAndSitemap_FlattenNestedPostCategories()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var postFile = Path.Combine(fixture.Layout.Workspace.PostsDirectory, "2025", "hello", "index.md");
+        var postRaw = await File.ReadAllTextAsync(postFile);
+        await File.WriteAllTextAsync(postFile, postRaw.Replace("tags: [a, b]", "category: AI\ntags: [a, b]", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(fixture.Layout.Workspace.NavigationFile, """
+            items:
+              - id: ai
+                label: AI
+                target:
+                  type: postCategory
+                  value: ai
+                children: []
+            """);
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions
+            {
+                Mode = BuildMode.FullBuild,
+                PostCategories =
+                [
+                    new BuildCategoryNode
+                    {
+                        Id = "tech",
+                        Name = "Tech",
+                        Slug = "tech",
+                        Children =
+                        [
+                            new BuildCategoryNode
+                            {
+                                Id = "ai",
+                                Name = "AI",
+                                Slug = "ai",
+                            },
+                        ],
+                    },
+                ],
+            },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+
+        var navigationJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "navigation.json"));
+        using var navigationDoc = JsonDocument.Parse(navigationJson);
+        navigationDoc.RootElement.GetProperty("data").GetProperty("items").EnumerateArray().Single()
+            .GetProperty("href").GetString().Should().Be("/posts/categories/ai/");
+
+        var categoriesJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "post-categories.json"));
+        using var categoriesDoc = JsonDocument.Parse(categoriesJson);
+        var rootCategory = categoriesDoc.RootElement.GetProperty("data").EnumerateArray().Single();
+        rootCategory.GetProperty("slug").GetString().Should().Be("tech");
+        var childCategory = rootCategory.GetProperty("children").EnumerateArray().Single();
+        childCategory.GetProperty("slug").GetString().Should().Be("ai");
+        childCategory.GetProperty("count").GetInt32().Should().Be(1);
+
+        var sitemap = XDocument.Load(Path.Combine(fixture.Layout.PublicOutputDirectory, "sitemap.xml"));
+        XNamespace sm = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        var locs = sitemap.Root!.Elements(sm + "url").Select(url => url.Element(sm + "loc")?.Value).ToArray();
+        locs.Should().Contain(loc => loc != null && loc.EndsWith("/posts/categories/tech/", StringComparison.Ordinal));
+        locs.Should().Contain(loc => loc != null && loc.EndsWith("/posts/categories/ai/", StringComparison.Ordinal));
     }
 
     [Fact]
