@@ -585,6 +585,41 @@ public sealed class AccountAndSetupTests
         snapshot["theme.defaultStatic.colophonBuiltWith"]["en-US"].Should().Be("Powered quietly");
     }
 
+    /// <summary>验证 Page Contract display ref 会按 Theme override、Theme 默认值和 Common 默认值解析。</summary>
+    [Fact]
+    public async Task ThemeSettings_GetPageContract_ResolvesThemeAndCommonDisplayRefs()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
+        await settings.SaveI18nTextOverridesAsync(
+            "default-static",
+            [
+                new ThemeI18nTextOverride
+                {
+                    Key = "theme.defaultStatic.pageTemplate.about",
+                    Values = new Dictionary<string, string>
+                    {
+                        ["zh-CN"] = "关于页面（自定义）",
+                    },
+                },
+            ]);
+
+        var defaultStatic = await settings.GetPageContractAsync("default-static", "zh-CN");
+        defaultStatic.PageTemplates.Single(template => template.Name == "normal")
+            .DisplayName.Should().Be("普通页面");
+        defaultStatic.PageTemplates.Single(template => template.Name == "about")
+            .DisplayName.Should().Be("关于页面（自定义）");
+
+        var missingTheme = await settings.GetPageContractAsync("missing-theme", "zh-CN");
+        missingTheme.PageTemplates.Should().ContainSingle(template =>
+            template.Name == "normal" && template.DisplayName == "普通页面");
+    }
+
     /// <summary>从 prerender HTML 中取出一个已指纹化静态资源路径。</summary>
     private static string ExtractAssetPath(string html, string prefix)
     {
