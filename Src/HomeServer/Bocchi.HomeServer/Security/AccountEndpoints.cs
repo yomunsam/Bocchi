@@ -139,7 +139,12 @@ public static class AccountEndpoints
         }
 
         var user = await users.FindByNameAsync(userName).ConfigureAwait(false);
-        if (user is null || user.IsDisabled)
+        if (user is null)
+        {
+            return RedirectToLogin(returnUrl, localization["login.error.invalid"]);
+        }
+
+        if (user.IsDisabled)
         {
             return RedirectToLogin(returnUrl, localization["login.error.disabled"]);
         }

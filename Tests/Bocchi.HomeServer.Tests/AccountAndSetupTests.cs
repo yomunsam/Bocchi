@@ -217,6 +217,55 @@ public sealed class AccountAndSetupTests
     }
 
     [Fact]
+    public async Task LoginPost_UnknownUserUsesGenericInvalidMessage()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.PostAsync("/Account/Login/Submit", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["username"] = "missing-user",
+            ["password"] = "wrong-password",
+        }));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        var location = WebUtility.UrlDecode(response.Headers.Location!.ToString());
+        location.Should().Contain("Username or password is incorrect.");
+        location.Should().NotContain("disabled");
+        location.Should().NotContain("does not exist");
+    }
+
+    [Fact]
+    public async Task ExternalLoginCallback_WithLinkedLogin_SignsInExistingUser()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using (await factory.CreateAdminClientAsync())
+        {
+        }
+        await factory.CreateLocalUserAsync("linked-admin", "linked-admin-password", isAdmin: true, email: "owner@example.test");
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<BocchiUser>>();
+            var user = await users.FindByNameAsync("linked-admin");
+            user.Should().NotBeNull();
+            var linked = await users.AddLoginAsync(user!, new UserLoginInfo("github", "remote-owner", "GitHub"));
+            linked.Succeeded.Should().BeTrue();
+        }
+
+        var externalCookie = CreateExternalLoginCookie(factory, "github", "remote-owner", "owner@example.test");
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add(HeaderNames.Cookie, $"{externalCookie.Name}={externalCookie.Value}");
+
+        var callback = await client.GetAsync("/Account/ExternalLoginCallback?returnUrl=%2FAdmin");
+
+        callback.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        callback.Headers.Location!.ToString().Should().Be("/Admin");
+    }
+
+    [Fact]
     public async Task ExternalLoginCallback_DoesNotAutoBindByMatchingEmail()
     {
         using var factory = new IsolatedDataRootWebApplicationFactory();
