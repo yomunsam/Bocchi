@@ -24,7 +24,7 @@ public partial class Build
                 _lastResult.Duration.TotalSeconds.ToString("F1", CultureInfo.CurrentCulture));
         }
 
-        var latest = _recent?.FirstOrDefault();
+        var latest = _recent is { Count: > 0 } ? _recent[0] : null;
         if (latest is null)
         {
             return I18n["publish.last.none"];
@@ -98,7 +98,7 @@ public partial class Build
             return _lastResult.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
         }
 
-        var latest = _recent?.FirstOrDefault();
+        var latest = _recent is { Count: > 0 } ? _recent[0] : null;
         return latest is null
             ? I18n["publish.statusCard.never"]
             : latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
@@ -107,7 +107,7 @@ public partial class Build
     /// <summary>最新远端发布时间。</summary>
     private string LatestRemotePublishText()
     {
-        var latest = _publishRuns?.FirstOrDefault();
+        var latest = _publishRuns is { Count: > 0 } ? _publishRuns[0] : null;
         return latest is null
             ? I18n["publish.statusCard.never"]
             : latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);

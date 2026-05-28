@@ -154,7 +154,18 @@ public partial class Build
     private bool IsAddPlanSection => CurrentSection == AddPlanSection;
 
     /// <summary>默认发布方案；没有显式默认时使用列表第一项作为旧数据回退。</summary>
-    private PublishPlanRecord? DefaultPublishPlan => _publishPlans?.FirstOrDefault(x => x.IsDefault) ?? _publishPlans?.FirstOrDefault();
+    private PublishPlanRecord? DefaultPublishPlan
+    {
+        get
+        {
+            if (_publishPlans is not { Count: > 0 } plans)
+            {
+                return null;
+            }
+
+            return plans.FirstOrDefault(x => x.IsDefault) ?? plans[0];
+        }
+    }
 
     /// <summary>可用于发布向导的 GitHub 连接集合。</summary>
     private IEnumerable<GitProviderConnectionRecord> GitHubConnections
