@@ -13,6 +13,64 @@ public sealed class DefaultStaticTemplateRendererTests
         WriteIndented = true,
     };
 
+    /// <summary>验证默认 Theme 的 inline text 渲染只开放受控 color 语法，其余 Markdown / HTML 都保持普通文本语义。</summary>
+    [Fact]
+    public async Task RenderAsync_RendersInlineColorTextWithoutTrustingMarkdownOrHtml()
+    {
+        var context = CreateThemeContext(
+            heroTitle: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["zh-CN"] = "Plain <b>tag</b> & [link](https://example.com) [color=accent]Accent[/color] [color=#123ABC]Hex[/color] [color=accent]open [color=#123]nested[/color] tail",
+            },
+            heroSubtitle: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["zh-CN"] = "普通 <em>x</em> [link](https://example.com) [color=red]红[/color] [color=javascript:alert(1)]bad[/color] [color=accent][/color] [/color]",
+            });
+
+        var html = await RenderIndexAsync(context);
+        var visibleHtml = System.Net.WebUtility.HtmlDecode(html);
+
+        html.Should().Contain("""Plain &lt;b&gt;tag&lt;/b&gt; &amp; [link](https://example.com)""");
+        html.Should().Contain("""<span style="color:var(--accent)">Accent</span>""");
+        html.Should().Contain("""<span style="color:#123ABC">Hex</span>""");
+        html.Should().Contain("""<span style="color:var(--accent)">open <span style="color:#123">nested</span> tail</span></h1>""");
+        visibleHtml.Should().Contain("""普通 <em>x</em> [link](https://example.com) [color=red]红[/color] [color=javascript:alert(1)]bad[/color] <span style="color:var(--accent)"></span> [/color]</p>""");
+        html.Should().NotContain("""style="color:red""");
+        html.Should().NotContain("""style="color:javascript""");
+        html.Should().NotContain("<b>tag</b>");
+        html.Should().NotContain("<em>x</em>");
+        html.Should().NotContain("<a href=\"https://example.com");
+    }
+
+    /// <summary>验证默认 Theme 文案解析的覆盖、manifest 默认值、语言回退和缺失 key 回退行为。</summary>
+    [Fact]
+    public async Task RenderAsync_ResolvesThemeTextOverridesDefaultsAndFallbacks()
+    {
+        var context = CreateThemeContext(
+            localizationText: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["menu.home"] = CreateLanguageText(("zh-CN", "自定义首页")),
+                ["theme.defaultStatic.colophonBuiltWith"] = CreateLanguageText(("zh-CN", "主题私有覆盖")),
+            },
+            themeI18nKeys:
+            [
+                CreateThemeI18nKey("theme.defaultStatic.colophonBuiltWith", ("zh-CN", "Manifest 页脚"), ("en-US", "Manifest footer")),
+                CreateThemeI18nKey("theme.defaultStatic.homeSelectedWriting", ("zh-CN", "Manifest 精选写作"), ("en-US", "Manifest selected writing")),
+                CreateThemeI18nKey("theme.defaultStatic.homeSelectedWork", ("en-US", "Manifest selected work")),
+            ]);
+
+        var html = await RenderIndexAsync(context);
+        var visibleHtml = System.Net.WebUtility.HtmlDecode(html);
+
+        visibleHtml.Should().Contain("""data-bocchi-i18n="menu.home">自定义首页</span>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.defaultStatic.colophonBuiltWith">主题私有覆盖</span>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.defaultStatic.homeSelectedWriting">Manifest 精选写作</span>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.defaultStatic.homeSelectedWork">Manifest selected work</span>""");
+        visibleHtml.Should().Contain("""data-bocchi-i18n="theme.defaultStatic.emptyList">theme.defaultStatic.emptyList</div>""");
+        visibleHtml.Should().NotContain("Manifest 页脚");
+        visibleHtml.Should().NotContain("Built with Bocchi.");
+    }
+
     /// <summary>验证 renderer 只消费 Theme input 给出的 URL/SEO/语言事实，并在写出阶段完成相对化和资产复制。</summary>
     [Fact]
     public async Task RenderAsync_ConsumesThemeInputFactsForUrlsSeoLanguageAndAssets()
@@ -159,7 +217,11 @@ public sealed class DefaultStaticTemplateRendererTests
         };
 
     /// <summary>创建默认 Theme 渲染所需的最小 theme-context 数据。</summary>
-    private static Dictionary<string, object?> CreateThemeContext()
+    private static Dictionary<string, object?> CreateThemeContext(
+        IReadOnlyDictionary<string, object?>? localizationText = null,
+        IReadOnlyList<object>? themeI18nKeys = null,
+        IReadOnlyDictionary<string, string>? heroTitle = null,
+        IReadOnlyDictionary<string, string>? heroSubtitle = null)
         => new(StringComparer.Ordinal)
         {
             ["site"] = new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -197,11 +259,11 @@ public sealed class DefaultStaticTemplateRendererTests
                         ["featuredPosts"] = 2,
                         ["featuredWorks"] = 2,
                         ["recentNotes"] = 2,
-                        ["heroTitle"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        ["heroTitle"] = heroTitle ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["zh-CN"] = "Renderer Home",
                         },
-                        ["heroSubtitle"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        ["heroSubtitle"] = heroSubtitle ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                         {
                             ["zh-CN"] = "Renderer Subtitle",
                         },
@@ -214,7 +276,7 @@ public sealed class DefaultStaticTemplateRendererTests
                 ["i18n"] = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["defaultLanguage"] = "en-US",
-                    ["keys"] = Array.Empty<object>(),
+                    ["keys"] = themeI18nKeys ?? Array.Empty<object>(),
                 },
             },
             ["localization"] = new Dictionary<string, object?>(StringComparer.Ordinal)
@@ -236,9 +298,72 @@ public sealed class DefaultStaticTemplateRendererTests
                         ["englishName"] = "Traditional Chinese",
                     },
                 },
-                ["text"] = new Dictionary<string, object?>(StringComparer.Ordinal),
+                ["text"] = localizationText ?? new Dictionary<string, object?>(StringComparer.Ordinal),
             },
         };
+
+    /// <summary>执行一次最小首页渲染，方便 focused tests 验证默认 Theme 文案模型。</summary>
+    private static async Task<string> RenderIndexAsync(Dictionary<string, object?> themeContext)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bocchi-default-static-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var themeRoot = Path.Combine(root, "theme");
+            var inputDirectory = Path.Combine(root, "input");
+            var outputDirectory = Path.Combine(root, "output");
+            Directory.CreateDirectory(themeRoot);
+            Directory.CreateDirectory(inputDirectory);
+
+            await WriteMinimalInputAsync(inputDirectory, themeContext);
+            await DefaultStaticTemplateRenderer.RenderAsync(
+                new DefaultStaticRenderRequest
+                {
+                    ThemeRoot = themeRoot,
+                    InputDirectory = inputDirectory,
+                    OutputDirectory = outputDirectory,
+                    Manifest = CreateManifest(),
+                    BaseUrl = "https://renderer.example/",
+                    Environment = "production",
+                });
+
+            return await File.ReadAllTextAsync(Path.Combine(outputDirectory, "index.html"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>写入渲染首页所需的最小 Theme Contract 输入集合。</summary>
+    private static async Task WriteMinimalInputAsync(string inputDirectory, Dictionary<string, object?> themeContext)
+    {
+        await WriteEnvelopeAsync(inputDirectory, "theme-context.json", themeContext);
+        await WriteEnvelopeAsync(inputDirectory, "navigation.json", CreateNavigation());
+        await WriteEnvelopeAsync(inputDirectory, "post-categories.json", Array.Empty<object>());
+        await WriteEnvelopeAsync(inputDirectory, "posts.json", Array.Empty<object>());
+        await WriteEnvelopeAsync(inputDirectory, "pages.json", Array.Empty<object>());
+        await WriteEnvelopeAsync(inputDirectory, "works.json", Array.Empty<object>());
+        await WriteEnvelopeAsync(inputDirectory, "notes.json", Array.Empty<object>());
+        await WriteEnvelopeAsync(inputDirectory, "friends.json", Array.Empty<object>());
+    }
+
+    /// <summary>创建一个 Theme manifest i18n key 默认值声明。</summary>
+    private static Dictionary<string, object?> CreateThemeI18nKey(
+        string key,
+        params (string Language, string Value)[] values)
+        => new(StringComparer.Ordinal)
+        {
+            ["key"] = key,
+            ["title"] = key,
+            ["defaultValues"] = CreateLanguageText(values),
+        };
+
+    /// <summary>创建 language -> text 的测试用 plain text 文案对象。</summary>
+    private static Dictionary<string, string> CreateLanguageText(params (string Language, string Value)[] values)
+        => values.ToDictionary(value => value.Language, value => value.Value, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>创建测试导航，供相对 URL 改写覆盖首页与列表链接。</summary>
     private static Dictionary<string, object?> CreateNavigation()
