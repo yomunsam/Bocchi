@@ -1,17 +1,16 @@
-using System.Globalization;
 using System.Text.RegularExpressions;
 
 using Bocchi.ContentModel;
 using Bocchi.Workspace.Scanning;
 
 using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
 
 namespace Bocchi.Workspace.Content.Loaders;
 
 /// <summary>
-/// 短文加载器。短文为单文件 Markdown：<c>notes/&lt;year&gt;/&lt;filename&gt;.md</c>。
-/// frontmatter 可选；正文即短文文本。文件名形如 <c>YYYY-MM-DD-HHMM-&lt;slug&gt;.md</c>，
-/// 缺省 frontmatter 时从文件名解析时间与 id。
+/// 短文加载器。短文为目录型内容：<c>notes/&lt;year&gt;/&lt;MMdd&gt;/&lt;HHmm&gt;-&lt;id&gt;/index.md</c>。
+/// <c>id</c> 是公开稳定标识，必须由 frontmatter 明确声明，不再从文件路径推导业务 id 或发布时间。
 /// </summary>
 public sealed partial class NoteLoader
 {
@@ -26,54 +25,88 @@ public sealed partial class NoteLoader
     public LoadResult<NoteDocument> Load(
         ContentLocation location,
         string year,
-        string fileName,
+        string monthDay,
+        string directoryName,
         string rawContent,
         TimeSpan fallbackOffset)
     {
         ArgumentNullException.ThrowIfNull(location);
         ArgumentException.ThrowIfNullOrWhiteSpace(year);
-        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(monthDay);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directoryName);
         ArgumentNullException.ThrowIfNull(rawContent);
 
         var errors = new List<ContentValidationError>();
         var split = FrontmatterParser.Split(rawContent);
 
-        YamlDotNet.RepresentationModel.YamlMappingNode? mapping = null;
-        if (!string.IsNullOrWhiteSpace(split.Yaml))
+        if (string.IsNullOrWhiteSpace(split.Yaml))
         {
-            try
-            {
-                mapping = YamlAccess.Parse(split.Yaml);
-            }
-            catch (YamlException ex)
-            {
-                errors.Add(new ContentValidationError(
-                    location.RelativePath, ContentKind.Note, null,
-                    ContentErrorSeverity.Error, "NOTE_INVALID_YAML",
-                    $"frontmatter YAML 解析失败：{ex.Message}"));
-                return LoadResult.Fail<NoteDocument>(errors);
-            }
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, null,
+                ContentErrorSeverity.Error, "NOTE_NO_FRONTMATTER",
+                "短文必须提供 YAML frontmatter，并声明 id。"));
+            return LoadResult.Fail<NoteDocument>(errors);
         }
 
-        var fileBase = Path.GetFileNameWithoutExtension(fileName);
-        var (filenamePublishedAt, filenameSlug) = ParseFileName(fileBase, year, fallbackOffset);
-
-        var id = (mapping is not null ? YamlAccess.GetString(mapping, "id") : null) ?? filenameSlug ?? fileBase;
-        var status = mapping is not null
-            ? PostLoader.ParseStatus(YamlAccess.GetString(mapping, "status"), errors, location, ContentKind.Note)
-            : ContentStatus.Published;
-
-        DateTimeOffset? publishedAt = filenamePublishedAt;
-        if (mapping is not null)
+        YamlMappingNode? mapping;
+        try
         {
-            var pa = PostLoader.ParseDateTime(mapping, "publishedAt", fallbackOffset, errors, location, ContentKind.Note);
-            if (pa is not null)
-            {
-                publishedAt = pa;
-            }
+            mapping = YamlAccess.Parse(split.Yaml);
+        }
+        catch (YamlException ex)
+        {
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, null,
+                ContentErrorSeverity.Error, "NOTE_INVALID_YAML",
+                $"frontmatter YAML 解析失败：{ex.Message}"));
+            return LoadResult.Fail<NoteDocument>(errors);
         }
 
-        var tags = mapping is not null ? YamlAccess.GetStringList(mapping, "tags") : [];
+        if (mapping is null)
+        {
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, null,
+                ContentErrorSeverity.Error, "NOTE_EMPTY_FRONTMATTER",
+                "短文 frontmatter 不能为空。"));
+            return LoadResult.Fail<NoteDocument>(errors);
+        }
+
+        var id = YamlAccess.GetString(mapping, "id");
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, "id",
+                ContentErrorSeverity.Error, "NOTE_MISSING_ID",
+                "短文必须声明 8 位小写字母数字 id。"));
+        }
+        else if (!NoteIdRegex().IsMatch(id))
+        {
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, "id",
+                ContentErrorSeverity.Error, "NOTE_INVALID_ID",
+                "短文 id 必须是 8 位小写字母数字。"));
+        }
+
+        var directory = NoteDirectoryRegex().Match(directoryName);
+        if (!directory.Success)
+        {
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, null,
+                ContentErrorSeverity.Error, "NOTE_INVALID_DIRECTORY",
+                "短文目录名必须是 HHmm-<8位小写字母数字id>。"));
+        }
+        else if (!string.IsNullOrWhiteSpace(id) &&
+            !string.Equals(directory.Groups["id"].Value, id, StringComparison.Ordinal))
+        {
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Note, "id",
+                ContentErrorSeverity.Error, "NOTE_ID_DIRECTORY_MISMATCH",
+                "短文 frontmatter id 必须与目录名中的 id 一致。"));
+        }
+
+        var status = PostLoader.ParseStatus(YamlAccess.GetString(mapping, "status"), errors, location, ContentKind.Note);
+        var publishedAt = PostLoader.ParseDateTime(mapping, "publishedAt", fallbackOffset, errors, location, ContentKind.Note);
+        var tags = YamlAccess.GetStringList(mapping, "tags");
         var mediaFromFrontmatter = ParseMediaList(mapping);
 
         var bodyText = split.Body.Trim();
@@ -83,6 +116,10 @@ public sealed partial class NoteLoader
                 location.RelativePath, ContentKind.Note, null,
                 ContentErrorSeverity.Error, "NOTE_EMPTY_BODY",
                 "短文正文为空。"));
+        }
+
+        if (errors.Any(e => e.Severity == ContentErrorSeverity.Error))
+        {
             return LoadResult.Fail<NoteDocument>(errors);
         }
 
@@ -95,7 +132,7 @@ public sealed partial class NoteLoader
 
         var note = new Note
         {
-            Id = id,
+            Id = id!,
             Status = status,
             PublishedAt = publishedAt,
             Text = bodyText,
@@ -107,7 +144,7 @@ public sealed partial class NoteLoader
         return LoadResult.Ok<NoteDocument>(new NoteDocument(location, year, note, body), errors);
     }
 
-    private static List<MediaReference> ParseMediaList(YamlDotNet.RepresentationModel.YamlMappingNode? mapping)
+    private static List<MediaReference> ParseMediaList(YamlMappingNode? mapping)
     {
         if (mapping is null)
         {
@@ -125,10 +162,10 @@ public sealed partial class NoteLoader
         {
             switch (item)
             {
-                case YamlDotNet.RepresentationModel.YamlScalarNode s when !string.IsNullOrWhiteSpace(s.Value):
+                case YamlScalarNode s when !string.IsNullOrWhiteSpace(s.Value):
                     list.Add(new MediaReference(s.Value!));
                     break;
-                case YamlDotNet.RepresentationModel.YamlMappingNode m:
+                case YamlMappingNode m:
                     var path = YamlAccess.GetString(m, "path");
                     if (!string.IsNullOrWhiteSpace(path))
                     {
@@ -142,39 +179,9 @@ public sealed partial class NoteLoader
         return list;
     }
 
-    [GeneratedRegex(@"^(?<date>\d{4}-\d{2}-\d{2})(?:-(?<time>\d{4}))?(?:-(?<slug>.+))?$", RegexOptions.CultureInvariant)]
-    private static partial Regex FileNameRegex();
+    [GeneratedRegex("^[a-z0-9]{8}$", RegexOptions.CultureInvariant)]
+    internal static partial Regex NoteIdRegex();
 
-    internal static (DateTimeOffset? PublishedAt, string? Slug) ParseFileName(
-        string fileBase, string year, TimeSpan fallbackOffset)
-    {
-        var m = FileNameRegex().Match(fileBase);
-        if (!m.Success)
-        {
-            return (null, null);
-        }
-
-        var date = m.Groups["date"].Value;
-        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-        {
-            return (null, null);
-        }
-
-        if (!string.Equals(d.Year.ToString("D4", CultureInfo.InvariantCulture), year, StringComparison.Ordinal))
-        {
-            // year folder mismatch — treat as no auto datetime
-            return (null, m.Groups["slug"].Success ? m.Groups["slug"].Value : null);
-        }
-
-        var time = TimeOnly.MinValue;
-        if (m.Groups["time"].Success
-            && TimeOnly.TryParseExact(m.Groups["time"].Value, "HHmm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t))
-        {
-            time = t;
-        }
-
-        var dt = new DateTimeOffset(d.Year, d.Month, d.Day, time.Hour, time.Minute, 0, fallbackOffset);
-        var slug = m.Groups["slug"].Success ? m.Groups["slug"].Value : null;
-        return (dt, slug);
-    }
+    [GeneratedRegex("^(?<time>\\d{4})-(?<id>[a-z0-9]{8})$", RegexOptions.CultureInvariant)]
+    internal static partial Regex NoteDirectoryRegex();
 }

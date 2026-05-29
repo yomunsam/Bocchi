@@ -172,6 +172,10 @@ public sealed record NoteInput
 {
     public required string Id { get; init; }
     public required string Year { get; init; }
+    /// <summary>短文详情页的站点根相对 URL。</summary>
+    public required string SiteRelativeUrl { get; init; }
+    /// <summary>站点根相对 URL 的兼容别名。</summary>
+    public required string Url { get; init; }
     public required string Status { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
     public required IReadOnlyList<string> Tags { get; init; }

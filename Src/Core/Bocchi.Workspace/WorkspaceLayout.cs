@@ -16,7 +16,7 @@ namespace Bocchi.Workspace;
 ///   <item><description>Post / Work / Note / Photo 一律使用 <b>年份目录</b> 作为一级分类（年份正则 <c>^\d{4}$</c>）。</description></item>
 ///   <item><description>Post / Work 单篇为目录形式：<c>&lt;kind&gt;/&lt;year&gt;/&lt;slug&gt;/index.md</c> + <c>assets/</c>。</description></item>
 ///   <item><description>Page 不按年份分类：<c>pages/&lt;slug&gt;/index.md</c>。</description></item>
-///   <item><description>Note 为单文件：<c>notes/&lt;year&gt;/&lt;filename&gt;.md</c>。</description></item>
+///   <item><description>Note 为目录型：<c>notes/&lt;year&gt;/&lt;MMdd&gt;/&lt;HHmm&gt;-&lt;id&gt;/index.md</c> + <c>assets/</c>。</description></item>
 ///   <item><description>frontmatter 一律 YAML，使用 <c>---</c> 边界。</description></item>
 ///   <item><description>媒体路径在 frontmatter 中以"相对当前文件"写。</description></item>
 /// </list>
@@ -43,7 +43,7 @@ public sealed record WorkspaceLayout
     /// <summary>作品根目录（按年份分类）。</summary>
     public string WorksDirectory => Path.Combine(Root, "works");
 
-    /// <summary>短文根目录（按年份分类，单文件即一条）。</summary>
+    /// <summary>短文根目录（按年份和日期分桶，目录型 index.md 即一条）。</summary>
     public string NotesDirectory => Path.Combine(Root, "notes");
 
     /// <summary>友链根目录。</summary>

@@ -16,7 +16,7 @@ namespace Bocchi.Generator.ContentGraph;
 /// <list type="bullet">
 ///   <item><description>Post / Work：媒体源 = <c>&lt;ownerDir&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/{kind}/{year}/{slug}/{fileName}</c>。</description></item>
 ///   <item><description>Page：媒体源 = <c>&lt;ownerDir&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/pages/{slug}/{fileName}</c>。</description></item>
-///   <item><description>Note：媒体源 = <c>&lt;notes/year&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/notes/{year}/{fileName}</c>。</description></item>
+///   <item><description>Note：媒体源 = <c>&lt;noteDir&gt;/&lt;rel&gt;</c>；站点路径 = <c>/media/notes/{id}/{fileName}</c>。</description></item>
 ///   <item><description>Friend：友链头像位于内容 workspace 的 <c>friends/assets/...</c>；站点路径 = <c>/media/friends/{fileName}</c>。</description></item>
 /// </list>
 /// 已是 <c>http(s)://</c>、协议相对、绝对站点路径（<c>/...</c>）或 <c>data:</c> 的引用不再改写。

@@ -118,8 +118,11 @@ data/                                 <-- DataRoot（发布后程序 ./data；Do
           index.md
           assets/
     notes/
-      2026/                           <-- 短文按年份分目录，单文件即一条
-        2026-05-13-2030-coffee.md
+      2026/                           <-- 短文按年份 / 日期分目录
+        0513/
+          2030-k7p9xq2m/              <-- HHmm + 8 位短 id
+            index.md
+            assets/
     friends/
       friends.yaml                    <-- 友链：单文件 YAML 列表
     photos/                           <-- M2 仅占位
@@ -152,7 +155,7 @@ data/                                 <-- DataRoot（发布后程序 ./data；Do
 - `posts/`、`works/`、`notes/`、`photos/` 强制使用 **年份目录** 作为一级分类，年份正则 `^\d{4}$`。
 - Post / Work 单篇为目录形式：`<kind>/<year>/<slug>/index.md` + `assets/`。`assets/` 仅放该篇原始媒体，frontmatter 中以相对路径引用（如 `cover: assets/cover.jpg`）。
 - Pages 不按年份分类（独立页面是"地点"而不是"事件"）。
-- 短文为单文件：`notes/<year>/<filename>.md`；文件名建议 `YYYY-MM-DD-HHMM-<slug>.md` 以便天然时间排序。
+- 短文为目录型内容：`notes/<year>/<MMdd>/<HHmm>-<id>/index.md` + `assets/`；`id` 为 8 位小写字母数字，写入 frontmatter，并作为公开 URL `/notes/{id}/` 的稳定标识。
 - frontmatter 一律 YAML（`---` 边界）。
 - workspace 内禁止出现派生扩展名（`*.webp` 等）；扫描器会发出 warning。
 - `state/`、`themes/`、`cache/`、`output/`、`logs/` **位于 workspace 根之外**，不会被 workspace 的 Git 仓库纳入索引。
@@ -225,16 +228,16 @@ cover: "/media/images/cover.jpg"
 
 短文。类似 Twitter 的轻量内容流，支持图片、视频等媒体引用。
 
-字段建议：
+字段：
 
-- `id` 或 `slug`
+- `id`（8 位小写字母数字，必填，公开 URL 为 `/notes/{id}/`）
 - `status`
 - `publishedAt`
 - `text`
 - `media`
 - `tags`
 
-短文采用 **Markdown 文件**，单文件即一条短文，按 `notes/<year>/<filename>.md` 组织（M2 决策）。文件名建议 `YYYY-MM-DD-HHMM-<slug>.md` 以便天然时间排序。短文正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。
+短文采用 **目录型 Markdown 内容**，按 `notes/<year>/<MMdd>/<HHmm>-<id>/index.md` 组织。目录中的时间用于 workspace 浏览和排序辅助，不参与公开 URL；frontmatter `id` 是永久公开标识。短文正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。短文媒体位于同目录 `assets/`，生成时输出到 `/media/notes/{id}/{file}`。
 
 ### 4.5 Friend Link
 

@@ -103,7 +103,7 @@ public sealed class BocchiDataInitializer
         - Post / Work / Note / Photo 一律使用年份目录作为一级分类。
         - Post / Work 单篇为目录形式：`<kind>/<year>/<slug>/index.md` + `assets/`。
         - Page 不按年份分类：`pages/<slug>/index.md`。
-        - Note 为单文件：`notes/<year>/<filename>.md`。
+        - Note 为目录形式：`notes/<yyyy>/<MMdd>/<HHmm>-<id>/index.md` + `assets/`，`id` 为 8 位小写字母数字。
         - frontmatter 一律 YAML（首尾 `---`）。
 
         本目录可以独立用 Git 管理；将来 Bocchi 这个程序若被替换或弃用，

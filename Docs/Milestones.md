@@ -99,7 +99,7 @@
 完工内容：
 
 - workspace 初始化流程落地，强制"workspace / DataRoot 运行数据"切分（`BocchiDataLayout` + `WorkspaceLayout`）。
-- workspace 默认目录约定生效：年份目录一级分类；Post / Work = 目录 + `assets/`；Page 不按年份；Note = 单文件 Markdown；Friends / Site = YAML。
+- workspace 默认目录约定生效：年份目录一级分类；Post / Work = 目录 + `assets/`；Page 不按年份；Note = `notes/{yyyy}/{MMdd}/{HHmm}-{id}/index.md` 目录型 Markdown；Friends / Site = YAML。
 - Markdown + YAML frontmatter 解析（Markdig + YamlDotNet）：六个内容类型独立 Loader，统一错误模型 `ContentValidationError(Severity / Code / Field / Message)`。
 - SQLite 管理状态（`Microsoft.Data.Sqlite`）：`SchemaMigrator` 基于 `PRAGMA user_version`；`ContentStateStore` 持久化文件 hash、内容索引、扫描运行、错误聚合；不复制正文。
 - `ContentScanner` 端到端打通：年份目录校验、媒体引用校验、孤儿媒体 Info、可疑派生产物 Warning。
@@ -362,7 +362,7 @@
 - Bocchi 在物理上严格切分为 **workspace** 与 **DataRoot 运行数据**。workspace 默认位于 `<data>/workspace/`，包含纯创作资产（Blog、独立页面、作品集、短文、友链、站点设置），可独立打包/迁移、可作为独立 Git 仓库；DataRoot 运行数据位于 `<data>/{state,themes,cache,output,logs}/`。理由：让用户的内容资产独立于"Bocchi 这个程序"的命运，未来 Bocchi 被遗弃/重构时可以一键带走。
 - workspace 内的 Post / Work / Note / Photo 强制使用 **年份目录** 作为一级分类（`<kind>/<year>/...`，年份正则 `^\d{4}$`）。Pages 不按年份分类。
 - Post / Work 单篇为 "目录形式"：`<kind>/<year>/<slug>/index.md` + `assets/`，`assets/` 仅放该篇的原始媒体；frontmatter 中以相对路径引用。
-- Note 采用 **Markdown 单文件**（`notes/<year>/<filename>.md`），一条短文一个文件；正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。关闭原"短文存储格式"待决问题。
+- Note 采用 **目录型 Markdown**（`notes/<year>/<MMdd>/<HHmm>-<id>/index.md`），`id` 为 8 位小写字母数字并写入 frontmatter；公开 URL 使用 `/notes/{id}/`，正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。旧单文件 Note 不再作为目标模型。
 - frontmatter 一律使用 **YAML**。关闭原 frontmatter 格式待决问题。
 - Markdown 引擎 `Markdig`，YAML 引擎 `YamlDotNet`。
 - SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。

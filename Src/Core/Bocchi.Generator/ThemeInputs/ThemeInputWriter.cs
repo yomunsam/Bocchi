@@ -877,6 +877,8 @@ public sealed class ThemeInputWriter
     {
         Id = n.Id,
         Year = n.Year,
+        SiteRelativeUrl = n.SiteRelativeUrl,
+        Url = n.SiteRelativeUrl,
         Status = StatusToString(n.Status),
         PublishedAt = n.PublishedAt,
         Tags = n.Tags,

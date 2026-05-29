@@ -33,6 +33,7 @@ public sealed partial class DefaultStaticTemplateRenderer
         await WriteWorkDetailsAsync(request, site, text, visibleWorks, cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "notes/index.html", await RenderNotesAsync(request, site, text, visibleNotes, null, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WriteNoteYearPagesAsync(request, site, text, visibleNotes, cancellationToken).ConfigureAwait(false);
+        await WriteNoteDetailsAsync(request, site, text, visibleNotes, cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "friends/index.html", await RenderFriendsAsync(request, site, text, visibleFriends, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "404.html", await RenderNotFoundAsync(request, site, text, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
     }
@@ -276,6 +277,27 @@ public sealed partial class DefaultStaticTemplateRenderer
                 $"notes/{group.Key}/index.html",
                 await RenderNotesAsync(request, site, text, group.ToArray(), group.Key, cancellationToken).ConfigureAwait(false),
                 cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>渲染短文详情页，公开路径只使用稳定短 id。</summary>
+    private static async Task WriteNoteDetailsAsync(DefaultStaticRenderRequest request, SiteInfo site, DefaultStaticThemeText text, JsonElement[] notes, CancellationToken cancellationToken)
+    {
+        for (var i = 0; i < notes.Length; i++)
+        {
+            var note = notes[i];
+            var body = await RenderArticleAsync(
+                request,
+                site,
+                text,
+                "menu.notes",
+                "/notes/",
+                note,
+                Previous(notes, i),
+                Next(notes, i),
+                includeArticleTime: false,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            await WritePageAsync(request.OutputDirectory, ToOutputPath(GetContentUrl(note)), body, cancellationToken).ConfigureAwait(false);
         }
     }
 

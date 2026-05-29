@@ -83,6 +83,11 @@ public static class SitemapXmlGenerator
                 WriteUrl(work.SiteRelativeUrl, mtime, work.Localization.Alternates);
             }
 
+            foreach (var note in graph.Notes)
+            {
+                WriteUrl(note.SiteRelativeUrl, note.PublishedAt ?? sourceMtimeProvider($"notes/{note.Id}"));
+            }
+
             writer.WriteEndElement();
             writer.WriteEndDocument();
         }

@@ -61,15 +61,16 @@ public sealed class ContentScannerTests
                 "---\ntitle: Alpha\nslug: alpha\n---\ndesc\n");
 
             // Note
-            var noteFile = Path.Combine(cs.NotesDirectory, "2025", "2025-03-14-1230-hi.md");
-            await WriteAsync(noteFile, "短文一条。");
+            var noteDir = Path.Combine(cs.NotesDirectory, "2025", "0314", "1230-k7p9xq2m");
+            await WriteAsync(Path.Combine(noteDir, "index.md"),
+                "---\nid: k7p9xq2m\nstatus: Published\npublishedAt: 2025-03-14T12:30:00+08:00\n---\n短文一条。\n");
 
             var result = await scanner.ScanAsync();
 
             result.Posts.Should().ContainSingle(p => p.Frontmatter.Slug == "hello");
             result.Pages.Should().ContainSingle(p => p.Frontmatter.Slug == "about");
             result.Works.Should().ContainSingle(w => w.Frontmatter.Slug == "alpha");
-            result.Notes.Should().ContainSingle();
+            result.Notes.Should().ContainSingle(n => n.Frontmatter.Id == "k7p9xq2m");
             result.SiteSettings.Should().NotBeNull(); // default site.yaml from initializer
             result.HasErrors.Should().BeFalse();
 
@@ -77,7 +78,37 @@ public sealed class ContentScannerTests
             summaries.Should().Contain(s => s.Kind == ContentKind.Post && s.ContentId == "posts/2025/hello@zh-CN");
             summaries.Should().Contain(s => s.Kind == ContentKind.Page && s.ContentId == "pages/about@zh-CN");
             summaries.Should().Contain(s => s.Kind == ContentKind.Work && s.ContentId == "works/2024/alpha@zh-CN");
+            summaries.Should().Contain(s => s.Kind == ContentKind.Note && s.ContentId == "k7p9xq2m");
             summaries.Should().Contain(s => s.Kind == ContentKind.SiteSettings && s.RelativePath.EndsWith("site.yaml", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task Scan_ValidatesDirectoryNoteIdsAndRejectsLegacyFiles()
+    {
+        var (temp, scanner, _) = await NewScannerAsync();
+        using (temp)
+        {
+            var notes = temp.Layout.Workspace.NotesDirectory;
+            await WriteAsync(
+                Path.Combine(notes, "2025", "0314", "1230-k7p9xq2m", "index.md"),
+                "---\nid: k7p9xq2m\nstatus: Published\npublishedAt: 2025-03-14T12:30:00+08:00\n---\n短文一条。\n");
+            await WriteAsync(
+                Path.Combine(notes, "2025", "0314", "1231-k7p9xq2m", "index.md"),
+                "---\nid: k7p9xq2m\nstatus: Published\npublishedAt: 2025-03-14T12:31:00+08:00\n---\n重复 id。\n");
+            await WriteAsync(
+                Path.Combine(notes, "2025", "0314", "1232-a1b2c3d4", "index.md"),
+                "---\nid: z9y8x7w6\nstatus: Published\npublishedAt: 2025-03-14T12:32:00+08:00\n---\n目录 id 不一致。\n");
+            await WriteAsync(
+                Path.Combine(notes, "2025", "2025-03-14-1233-old.md"),
+                "旧单文件短文。\n");
+
+            var result = await scanner.ScanAsync();
+
+            result.Notes.Should().ContainSingle(n => n.Frontmatter.Id == "k7p9xq2m");
+            result.Errors.Should().Contain(e => e.Code == "NOTE_DUPLICATE_ID");
+            result.Errors.Should().Contain(e => e.Code == "NOTE_ID_DIRECTORY_MISMATCH");
+            result.Errors.Should().Contain(e => e.Code == "NOTE_LEGACY_FILE_UNSUPPORTED");
         }
     }
 

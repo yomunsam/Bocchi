@@ -90,6 +90,7 @@ public sealed partial class ContentScanner
         SiteSettings? siteSettings = null;
         var filesScanned = 0;
         var seenContentVariants = new HashSet<(ContentKind Kind, string GroupId, string Language)>();
+        var seenNoteIds = new HashSet<string>(StringComparer.Ordinal);
 
         var cs = _layout.Workspace;
 
@@ -198,13 +199,22 @@ public sealed partial class ContentScanner
                 isDirectoryItem: true,
                 cancellationToken).ConfigureAwait(false);
 
-            // Notes（年份目录下的单文件 .md）
+            // Notes（目录型短文：notes/yyyy/MMdd/HHmm-id/index.md）
             filesScanned += await ScanNotesDirectoryAsync(cs, fallbackOffset, errors,
                 async (year, file, location, doc, loadErrors) =>
                 {
                     DispatchErrors(loadErrors, errors, warnings, infos);
                     if (doc is not null)
                     {
+                        if (!seenNoteIds.Add(doc.Frontmatter.Id))
+                        {
+                            errors.Add(new ContentValidationError(
+                                location.RelativePath, ContentKind.Note, "id",
+                                ContentErrorSeverity.Error, "NOTE_DUPLICATE_ID",
+                                $"短文 id '{doc.Frontmatter.Id}' 已被其它 Note 使用。"));
+                            return;
+                        }
+
                         notes.Add(doc);
                         await PersistFileAndItemAsync(file, location, ContentKind.Note,
                             doc.Frontmatter.Id, slug: doc.Frontmatter.Id, title: doc.Body.Excerpt,
@@ -213,6 +223,7 @@ public sealed partial class ContentScanner
                             language: null, localizationGroup: null, isTranslation: false,
                             sourceLanguage: null, sourceContentId: null,
                             cancellationToken).ConfigureAwait(false);
+                        ValidateAssets(file, location, doc.Frontmatter.Media, errors, warnings, infos);
                     }
                 },
                 cancellationToken).ConfigureAwait(false);
@@ -418,14 +429,54 @@ public sealed partial class ContentScanner
                 continue;
             }
 
-            foreach (var file in Directory.EnumerateFiles(yearDir, "*.md", SearchOption.TopDirectoryOnly))
+            foreach (var legacyFile in Directory.EnumerateFiles(yearDir, "*.md", SearchOption.TopDirectoryOnly))
             {
-                fileCount++;
-                var raw = await File.ReadAllTextAsync(file, ct).ConfigureAwait(false);
-                var location = new ContentLocation(cs.Root, cs.ToRelative(file));
-                var fileName = Path.GetFileName(file);
-                var result = _noteLoader.Load(location, yearName, fileName, raw, fallbackOffset);
-                await handle(yearName, file, location, result.Document, result.Errors).ConfigureAwait(false);
+                errors.Add(new ContentValidationError(
+                    cs.ToRelative(legacyFile), ContentKind.Note, null,
+                    ContentErrorSeverity.Error, "NOTE_LEGACY_FILE_UNSUPPORTED",
+                    "短文必须使用 notes/yyyy/MMdd/HHmm-id/index.md 目录型结构，旧单文件 Note 不再支持。"));
+            }
+
+            foreach (var monthDayDir in Directory.EnumerateDirectories(yearDir))
+            {
+                var monthDay = Path.GetFileName(monthDayDir);
+                if (!TryValidateNoteMonthDay(yearName, monthDay))
+                {
+                    errors.Add(new ContentValidationError(
+                        cs.ToRelative(monthDayDir), ContentKind.Note, null,
+                        ContentErrorSeverity.Error, "INVALID_NOTE_DATE_DIR",
+                        $"短文日期目录名 '{monthDay}' 必须是有效的 MMdd。"));
+                    continue;
+                }
+
+                foreach (var noteDir in Directory.EnumerateDirectories(monthDayDir))
+                {
+                    var directoryName = Path.GetFileName(noteDir);
+                    if (!TryValidateNoteDirectoryTime(directoryName))
+                    {
+                        errors.Add(new ContentValidationError(
+                            cs.ToRelative(noteDir), ContentKind.Note, null,
+                            ContentErrorSeverity.Error, "INVALID_NOTE_DIR",
+                            $"短文目录名 '{directoryName}' 必须是 HHmm-<8位小写字母数字id>，且 HHmm 是有效时间。"));
+                        continue;
+                    }
+
+                    var file = Path.Combine(noteDir, "index.md");
+                    if (!File.Exists(file))
+                    {
+                        errors.Add(new ContentValidationError(
+                            cs.ToRelative(noteDir), ContentKind.Note, null,
+                            ContentErrorSeverity.Error, "MISSING_INDEX",
+                            $"短文目录 '{directoryName}' 缺少 index.md。"));
+                        continue;
+                    }
+
+                    fileCount++;
+                    var raw = await File.ReadAllTextAsync(file, ct).ConfigureAwait(false);
+                    var location = new ContentLocation(cs.Root, cs.ToRelative(file));
+                    var result = _noteLoader.Load(location, yearName, monthDay, directoryName, raw, fallbackOffset);
+                    await handle(yearName, file, location, result.Document, result.Errors).ConfigureAwait(false);
+                }
             }
         }
 
@@ -642,6 +693,33 @@ public sealed partial class ContentScanner
 
     [GeneratedRegex(@"^\d{4}$", RegexOptions.CultureInvariant)]
     private static partial Regex YearRegex();
+
+    private static bool TryValidateNoteMonthDay(string yearName, string monthDay)
+    {
+        if (monthDay.Length != 4 || !monthDay.All(char.IsDigit))
+        {
+            return false;
+        }
+
+        return DateOnly.TryParseExact(
+            yearName + monthDay,
+            "yyyyMMdd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out _);
+    }
+
+    private static bool TryValidateNoteDirectoryTime(string directoryName)
+    {
+        var match = NoteLoader.NoteDirectoryRegex().Match(directoryName);
+        return match.Success &&
+            TimeOnly.TryParseExact(
+                match.Groups["time"].Value,
+                "HHmm",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out _);
+    }
 
     [GeneratedRegex(@"^index(?:\.(?<language>[^.]+))?\.md$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex IndexVariantRegex();

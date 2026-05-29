@@ -75,7 +75,7 @@ public sealed class ContentGraphBuilder
         EnsureUniqueSiteUrls(works.Select(w => w.SiteRelativeUrl), "work");
 
         var notes = BuildNotes(scan.Notes, options, rewriter);
-        EnsureUniqueSlugs(notes.Select(n => (Year: n.Year, Slug: n.Id)), "note");
+        EnsureUniqueSlugs(notes.Select(n => (Year: string.Empty, Slug: n.Id)), "note");
 
         var friends = BuildFriends(scan.FriendLinks, options, rewriter);
 
@@ -553,8 +553,8 @@ public sealed class ContentGraphBuilder
 
             var ownerDir = Path.GetDirectoryName(doc.Location.AbsolutePath)
                 ?? throw new ContentGraphException($"无法解析 owner 目录：'{doc.Location.RelativePath}'");
-            var siteMediaPrefix = string.Format(CultureInfo.InvariantCulture, "/media/notes/{0}", doc.Year);
-            var descriptor = string.Format(CultureInfo.InvariantCulture, "notes/{0}/{1}", doc.Year, doc.Frontmatter.Id);
+            var siteMediaPrefix = string.Format(CultureInfo.InvariantCulture, "/media/notes/{0}", doc.Frontmatter.Id);
+            var descriptor = string.Format(CultureInfo.InvariantCulture, "notes/{0}", doc.Frontmatter.Id);
 
             var rewrittenMarkdown = rewriter.RewriteMarkdown(doc.Body.Markdown, ownerDir, siteMediaPrefix, descriptor);
             var rewrittenHtml = _markdown.RenderHtml(rewrittenMarkdown);
@@ -575,6 +575,7 @@ public sealed class ContentGraphBuilder
             {
                 Id = doc.Frontmatter.Id,
                 Year = doc.Year,
+                SiteRelativeUrl = SiteUrlResolver.NoteUrl(doc.Frontmatter.Id),
                 Status = doc.Frontmatter.Status,
                 PublishedAt = doc.Frontmatter.PublishedAt,
                 Tags = doc.Frontmatter.Tags,

@@ -56,11 +56,32 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "index.html")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "2025", "hello", "index.html")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "notes", "k7p9xq2m", "index.html")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "notes", "2025", "0314", "1230-k7p9xq2m", "index.html")).Should().BeFalse();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.css")).Should().BeTrue();
 
         // 媒体应被复制到 output/public/media/posts/<year>/<slug>/<file>
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "media", "posts", "2025", "hello", "c.jpg"))
             .Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "media", "notes", "k7p9xq2m", "note.jpg"))
+            .Should().BeTrue();
+
+        var notesJson = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.ThemeInputDirectory, "notes.json"));
+        using (var notesDoc = JsonDocument.Parse(notesJson))
+        {
+            var note = notesDoc.RootElement.GetProperty("data").EnumerateArray().Single();
+            note.GetProperty("id").GetString().Should().Be("k7p9xq2m");
+            note.GetProperty("siteRelativeUrl").GetString().Should().Be("/notes/k7p9xq2m/");
+            note.GetProperty("url").GetString().Should().Be("/notes/k7p9xq2m/");
+            note.GetProperty("markdown").GetString().Should().Contain("/media/notes/k7p9xq2m/note.jpg");
+            note.GetProperty("media").EnumerateArray().Single().GetProperty("path").GetString()
+                .Should().Be("/media/notes/k7p9xq2m/note.jpg");
+        }
+
+        var sitemap = XDocument.Load(Path.Combine(fixture.Layout.PublicOutputDirectory, "sitemap.xml"));
+        XNamespace sm = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        sitemap.Root!.Elements(sm + "url").Select(url => url.Element(sm + "loc")?.Value)
+            .Should().Contain("http://localhost/notes/k7p9xq2m/");
 
         // BuildRuns 行
         var store = fixture.Services.GetRequiredService<IBuildStateStore>();

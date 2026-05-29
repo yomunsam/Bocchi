@@ -165,6 +165,9 @@ public sealed record GraphNote
 
     public required string Year { get; init; }
 
+    /// <summary>短文详情页的站点根相对 URL，使用公开稳定 id 而不是 workspace 日期目录。</summary>
+    public required string SiteRelativeUrl { get; init; }
+
     public ContentStatus Status { get; init; } = ContentStatus.Published;
 
     public DateTimeOffset? PublishedAt { get; init; }

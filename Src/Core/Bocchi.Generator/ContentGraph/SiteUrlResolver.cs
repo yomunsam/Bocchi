@@ -43,6 +43,13 @@ public static class SiteUrlResolver
         return string.Format(CultureInfo.InvariantCulture, "/notes/{0}/", year);
     }
 
+    /// <summary>短文详情页：<c>/notes/{id}/</c>。</summary>
+    public static string NoteUrl(string id)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        return string.Format(CultureInfo.InvariantCulture, "/notes/{0}/", id);
+    }
+
     /// <summary>友链页：<c>/friends/</c>。</summary>
     public const string FriendsUrl = "/friends/";
 

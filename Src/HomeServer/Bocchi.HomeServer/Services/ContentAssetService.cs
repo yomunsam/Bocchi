@@ -339,7 +339,7 @@ public sealed partial class ContentAssetService
     {
         if (!IsDirectoryContentFile(contentFile))
         {
-            throw new InvalidOperationException("当前只支持目录型内容的 assets/，单文件 Note 暂不开放内容资产。");
+            throw new InvalidOperationException("当前只支持目录型内容的 assets/。");
         }
 
         return Path.Combine(Path.GetDirectoryName(contentFile)!, AssetsDirectoryName);
@@ -408,7 +408,7 @@ public sealed partial class ContentAssetService
             value = value[..queryIndex];
         }
 
-        if (Uri.TryCreate(value, UriKind.Absolute, out _) || value.StartsWith("/", StringComparison.Ordinal))
+        if (Uri.TryCreate(value, UriKind.Absolute, out _) || value.StartsWith('/'))
         {
             return false;
         }
@@ -478,7 +478,7 @@ public sealed partial class ContentAssetService
     {
         if (kind == ContentKind.Note)
         {
-            throw new InvalidOperationException("Note 资产需要目录型 Note 后再开放。");
+            throw new InvalidOperationException("Note 草稿资产需要完整编辑器落盘流程后再开放。");
         }
     }
 

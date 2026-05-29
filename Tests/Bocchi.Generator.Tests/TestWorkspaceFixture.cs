@@ -72,6 +72,12 @@ internal sealed class TestWorkspaceFixture : IDisposable
         Directory.CreateDirectory(pageDir);
         File.WriteAllText(Path.Combine(pageDir, "index.md"),
             "---\ntitle: About\nslug: about\nstatus: Published\n---\nAbout body.\n");
+
+        var noteDir = Path.Combine(cs.NotesDirectory, "2025", "0314", "1230-k7p9xq2m");
+        Directory.CreateDirectory(Path.Combine(noteDir, "assets"));
+        File.WriteAllText(Path.Combine(noteDir, "index.md"),
+            "---\nid: k7p9xq2m\nstatus: Published\npublishedAt: 2025-03-14T09:00:00Z\nmedia:\n  - assets/note.jpg\n---\nNote body ![note](assets/note.jpg)\n");
+        File.WriteAllBytes(Path.Combine(noteDir, "assets", "note.jpg"), new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 });
     }
 
     public void Dispose()

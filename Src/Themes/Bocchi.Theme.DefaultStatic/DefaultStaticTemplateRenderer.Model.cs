@@ -688,7 +688,7 @@ public sealed partial class DefaultStaticTemplateRenderer
 
     /// <summary>读取内容标题。</summary>
     private static string GetTitle(JsonElement item)
-        => GetString(item, "title", GetString(item, "name", "Untitled"));
+        => GetString(item, "title", GetString(item, "name", GetString(item, "excerpt", "Untitled")));
 
     /// <summary>读取内容摘要。</summary>
     private static string GetSummary(JsonElement item)

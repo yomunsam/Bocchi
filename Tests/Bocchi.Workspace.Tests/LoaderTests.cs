@@ -122,27 +122,62 @@ public sealed class LoaderTests
     }
 
     [Fact]
-    public void NoteLoader_ParsesFileNameDateAndSlug()
+    public void NoteLoader_ParsesDirectoryNoteIdAndFrontmatter()
     {
-        var raw = "今天阳光不错。";
+        var raw = """
+            ---
+            id: k7p9xq2m
+            publishedAt: 2025-03-14T12:30:00+08:00
+            status: Published
+            media:
+              - assets/photo.jpg
+              - path: assets/manual.pdf
+                alt: Manual
+            ---
+            今天阳光不错。
+            """;
         var loader = new NoteLoader(Markdown);
 
-        var result = loader.Load(Loc("notes/2025/2025-03-14-1230-sunny.md"), "2025",
-            "2025-03-14-1230-sunny.md", raw, TimeSpan.FromHours(8));
+        var result = loader.Load(Loc("notes/2025/0314/1230-k7p9xq2m/index.md"), "2025",
+            "0314", "1230-k7p9xq2m", raw, TimeSpan.FromHours(8));
 
         result.Document.Should().NotBeNull();
+        result.Document!.Frontmatter.Id.Should().Be("k7p9xq2m");
         result.Document!.Frontmatter.PublishedAt.Should().Be(
             new DateTimeOffset(2025, 3, 14, 12, 30, 0, TimeSpan.FromHours(8)));
         result.Document.Frontmatter.Text.Should().Be("今天阳光不错。");
+        result.Document.Frontmatter.Media.Should().Contain(m => m.Path == "assets/photo.jpg");
+        result.Document.Frontmatter.Media.Should().Contain(m => m.Path == "assets/manual.pdf" && m.Alt == "Manual");
+    }
+
+    [Theory]
+    [InlineData("", "NOTE_NO_FRONTMATTER")]
+    [InlineData("---\npublishedAt: 2025-03-14T12:30:00+08:00\n---\nbody", "NOTE_MISSING_ID")]
+    [InlineData("---\nid: ABCD1234\n---\nbody", "NOTE_INVALID_ID")]
+    [InlineData("---\nid: k7p9xq2n\n---\nbody", "NOTE_ID_DIRECTORY_MISMATCH")]
+    public void NoteLoader_ValidatesRequiredShortId(string raw, string expectedCode)
+    {
+        var loader = new NoteLoader(Markdown);
+
+        var result = loader.Load(
+            Loc("notes/2025/0314/1230-k7p9xq2m/index.md"),
+            "2025",
+            "0314",
+            "1230-k7p9xq2m",
+            string.IsNullOrEmpty(raw) ? "body" : raw,
+            TimeSpan.FromHours(8));
+
+        result.Document.Should().BeNull();
+        result.Errors.Should().Contain(e => e.Code == expectedCode);
     }
 
     [Fact]
     public void NoteLoader_RejectsEmptyBody()
     {
-        var raw = "---\nid: x\n---\n   \n";
+        var raw = "---\nid: k7p9xq2m\n---\n   \n";
         var loader = new NoteLoader(Markdown);
 
-        var result = loader.Load(Loc("notes/2025/x.md"), "2025", "x.md", raw, TimeSpan.Zero);
+        var result = loader.Load(Loc("notes/2025/0314/1230-k7p9xq2m/index.md"), "2025", "0314", "1230-k7p9xq2m", raw, TimeSpan.Zero);
 
         result.Document.Should().BeNull();
         result.Errors.Should().Contain(e => e.Code == "NOTE_EMPTY_BODY");
