@@ -117,6 +117,16 @@
     content: "";
 }
 
+.bocchi-markdown-editor__asset-error {
+    margin: 0;
+    border-bottom: 1px solid var(--bocchi-border);
+    background: color-mix(in srgb, var(--bocchi-danger-soft) 70%, var(--bocchi-surface));
+    color: var(--bocchi-danger-strong);
+    padding: 0.55rem 0.75rem;
+    font-size: 0.84rem;
+    font-weight: 650;
+}
+
 .bocchi-markdown-editor__body {
     display: grid;
     min-height: 34rem;

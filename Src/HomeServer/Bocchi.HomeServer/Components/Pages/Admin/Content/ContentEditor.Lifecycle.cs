@@ -185,14 +185,14 @@ public partial class ContentEditor
     /// <summary>用编辑缓冲区重算预览。</summary>
     private void RefreshPreview()
     {
-        _previewHtml = Markdown.RenderHtml(_markdown);
+        _previewHtml = RewriteEditorAssetReferences(Markdown.RenderHtml(_markdown));
     }
 
     private void LoadFileIntoEditor(EditableContentFile file)
     {
         _yaml = file.Yaml;
         _markdown = file.Markdown;
-        _previewHtml = file.PreviewHtml;
+        RefreshPreview();
         _saved = false;
         LoadMetadataFromYaml(file);
         ResetOriginalSnapshots();
@@ -203,7 +203,7 @@ public partial class ContentEditor
     {
         _yaml = draft.Yaml;
         _markdown = draft.Markdown;
-        _previewHtml = draft.PreviewHtml;
+        RefreshPreview();
         _saved = false;
         LoadMetadataFromYaml(draft.Yaml, CurrentFallbackSlug);
         ResetOriginalSnapshots();

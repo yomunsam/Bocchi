@@ -115,6 +115,23 @@ public sealed partial class ContentAssetService
         return CreateUploadResult(fullPath, AssetsRelativePrefix + finalName, descriptor);
     }
 
+    /// <summary>打开草稿 <c>assets/</c> 中的单个文件，供编辑器预览区加载本地图片。</summary>
+    public async Task<ContentAssetReadResult> OpenDraftAssetAsync(
+        string draftId,
+        string assetRelativePath,
+        CancellationToken cancellationToken = default)
+    {
+        var session = await _drafts.ReadAsync(draftId, cancellationToken).ConfigureAwait(false);
+        EnsureSupportedDraftKind(session.Kind);
+        return OpenAsset(session.AssetsDirectory, assetRelativePath);
+    }
+
+    /// <summary>打开已保存内容组 <c>assets/</c> 中的单个文件，供编辑器预览区加载本地图片。</summary>
+    public ContentAssetReadResult OpenContentAsset(
+        string contentRelativePath,
+        string assetRelativePath)
+        => OpenAsset(ResolveContentAssetsDirectory(contentRelativePath), assetRelativePath);
+
     /// <summary>删除草稿中的未引用资产；若当前编辑缓冲仍引用该文件则拒绝删除。</summary>
     public async Task DeleteDraftAssetAsync(
         string draftId,
@@ -191,6 +208,19 @@ public sealed partial class ContentAssetService
         }
 
         File.Delete(fullPath);
+    }
+
+    private static ContentAssetReadResult OpenAsset(string assetsDirectory, string assetRelativePath)
+    {
+        var fullPath = ResolveAssetFile(assetsDirectory, assetRelativePath);
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException("资产文件不存在。", assetRelativePath);
+        }
+
+        var descriptor = GetDescriptorForFile(fullPath);
+        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return new ContentAssetReadResult(Path.GetFileName(fullPath), descriptor.ContentType, stream);
     }
 
     private HashSet<string> CollectReferencedAssets(string yaml, string markdown)
@@ -545,6 +575,15 @@ public sealed record ContentAssetUploadResult(
     long Size,
     string ContentType,
     ContentAssetCategory Category);
+
+/// <summary>读取内容资产文件时返回的流和 MIME 信息。</summary>
+/// <param name="FileName">最终文件名。</param>
+/// <param name="ContentType">根据扩展名归一化后的 MIME 类型。</param>
+/// <param name="Stream">打开的文件流；调用方负责交给 ASP.NET Core 响应管线释放。</param>
+public sealed record ContentAssetReadResult(
+    string FileName,
+    string ContentType,
+    Stream Stream);
 
 /// <summary>内容资产面向 UI 的粗分类。</summary>
 public enum ContentAssetCategory

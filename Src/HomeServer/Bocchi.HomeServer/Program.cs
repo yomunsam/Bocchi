@@ -214,6 +214,7 @@ try
     app.MapBocchiAccountEndpoints();
     app.MapDashboardLocalizationEndpoints();
     app.MapDashboardHomeEndpoints();
+    app.MapContentAssetEndpoints();
 
     app.MapBuildEndpoints();
 

@@ -735,6 +735,51 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().NotContain("value=\"Archived\"");
         body.Should().Contain("Content settings");
         body.Should().Contain("AI assistant");
+        body.Should().Contain("/Admin/Content/Assets?path=posts%2F2026%2Fhello-preview%2Findex.md&asset=assets%2Fcover.jpg");
+    }
+
+    [Fact]
+    public async Task ContentAssetEndpoint_ServesDraftAndSavedAssetsForEditorPreview()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        string draftId;
+        string savedPath;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            var drafts = services.GetRequiredService<EditorDraftService>();
+            var editor = services.GetRequiredService<ContentEditingService>();
+            var assets = services.GetRequiredService<ContentAssetService>();
+            var draft = await drafts.CreateAsync(ContentKind.Post);
+            draftId = draft.DraftId;
+            await assets.UploadDraftAssetAsync(draftId, new MemoryStream([1, 2, 3]), "pasted.png", "image/png");
+
+            var pageDraft = await drafts.CreateAsync(ContentKind.Page);
+            var saved = await editor.CreateFromDraftAsync(
+                ContentKind.Page,
+                "title: Asset Page\nslug: asset-page\nstatus: draft",
+                "Body\n",
+                pageDraft.AssetsDirectory);
+            savedPath = saved.RelativePath;
+            await assets.UploadContentAssetAsync(savedPath, new MemoryStream([4, 5, 6]), "saved.webp", "image/webp");
+        }
+
+        var draftResponse = await client.GetAsync(
+            "/Admin/Content/Assets?draft=" +
+            Uri.EscapeDataString(draftId) +
+            "&asset=assets%2Fpasted.png");
+        var savedResponse = await client.GetAsync(
+            "/Admin/Content/Assets?path=" +
+            Uri.EscapeDataString(savedPath) +
+            "&asset=assets%2Fsaved.webp");
+
+        draftResponse.EnsureSuccessStatusCode();
+        draftResponse.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+        (await draftResponse.Content.ReadAsByteArrayAsync()).Should().Equal([1, 2, 3]);
+        savedResponse.EnsureSuccessStatusCode();
+        savedResponse.Content.Headers.ContentType!.MediaType.Should().Be("image/webp");
+        (await savedResponse.Content.ReadAsByteArrayAsync()).Should().Equal([4, 5, 6]);
     }
 
     [Fact]

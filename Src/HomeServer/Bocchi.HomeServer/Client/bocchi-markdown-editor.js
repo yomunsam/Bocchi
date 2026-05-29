@@ -115,25 +115,6 @@ function fencedBlock(selected) {
   return `\n\`\`\`\n${selected}\n\`\`\`\n`;
 }
 
-function imageMarkdownFromFiles(files) {
-  return files
-    .filter((file) => file.type?.startsWith("image/"))
-    .map((file, index) => {
-      const fallbackName = `pasted-image-${index + 1}.png`;
-      const safeName = sanitizeAssetName(file.name || fallbackName);
-      return `![${safeName}](assets/${safeName})`;
-    })
-    .join("\n");
-}
-
-function sanitizeAssetName(name) {
-  return name
-    .trim()
-    .replace(/[^\w.-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase() || "pasted-image.png";
-}
-
 function replaceSelection(view, text) {
   const selection = view.state.selection.main;
   view.dispatch({
@@ -144,26 +125,67 @@ function replaceSelection(view, text) {
   view.focus();
 }
 
-function buildPasteAndDropHandlers() {
+function isImageFile(file) {
+  return file?.type?.startsWith("image/") === true;
+}
+
+function fallbackImageName(file, index) {
+  if (file.name) {
+    return file.name;
+  }
+
+  const extension = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/avif": ".avif",
+    "image/svg+xml": ".svg",
+  }[file.type] ?? ".png";
+  return `pasted-image-${index + 1}${extension}`;
+}
+
+async function uploadPastedImages(root, view, files) {
+  const current = editorByRoot.get(root);
+  if (!current?.dotNet) {
+    return;
+  }
+
+  const markdown = [];
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    try {
+      const result = await current.dotNet.invokeMethodAsync(
+        "HandlePastedImageAsync",
+        fallbackImageName(file, index),
+        file.type ?? "",
+        DotNet.createJSStreamReference(file));
+      const inserted = result?.markdown ?? result?.Markdown;
+      if (inserted) {
+        markdown.push(inserted);
+      }
+    } catch (error) {
+      await current.dotNet.invokeMethodAsync(
+        "HandlePastedImageFailureAsync",
+        error?.message ?? "");
+    }
+  }
+
+  if (markdown.length > 0) {
+    replaceSelection(view, markdown.join("\n"));
+  }
+}
+
+function buildPasteAndDropHandlers(root) {
   return EditorView.domEventHandlers({
     paste(event, view) {
-      const markdownText = imageMarkdownFromFiles(Array.from(event.clipboardData?.files ?? []));
-      if (!markdownText) {
+      const files = Array.from(event.clipboardData?.files ?? []).filter(isImageFile);
+      if (files.length === 0) {
         return false;
       }
 
       event.preventDefault();
-      replaceSelection(view, markdownText);
-      return true;
-    },
-    drop(event, view) {
-      const markdownText = imageMarkdownFromFiles(Array.from(event.dataTransfer?.files ?? []));
-      if (!markdownText) {
-        return false;
-      }
-
-      event.preventDefault();
-      replaceSelection(view, markdownText);
+      void uploadPastedImages(root, view, files);
       return true;
     },
   });
@@ -188,7 +210,7 @@ function mount(root, dotNet, options = {}) {
         EditorView.lineWrapping,
         bocchiTheme,
         editorPlaceholder(options.placeholder ?? ""),
-        buildPasteAndDropHandlers(),
+        buildPasteAndDropHandlers(root),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) {
             return;

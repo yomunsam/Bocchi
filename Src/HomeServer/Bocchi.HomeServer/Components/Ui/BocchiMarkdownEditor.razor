@@ -79,6 +79,11 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(_assetUploadError))
+    {
+        <p class="bocchi-markdown-editor__asset-error" role="alert">@_assetUploadError</p>
+    }
+
     <div class="bocchi-markdown-editor__body">
         <div class="bocchi-markdown-editor__pane bocchi-markdown-editor__pane--write">
             <span class="bocchi-visually-hidden">@ResolvedTitle</span>
@@ -131,6 +136,10 @@
     [Parameter]
     public string DefaultViewMode { get; set; } = "write";
 
+    /// <summary>浏览器粘贴图片时调用父组件上传到当前内容组 assets/，成功后返回要插入的 Markdown。</summary>
+    [Parameter]
+    public Func<MarkdownEditorPastedImageRequest, Task<MarkdownEditorAssetUploadResult>>? OnPasteImageAsync { get; set; }
+
     /// <summary>承载 CodeMirror 实例的组件根元素。</summary>
     private ElementReference _root;
 
@@ -148,6 +157,12 @@
 
     /// <summary>默认视图只在首次渲染前读取一次，避免父组件重渲染时打断用户切换。</summary>
     private bool _viewModeInitialized;
+
+    /// <summary>单张粘贴图片的读取上限，避免浏览器把意外的大文件塞进 Blazor circuit。</summary>
+    private const long MaxPastedImageBytes = 20 * 1024 * 1024;
+
+    /// <summary>粘贴上传失败时在编辑器本体内展示的短提示。</summary>
+    private string? _assetUploadError;
 
     private string ResolvedContentKindLabel => string.IsNullOrWhiteSpace(ContentKindLabel) ? Kicker : ContentKindLabel;
 
@@ -216,6 +231,53 @@
     {
         _lastEditorValue = value;
         await ValueChanged.InvokeAsync(value);
+    }
+
+    /// <summary>接收浏览器粘贴图片内容，并委托父组件写入当前内容组 assets/。</summary>
+    [JSInvokable]
+    public async Task<MarkdownEditorAssetUploadResult> HandlePastedImageAsync(
+        string? fileName,
+        string? contentType,
+        IJSStreamReference content)
+    {
+        if (OnPasteImageAsync is null)
+        {
+            var unavailable = I18n["markdownEditor.asset.uploadUnavailable"];
+            _assetUploadError = unavailable;
+            await InvokeAsync(StateHasChanged);
+            return MarkdownEditorAssetUploadResult.Failure(unavailable);
+        }
+
+        try
+        {
+            await using var stream = await content.OpenReadStreamAsync(MaxPastedImageBytes);
+            var result = await OnPasteImageAsync(new MarkdownEditorPastedImageRequest
+            {
+                FileName = fileName,
+                ContentType = contentType,
+                Content = stream,
+            });
+            _assetUploadError = string.IsNullOrWhiteSpace(result.Error) ? null : result.Error;
+            await InvokeAsync(StateHasChanged);
+            return result;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or JSException)
+        {
+            var failed = I18n["markdownEditor.asset.uploadFailed"];
+            _assetUploadError = failed;
+            await InvokeAsync(StateHasChanged);
+            return MarkdownEditorAssetUploadResult.Failure(failed);
+        }
+    }
+
+    /// <summary>JS 桥接层自身失败时展示 Dashboard 当前语言下的错误。</summary>
+    [JSInvokable]
+    public async Task HandlePastedImageFailureAsync(string? detail)
+    {
+        _assetUploadError = string.IsNullOrWhiteSpace(detail)
+            ? I18n["markdownEditor.asset.uploadFailed"]
+            : string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["markdownEditor.asset.uploadFailedWithDetailFormat"], detail);
+        await InvokeAsync(StateHasChanged);
     }
 
     private static string ViewButtonClass(EditorViewMode mode)
