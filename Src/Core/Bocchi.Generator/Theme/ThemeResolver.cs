@@ -229,7 +229,7 @@ public sealed class ThemeResolver
                 else
                 {
                     manifest = loaded.Value.Manifest;
-                    ValidateManifest(normalizedThemeId, manifest, diagnostics);
+                    ValidateManifest(normalizedThemeId, manifest, normalizedRoot, diagnostics);
                 }
             }
             catch (JsonException ex)
@@ -306,7 +306,7 @@ public sealed class ThemeResolver
         }
     }
 
-    private static void ValidateManifest(string expectedThemeId, ThemeManifest manifest, List<ThemeDiagnostic> diagnostics)
+    private static void ValidateManifest(string expectedThemeId, ThemeManifest manifest, string themeRoot, List<ThemeDiagnostic> diagnostics)
     {
         if (string.IsNullOrWhiteSpace(manifest.Id) || !IsValidThemeId(manifest.Id.Trim()))
         {
@@ -333,6 +333,7 @@ public sealed class ThemeResolver
         }
 
         ValidateRunner(manifest, diagnostics);
+        diagnostics.AddRange(ThemeStaticAssetManifestValidator.Validate(manifest, themeRoot));
     }
 
     private static void ValidateRunner(ThemeManifest manifest, List<ThemeDiagnostic> diagnostics)

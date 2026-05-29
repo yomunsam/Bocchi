@@ -104,6 +104,22 @@ public sealed record ThemeSpecialPageManifest
     public required string Route { get; init; }
 }
 
+/// <summary>Theme 声明的静态资源复制规则。复制只发生在 Theme 本地输出目录内。</summary>
+public sealed record ThemeStaticAssetManifest
+{
+    /// <summary>源目录，相对 Theme Root，例如 <c>assets</c>。</summary>
+    public required string From { get; init; }
+
+    /// <summary>目标目录，站点根相对，例如 <c>/assets</c>。</summary>
+    public required string To { get; init; }
+
+    /// <summary>相对 <see cref="From"/> 的 include glob；为空时默认复制全部文件。</summary>
+    public IReadOnlyList<string> Include { get; init; } = ["**/*"];
+
+    /// <summary>相对 <see cref="From"/> 的 exclude glob。</summary>
+    public IReadOnlyList<string> Exclude { get; init; } = [];
+}
+
 /// <summary>
 /// Theme 元信息清单。对应 <c>theme.json</c>，参见 <c>Docs/Architecture.md §7.2</c>。
 /// </summary>
@@ -144,4 +160,7 @@ public sealed record ThemeManifest
 
     /// <summary>Theme 自己提供的特殊页面声明，Menu 可指向这些页面。</summary>
     public IReadOnlyList<ThemeSpecialPageManifest> SpecialPages { get; init; } = [];
+
+    /// <summary>Theme 希望原样复制到静态站点输出的资源目录声明。</summary>
+    public IReadOnlyList<ThemeStaticAssetManifest> StaticAssets { get; init; } = [];
 }

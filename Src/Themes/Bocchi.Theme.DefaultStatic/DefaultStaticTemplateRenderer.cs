@@ -23,7 +23,6 @@ public sealed partial class DefaultStaticTemplateRenderer
         var listingPosts = SelectListingRepresentatives(visiblePosts, text.CurrentLanguage);
         var listingWorks = SelectListingRepresentatives(visibleWorks, text.CurrentLanguage);
 
-        await WriteAssetsAsync(request, cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "index.html", await RenderHomeAsync(request, site, text, input, configTextFormats, listingPosts, visiblePosts, listingWorks, visibleWorks, visibleNotes, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePageAsync(request.OutputDirectory, "posts/index.html", await RenderPostListAsync(request, site, text, listingPosts, visiblePosts, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
         await WritePostDetailsAsync(request, site, text, visiblePosts, cancellationToken).ConfigureAwait(false);

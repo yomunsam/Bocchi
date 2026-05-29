@@ -59,6 +59,8 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "notes", "k7p9xq2m", "index.html")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "notes", "2025", "0314", "1230-k7p9xq2m", "index.html")).Should().BeFalse();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.css")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.js")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "favicon.svg")).Should().BeTrue();
 
         // 媒体应被复制到 output/public/media/posts/<year>/<slug>/<file>
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "media", "posts", "2025", "hello", "c.jpg"))
@@ -873,6 +875,136 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
+    public async Task FullBuild_WithStaticAssets_CopiesAndCollectsDeclaredFiles()
+    {
+        using var fixture = new TestWorkspaceFixture(services => services.AddSingleton<IThemeRunner, WritingIndexOnlyThemeRunner>());
+        CreateProcessTheme(fixture, "asset-theme", """
+            [
+              {
+                "from": "static",
+                "to": "/theme-static"
+              }
+            ]
+            """);
+        var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "asset-theme");
+        await WriteThemeFileAsync(themeRoot, "static/app.css", "body{}");
+        await WriteThemeFileAsync(themeRoot, "static/app.js", "console.log('ok');");
+        await WriteThemeFileAsync(themeRoot, "static/icon.svg", "<svg />");
+        await WriteThemeFileAsync(themeRoot, "static/images/cover.png", "png");
+        await WriteThemeFileAsync(themeRoot, "static/fonts/site.woff2", "font");
+
+        var result = await fixture.Services.GetRequiredService<GeneratorPipeline>().RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: "asset-theme",
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/theme-static/app.css");
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/theme-static/app.js");
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/theme-static/icon.svg");
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/theme-static/images/cover.png");
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/theme-static/fonts/site.woff2");
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "theme-static", "app.css")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task FullBuild_WithStaticAssets_RespectsIncludeAndExclude()
+    {
+        using var fixture = new TestWorkspaceFixture(services => services.AddSingleton<IThemeRunner, WritingIndexOnlyThemeRunner>());
+        CreateProcessTheme(fixture, "asset-theme", """
+            [
+              {
+                "from": "static",
+                "to": "/assets",
+                "include": ["**/*.min.css", "**/*.min.js"],
+                "exclude": ["**/*.map"]
+              }
+            ]
+            """);
+        var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "asset-theme");
+        await WriteThemeFileAsync(themeRoot, "static/app.css", "body{}");
+        await WriteThemeFileAsync(themeRoot, "static/app.min.css", "body{}");
+        await WriteThemeFileAsync(themeRoot, "static/app.js", "console.log('dev');");
+        await WriteThemeFileAsync(themeRoot, "static/app.min.js", "console.log('min');");
+        await WriteThemeFileAsync(themeRoot, "static/app.min.js.map", "{}");
+
+        var result = await fixture.Services.GetRequiredService<GeneratorPipeline>().RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: "asset-theme",
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.min.css")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.min.js")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.css")).Should().BeFalse();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.js")).Should().BeFalse();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.min.js.map")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task FullBuild_WithStaticAssets_FailsWhenRunnerAlreadyWroteTarget()
+    {
+        using var fixture = new TestWorkspaceFixture(services => services.AddSingleton<IThemeRunner, WritingThemeRunner>());
+        CreateProcessTheme(fixture, "asset-theme", """
+            [
+              {
+                "from": "assets",
+                "to": "/assets"
+              }
+            ]
+            """);
+        await WriteThemeFileAsync(Path.Combine(fixture.Layout.ThemesDirectory, "asset-theme"), "assets/app.css", "body{}");
+
+        var result = await fixture.Services.GetRequiredService<GeneratorPipeline>().RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: "asset-theme",
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Failed);
+        result.Reason.Should().Contain("/assets/app.css");
+        result.Reason.Should().Contain("已存在");
+    }
+
+    [Fact]
+    public async Task LiveBuild_WithStaticAssets_UsesLiveThemeOutputDirectory()
+    {
+        using var fixture = new TestWorkspaceFixture(services => services.AddSingleton<IThemeRunner, WritingIndexOnlyThemeRunner>());
+        CreateProcessTheme(fixture, "asset-theme", """
+            [
+              {
+                "from": "static",
+                "to": "/theme-static"
+              }
+            ]
+            """);
+        await WriteThemeFileAsync(Path.Combine(fixture.Layout.ThemesDirectory, "asset-theme"), "static/app.css", "body{}");
+        var liveInput = Path.Combine(fixture.Root, "live-input");
+        var liveOutput = Path.Combine(fixture.Root, "live-output");
+
+        var result = await fixture.Services.GetRequiredService<GeneratorPipeline>().RunAsync(
+            new BuildOptions
+            {
+                Mode = BuildMode.Live,
+                LiveThemeInputDirectory = liveInput,
+                LiveThemeOutputDirectory = liveOutput,
+            },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: "asset-theme",
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        File.Exists(Path.Combine(liveOutput, "theme-static", "app.css")).Should().BeTrue();
+        result.Artifacts.Should().Contain(a => a.Kind == ArtifactKind.ThemeOutput && a.Path == "/theme-static/app.css");
+    }
+
+    [Fact]
     public async Task FullBuild_WithThirdPartyFluidStaticTheme_UsesPublicRunner()
     {
         using var fixture = new TestWorkspaceFixture();
@@ -1038,10 +1170,13 @@ public sealed class GeneratorPipelineEndToEndTests
         };
 
     /// <summary>创建一个只用于测试 Theme 加载边界的 process Theme manifest。</summary>
-    private static void CreateProcessTheme(TestWorkspaceFixture fixture, string themeId)
+    private static void CreateProcessTheme(TestWorkspaceFixture fixture, string themeId, string? staticAssetsJson = null)
     {
         var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, themeId);
         Directory.CreateDirectory(themeRoot);
+        var staticAssetsBlock = string.IsNullOrWhiteSpace(staticAssetsJson)
+            ? string.Empty
+            : $",\n  \"staticAssets\": {staticAssetsJson}";
         File.WriteAllText(Path.Combine(themeRoot, "theme.json"), $$"""
             {
               "id": "{{themeId}}",
@@ -1053,7 +1188,7 @@ public sealed class GeneratorPipelineEndToEndTests
               "runner": {
                 "kind": "process",
                 "command": "echo should-not-run"
-              },
+              }{{staticAssetsBlock}},
               "features": {
                 "posts": true,
                 "pages": true,
@@ -1065,6 +1200,13 @@ public sealed class GeneratorPipelineEndToEndTests
               }
             }
             """);
+    }
+
+    private static async Task WriteThemeFileAsync(string themeRoot, string relativePath, string content)
+    {
+        var path = Path.Combine(themeRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, content);
     }
 
     /// <summary>创建一个使用公开 fluid-static runner 的第三方 Theme。</summary>
@@ -1136,6 +1278,23 @@ public sealed class GeneratorPipelineEndToEndTests
                 "body { color: #101012; }",
                 cancellationToken);
             onLog(BuildLogLevel.Info, "test theme output written");
+        }
+    }
+
+    /// <summary>只写一个 index.html，方便 staticAssets tests 判断复制行为本身。</summary>
+    private sealed class WritingIndexOnlyThemeRunner : IThemeRunner
+    {
+        public async Task RunAsync(
+            ThemeRunInvocation invocation,
+            Action<BuildLogLevel, string> onLog,
+            CancellationToken cancellationToken)
+        {
+            Directory.CreateDirectory(invocation.OutputDirectoryAbsolute);
+            await File.WriteAllTextAsync(
+                Path.Combine(invocation.OutputDirectoryAbsolute, "index.html"),
+                "<!doctype html><html><body>theme</body></html>",
+                cancellationToken);
+            onLog(BuildLogLevel.Info, "test theme index written");
         }
     }
 }

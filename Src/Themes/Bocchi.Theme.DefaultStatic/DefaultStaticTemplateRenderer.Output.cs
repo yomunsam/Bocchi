@@ -11,37 +11,6 @@ public sealed partial class DefaultStaticTemplateRenderer
         @"(?<prefix>\b(?:href|src|poster)\s*=\s*)(?<quote>[""'])(?<url>/(?!/)[^""']*)(?<suffix>\k<quote>)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
-    /// <summary>复制用户可覆盖资产；缺失时回退到内置资产。</summary>
-    private static async Task WriteAssetsAsync(DefaultStaticRenderRequest request, CancellationToken cancellationToken)
-    {
-        var assetOutput = Path.Combine(request.OutputDirectory, "assets");
-        Directory.CreateDirectory(assetOutput);
-        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "favicon.svg", cancellationToken).ConfigureAwait(false);
-        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "app.css", cancellationToken).ConfigureAwait(false);
-        await CopyOrWriteAssetAsync(request.ThemeRoot, assetOutput, "app.js", cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>优先复制工作区 Theme asset，保证用户修改 CSS/JS 后构建能生效。</summary>
-    private static async Task CopyOrWriteAssetAsync(
-        string themeRoot,
-        string outputDirectory,
-        string fileName,
-        CancellationToken cancellationToken)
-    {
-        var source = Path.Combine(themeRoot, "assets", fileName);
-        var destination = Path.Combine(outputDirectory, fileName);
-        if (File.Exists(source))
-        {
-            await using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, useAsync: true);
-            await using var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 16 * 1024, useAsync: true);
-            await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        await DefaultStaticThemeResources.CopyToFileAsync($"assets/{fileName}", destination, cancellationToken)
-            .ConfigureAwait(false);
-    }
-
     /// <summary>把 Theme URL 转为输出目录内的 index.html 路径。</summary>
     private static string ToOutputPath(string url)
         => string.IsNullOrWhiteSpace(url) || url == "/" ? "index.html" : url.Trim('/').Trim() + "/index.html";

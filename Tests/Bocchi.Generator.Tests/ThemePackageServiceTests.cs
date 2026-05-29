@@ -119,6 +119,32 @@ public sealed class ThemePackageServiceTests
             .WithMessage("*default-static*");
     }
 
+    [Fact]
+    public async Task InspectZipAsync_RejectsInvalidStaticAssets()
+    {
+        using var temp = new TempPackageDataRoot();
+        var zipPath = Path.Combine(temp.Root, "invalid-static-assets.zip");
+        await WriteThemeZipAsync(
+            zipPath,
+            id: "asset-theme",
+            version: "1.0.0",
+            staticAssetsJson: """
+                [
+                  {
+                    "from": "../assets",
+                    "to": "assets"
+                  }
+                ]
+                """);
+        var service = CreateService(temp.Layout);
+
+        var inspection = await service.InspectZipAsync(zipPath);
+
+        inspection.IsInstallable.Should().BeFalse();
+        inspection.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-from-invalid");
+        inspection.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-to-relative");
+    }
+
     private static ThemePackageService CreateService(BocchiDataLayout layout)
         => new(
             layout,
@@ -132,12 +158,13 @@ public sealed class ThemePackageServiceTests
         string rootPrefix = "",
         string runnerKind = "fluid-static",
         string assetContent = "body{}",
+        string? staticAssetsJson = null,
         IReadOnlyList<(string Path, string Content)>? extraEntries = null)
     {
         var prefix = string.IsNullOrWhiteSpace(rootPrefix) ? string.Empty : rootPrefix.TrimEnd('/') + "/";
         await using var stream = File.Create(zipPath);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: false);
-        await WriteEntryAsync(archive, prefix + "theme.json", CreateManifestJson(id, version, runnerKind));
+        await WriteEntryAsync(archive, prefix + "theme.json", CreateManifestJson(id, version, runnerKind, staticAssetsJson));
         await WriteEntryAsync(archive, prefix + "assets/app.css", assetContent);
         foreach (var (path, content) in extraEntries ?? [])
         {
@@ -145,8 +172,11 @@ public sealed class ThemePackageServiceTests
         }
     }
 
-    private static string CreateManifestJson(string id, string version, string runnerKind)
+    private static string CreateManifestJson(string id, string version, string runnerKind, string? staticAssetsJson)
     {
+        var staticAssetsBlock = string.IsNullOrWhiteSpace(staticAssetsJson)
+            ? string.Empty
+            : $",\n  \"staticAssets\": {staticAssetsJson}";
         if (string.Equals(runnerKind, "process", StringComparison.OrdinalIgnoreCase))
         {
             return $$"""
@@ -158,7 +188,7 @@ public sealed class ThemePackageServiceTests
               "runner": {
                 "kind": "process",
                 "command": "echo ok"
-              }
+              }{{staticAssetsBlock}}
             }
             """;
         }
@@ -172,7 +202,7 @@ public sealed class ThemePackageServiceTests
           "runner": {
             "kind": "fluid-static",
             "entry": "fluid"
-          }
+          }{{staticAssetsBlock}}
         }
         """;
     }

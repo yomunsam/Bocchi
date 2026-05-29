@@ -220,12 +220,6 @@ public sealed class DefaultStaticTemplateRendererTests
                     Environment = "production",
                 });
 
-            (await File.ReadAllTextAsync(Path.Combine(outputDirectory, "assets", "app.css")))
-                .Should().Be("/* renderer custom css */");
-            var appJs = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "assets", "app.js"));
-            appJs.Should().Contain("data-bocchi-page-hrefs");
-            appJs.Should().Contain("bocchi:languagechange");
-
             var indexHtml = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "index.html"));
             indexHtml.Should().Contain("href=\"assets/app.css\"");
             indexHtml.Should().Contain("src=\"assets/app.js\"");

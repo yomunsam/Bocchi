@@ -41,6 +41,7 @@ public static class GeneratorServiceCollectionExtensions
         services.AddSingleton<WriteSiteArtifactsStage>();
         services.AddSingleton<CopyMediaStage>();
         services.AddSingleton<RunThemeBuildStage>();
+        services.AddSingleton<CopyThemeStaticAssetsStage>();
         services.AddSingleton<CollectThemeOutputStage>();
         services.AddSingleton<ValidateOutputStage>();
         services.AddSingleton<WriteManifestStage>();

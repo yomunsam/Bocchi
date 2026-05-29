@@ -4,10 +4,10 @@
 
 ## Contract Shape
 
-- `theme.json` declares the Theme identity and uses `runner.kind = "fluid-static"`.
+- `theme.json` declares the Theme identity, uses `runner.kind = "fluid-static"`, and declares `staticAssets` so the Generator copies `assets/` into `/assets`.
 - `config-schema.json` declares Dashboard-editable settings. Presentation text can opt into `textFormat: "inlineColor"` for controlled `[color=#E85D3A]...[/color]` or `[color=accent]...[/color]` spans; site facts belong in `site.yaml` and arrive through `theme-context.json`.
 - `templates/` contains Liquid templates rendered by Bocchi's built-in `fluid-static` runner.
-- `assets/` contains static files copied into the Theme output. Theme Contract routes stay site-root-relative, while the built-in runner emits relative HTML links so the same output can be served from a domain root or a nested path.
+- `assets/` contains static files copied into the Theme output by the Theme Contract `staticAssets` stage. Theme Contract routes stay site-root-relative, while the built-in runner emits relative HTML links so the same output can be served from a domain root or a nested path.
 
 ## Preview Compatibility
 

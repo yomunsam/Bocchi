@@ -133,6 +133,60 @@ public sealed class ThemeContractTests
     }
 
     [Fact]
+    public void ThemeManifest_SupportsStaticAssets()
+    {
+        var manifest = new ThemeManifest
+        {
+            Id = "asset-theme",
+            Name = "Asset Theme",
+            Version = "0.1.0",
+            ContractVersion = ThemeContractVersion.V1,
+            StaticAssets =
+            [
+                new ThemeStaticAssetManifest
+                {
+                    From = "assets",
+                    To = "/assets",
+                    Include = ["**/*.min.css", "**/*.min.js"],
+                    Exclude = ["**/*.map"],
+                },
+            ],
+        };
+
+        manifest.StaticAssets.Should().ContainSingle(asset =>
+            asset.From == "assets" &&
+            asset.To == "/assets" &&
+            asset.Include.Contains("**/*.min.css") &&
+            asset.Exclude.Contains("**/*.map"));
+    }
+
+    [Fact]
+    public void ThemeManifest_StaticAssetsDefaultGlobsDeserialize()
+    {
+        var manifest = System.Text.Json.JsonSerializer.Deserialize<ThemeManifest>(
+            """
+            {
+              "id": "asset-theme",
+              "name": "Asset Theme",
+              "version": "0.1.0",
+              "contractVersion": "1.0",
+              "staticAssets": [
+                {
+                  "from": "assets",
+                  "to": "/assets"
+                }
+              ]
+            }
+            """,
+            SchemaJsonOptions);
+
+        manifest.Should().NotBeNull();
+        var asset = manifest!.StaticAssets.Should().ContainSingle().Subject;
+        asset.Include.Should().ContainSingle("**/*");
+        asset.Exclude.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ThemeConfigSchema_SupportsArchitectureFieldTypes()
     {
         var allTypes = Enum.GetValues<ThemeConfigFieldType>();

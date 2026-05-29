@@ -443,6 +443,14 @@ Theme/
     "kind": "fluid-static",
     "entry": "fluid"
   },
+  "staticAssets": [
+    {
+      "from": "assets",
+      "to": "/assets",
+      "include": ["**/*"],
+      "exclude": ["**/*.map", "**/.DS_Store"]
+    }
+  ],
   "features": {
     "posts": true,
     "pages": true,
@@ -498,6 +506,8 @@ Theme 可以声明两类 Page 相关能力：
 - `specialPages[]`：Theme 自己提供的特殊页面声明，字段为 `name`、`displayName` 和 `route`。`route` 必须是站点根相对路径，例如 `/calculator/`；Home Server 不为特殊页面生成内容，只允许 Menu 指向它。
 
 `displayName` 可以是普通文本，也可以是显示值引用：`i18n://common@key` 或 `i18n://theme@key`。`common@` 表示 Bocchi 通用前台文案作用域，`theme@` 表示当前 Theme manifest 提供的私有文案作用域。本轮只把该约定用于 Dashboard 展示和 Theme manifest 声明，不做全字段全局改造。
+
+Theme 可以通过 `staticAssets[]` 声明要原样复制到静态站点输出的资源目录。`from` 是相对 Theme Root 的源目录，`to` 是以 `/` 开头的站点根相对目标目录；`include` / `exclude` 使用相对 `from` 的 glob，缺省 `include` 为 `["**/*"]`。该能力只做复制：不做 minify、hash 文件名、bundling、CSS/JS 路径重写，也不执行 Theme 代码。复制发生在 runner 结束之后、Theme 输出收集之前；如果目标文件已存在，构建失败而不是覆盖。`from` 不能是绝对路径、不能包含 `..`、不能指向 `outputDir`，也不能复制 `.git/` 或 `node_modules/`；symlink / reparse point 指向 Theme Root 外部时会被拒绝。
 
 ### 7.3 Theme 输入数据
 
@@ -605,7 +615,7 @@ Package inspection 支持两种根结构：
 - zip 根目录直接包含 `theme.json`。
 - zip 内只有一个顶层目录，并且该目录包含 `theme.json`。
 
-Inspection 会阻断目录穿越、绝对路径、Windows drive path、空路径、非法 Theme id、不支持的 Theme Contract、不支持的 runner 和坏 JSON；`.git/`、`node_modules/`、既有 build/dist 输出和系统隐藏文件会作为 warning 暴露给 Admin。`config-schema.json` 可选，存在时必须能按 Theme Config Schema 解析。
+Inspection 会阻断目录穿越、绝对路径、Windows drive path、空路径、非法 Theme id、不支持的 Theme Contract、不支持的 runner、非法 `staticAssets` 和坏 JSON；`.git/`、`node_modules/`、既有 build/dist 输出和系统隐藏文件会作为 warning 暴露给 Admin。`config-schema.json` 可选，存在时必须能按 Theme Config Schema 解析。
 
 安装目标始终是 `<data>/themes/<theme-id>/`。更新已有 Theme 时先把旧目录移动到 `<data>/themes/.backups/<theme-id>/<timestamp>/`，再把 staging 目录移动为新的 installed Theme；失败时尝试回滚旧目录。`state/theme-config/<theme-id>.json` 不随 Theme 文件更新而删除。
 
@@ -625,6 +635,7 @@ Runner 是 Theme Contract 的执行层，不代表具体技术栈。所有 runne
 
 - Theme 不直接写最终 `output/public/`。
 - Home Server Live Preview 是正式构建模式：Theme 仍然只读取 `BOCCHI_INPUT_DIR`、只写 `BOCCHI_OUTPUT_DIR`，只是输入/输出目录由 Home Server 放到一次性 cache 目录。
+- `staticAssets` 也写入 `BOCCHI_OUTPUT_DIR`，随后和 runner 输出一起被收集；它不能绕过 artifact manifest。
 - Generator 在 runner 结束后统一扫描 Theme 本地输出，登记为 `ArtifactKind.ThemeOutput`，再写入 `output/public/` 和 `.bocchi-manifest.json`。
 - stdout / stderr 统一进入 Build 日志。
 - timeout、取消、非零退出码统一映射为 Theme runner 错误。

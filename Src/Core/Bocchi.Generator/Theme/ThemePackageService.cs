@@ -264,12 +264,12 @@ public sealed class ThemePackageService
             return (null, null);
         }
 
-        ValidateManifest(manifest, diagnostics);
+        ValidateManifest(manifest, sourceRoot, diagnostics);
         await ValidateConfigSchemaAsync(sourceRoot, diagnostics, cancellationToken).ConfigureAwait(false);
         return (manifest, ResolveRunnerKind(manifest));
     }
 
-    private static void ValidateManifest(ThemeManifest manifest, List<ThemeDiagnostic> diagnostics)
+    private static void ValidateManifest(ThemeManifest manifest, string sourceRoot, List<ThemeDiagnostic> diagnostics)
     {
         if (string.IsNullOrWhiteSpace(manifest.Id) || !ThemeResolver.IsValidThemeId(manifest.Id.Trim()))
         {
@@ -297,29 +297,31 @@ public sealed class ThemePackageService
             {
                 diagnostics.Add(Error("theme-runner-missing", "theme.json 必须声明 runner 或旧版 build.command。"));
             }
-
-            return;
         }
-
-        var kind = manifest.Runner.Kind.Trim();
-        if (string.Equals(kind, "fluid-static", StringComparison.OrdinalIgnoreCase))
+        else
         {
-            return;
+            var kind = manifest.Runner.Kind.Trim();
+            if (!string.Equals(kind, "fluid-static", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.Equals(kind, "process", StringComparison.OrdinalIgnoreCase))
+                {
+                    diagnostics.Add(Error("theme-runner-unsupported", $"runner.kind '{manifest.Runner.Kind}' 尚未由当前 Generator 支持。"));
+                }
+                else
+                {
+                    var command = string.IsNullOrWhiteSpace(manifest.Runner.Command)
+                        ? manifest.Build?.Command
+                        : manifest.Runner.Command;
+                    if (string.IsNullOrWhiteSpace(command))
+                    {
+                        diagnostics.Add(Error("theme-process-command-missing", "process runner 必须声明 command。"));
+                    }
+                }
+            }
+
         }
 
-        if (!string.Equals(kind, "process", StringComparison.OrdinalIgnoreCase))
-        {
-            diagnostics.Add(Error("theme-runner-unsupported", $"runner.kind '{manifest.Runner.Kind}' 尚未由当前 Generator 支持。"));
-            return;
-        }
-
-        var command = string.IsNullOrWhiteSpace(manifest.Runner.Command)
-            ? manifest.Build?.Command
-            : manifest.Runner.Command;
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            diagnostics.Add(Error("theme-process-command-missing", "process runner 必须声明 command。"));
-        }
+        diagnostics.AddRange(ThemeStaticAssetManifestValidator.Validate(manifest, sourceRoot));
     }
 
     private static async Task ValidateConfigSchemaAsync(

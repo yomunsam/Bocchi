@@ -9,6 +9,12 @@
     "kind": "fluid-static",
     "entry": "fluid"
   },
+  "staticAssets": [
+    {
+      "from": "assets",
+      "to": "/assets"
+    }
+  ],
   "features": {
     "posts": true,
     "pages": true,

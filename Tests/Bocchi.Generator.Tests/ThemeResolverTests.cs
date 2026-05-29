@@ -107,6 +107,90 @@ public sealed class ThemeResolverTests
         item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-manifest-json-invalid");
     }
 
+    [Fact]
+    public async Task ListAvailableThemesAsync_InvalidStaticAssetsReturnsDiagnosticItem()
+    {
+        using var temp = new TempThemeDataRoot();
+        var root = Path.Combine(temp.Layout.ThemesDirectory, "asset-theme");
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "theme.json"), """
+            {
+              "id": "asset-theme",
+              "name": "Asset Theme",
+              "version": "0.1.0",
+              "contractVersion": "1.0",
+              "outputDir": "build",
+              "runner": {
+                "kind": "fluid-static",
+                "entry": "fluid"
+              },
+              "staticAssets": [
+                {
+                  "from": "../assets",
+                  "to": "assets"
+                },
+                {
+                  "from": "build",
+                  "to": "/build-assets"
+                }
+              ]
+            }
+            """);
+        Directory.CreateDirectory(Path.Combine(root, "build"));
+        var resolver = CreateResolver(temp.Layout);
+
+        var catalog = await resolver.ListAvailableThemesAsync();
+
+        var item = catalog.Should().ContainSingle(x => x.Id == "asset-theme").Subject;
+        item.IsAvailable.Should().BeFalse();
+        item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-from-invalid");
+        item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-to-relative");
+        item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-from-output");
+    }
+
+    [Fact]
+    public async Task ListAvailableThemesAsync_StaticAssetSymlinkOutsideRootReturnsDiagnosticItem()
+    {
+        using var temp = new TempThemeDataRoot();
+        var root = Path.Combine(temp.Layout.ThemesDirectory, "asset-theme");
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "theme.json"), """
+            {
+              "id": "asset-theme",
+              "name": "Asset Theme",
+              "version": "0.1.0",
+              "contractVersion": "1.0",
+              "runner": {
+                "kind": "fluid-static",
+                "entry": "fluid"
+              },
+              "staticAssets": [
+                {
+                  "from": "assets",
+                  "to": "/assets"
+                }
+              ]
+            }
+            """);
+        var external = Path.Combine(temp.Root, "external-assets");
+        Directory.CreateDirectory(external);
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(root, "assets"), external);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
+        var resolver = CreateResolver(temp.Layout);
+
+        var catalog = await resolver.ListAvailableThemesAsync();
+
+        var item = catalog.Should().ContainSingle(x => x.Id == "asset-theme").Subject;
+        item.IsAvailable.Should().BeFalse();
+        item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-link-outside-root");
+    }
+
     private static ThemeResolver CreateResolver(
         BocchiDataLayout layout,
         string environmentName = "Production",
