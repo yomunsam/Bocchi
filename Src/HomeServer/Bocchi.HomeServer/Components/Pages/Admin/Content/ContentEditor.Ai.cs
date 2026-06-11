@@ -32,7 +32,6 @@ public partial class ContentEditor
     private void OnTitleInput(ChangeEventArgs args)
     {
         _title = args.Value?.ToString() ?? string.Empty;
-        _saved = false;
         if (CanFollowTitleSlug)
         {
             _slug = ContentSlug.Normalize(_title);
@@ -49,7 +48,6 @@ public partial class ContentEditor
 
         _slugTouchedInSession = true;
         _slug = ContentSlug.Normalize(args.Value?.ToString());
-        _saved = false;
     }
 
     /// <summary>打开 AI slug 生成确认弹窗；不可用状态下按钮不会出现，这里仍保留保护。</summary>
@@ -125,7 +123,6 @@ public partial class ContentEditor
                 {
                     _slug = validation.Slug;
                     _slugTouchedInSession = true;
-                    _saved = false;
                     _saveMessage = Text("contentEditor.slug.generated");
                     return;
                 }

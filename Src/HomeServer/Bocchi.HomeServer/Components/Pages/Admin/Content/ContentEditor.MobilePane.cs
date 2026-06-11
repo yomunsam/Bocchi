@@ -11,9 +11,6 @@ public partial class ContentEditor
     /// <summary>Markdown 编辑器组件引用，用于预览 pane 切换视图。</summary>
     private BocchiMarkdownEditor? _markdownEditor;
 
-    /// <summary>顶栏状态 pill 仅在保存中、未保存或有脏数据时显示。</summary>
-    private bool ShowCommandbarStatus => _busy || !_saved || IsDirty;
-
     /// <summary>传给 layout 的 pane 标识，驱动窄屏 CSS 显隐。</summary>
     private string MobilePaneCss => _mobilePane switch
     {

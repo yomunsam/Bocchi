@@ -64,9 +64,6 @@ public partial class ContentEditor
     /// <summary>保存中禁用按钮。</summary>
     private bool _busy;
 
-    /// <summary>保存成功后给用户一个轻反馈。</summary>
-    private bool _saved;
-
     /// <summary>标题字段。</summary>
     private string _title = string.Empty;
 
@@ -274,11 +271,9 @@ public partial class ContentEditor
     };
 
     /// <summary>命令条状态胶囊的文案。</summary>
-    private string EditorStateLabel => _saved
-        ? Text("contentEditor.state.saved")
-        : IsDirty
-            ? Text("contentEditor.state.dirty")
-            : Text("contentEditor.state.editing");
+    private string EditorStateLabel => _busy
+        ? Text("contentEditor.action.saving")
+        : Text("contentEditor.state.dirty");
 
     /// <summary>侧栏和命令条中展示的内容位置。</summary>
     private string EditorPathLabel => IsUnsavedDraft

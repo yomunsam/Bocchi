@@ -34,7 +34,9 @@
 }
 
 .bocchi-markdown-editor--embedded .bocchi-markdown-editor__chrome {
-    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--bocchi-border) 88%, transparent);
+    background: color-mix(in srgb, var(--bocchi-surface-muted) 52%, var(--bocchi-surface));
+    padding: 0.32rem 0.75rem;
 }
 
 .bocchi-markdown-editor__title {

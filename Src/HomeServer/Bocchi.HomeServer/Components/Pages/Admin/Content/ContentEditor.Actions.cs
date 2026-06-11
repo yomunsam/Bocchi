@@ -12,6 +12,12 @@ public partial class ContentEditor
     /// <summary>删除确认弹窗是否打开。</summary>
     private bool _showDeleteConfirm;
 
+    /// <summary>撤下确认弹窗是否打开。</summary>
+    private bool _showWithdrawConfirm;
+
+    /// <summary>归档确认弹窗是否打开。</summary>
+    private bool _showArchiveConfirm;
+
     /// <summary>删除确认标题，区分草稿删除与归档内容的彻底删除。</summary>
     private string DeleteConfirmTitle => _deleteConfirmMode == DeleteConfirmMode.Permanent
         ? Text("contentEditor.delete.title.permanent")
@@ -43,6 +49,44 @@ public partial class ContentEditor
     {
         _status = ContentStatus.Archived.ToString();
         await SaveAsync();
+    }
+
+    /// <summary>打开撤下确认弹窗。</summary>
+    private void OpenWithdrawConfirm()
+    {
+        _showWithdrawConfirm = true;
+    }
+
+    /// <summary>关闭撤下确认弹窗。</summary>
+    private void CloseWithdrawConfirm()
+    {
+        _showWithdrawConfirm = false;
+    }
+
+    /// <summary>确认撤下已发布内容。</summary>
+    private async Task ConfirmWithdrawAsync()
+    {
+        _showWithdrawConfirm = false;
+        await WithdrawAsync();
+    }
+
+    /// <summary>打开归档确认弹窗。</summary>
+    private void OpenArchiveConfirm()
+    {
+        _showArchiveConfirm = true;
+    }
+
+    /// <summary>关闭归档确认弹窗。</summary>
+    private void CloseArchiveConfirm()
+    {
+        _showArchiveConfirm = false;
+    }
+
+    /// <summary>确认归档已发布内容。</summary>
+    private async Task ConfirmArchiveAsync()
+    {
+        _showArchiveConfirm = false;
+        await ArchiveAsync();
     }
 
     /// <summary>归档内容再次更新时转回草稿，避免保存后仍保持不可见的归档状态。</summary>
@@ -151,7 +195,6 @@ public partial class ContentEditor
             _previewHtml = saved.PreviewHtml;
             _pathLockedAtLoad = _pathLocked;
             await LoadLanguageVersionsAsync();
-            _saved = true;
             _saveMessage = targetStatus == ContentStatus.Published
                 ? Text("contentEditor.save.published")
                 : Text("contentEditor.save.draftSaved");

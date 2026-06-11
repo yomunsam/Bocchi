@@ -10,7 +10,6 @@ public partial class ContentEditor
     {
         ResetTitleMirrorState();
         ResetMobilePaneState();
-        _saved = false;
         _saveMessage = null;
         _error = null;
         if (!string.IsNullOrWhiteSpace(Path))
@@ -143,7 +142,6 @@ public partial class ContentEditor
             _previewHtml = saved.PreviewHtml;
             _pathLockedAtLoad = _pathLocked;
             await LoadLanguageVersionsAsync();
-            _saved = true;
             _saveMessage = Text("contentEditor.save.saved");
             if (!string.Equals(originalPath, saved.RelativePath, StringComparison.Ordinal))
             {
@@ -186,7 +184,6 @@ public partial class ContentEditor
     private Task OnMarkdownChangedAsync(string value)
     {
         _markdown = value;
-        _saved = false;
         RefreshPreview();
         return Task.CompletedTask;
     }
@@ -202,7 +199,6 @@ public partial class ContentEditor
         _yaml = file.Yaml;
         _markdown = file.Markdown;
         RefreshPreview();
-        _saved = false;
         LoadMetadataFromYaml(file);
         ResetOriginalSnapshots();
     }
@@ -213,7 +209,6 @@ public partial class ContentEditor
         _yaml = draft.Yaml;
         _markdown = draft.Markdown;
         RefreshPreview();
-        _saved = false;
         LoadMetadataFromYaml(draft.Yaml, CurrentFallbackSlug);
         ResetOriginalSnapshots();
     }

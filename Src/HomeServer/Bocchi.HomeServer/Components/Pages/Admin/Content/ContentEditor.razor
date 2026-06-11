@@ -35,59 +35,81 @@
             <div class="bocchi-editor-commandbar__actions">
                 @if (ShowCommandbarStatus)
                 {
-                    <BocchiStatusPill Tone="@(_saved ? "success" : IsDirty ? "warning" : "info")">@EditorStateLabel</BocchiStatusPill>
+                    <BocchiStatusPill Tone="@(_busy ? "info" : "warning")">@EditorStateLabel</BocchiStatusPill>
                 }
-                @if (IsUnsavedDraft)
+                <button type="button"
+                        disabled="@(_busy || !CanRunPrimarySave)"
+                        @onclick="RunPrimarySaveAsync">
+                    <Blazicon Svg="Lucide.Save" />
+                    @CommandbarPrimaryLabel
+                </button>
+                @if (HasCommandbarOverflow)
                 {
-                    <button type="button" @onclick="SaveDraftAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Save" />
-                        @(_busy ? Text("contentEditor.action.saving") : Text("contentEditor.action.saveDraft"))
-                    </button>
-                    <button type="button" class="secondary" @onclick="PublishAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Send" />
-                        @Text("contentEditor.action.publish")
-                    </button>
-                }
-                else if (CurrentStatus == ContentStatus.Published)
-                {
-                    <button type="button" class="secondary" @onclick="WithdrawAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.EyeOff" />
-                        @Text("contentEditor.action.withdraw")
-                    </button>
-                    <button type="button" @onclick="SaveAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Save" />
-                        @(_busy ? Text("contentEditor.action.saving") : Text("contentEditor.action.update"))
-                    </button>
-                    <button type="button" class="secondary" @onclick="ArchiveAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Archive" />
-                        @Text("contentEditor.action.archive")
-                    </button>
-                }
-                else if (CurrentStatus == ContentStatus.Archived)
-                {
-                    <button type="button" @onclick="UpdateArchivedAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Save" />
-                        @(_busy ? Text("contentEditor.action.saving") : Text("contentEditor.action.update"))
-                    </button>
-                    <button type="button" class="secondary bocchi-editor-commandbar__danger" @onclick="OpenPermanentDeleteConfirm" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Trash2" />
-                        @Text("contentEditor.action.permanentDelete")
-                    </button>
-                }
-                else
-                {
-                    <button type="button" @onclick="SaveAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Save" />
-                        @(_busy ? Text("contentEditor.action.saving") : Text("contentEditor.action.update"))
-                    </button>
-                    <button type="button" class="secondary" @onclick="PublishAsync" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Send" />
-                        @Text("contentEditor.action.publish")
-                    </button>
-                    <button type="button" class="secondary bocchi-editor-commandbar__danger" @onclick="OpenDraftDeleteConfirm" disabled="@_busy">
-                        <Blazicon Svg="Lucide.Trash2" />
-                        @Text("contentEditor.action.delete")
-                    </button>
+                    <details class="bocchi-editor-commandbar__menu">
+                        <summary class="bocchi-editor-commandbar__menu-trigger"
+                                 title='@Text("contentEditor.commandbar.menu.open")'
+                                 aria-label='@Text("contentEditor.commandbar.menu.aria")'>
+                            <Blazicon Svg="Lucide.Ellipsis" />
+                        </summary>
+                        <div class="bocchi-editor-commandbar__menu-panel" role="menu">
+                            @if (IsUnsavedDraft)
+                            {
+                                <button type="button"
+                                        role="menuitem"
+                                        disabled="@_busy"
+                                        @onclick="PublishAsync">
+                                    <Blazicon Svg="Lucide.Send" />
+                                    @Text("contentEditor.action.publish")
+                                </button>
+                            }
+                            else if (CurrentStatus == ContentStatus.Published)
+                            {
+                                <button type="button"
+                                        role="menuitem"
+                                        disabled="@_busy"
+                                        @onclick="OpenWithdrawConfirm">
+                                    <Blazicon Svg="Lucide.EyeOff" />
+                                    @Text("contentEditor.action.withdraw")
+                                </button>
+                                <button type="button"
+                                        role="menuitem"
+                                        disabled="@_busy"
+                                        @onclick="OpenArchiveConfirm">
+                                    <Blazicon Svg="Lucide.Archive" />
+                                    @Text("contentEditor.action.archive")
+                                </button>
+                            }
+                            else if (CurrentStatus == ContentStatus.Archived)
+                            {
+                                <button type="button"
+                                        role="menuitem"
+                                        class="bocchi-editor-commandbar__menu-danger"
+                                        disabled="@_busy"
+                                        @onclick="OpenPermanentDeleteConfirm">
+                                    <Blazicon Svg="Lucide.Trash2" />
+                                    @Text("contentEditor.action.permanentDelete")
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button"
+                                        role="menuitem"
+                                        disabled="@_busy"
+                                        @onclick="PublishAsync">
+                                    <Blazicon Svg="Lucide.Send" />
+                                    @Text("contentEditor.action.publish")
+                                </button>
+                                <button type="button"
+                                        role="menuitem"
+                                        class="bocchi-editor-commandbar__menu-danger"
+                                        disabled="@_busy"
+                                        @onclick="OpenDraftDeleteConfirm">
+                                    <Blazicon Svg="Lucide.Trash2" />
+                                    @Text("contentEditor.action.delete")
+                                </button>
+                            }
+                        </div>
+                    </details>
                 }
             </div>
         </header>
@@ -587,4 +609,28 @@
               OnSecondary="CloseDeleteConfirm"
               OnDismiss="CloseDeleteConfirm">
     <p>@DeleteConfirmBody</p>
+</BocchiDialog>
+
+<BocchiDialog Open="@_showWithdrawConfirm"
+              Title='@Text("contentEditor.withdraw.title")'
+              PrimaryText='@Text("contentEditor.withdraw.primary")'
+              SecondaryText='@Text("contentEditor.action.cancel")'
+              PrimaryDisabled="@_busy"
+              CloseOnBackdrop="true"
+              OnPrimary="ConfirmWithdrawAsync"
+              OnSecondary="CloseWithdrawConfirm"
+              OnDismiss="CloseWithdrawConfirm">
+    <p>@Text("contentEditor.withdraw.body")</p>
+</BocchiDialog>
+
+<BocchiDialog Open="@_showArchiveConfirm"
+              Title='@Text("contentEditor.archive.title")'
+              PrimaryText='@Text("contentEditor.archive.primary")'
+              SecondaryText='@Text("contentEditor.action.cancel")'
+              PrimaryDisabled="@_busy"
+              CloseOnBackdrop="true"
+              OnPrimary="ConfirmArchiveAsync"
+              OnSecondary="CloseArchiveConfirm"
+              OnDismiss="CloseArchiveConfirm">
+    <p>@Text("contentEditor.archive.body")</p>
 </BocchiDialog>
