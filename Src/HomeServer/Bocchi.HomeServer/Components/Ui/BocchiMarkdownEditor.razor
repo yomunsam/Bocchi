@@ -2,8 +2,9 @@
 @inject IJSRuntime Js
 @inject DashboardLocalizationService I18n
 
-<section @ref="_root" class="bocchi-markdown-editor" data-view="@ViewModeCss">
-    <header class="bocchi-markdown-editor__head @(ShowDocumentHeader ? null : "bocchi-markdown-editor__head--compact")">
+<section @ref="_root" class="@EditorRootClass" data-view="@ViewModeCss">
+    @* 工具栏与视图切换同一行；嵌入 ContentEditor 时去掉外层卡片感。 *@
+    <div class="bocchi-markdown-editor__chrome">
         @if (ShowDocumentHeader)
         {
             <div class="bocchi-markdown-editor__title">
@@ -11,35 +12,8 @@
                 <h2>@ResolvedTitle</h2>
             </div>
         }
-        <div class="bocchi-markdown-editor__view" role="group" aria-label='@I18n["markdownEditor.view.aria"]'>
-            <button type="button"
-                    class="@ViewButtonClass(EditorViewMode.Write)"
-                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Write)"
-                    title='@I18n["markdownEditor.view.write"]'
-                    aria-label='@I18n["markdownEditor.view.write"]'
-                    @onclick="() => SetViewModeAsync(EditorViewMode.Write)">
-                <Blazicon Svg="Lucide.Pencil" />
-            </button>
-            <button type="button"
-                    class="@ViewButtonClass(EditorViewMode.Split)"
-                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Split)"
-                    title='@I18n["markdownEditor.view.split"]'
-                    aria-label='@I18n["markdownEditor.view.split"]'
-                    @onclick="() => SetViewModeAsync(EditorViewMode.Split)">
-                <Blazicon Svg="Lucide.Columns2" />
-            </button>
-            <button type="button"
-                    class="@ViewButtonClass(EditorViewMode.Preview)"
-                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Preview)"
-                    title='@I18n["markdownEditor.view.preview"]'
-                    aria-label='@I18n["markdownEditor.view.preview"]'
-                    @onclick="() => SetViewModeAsync(EditorViewMode.Preview)">
-                <Blazicon Svg="Lucide.Eye" />
-            </button>
-        </div>
-    </header>
 
-    <div class="bocchi-markdown-toolbar" role="toolbar" aria-label='@I18n["markdownEditor.toolbar.aria"]'>
+        <div class="bocchi-markdown-toolbar" role="toolbar" aria-label='@I18n["markdownEditor.toolbar.aria"]'>
         <div class="bocchi-markdown-toolbar__group">
             <button type="button" title='@I18n["markdownEditor.toolbar.heading"]' aria-label='@I18n["markdownEditor.toolbar.heading"]' @onclick='() => ApplyAsync("heading")'>
                 <Blazicon Svg="Lucide.Heading2" />
@@ -82,6 +56,34 @@
             </button>
             <button type="button" title='@I18n["markdownEditor.toolbar.linkCard"]' aria-label='@I18n["markdownEditor.toolbar.linkCard"]' @onclick='() => ApplyAsync("link-card")'>
                 <Blazicon Svg="Lucide.SquareDashedText" />
+            </button>
+        </div>
+        </div>
+
+        <div class="bocchi-markdown-editor__view" role="group" aria-label='@I18n["markdownEditor.view.aria"]'>
+            <button type="button"
+                    class="@ViewButtonClass(EditorViewMode.Write)"
+                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Write)"
+                    title='@I18n["markdownEditor.view.write"]'
+                    aria-label='@I18n["markdownEditor.view.write"]'
+                    @onclick="() => SetViewModeAsync(EditorViewMode.Write)">
+                <Blazicon Svg="Lucide.Pencil" />
+            </button>
+            <button type="button"
+                    class="@ViewButtonClass(EditorViewMode.Split)"
+                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Split)"
+                    title='@I18n["markdownEditor.view.split"]'
+                    aria-label='@I18n["markdownEditor.view.split"]'
+                    @onclick="() => SetViewModeAsync(EditorViewMode.Split)">
+                <Blazicon Svg="Lucide.Columns2" />
+            </button>
+            <button type="button"
+                    class="@ViewButtonClass(EditorViewMode.Preview)"
+                    aria-pressed="@AriaPressed(_viewMode == EditorViewMode.Preview)"
+                    title='@I18n["markdownEditor.view.preview"]'
+                    aria-label='@I18n["markdownEditor.view.preview"]'
+                    @onclick="() => SetViewModeAsync(EditorViewMode.Preview)">
+                <Blazicon Svg="Lucide.Eye" />
             </button>
         </div>
     </div>
@@ -205,6 +207,11 @@
         EditorViewMode.Split => "split",
         _ => "write",
     };
+
+    /// <summary>嵌入 ContentEditor 时使用紧凑根 class，去掉独立卡片 chrome。</summary>
+    private string EditorRootClass => ShowDocumentHeader
+        ? "bocchi-markdown-editor"
+        : "bocchi-markdown-editor bocchi-markdown-editor--embedded";
 
     protected override void OnParametersSet()
     {

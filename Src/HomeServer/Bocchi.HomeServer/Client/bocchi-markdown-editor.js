@@ -1,18 +1,41 @@
 import { minimalSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, placeholder as editorPlaceholder } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
+import { tags as t } from "@lezer/highlight";
 
 const editorByRoot = new WeakMap();
 const imageFileAccept = ".jpg,.jpeg,.png,.gif,.webp,.avif,image/jpeg,image/png,image/gif,image/webp,image/avif";
 const imageFileExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"];
 
+/** Bocchi Markdown 语法高亮：使用 Dashboard token，避免 defaultHighlightStyle 在 dark 下对比度不足。 */
+const bocchiMarkdownHighlight = HighlightStyle.define([
+  { tag: t.heading, color: "var(--bocchi-editor-syntax-heading)", fontWeight: "650" },
+  { tag: [t.heading1, t.heading2, t.heading3, t.heading4, t.heading5, t.heading6], color: "var(--bocchi-editor-syntax-heading)", fontWeight: "700" },
+  { tag: t.emphasis, fontStyle: "italic", color: "var(--bocchi-editor-syntax-text)" },
+  { tag: t.strong, fontWeight: "700", color: "var(--bocchi-editor-syntax-text)" },
+  { tag: t.strikethrough, textDecoration: "line-through", color: "var(--bocchi-editor-syntax-muted)" },
+  { tag: t.link, color: "var(--bocchi-editor-syntax-link)", textDecoration: "underline", textUnderlineOffset: "2px" },
+  { tag: t.url, color: "var(--bocchi-editor-syntax-url)" },
+  { tag: t.meta, color: "var(--bocchi-editor-syntax-marker)" },
+  { tag: t.monospace, color: "var(--bocchi-editor-syntax-code)", backgroundColor: "var(--bocchi-editor-syntax-code-bg)", borderRadius: "3px" },
+  { tag: t.comment, color: "var(--bocchi-editor-syntax-muted)", fontStyle: "italic" },
+  { tag: t.quote, color: "var(--bocchi-editor-syntax-muted)", fontStyle: "italic" },
+  { tag: [t.processingInstruction, t.labelName, t.atom], color: "var(--bocchi-editor-syntax-fence)" },
+  { tag: t.contentSeparator, color: "var(--bocchi-editor-syntax-marker)" },
+  { tag: t.keyword, color: "var(--bocchi-editor-syntax-marker)" },
+  { tag: t.string, color: "var(--bocchi-editor-syntax-text)" },
+  { tag: t.name, color: "var(--bocchi-editor-syntax-text)" },
+  { tag: t.propertyName, color: "var(--bocchi-editor-syntax-code)" },
+]);
+
 const bocchiTheme = EditorView.theme({
   "&": {
     minHeight: "100%",
     background: "transparent",
-    color: "var(--bocchi-text)",
+    color: "var(--bocchi-editor-syntax-text)",
   },
   ".cm-scroller": {
     fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
@@ -32,13 +55,16 @@ const bocchiTheme = EditorView.theme({
     color: "var(--bocchi-text-subtle)",
   },
   ".cm-activeLine, .cm-activeLineGutter": {
-    backgroundColor: "color-mix(in srgb, var(--bocchi-blue) 9%, transparent)",
+    backgroundColor: "var(--bocchi-editor-syntax-active-line)",
   },
   ".cm-selectionBackground": {
-    backgroundColor: "color-mix(in srgb, var(--bocchi-blue) 30%, transparent) !important",
+    backgroundColor: "var(--bocchi-editor-syntax-selection) !important",
   },
   ".cm-placeholder": {
     color: "var(--bocchi-text-subtle)",
+  },
+  ".cm-specialChar": {
+    color: "var(--bocchi-editor-syntax-marker)",
   },
   "&.cm-focused": {
     outline: "none",
@@ -49,6 +75,33 @@ const bocchiTheme = EditorView.theme({
   ".cm-cursor": {
     borderLeftColor: "var(--bocchi-action)",
   },
+  ".tok-meta": { color: "var(--bocchi-editor-syntax-marker) !important" },
+  ".tok-link": { color: "var(--bocchi-editor-syntax-link) !important" },
+  ".tok-url": { color: "var(--bocchi-editor-syntax-url) !important" },
+  ".tok-monospace": {
+    color: "var(--bocchi-editor-syntax-code) !important",
+    backgroundColor: "var(--bocchi-editor-syntax-code-bg) !important",
+  },
+  ".tok-processingInstruction": { color: "var(--bocchi-editor-syntax-fence) !important" },
+  ".tok-labelName": { color: "var(--bocchi-editor-syntax-fence) !important" },
+  ".tok-heading": { color: "var(--bocchi-editor-syntax-heading) !important" },
+  ".tok-strong": { color: "var(--bocchi-editor-syntax-text) !important" },
+  ".tok-emphasis": { color: "var(--bocchi-editor-syntax-text) !important" },
+  ".cm-meta": { color: "var(--bocchi-editor-syntax-marker) !important" },
+  ".cm-link": { color: "var(--bocchi-editor-syntax-link) !important" },
+  ".cm-url": { color: "var(--bocchi-editor-syntax-url) !important" },
+  ".cm-monospace": {
+    color: "var(--bocchi-editor-syntax-code) !important",
+    backgroundColor: "var(--bocchi-editor-syntax-code-bg) !important",
+  },
+  ".cm-comment": { color: "var(--bocchi-editor-syntax-muted) !important" },
+  ".cm-quote": { color: "var(--bocchi-editor-syntax-muted) !important" },
+  ".cm-header": { color: "var(--bocchi-editor-syntax-heading) !important", fontWeight: "650" },
+  ".cm-header-1": { fontWeight: "700" },
+  ".cm-header-2": { fontWeight: "680" },
+  ".cm-strong": { color: "var(--bocchi-editor-syntax-text) !important", fontWeight: "700" },
+  ".cm-emphasis": { color: "var(--bocchi-editor-syntax-text) !important", fontStyle: "italic" },
+  ".cm-strikethrough": { color: "var(--bocchi-editor-syntax-muted) !important" },
 });
 
 function getEditor(root) {
@@ -264,6 +317,7 @@ function mount(root, dotNet, options = {}) {
       extensions: [
         minimalSetup,
         markdown(),
+        syntaxHighlighting(bocchiMarkdownHighlight, { fallback: false }),
         keymap.of([indentWithTab]),
         EditorView.lineWrapping,
         bocchiTheme,

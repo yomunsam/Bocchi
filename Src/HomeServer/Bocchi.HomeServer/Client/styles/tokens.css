@@ -99,6 +99,18 @@
     /* 二级导航列宽：Settings 与 Publish 的左侧子导航都必须引用这一处，避免不同页面忽宽忽窄。 */
     --bocchi-secondary-nav-width: 12rem;
     --bocchi-secondary-nav-gap: 1.3rem;
+    /* Markdown editor syntax：覆盖 CodeMirror defaultHighlightStyle，随 light/dark 切换。 */
+    --bocchi-editor-syntax-text: var(--bocchi-text);
+    --bocchi-editor-syntax-muted: var(--bocchi-text-muted);
+    --bocchi-editor-syntax-marker: #8a7176;
+    --bocchi-editor-syntax-heading: var(--bocchi-text);
+    --bocchi-editor-syntax-link: var(--bocchi-blue-strong);
+    --bocchi-editor-syntax-url: #3d6ea8;
+    --bocchi-editor-syntax-code: var(--bocchi-action-strong);
+    --bocchi-editor-syntax-code-bg: color-mix(in srgb, var(--bocchi-surface-muted) 78%, var(--bocchi-surface));
+    --bocchi-editor-syntax-fence: #6b5f66;
+    --bocchi-editor-syntax-active-line: color-mix(in srgb, var(--bocchi-blue) 8%, transparent);
+    --bocchi-editor-syntax-selection: color-mix(in srgb, var(--bocchi-blue) 26%, transparent);
     /* spacing scale */
     --space-1: 0.25rem; /* 4 */
     --space-2: 0.5rem;  /* 8 */
@@ -151,4 +163,15 @@
     --bocchi-nav-active-bar: var(--bocchi-action);
     --bocchi-nav-active-text: var(--bocchi-text);
     --bocchi-avatar-bg: #302a2e;
+    --bocchi-editor-syntax-text: var(--bocchi-text);
+    --bocchi-editor-syntax-muted: var(--bocchi-text-muted);
+    --bocchi-editor-syntax-marker: #b8a8b0;
+    --bocchi-editor-syntax-heading: var(--bocchi-text);
+    --bocchi-editor-syntax-link: var(--bocchi-action);
+    --bocchi-editor-syntax-url: var(--bocchi-blue);
+    --bocchi-editor-syntax-code: #ffd9e1;
+    --bocchi-editor-syntax-code-bg: color-mix(in srgb, var(--bocchi-surface-soft) 82%, var(--bocchi-action) 8%);
+    --bocchi-editor-syntax-fence: #d4c4cc;
+    --bocchi-editor-syntax-active-line: color-mix(in srgb, var(--bocchi-action) 7%, transparent);
+    --bocchi-editor-syntax-selection: color-mix(in srgb, var(--bocchi-action) 24%, transparent);
 }

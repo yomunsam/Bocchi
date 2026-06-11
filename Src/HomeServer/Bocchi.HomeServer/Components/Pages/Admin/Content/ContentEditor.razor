@@ -153,6 +153,7 @@
     {
         <div class="bocchi-editor-layout">
             <section class="bocchi-writing-surface" aria-labelledby="writing-heading">
+                <div class="bocchi-writing-surface__sheet">
                 <section class="bocchi-writing-card" aria-labelledby="writing-heading">
                     @* writing-card 不再重复 kind 与路径：页面顶部的 commandbar kicker 已经包含了这些信息。 *@
                     <label class="bocchi-title-field">
@@ -186,6 +187,7 @@
                                       PreviewHtml="@_previewHtml"
                                       Placeholder='@Text("contentEditor.body.placeholder")'
                                       DefaultViewMode="write" />
+                </div>
 
                 <details class="bocchi-advanced-details">
                     <summary>
@@ -199,7 +201,8 @@
             </section>
 
             <aside class="bocchi-editor-side" aria-label='@Text("contentEditor.side.aria")'>
-                <details class="bocchi-panel bocchi-panel--soft bocchi-publish-panel" open>
+                @* 次要面板默认折叠，首屏只保留「内容设置」；功能不变，仅降低视觉噪音。 *@
+                <details class="bocchi-panel bocchi-panel--soft bocchi-publish-panel">
                     <summary class="bocchi-editor-details-summary">
                         <span>@Text("contentEditor.status.title")</span>
                         <BocchiStatusPill Tone="@StatusTone(CurrentStatus)">@StatusLabel(CurrentStatus)</BocchiStatusPill>
@@ -235,7 +238,7 @@
 
                 @if (SupportsLanguageVersions)
                 {
-                    <details class="bocchi-panel bocchi-editor-language" open>
+                    <details class="bocchi-panel bocchi-editor-language">
                         <summary class="bocchi-editor-details-summary">
                             <span>@Text("contentEditor.language.title")</span>
                         </summary>
@@ -393,7 +396,7 @@
                     </div>
                 </details>
 
-                <details class="bocchi-panel bocchi-editor-ai" open>
+                <details class="bocchi-panel bocchi-editor-ai">
                     <summary class="bocchi-editor-details-summary">
                         <span>@Text("contentEditor.ai.title")</span>
                     </summary>

@@ -4,9 +4,9 @@
     max-width: 100%;
     overflow: hidden;
     border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
+    border-radius: var(--bocchi-radius-lg);
     background: var(--bocchi-surface);
-    box-shadow: var(--bocchi-shadow-soft);
+    box-shadow: var(--bocchi-shadow-sm);
 }
 
 .bocchi-markdown-editor,
@@ -14,24 +14,31 @@
     box-sizing: border-box;
 }
 
-.bocchi-markdown-editor__head {
-    display: flex;
-    min-height: 3rem;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.8rem;
-    border-bottom: 1px solid var(--bocchi-border);
-    padding: 0.7rem 0.85rem;
+.bocchi-markdown-editor--embedded {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
-.bocchi-markdown-editor__head--compact {
-    min-height: 2.55rem;
-    justify-content: flex-end;
-    padding: 0.45rem 0.65rem;
+.bocchi-markdown-editor__chrome {
+    display: flex;
+    min-height: 2.35rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--bocchi-border);
+    background: color-mix(in srgb, var(--bocchi-surface-muted) 42%, var(--bocchi-surface));
+    padding: 0.28rem 0.55rem;
+}
+
+.bocchi-markdown-editor--embedded .bocchi-markdown-editor__chrome {
+    background: transparent;
 }
 
 .bocchi-markdown-editor__title {
     display: grid;
+    width: 100%;
     min-width: 0;
     gap: 0.08rem;
 }
@@ -56,24 +63,36 @@
 .bocchi-markdown-toolbar__group {
     display: inline-flex;
     flex-wrap: nowrap;
-    gap: 0.28rem;
+    gap: 0.2rem;
+}
+
+.bocchi-markdown-toolbar {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 0.35rem;
+    overflow-x: auto;
+    padding: 0.05rem 0;
+    scrollbar-width: thin;
 }
 
 .bocchi-markdown-editor__view {
+    flex: 0 0 auto;
+    margin-left: auto;
     border: 1px solid var(--bocchi-border);
-    border-radius: 8px;
+    border-radius: var(--bocchi-radius-md);
     background: color-mix(in srgb, var(--bocchi-surface-muted) 76%, var(--bocchi-surface));
-    padding: 0.18rem;
+    padding: 0.12rem;
 }
 
 .bocchi-markdown-editor__view button,
 .bocchi-markdown-toolbar button {
-    width: 2rem;
-    min-height: 2rem;
-    flex: 0 0 2rem;
+    width: 1.85rem;
+    min-height: 1.85rem;
+    flex: 0 0 1.85rem;
     justify-content: center;
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--bocchi-radius-sm);
     background: transparent;
     color: var(--bocchi-text-muted);
     padding: 0;
@@ -89,19 +108,8 @@
 
 .bocchi-markdown-editor__view ::deep svg,
 .bocchi-markdown-toolbar ::deep svg {
-    width: 1rem;
-    height: 1rem;
-}
-
-.bocchi-markdown-toolbar {
-    display: flex;
-    min-width: 0;
-    gap: 0.5rem;
-    overflow-x: auto;
-    border-bottom: 1px solid var(--bocchi-border);
-    background: color-mix(in srgb, var(--bocchi-surface) 90%, var(--bocchi-surface-muted));
-    padding: 0.5rem 0.65rem;
-    scrollbar-width: thin;
+    width: 0.92rem;
+    height: 0.92rem;
 }
 
 .bocchi-markdown-toolbar__group {
@@ -110,14 +118,14 @@
 }
 
 .bocchi-markdown-toolbar__group + .bocchi-markdown-toolbar__group {
-    padding-left: 0.5rem;
+    padding-left: 0.42rem;
 }
 
 .bocchi-markdown-toolbar__group + .bocchi-markdown-toolbar__group::before {
     position: absolute;
-    left: 0.1rem;
+    left: 0.08rem;
     width: 1px;
-    height: 1.4rem;
+    height: 1.15rem;
     align-self: center;
     background: var(--bocchi-border);
     content: "";
@@ -128,15 +136,15 @@
     border-bottom: 1px solid var(--bocchi-border);
     background: color-mix(in srgb, var(--bocchi-danger-soft) 70%, var(--bocchi-surface));
     color: var(--bocchi-danger-strong);
-    padding: 0.55rem 0.75rem;
-    font-size: 0.84rem;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.82rem;
     font-weight: 650;
 }
 
 .bocchi-markdown-editor__body {
     display: grid;
-    min-height: 34rem;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.82fr);
+    min-height: 28rem;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.82fr);
 }
 
 .bocchi-markdown-editor__pane {
@@ -148,10 +156,14 @@
     background: color-mix(in srgb, var(--bocchi-surface) 94%, var(--bocchi-bg));
 }
 
+.bocchi-markdown-editor--embedded .bocchi-markdown-editor__pane--write {
+    background: transparent;
+}
+
 .bocchi-codemirror-host,
 .bocchi-codemirror-host ::deep .cm-editor {
     max-width: 100%;
-    min-height: 34rem;
+    min-height: 28rem;
     overflow: hidden;
 }
 
@@ -159,19 +171,25 @@
     max-width: 100%;
 }
 
+.bocchi-markdown-editor--embedded .bocchi-codemirror-host ::deep .cm-content {
+    min-height: 22rem;
+    padding: 0.75rem 0.85rem;
+}
+
 .bocchi-markdown-editor__pane--preview {
     overflow: auto;
-    max-height: 46rem;
+    max-height: 40rem;
     border-left: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
-    padding: 1.15rem 1.3rem;
+    padding: 0.85rem 1rem;
 }
 
 .bocchi-markdown-editor__empty {
     display: grid;
-    min-height: 16rem;
+    min-height: 12rem;
     place-items: center;
     color: var(--bocchi-text-subtle);
+    font-size: 0.88rem;
     font-weight: 500;
 }
 
@@ -210,7 +228,7 @@
 
 .bocchi-markdown-preview img {
     max-width: 100%;
-    border-radius: 8px;
+    border-radius: var(--bocchi-radius-md);
 }
 
 .bocchi-markdown-editor[data-view="write"] .bocchi-markdown-editor__body,
@@ -235,7 +253,7 @@
     .bocchi-markdown-editor__body,
     .bocchi-codemirror-host,
     .bocchi-codemirror-host ::deep .cm-editor {
-        min-height: 30rem;
+        min-height: 24rem;
     }
 
     .bocchi-markdown-editor[data-view="split"] .bocchi-markdown-editor__pane--preview {
@@ -244,12 +262,18 @@
 }
 
 @media (max-width: 620px) {
-    .bocchi-markdown-editor__head {
-        min-height: 2.85rem;
-        align-items: center;
+    .bocchi-markdown-editor__chrome {
+        padding: 0.25rem 0.45rem;
     }
 
     .bocchi-markdown-editor__view {
-        flex: 0 0 auto;
+        margin-left: 0;
+    }
+
+    .bocchi-markdown-toolbar button,
+    .bocchi-markdown-editor__view button {
+        width: 1.75rem;
+        min-height: 1.75rem;
+        flex-basis: 1.75rem;
     }
 }
