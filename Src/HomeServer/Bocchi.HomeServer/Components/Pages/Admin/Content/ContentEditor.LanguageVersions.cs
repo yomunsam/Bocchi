@@ -140,4 +140,13 @@ public partial class ContentEditor
     /// <summary>返回目标语言选项展示文本。</summary>
     private static string LanguageOptionLabel(LanguageRecord language)
         => language.DisplayName;
+
+    /// <summary>把「Native / English」形式的语言标签拆成主、次两段；无法拆分时 secondary 为 null。</summary>
+    private static (string Primary, string? Secondary) SplitLanguageLabel(string label)
+    {
+        var separatorIndex = label.IndexOf(" / ", StringComparison.Ordinal);
+        return separatorIndex < 0
+            ? (label, null)
+            : (label[..separatorIndex], label[(separatorIndex + 3)..]);
+    }
 }

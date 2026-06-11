@@ -321,6 +321,14 @@ function createImagePicker(root) {
   return input;
 }
 
+function resolveViewMode(fallback) {
+  return readStoredViewMode(fallback ?? "write");
+}
+
+function getViewMode(root) {
+  return normalizeViewMode(root?.dataset?.view ?? "write");
+}
+
 function mount(root, dotNet, options = {}) {
   dispose(root);
 
@@ -418,6 +426,8 @@ window.bocchiMarkdownEditor = {
   setValue,
   insert,
   setViewMode,
+  resolveViewMode,
+  getViewMode,
   pickImages,
   dispose,
 };

@@ -227,6 +227,12 @@
         if (!_mounted)
         {
             _dotNetReference = DotNetObjectReference.Create(this);
+            // 与 localStorage 对齐，避免 JS 已恢复 write 而 Blazor 仍按 DefaultViewMode 高亮 split。
+            _viewMode = ParseViewMode(await Js.InvokeAsync<string>(
+                "bocchiMarkdownEditor.resolveViewMode",
+                DefaultViewMode));
+            _viewModeInitialized = true;
+
             await Js.InvokeVoidAsync("bocchiMarkdownEditor.mount", _root, _dotNetReference, new
             {
                 value = Value,
@@ -236,6 +242,7 @@
             });
             _lastEditorValue = Value;
             _mounted = true;
+            StateHasChanged();
             return;
         }
 

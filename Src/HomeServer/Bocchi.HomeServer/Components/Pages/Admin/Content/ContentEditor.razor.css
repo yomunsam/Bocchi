@@ -385,6 +385,23 @@
     line-height: 1.2;
 }
 
+.bocchi-editor-details-summary__hint {
+    flex: 0 1 42%;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--bocchi-text-subtle);
+    font-size: 0.72rem;
+    font-weight: 400;
+    line-height: 1.25;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bocchi-editor-language[open] .bocchi-editor-details-summary__hint {
+    display: none;
+}
+
 .bocchi-editor-side details[open] > .bocchi-editor-details-summary {
     margin-bottom: 0.15rem;
 }
@@ -426,7 +443,7 @@
 .bocchi-editor-language {
     display: grid;
     min-width: 0;
-    gap: 0.45rem;
+    gap: 0.35rem;
     overflow: hidden;
 }
 
@@ -450,24 +467,59 @@
     color: var(--bocchi-warning-strong);
 }
 
-.bocchi-editor-language__current {
+.bocchi-editor-language__now {
     display: flex;
-    min-width: 0;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.55rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--bocchi-border) 72%, transparent);
-    padding-bottom: 0.45rem;
+    gap: 0.32rem 0.42rem;
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 78%, transparent);
+    border-radius: var(--bocchi-radius-md);
+    background: color-mix(in srgb, var(--bocchi-surface-muted) 42%, var(--bocchi-surface));
+    padding: 0.4rem 0.48rem;
 }
 
-.bocchi-editor-language__current > span:first-child {
-    overflow: hidden;
-    color: var(--bocchi-text);
-    font-size: 0.86rem;
-    font-weight: 560;
-    line-height: 1.25;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.bocchi-editor-language__now-label {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.bocchi-editor-language__name-primary {
+    color: var(--bocchi-text-muted);
+    font-size: 0.78rem;
+    font-weight: 520;
+}
+
+.bocchi-editor-language__name-secondary {
+    color: var(--bocchi-text-subtle);
+    font-size: 0.74rem;
+    font-weight: 400;
+}
+
+.bocchi-editor-language__name-secondary::before {
+    color: var(--bocchi-text-subtle);
+    content: " / ";
+}
+
+.bocchi-editor-language__add {
+    justify-self: start;
+    width: 1.85rem;
+    min-height: 1.85rem;
+    justify-content: center;
+    margin-top: 0.42rem;
+    border-color: color-mix(in srgb, var(--bocchi-border) 86%, transparent);
+    background: transparent;
+    color: var(--bocchi-text-muted);
+    padding: 0;
+}
+
+.bocchi-editor-language__add:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--bocchi-action) 28%, var(--bocchi-border));
+    background: color-mix(in srgb, var(--bocchi-action) 4%, transparent);
+    color: var(--bocchi-action);
 }
 
 .bocchi-editor-language__source {
@@ -533,37 +585,41 @@
 }
 
 .bocchi-editor-language__variant strong,
-.bocchi-editor-language__variant small {
+.bocchi-editor-language__variant-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.bocchi-editor-language__variant strong {
+.bocchi-editor-language__variant strong,
+.bocchi-editor-language__variant-name {
     font-size: 0.8rem;
-    font-weight: 560;
+    font-weight: 520;
 }
 
 .bocchi-editor-language__variant small {
+    overflow: hidden;
     color: var(--bocchi-text-muted);
     font-size: 0.72rem;
     font-weight: 520;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .bocchi-editor-language__badge {
     display: inline-flex;
     max-width: 8rem;
-    min-height: 1.28rem;
+    min-height: 1.22rem;
     align-items: center;
     justify-content: center;
-    border: 1px solid color-mix(in srgb, var(--bocchi-border) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--bocchi-border) 68%, transparent);
     border-radius: var(--bocchi-radius-pill);
-    background: color-mix(in srgb, var(--bocchi-bg) 62%, var(--bocchi-surface));
-    color: var(--bocchi-text-muted);
-    font-size: 0.68rem;
-    font-weight: 540;
+    background: color-mix(in srgb, var(--bocchi-bg) 72%, var(--bocchi-surface));
+    color: var(--bocchi-text-subtle);
+    font-size: 0.66rem;
+    font-weight: 500;
     line-height: 1;
-    padding: 0.12rem 0.4rem;
+    padding: 0.1rem 0.38rem;
     white-space: nowrap;
 }
 

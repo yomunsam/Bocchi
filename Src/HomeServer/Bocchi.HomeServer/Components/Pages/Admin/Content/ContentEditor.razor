@@ -293,13 +293,21 @@
                                 <Blazicon Svg="Lucide.ChevronRight" />
                             </span>
                             <span class="bocchi-editor-details-summary__label">@Text("contentEditor.language.title")</span>
+                            @if (_languageVersions is not null && !IsUnsavedDraft)
+                            {
+                                <span class="bocchi-editor-details-summary__hint">@SplitLanguageLabel(_languageVersions.Current.LanguageLabel).Primary</span>
+                            }
                         </summary>
                         @if (IsUnsavedDraft)
                         {
                             <p class="bocchi-editor-language__empty">@Text("contentEditor.language.unsavedDraft")</p>
-                            <button type="button" class="secondary" @onclick="OpenLanguageVersionDialog" disabled="@_busy">
+                            <button type="button"
+                                    class="bocchi-editor-language__add secondary"
+                                    title='@Text("contentEditor.language.add")'
+                                    aria-label='@Text("contentEditor.language.add")'
+                                    @onclick="OpenLanguageVersionDialog"
+                                    disabled="@_busy">
                                 <Blazicon Svg="Lucide.Plus" />
-                                @Text("contentEditor.language.add")
                             </button>
                         }
                         else if (_languageVersions is null)
@@ -308,10 +316,20 @@
                         }
                         else
                         {
-                            <div class="bocchi-editor-language__current" aria-label='@Text("contentEditor.language.current")'>
-                                <span>@_languageVersions.Current.LanguageLabel</span>
-                                <span class="bocchi-editor-language__badge">@LanguageVariantKindLabel(_languageVersions.Current)</span>
-                            </div>
+                            @if (_languageVersions.Variants.Count <= 1)
+                            {
+                                var currentLanguage = SplitLanguageLabel(_languageVersions.Current.LanguageLabel);
+                                <div class="bocchi-editor-language__now" aria-label='@Text("contentEditor.language.current")'>
+                                    <span class="bocchi-editor-language__now-label">
+                                        <span class="bocchi-editor-language__name-primary">@currentLanguage.Primary</span>
+                                        @if (currentLanguage.Secondary is not null)
+                                        {
+                                            <span class="bocchi-editor-language__name-secondary">@currentLanguage.Secondary</span>
+                                        }
+                                    </span>
+                                    <span class="bocchi-editor-language__badge">@LanguageVariantKindLabel(_languageVersions.Current)</span>
+                                </div>
+                            }
                             @if (_languageVersions.TranslationSource is not null)
                             {
                                 <div class="bocchi-editor-language__source">
@@ -327,11 +345,18 @@
                                 <div class="bocchi-editor-language__variants" aria-label='@Text("contentEditor.language.variants")'>
                                     @foreach (var variant in _languageVersions.Variants)
                                     {
+                                        var variantLanguage = SplitLanguageLabel(variant.LanguageLabel);
                                         <a class="bocchi-editor-language__variant @(variant.IsCurrent ? "is-current" : null)"
                                            href="@ContentEditingService.EditUrl(variant.RelativePath)"
                                            aria-current="@(variant.IsCurrent ? "page" : null)">
                                             <span>
-                                                <strong>@variant.LanguageLabel</strong>
+                                                <strong class="bocchi-editor-language__variant-name">
+                                                    <span class="bocchi-editor-language__name-primary">@variantLanguage.Primary</span>
+                                                    @if (variantLanguage.Secondary is not null)
+                                                    {
+                                                        <span class="bocchi-editor-language__name-secondary">@variantLanguage.Secondary</span>
+                                                    }
+                                                </strong>
                                                 <small>@LanguageVariantTitle(variant)</small>
                                             </span>
                                             <span class="bocchi-editor-language__badge">@LanguageVariantKindLabel(variant)</span>
@@ -343,9 +368,13 @@
                             {
                                 <p class="bocchi-editor-language__message">@_languageVersionMessage</p>
                             }
-                            <button type="button" class="secondary" @onclick="OpenLanguageVersionDialog" disabled="@(_busy || _languageVersionBusy)">
+                            <button type="button"
+                                    class="bocchi-editor-language__add secondary"
+                                    title='@Text("contentEditor.language.add")'
+                                    aria-label='@Text("contentEditor.language.add")'
+                                    @onclick="OpenLanguageVersionDialog"
+                                    disabled="@(_busy || _languageVersionBusy)">
                                 <Blazicon Svg="Lucide.Plus" />
-                                @Text("contentEditor.language.add")
                             </button>
                         }
                     </details>
