@@ -14,10 +14,30 @@
         }
 
         <div class="bocchi-markdown-toolbar" role="toolbar" aria-label='@I18n["markdownEditor.toolbar.aria"]'>
+            @* 标题菜单放在 scroll 容器外，避免 overflow-x 把下拉层算进可滚动区域。 *@
+            <details class="bocchi-markdown-toolbar__heading-menu">
+                <summary class="bocchi-markdown-toolbar__heading-trigger"
+                         title='@I18n["markdownEditor.toolbar.heading"]'
+                         aria-label='@I18n["markdownEditor.toolbar.heading"]'>
+                    <span class="bocchi-markdown-toolbar__heading-trigger-label" aria-hidden="true">H</span>
+                    <Blazicon Svg="Lucide.ChevronDown" />
+                </summary>
+                <div class="bocchi-markdown-toolbar__heading-panel" role="menu">
+                    @for (var level = 1; level <= 5; level++)
+                    {
+                        var headingLevel = level;
+                        <button type="button"
+                                role="menuitem"
+                                title='@HeadingMenuItemLabel(headingLevel)'
+                                aria-label='@HeadingMenuItemLabel(headingLevel)'
+                                @onclick="() => ApplyHeadingAsync(headingLevel)">
+                            @FormatHeadingMenuItem(headingLevel)
+                        </button>
+                    }
+                </div>
+            </details>
+            <div class="bocchi-markdown-toolbar__scroll">
         <div class="bocchi-markdown-toolbar__group">
-            <button type="button" title='@I18n["markdownEditor.toolbar.heading"]' aria-label='@I18n["markdownEditor.toolbar.heading"]' @onclick='() => ApplyAsync("heading")'>
-                <Blazicon Svg="Lucide.Heading2" />
-            </button>
             <button type="button" title='@I18n["markdownEditor.toolbar.bold"]' aria-label='@I18n["markdownEditor.toolbar.bold"]' @onclick='() => ApplyAsync("bold")'>
                 <Blazicon Svg="Lucide.Bold" />
             </button>
@@ -58,6 +78,7 @@
                 <Blazicon Svg="Lucide.SquareDashedText" />
             </button>
         </div>
+            </div>
         </div>
 
         <div class="bocchi-markdown-editor__view" role="group" aria-label='@I18n["markdownEditor.view.aria"]'>
@@ -323,6 +344,30 @@
     /// <summary>父组件（ContentEditor 窄屏预览 tab）切换 write / split / preview。</summary>
     public Task SetEditorViewModeAsync(string mode)
         => SetViewModeAsync(ParseViewMode(mode));
+
+    private async Task ApplyHeadingAsync(int level)
+    {
+        await ApplyAsync($"heading-{level}");
+        if (_mounted)
+        {
+            await Js.InvokeVoidAsync("bocchiMarkdownEditor.closeHeadingMenu", _root);
+        }
+    }
+
+    /// <summary>标题菜单项的无障碍与 tooltip 文案。</summary>
+    private string HeadingMenuItemLabel(int level)
+        => level switch
+        {
+            1 => I18n["markdownEditor.toolbar.heading1"],
+            2 => I18n["markdownEditor.toolbar.heading2"],
+            3 => I18n["markdownEditor.toolbar.heading3"],
+            4 => I18n["markdownEditor.toolbar.heading4"],
+            5 => I18n["markdownEditor.toolbar.heading5"],
+            _ => I18n["markdownEditor.toolbar.heading"],
+        };
+
+    /// <summary>标题菜单项的可见标签。</summary>
+    private static string FormatHeadingMenuItem(int level) => $"H{level}";
 
     private async Task ApplyAsync(string action)
     {

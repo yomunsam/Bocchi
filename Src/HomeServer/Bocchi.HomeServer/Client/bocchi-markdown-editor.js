@@ -141,11 +141,28 @@ function setRootViewMode(root, mode) {
   }
 }
 
+function headingPrefix(level) {
+  const safe = Math.min(6, Math.max(1, level));
+  return "#".repeat(safe) + " ";
+}
+
+function parseHeadingLevel(action) {
+  const match = /^heading-([1-6])$/.exec(action);
+  if (!match) {
+    return 2;
+  }
+
+  return Number(match[1]);
+}
+
 function createInsertText(action, selected, snippets = {}) {
   const text = selected || "";
+  if (action === "heading" || action.startsWith("heading-")) {
+    const level = parseHeadingLevel(action);
+    return prefixLines(text || snippets.heading || "Heading", headingPrefix(level));
+  }
+
   switch (action) {
-    case "heading":
-      return prefixLines(text || snippets.heading || "Heading", "## ");
     case "bold":
       return wrap(text, "**", "**", snippets.bold || "bold text");
     case "italic":
@@ -361,7 +378,13 @@ function mount(root, dotNet, options = {}) {
     }),
   });
 
-  editorByRoot.set(root, { view, dotNet, snippets: options.snippets ?? {}, imagePicker: null });
+  editorByRoot.set(root, {
+    view,
+    dotNet,
+    snippets: options.snippets ?? {},
+    imagePicker: null,
+    unbindHeadingMenuDismiss: bindHeadingMenuDismiss(root),
+  });
   setRootViewMode(root, readStoredViewMode(options.defaultViewMode ?? "write"));
 }
 
@@ -390,6 +413,54 @@ function insert(root, action) {
   const selection = current.view.state.selection.main;
   const selected = current.view.state.sliceDoc(selection.from, selection.to);
   replaceSelection(current.view, createInsertText(action, selected, current.snippets));
+  if (action === "heading" || action.startsWith("heading-")) {
+    closeHeadingMenu(root);
+  }
+}
+
+function closeHeadingMenu(root) {
+  root?.querySelector(".bocchi-markdown-toolbar__heading-menu")?.removeAttribute("open");
+}
+
+/** 标题菜单展开时，点击外部区域自动收起。 */
+function bindHeadingMenuDismiss(root) {
+  const menu = root.querySelector(".bocchi-markdown-toolbar__heading-menu");
+  if (!menu) {
+    return () => {};
+  }
+
+  let dismissHandler = null;
+
+  const onToggle = () => {
+    if (dismissHandler) {
+      document.removeEventListener("pointerdown", dismissHandler, true);
+      dismissHandler = null;
+    }
+
+    if (!menu.open) {
+      return;
+    }
+
+    dismissHandler = (event) => {
+      if (menu.contains(event.target)) {
+        return;
+      }
+
+      closeHeadingMenu(root);
+    };
+
+    document.addEventListener("pointerdown", dismissHandler, true);
+  };
+
+  menu.addEventListener("toggle", onToggle);
+
+  return () => {
+    if (dismissHandler) {
+      document.removeEventListener("pointerdown", dismissHandler, true);
+    }
+
+    menu.removeEventListener("toggle", onToggle);
+  };
 }
 
 function setViewMode(root, mode) {
@@ -415,6 +486,7 @@ function dispose(root) {
     return;
   }
 
+  current.unbindHeadingMenuDismiss?.();
   current.imagePicker?.remove();
   current.view.destroy();
   editorByRoot.delete(root);
@@ -428,6 +500,7 @@ window.bocchiMarkdownEditor = {
   setViewMode,
   resolveViewMode,
   getViewMode,
+  closeHeadingMenu,
   pickImages,
   dispose,
 };
