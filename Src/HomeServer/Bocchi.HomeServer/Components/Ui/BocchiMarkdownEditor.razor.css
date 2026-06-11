@@ -24,6 +24,12 @@
     padding: 0.7rem 0.85rem;
 }
 
+.bocchi-markdown-editor__head--compact {
+    min-height: 2.55rem;
+    justify-content: flex-end;
+    padding: 0.45rem 0.65rem;
+}
+
 .bocchi-markdown-editor__title {
     display: grid;
     min-width: 0;

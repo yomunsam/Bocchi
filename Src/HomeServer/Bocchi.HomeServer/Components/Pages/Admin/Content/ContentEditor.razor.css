@@ -42,29 +42,30 @@
     height: 1rem;
 }
 
-.bocchi-editor-commandbar__title {
-    display: grid;
+.bocchi-editor-commandbar__context {
+    overflow: hidden;
     min-width: 0;
-    gap: 0.05rem;
-}
-
-.bocchi-editor-commandbar__title span {
-    overflow: hidden;
-    color: var(--bocchi-blue-strong);
-    font-size: 0.78rem;
-    font-weight: 760;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.bocchi-editor-commandbar__title h1 {
-    overflow: hidden;
     margin: 0;
-    font-size: 1.02rem;
-    letter-spacing: 0;
-    line-height: 1.2;
+    color: var(--bocchi-blue-strong);
+    font-size: 0.86rem;
+    font-weight: 760;
+    line-height: 1.35;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: color 160ms ease;
+}
+
+.bocchi-editor-commandbar__context--title {
+    color: var(--bocchi-text);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.bocchi-editor-title-anchor {
+    width: 100%;
+    height: 1px;
+    margin: -0.35rem 0 0;
+    pointer-events: none;
 }
 
 .bocchi-editor-commandbar__actions {
@@ -540,8 +541,8 @@
         padding: 0.5rem;
     }
 
-    .bocchi-editor-commandbar__title h1 {
-        font-size: 0.98rem;
+    .bocchi-editor-commandbar__context {
+        font-size: 0.82rem;
     }
 
     .bocchi-editor-commandbar__actions {

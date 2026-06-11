@@ -18,20 +18,20 @@
 @inject DashboardLocalizationService I18n
 @inject TimeProvider Time
 @inject NavigationManager Nav
+@inject IJSRuntime Js
 
 <PageTitle>@EditorPageTitle · Bocchi</PageTitle>
 
-<article class="bocchi-shell bocchi-editor-page">
+<article @ref="_editorPageRoot" class="bocchi-shell bocchi-editor-page">
     @if (HasEditorDocument && _error is null)
     {
         <header class="bocchi-editor-commandbar">
             <a class="bocchi-editor-commandbar__back" href="@BackUrl" aria-label='@Text("contentEditor.back.aria")'>
                 <Blazicon Svg="Lucide.ArrowLeft" />
             </a>
-            <div class="bocchi-editor-commandbar__title">
-                <span>@EditorKicker</span>
-                <h1>@EditorHeading</h1>
-            </div>
+            @* 标题在视口内显示路径；滚出后在顶栏 mirror 文档标题，便于长文编辑时定位当前文章。 *@
+            <p class="@CommandbarContextClass"
+               title="@CommandbarContextLabel">@CommandbarContextLabel</p>
             <div class="bocchi-editor-commandbar__actions">
                 <BocchiStatusPill Tone="@(_saved ? "success" : IsDirty ? "warning" : "info")">@EditorStateLabel</BocchiStatusPill>
                 @if (IsUnsavedDraft)
@@ -163,6 +163,8 @@
                                @oninput="OnTitleInput"
                                placeholder="@TitlePlaceholder" />
                     </label>
+                    @* 零高度 sentinel：滚过标题区后顶栏切换为 mirror 标题。 *@
+                    <div @ref="_titleScrollAnchor" class="bocchi-editor-title-anchor" aria-hidden="true"></div>
                     <label class="bocchi-summary-field">
                         <span>@Text("contentEditor.field.summary")</span>
                         <textarea @bind="_summary"
@@ -177,8 +179,7 @@
                     }
                 </section>
 
-                <BocchiMarkdownEditor ContentKindLabel="@EditorKindLabel"
-                                      Title='@Text("contentEditor.body.title")'
+                <BocchiMarkdownEditor ShowDocumentHeader="false"
                                       Value="@_markdown"
                                       ValueChanged="OnMarkdownChangedAsync"
                                       OnImageUploadAsync="UploadImageAssetAsync"

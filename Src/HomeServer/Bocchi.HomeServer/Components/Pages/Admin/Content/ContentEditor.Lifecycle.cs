@@ -8,6 +8,7 @@ public partial class ContentEditor
 {
     protected override async Task OnParametersSetAsync()
     {
+        ResetTitleMirrorState();
         _saved = false;
         _saveMessage = null;
         _error = null;
@@ -79,14 +80,21 @@ public partial class ContentEditor
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
         {
-            return;
+            _aiAvailability = await Ai.GetAvailabilityAsync();
+            _aiAvailabilityChecked = true;
+            StateHasChanged();
         }
 
-        _aiAvailability = await Ai.GetAvailabilityAsync();
-        _aiAvailabilityChecked = true;
-        StateHasChanged();
+        if (HasEditorDocument && _error is null)
+        {
+            await EnsureTitleMirrorMountedAsync();
+        }
+        else
+        {
+            await DisposeTitleMirrorAsync();
+        }
     }
 
     /// <summary>保存文件、刷新扫描投影，并重算预览。</summary>

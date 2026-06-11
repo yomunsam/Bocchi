@@ -3,11 +3,14 @@
 @inject DashboardLocalizationService I18n
 
 <section @ref="_root" class="bocchi-markdown-editor" data-view="@ViewModeCss">
-    <header class="bocchi-markdown-editor__head">
-        <div class="bocchi-markdown-editor__title">
-            <span>@ResolvedContentKindLabel</span>
-            <h2>@ResolvedTitle</h2>
-        </div>
+    <header class="bocchi-markdown-editor__head @(ShowDocumentHeader ? null : "bocchi-markdown-editor__head--compact")">
+        @if (ShowDocumentHeader)
+        {
+            <div class="bocchi-markdown-editor__title">
+                <span>@ResolvedContentKindLabel</span>
+                <h2>@ResolvedTitle</h2>
+            </div>
+        }
         <div class="bocchi-markdown-editor__view" role="group" aria-label='@I18n["markdownEditor.view.aria"]'>
             <button type="button"
                     class="@ViewButtonClass(EditorViewMode.Write)"
@@ -139,6 +142,10 @@
     /// <summary>默认视图模式：write、split 或 preview。</summary>
     [Parameter]
     public string DefaultViewMode { get; set; } = "write";
+
+    /// <summary>是否显示编辑器顶部的类型与标题栏；ContentEditor 等宿主页面已有上下文时设为 false。</summary>
+    [Parameter]
+    public bool ShowDocumentHeader { get; set; } = true;
 
     /// <summary>浏览器通过 paste、drop 或文件选择拿到图片后，调用父组件上传到当前内容组 assets/。</summary>
     [Parameter]
