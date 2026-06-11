@@ -116,14 +116,24 @@ function normalizeViewMode(value) {
   return value === "preview" || value === "split" || value === "write" ? value : "write";
 }
 
+/** 窄屏没有 split 预览栏，避免 localStorage 里的 split 撑破移动端布局。 */
+function resolveViewModeForViewport(mode) {
+  const normalized = normalizeViewMode(mode);
+  if (normalized === "split" && window.matchMedia("(max-width: 720px)").matches) {
+    return "write";
+  }
+
+  return normalized;
+}
+
 const viewModeStorageKey = "bocchi-markdown-view-mode";
 
 function readStoredViewMode(fallback) {
   try {
     const stored = localStorage.getItem(viewModeStorageKey);
-    return stored ? normalizeViewMode(stored) : normalizeViewMode(fallback);
+    return resolveViewModeForViewport(stored ? normalizeViewMode(stored) : normalizeViewMode(fallback));
   } catch {
-    return normalizeViewMode(fallback);
+    return resolveViewModeForViewport(normalizeViewMode(fallback));
   }
 }
 
@@ -464,7 +474,7 @@ function bindHeadingMenuDismiss(root) {
 }
 
 function setViewMode(root, mode) {
-  const normalized = normalizeViewMode(mode);
+  const normalized = resolveViewModeForViewport(mode);
   setRootViewMode(root, normalized);
   persistViewMode(normalized);
   getEditor(root)?.requestMeasure();

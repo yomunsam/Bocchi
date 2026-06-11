@@ -25,6 +25,8 @@
 .bocchi-markdown-editor__chrome {
     display: flex;
     min-height: 2.35rem;
+    min-width: 0;
+    max-width: 100%;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.35rem 0.5rem;
@@ -114,7 +116,11 @@
 .bocchi-markdown-toolbar__heading-menu {
   position: relative;
   flex: 0 0 auto;
-  z-index: 25;
+}
+
+.bocchi-markdown-toolbar__heading-menu[open] {
+  /* 仅展开时抬层，避免滚动时盖住 ContentEditor sticky 顶栏。 */
+  z-index: 8;
 }
 
 .bocchi-markdown-toolbar__heading-trigger {
@@ -142,9 +148,10 @@
 }
 
 .bocchi-markdown-toolbar__heading-trigger-label {
-  font-size: 0.76rem;
-  font-weight: 620;
+  font-size: 0.82rem;
+  font-weight: 500;
   line-height: 1;
+  color: inherit;
 }
 
 .bocchi-markdown-toolbar__heading-trigger ::deep svg {
@@ -156,7 +163,7 @@
   position: absolute;
   top: calc(100% + 0.22rem);
   left: 0;
-  z-index: 24;
+  z-index: 1;
   display: grid;
   min-width: 3.35rem;
   gap: 0.06rem;
@@ -195,6 +202,14 @@
     background: var(--bocchi-surface);
     color: var(--bocchi-action);
     transform: none;
+}
+
+.bocchi-markdown-toolbar__heading-trigger:not(:hover):not(:focus-visible) {
+  color: var(--bocchi-text-muted);
+}
+
+.bocchi-markdown-toolbar__heading-menu:not([open]) > .bocchi-markdown-toolbar__heading-trigger {
+  background: transparent;
 }
 
 .bocchi-markdown-editor__view ::deep svg,
@@ -260,8 +275,13 @@
 .bocchi-codemirror-host,
 .bocchi-codemirror-host ::deep .cm-editor {
     max-width: 100%;
+    width: 100%;
     min-height: 28rem;
     overflow: hidden;
+}
+
+.bocchi-codemirror-host ::deep .cm-scroller {
+    max-width: 100%;
 }
 
 .bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host,
@@ -275,10 +295,6 @@
 
 .bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host ::deep .cm-content {
     min-height: 22rem;
-}
-
-.bocchi-codemirror-host ::deep .cm-scroller {
-    max-width: 100%;
 }
 
 .bocchi-markdown-editor--embedded .bocchi-codemirror-host ::deep .cm-content {
@@ -407,7 +423,23 @@
     }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 720px) {
+    .bocchi-markdown-editor--embedded {
+        overflow-x: clip;
+    }
+
+    .bocchi-markdown-toolbar {
+        width: 100%;
+        min-width: 0;
+    }
+
+    /* 窄屏无 split 预览栏，恢复 CodeMirror 横向约束，避免撑破 viewport。 */
+    .bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host,
+    .bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host ::deep .cm-editor,
+    .bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host ::deep .cm-scroller {
+        overflow: hidden;
+    }
+
     .bocchi-markdown-editor__chrome {
         padding: 0.25rem 0.45rem;
     }

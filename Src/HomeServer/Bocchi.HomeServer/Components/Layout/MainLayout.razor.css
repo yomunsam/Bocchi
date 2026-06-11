@@ -620,4 +620,8 @@
     .bocchi-topbar__actions {
         justify-content: flex-end;
     }
+
+    .bocchi-page--editor {
+        padding-inline: 0.65rem;
+    }
 }

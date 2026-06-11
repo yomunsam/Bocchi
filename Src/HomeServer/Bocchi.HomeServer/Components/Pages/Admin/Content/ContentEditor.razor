@@ -38,10 +38,13 @@
                     <BocchiStatusPill Tone="@(_busy ? "info" : "warning")">@EditorStateLabel</BocchiStatusPill>
                 }
                 <button type="button"
+                        class="bocchi-editor-commandbar__primary"
                         disabled="@(_busy || !CanRunPrimarySave)"
+                        aria-label="@CommandbarPrimaryLabel"
+                        title="@CommandbarPrimaryLabel"
                         @onclick="RunPrimarySaveAsync">
                     <Blazicon Svg="Lucide.Save" />
-                    @CommandbarPrimaryLabel
+                    <span class="bocchi-editor-commandbar__primary-label">@CommandbarPrimaryLabel</span>
                 </button>
                 @if (HasCommandbarOverflow)
                 {
@@ -112,6 +115,30 @@
                     </details>
                 }
             </div>
+            @* 窄屏 pane 切换与顶栏合一，避免操作区与 tabs 分成两块 heavy chrome。 *@
+            <div class="bocchi-editor-mobile-tabs" role="tablist" aria-label='@Text("contentEditor.mobileTabs.aria")'>
+                <button type="button"
+                        role="tab"
+                        class="@MobileTabClass(EditorMobilePane.Write)"
+                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Write)"
+                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Write)">
+                    @Text("contentEditor.mobileTabs.write")
+                </button>
+                <button type="button"
+                        role="tab"
+                        class="@MobileTabClass(EditorMobilePane.Settings)"
+                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Settings)"
+                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Settings)">
+                    @Text("contentEditor.mobileTabs.settings")
+                </button>
+                <button type="button"
+                        role="tab"
+                        class="@MobileTabClass(EditorMobilePane.Preview)"
+                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Preview)"
+                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Preview)">
+                    @Text("contentEditor.mobileTabs.preview")
+                </button>
+            </div>
         </header>
     }
     else
@@ -177,30 +204,6 @@
     else
     {
         <div class="bocchi-editor-layout" data-mobile-pane="@MobilePaneCss">
-            <div class="bocchi-editor-mobile-tabs" role="tablist" aria-label='@Text("contentEditor.mobileTabs.aria")'>
-                <button type="button"
-                        role="tab"
-                        class="@MobileTabClass(EditorMobilePane.Write)"
-                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Write)"
-                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Write)">
-                    @Text("contentEditor.mobileTabs.write")
-                </button>
-                <button type="button"
-                        role="tab"
-                        class="@MobileTabClass(EditorMobilePane.Settings)"
-                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Settings)"
-                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Settings)">
-                    @Text("contentEditor.mobileTabs.settings")
-                </button>
-                <button type="button"
-                        role="tab"
-                        class="@MobileTabClass(EditorMobilePane.Preview)"
-                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Preview)"
-                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Preview)">
-                    @Text("contentEditor.mobileTabs.preview")
-                </button>
-            </div>
-
             <section class="bocchi-writing-surface" aria-labelledby="writing-heading">
                 <div class="bocchi-writing-surface__sheet">
                 <section class="bocchi-writing-card" aria-labelledby="writing-heading">
