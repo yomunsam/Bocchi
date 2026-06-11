@@ -9,6 +9,7 @@ public partial class ContentEditor
     protected override async Task OnParametersSetAsync()
     {
         ResetTitleMirrorState();
+        ResetMobilePaneState();
         _saved = false;
         _saveMessage = null;
         _error = null;

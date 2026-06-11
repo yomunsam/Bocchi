@@ -88,6 +88,27 @@ public partial class ContentEditor
     /// <summary>摘要字段。</summary>
     private string _summary = string.Empty;
 
+    /// <summary>摘要折叠行是否展示单行预览。</summary>
+    private bool HasSummaryPreview => !string.IsNullOrWhiteSpace(_summary);
+
+    /// <summary>折叠时在 summary 展示的单行摘要预览。</summary>
+    private string SummaryPreviewLine
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_summary))
+            {
+                return string.Empty;
+            }
+
+            var normalized = _summary.ReplaceLineEndings(" ").Trim();
+            const int maxLength = 96;
+            return normalized.Length <= maxLength
+                ? normalized
+                : string.Concat(normalized.AsSpan(0, maxLength - 1), "…");
+        }
+    }
+
     /// <summary>Post 分类字段。</summary>
     private string _category = string.Empty;
 

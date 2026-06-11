@@ -116,6 +116,25 @@ function normalizeViewMode(value) {
   return value === "preview" || value === "split" || value === "write" ? value : "write";
 }
 
+const viewModeStorageKey = "bocchi-markdown-view-mode";
+
+function readStoredViewMode(fallback) {
+  try {
+    const stored = localStorage.getItem(viewModeStorageKey);
+    return stored ? normalizeViewMode(stored) : normalizeViewMode(fallback);
+  } catch {
+    return normalizeViewMode(fallback);
+  }
+}
+
+function persistViewMode(mode) {
+  try {
+    localStorage.setItem(viewModeStorageKey, normalizeViewMode(mode));
+  } catch {
+    // localStorage 不可用时忽略。
+  }
+}
+
 function setRootViewMode(root, mode) {
   if (root) {
     root.dataset.view = normalizeViewMode(mode);
@@ -335,7 +354,7 @@ function mount(root, dotNet, options = {}) {
   });
 
   editorByRoot.set(root, { view, dotNet, snippets: options.snippets ?? {}, imagePicker: null });
-  setRootViewMode(root, options.defaultViewMode);
+  setRootViewMode(root, readStoredViewMode(options.defaultViewMode ?? "write"));
 }
 
 function setValue(root, value) {
@@ -366,7 +385,9 @@ function insert(root, action) {
 }
 
 function setViewMode(root, mode) {
-  setRootViewMode(root, mode);
+  const normalized = normalizeViewMode(mode);
+  setRootViewMode(root, normalized);
+  persistViewMode(normalized);
   getEditor(root)?.requestMeasure();
 }
 

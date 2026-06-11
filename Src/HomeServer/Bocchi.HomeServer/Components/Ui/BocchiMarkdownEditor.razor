@@ -313,6 +313,10 @@
         }
     }
 
+    /// <summary>父组件（ContentEditor 窄屏预览 tab）切换 write / split / preview。</summary>
+    public Task SetEditorViewModeAsync(string mode)
+        => SetViewModeAsync(ParseViewMode(mode));
+
     private async Task ApplyAsync(string action)
     {
         if (_mounted)

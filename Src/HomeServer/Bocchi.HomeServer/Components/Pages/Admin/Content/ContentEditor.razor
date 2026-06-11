@@ -33,7 +33,10 @@
             <p class="@CommandbarContextClass"
                title="@CommandbarContextLabel">@CommandbarContextLabel</p>
             <div class="bocchi-editor-commandbar__actions">
-                <BocchiStatusPill Tone="@(_saved ? "success" : IsDirty ? "warning" : "info")">@EditorStateLabel</BocchiStatusPill>
+                @if (ShowCommandbarStatus)
+                {
+                    <BocchiStatusPill Tone="@(_saved ? "success" : IsDirty ? "warning" : "info")">@EditorStateLabel</BocchiStatusPill>
+                }
                 @if (IsUnsavedDraft)
                 {
                     <button type="button" @onclick="SaveDraftAsync" disabled="@_busy">
@@ -151,7 +154,31 @@
     }
     else
     {
-        <div class="bocchi-editor-layout">
+        <div class="bocchi-editor-layout" data-mobile-pane="@MobilePaneCss">
+            <div class="bocchi-editor-mobile-tabs" role="tablist" aria-label='@Text("contentEditor.mobileTabs.aria")'>
+                <button type="button"
+                        role="tab"
+                        class="@MobileTabClass(EditorMobilePane.Write)"
+                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Write)"
+                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Write)">
+                    @Text("contentEditor.mobileTabs.write")
+                </button>
+                <button type="button"
+                        role="tab"
+                        class="@MobileTabClass(EditorMobilePane.Settings)"
+                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Settings)"
+                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Settings)">
+                    @Text("contentEditor.mobileTabs.settings")
+                </button>
+                <button type="button"
+                        role="tab"
+                        class="@MobileTabClass(EditorMobilePane.Preview)"
+                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Preview)"
+                        @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Preview)">
+                    @Text("contentEditor.mobileTabs.preview")
+                </button>
+            </div>
+
             <section class="bocchi-writing-surface" aria-labelledby="writing-heading">
                 <div class="bocchi-writing-surface__sheet">
                 <section class="bocchi-writing-card" aria-labelledby="writing-heading">
@@ -166,12 +193,25 @@
                     </label>
                     @* 零高度 sentinel：滚过标题区后顶栏切换为 mirror 标题。 *@
                     <div @ref="_titleScrollAnchor" class="bocchi-editor-title-anchor" aria-hidden="true"></div>
-                    <label class="bocchi-summary-field">
-                        <span>@Text("contentEditor.field.summary")</span>
+                    <details class="bocchi-summary-details">
+                        <summary class="bocchi-summary-details__summary">
+                            <span class="bocchi-details-chevron" aria-hidden="true">
+                                <Blazicon Svg="Lucide.ChevronRight" />
+                            </span>
+                            <span class="bocchi-summary-details__label">@Text("contentEditor.field.summary")</span>
+                            @if (!HasSummaryPreview)
+                            {
+                                <small>@Text("contentEditor.field.summaryOptional")</small>
+                            }
+                            else
+                            {
+                                <span class="bocchi-summary-details__preview">@SummaryPreviewLine</span>
+                            }
+                        </summary>
                         <textarea @bind="_summary"
                                   @bind:event="oninput"
                                   placeholder='@Text("contentEditor.field.summaryPlaceholder")'></textarea>
-                    </label>
+                    </details>
                     @if (TemplateUnavailable)
                     {
                         <p class="bocchi-template-selector__warning">
@@ -180,19 +220,25 @@
                     }
                 </section>
 
-                <BocchiMarkdownEditor ShowDocumentHeader="false"
+                <BocchiMarkdownEditor @ref="_markdownEditor"
+                                      ShowDocumentHeader="false"
                                       Value="@_markdown"
                                       ValueChanged="OnMarkdownChangedAsync"
                                       OnImageUploadAsync="UploadImageAssetAsync"
                                       PreviewHtml="@_previewHtml"
                                       Placeholder='@Text("contentEditor.body.placeholder")'
-                                      DefaultViewMode="write" />
+                                      DefaultViewMode="split" />
                 </div>
 
                 <details class="bocchi-advanced-details">
-                    <summary>
-                        <span>@Text("contentEditor.advanced.title")</span>
-                        <small>@Text("contentEditor.advanced.help")</small>
+                    <summary class="bocchi-advanced-details__summary">
+                        <span class="bocchi-details-chevron" aria-hidden="true">
+                            <Blazicon Svg="Lucide.ChevronRight" />
+                        </span>
+                        <span class="bocchi-advanced-details__copy">
+                            <span>@Text("contentEditor.advanced.title")</span>
+                            <small>@Text("contentEditor.advanced.help")</small>
+                        </span>
                     </summary>
                     <textarea class="bocchi-editor-frontmatter"
                               aria-label='@Text("contentEditor.advanced.title")'
@@ -204,7 +250,10 @@
                 @* 次要面板默认折叠，首屏只保留「内容设置」；功能不变，仅降低视觉噪音。 *@
                 <details class="bocchi-panel bocchi-panel--soft bocchi-publish-panel">
                     <summary class="bocchi-editor-details-summary">
-                        <span>@Text("contentEditor.status.title")</span>
+                        <span class="bocchi-details-chevron" aria-hidden="true">
+                            <Blazicon Svg="Lucide.ChevronRight" />
+                        </span>
+                        <span class="bocchi-editor-details-summary__label">@Text("contentEditor.status.title")</span>
                         <BocchiStatusPill Tone="@StatusTone(CurrentStatus)">@StatusLabel(CurrentStatus)</BocchiStatusPill>
                     </summary>
                     <dl class="bocchi-meta-list">
@@ -240,7 +289,10 @@
                 {
                     <details class="bocchi-panel bocchi-editor-language">
                         <summary class="bocchi-editor-details-summary">
-                            <span>@Text("contentEditor.language.title")</span>
+                            <span class="bocchi-details-chevron" aria-hidden="true">
+                                <Blazicon Svg="Lucide.ChevronRight" />
+                            </span>
+                            <span class="bocchi-editor-details-summary__label">@Text("contentEditor.language.title")</span>
                         </summary>
                         @if (IsUnsavedDraft)
                         {
@@ -301,7 +353,10 @@
 
                 <details class="bocchi-panel bocchi-editor-inspector" open>
                     <summary class="bocchi-editor-details-summary">
-                        <span>@Text("contentEditor.settings.title")</span>
+                        <span class="bocchi-details-chevron" aria-hidden="true">
+                            <Blazicon Svg="Lucide.ChevronRight" />
+                        </span>
+                        <span class="bocchi-editor-details-summary__label">@Text("contentEditor.settings.title")</span>
                     </summary>
                     <div class="bocchi-editor-field-stack">
                         <label class="bocchi-editor-field">
@@ -398,7 +453,10 @@
 
                 <details class="bocchi-panel bocchi-editor-ai">
                     <summary class="bocchi-editor-details-summary">
-                        <span>@Text("contentEditor.ai.title")</span>
+                        <span class="bocchi-details-chevron" aria-hidden="true">
+                            <Blazicon Svg="Lucide.ChevronRight" />
+                        </span>
+                        <span class="bocchi-editor-details-summary__label">@Text("contentEditor.ai.title")</span>
                     </summary>
                     @if (_aiAvailabilityChecked && !_aiAvailability.HasAvailableProvider)
                     {

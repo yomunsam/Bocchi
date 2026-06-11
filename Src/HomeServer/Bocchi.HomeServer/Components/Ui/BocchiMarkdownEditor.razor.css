@@ -19,6 +19,7 @@
     border-radius: 0;
     background: transparent;
     box-shadow: none;
+    overflow: visible;
 }
 
 .bocchi-markdown-editor__chrome {
@@ -138,13 +139,19 @@
     color: var(--bocchi-danger-strong);
     padding: 0.45rem 0.65rem;
     font-size: 0.82rem;
-    font-weight: 650;
+    font-weight: 540;
 }
 
 .bocchi-markdown-editor__body {
     display: grid;
     min-height: 28rem;
     grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.82fr);
+    align-items: stretch;
+}
+
+.bocchi-markdown-editor[data-view="split"] .bocchi-markdown-editor__body {
+    /* 分栏时两栏同高、随正文增高，由页面统一滚动，避免预览独立 scroll 错位。 */
+    align-items: stretch;
 }
 
 .bocchi-markdown-editor__pane {
@@ -167,6 +174,19 @@
     overflow: hidden;
 }
 
+.bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host,
+.bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host ::deep .cm-editor,
+.bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host ::deep .cm-scroller {
+    /* CodeMirror 随文档增高，与预览共用页面滚动条。 */
+    height: auto;
+    max-height: none;
+    overflow: visible;
+}
+
+.bocchi-markdown-editor[data-view="split"] .bocchi-codemirror-host ::deep .cm-content {
+    min-height: 22rem;
+}
+
 .bocchi-codemirror-host ::deep .cm-scroller {
     max-width: 100%;
 }
@@ -177,11 +197,17 @@
 }
 
 .bocchi-markdown-editor__pane--preview {
-    overflow: auto;
-    max-height: 40rem;
+    min-width: 0;
+    overflow-x: hidden;
     border-left: 1px solid var(--bocchi-border);
     background: var(--bocchi-surface);
     padding: 0.85rem 1rem;
+}
+
+.bocchi-markdown-editor[data-view="split"] .bocchi-markdown-editor__pane--preview,
+.bocchi-markdown-editor[data-view="preview"] .bocchi-markdown-editor__pane--preview {
+    overflow: visible;
+    max-height: none;
 }
 
 .bocchi-markdown-editor__empty {
@@ -194,6 +220,7 @@
 }
 
 .bocchi-markdown-preview {
+    max-width: 100%;
     overflow-wrap: anywhere;
     color: var(--bocchi-text);
     line-height: 1.75;
@@ -201,8 +228,37 @@
 
 .bocchi-markdown-preview h1,
 .bocchi-markdown-preview h2,
+.bocchi-markdown-preview h3,
+.bocchi-markdown-preview h4 {
+    margin: 1.15rem 0 0.55rem;
+    line-height: 1.25;
+    font-weight: 560;
+}
+
+.bocchi-markdown-preview h1 {
+    font-size: 1.55rem;
+    font-weight: 600;
+}
+
+.bocchi-markdown-preview h2 {
+    font-size: 1.28rem;
+}
+
 .bocchi-markdown-preview h3 {
-    line-height: 1.2;
+    font-size: 1.08rem;
+    font-weight: 540;
+}
+
+.bocchi-markdown-preview h4 {
+    font-size: 0.98rem;
+    font-weight: 520;
+}
+
+.bocchi-markdown-preview pre,
+.bocchi-markdown-preview table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 .bocchi-markdown-preview p,
