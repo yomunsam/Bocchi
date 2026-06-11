@@ -229,6 +229,7 @@ public sealed class DefaultStaticTemplateRendererTests
             var indexText = System.Net.WebUtility.HtmlDecode(indexHtml);
             indexText.Should().Contain("Direct Post");
             indexText.Should().Contain("Direct Work");
+            indexText.Should().Contain("Direct Work summary");
             indexHtml.Should().Contain("""<h3><a href="works/2026/direct/" aria-label="Direct Work" data-bocchi-content-link><span data-bocchi-content-title>Direct Work</span></a></h3>""");
             indexHtml.Should().NotContain("proj-card__link");
             indexHtml.Should().Contain("data-bocchi-content-link");
@@ -261,6 +262,7 @@ public sealed class DefaultStaticTemplateRendererTests
             postHtml.Should().Contain("href=\"../../../../posts/2025/direct/\"");
             postHtml.Should().Contain("href=\"../../../../about/\"");
             postHtml.Should().Contain("href=\"../../../../assets/app.css\"");
+            System.Net.WebUtility.HtmlDecode(postHtml).Should().NotContain("繁中文章 summary");
             postHtml.Should().NotContain("""href="/""");
             postHtml.Should().NotContain("""src="/""");
 
@@ -281,6 +283,7 @@ public sealed class DefaultStaticTemplateRendererTests
             pageHtml.Should().NotContain("""data-bocchi-language-switch""");
             pageHtml.Should().Contain("""data-bocchi-translation-notice""");
             pageHtml.Should().Contain("data-bocchi-language-link=\"zh-CN\"");
+            System.Net.WebUtility.HtmlDecode(pageHtml).Should().NotContain("About English summary");
 
             var workHtml = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "zh-TW", "works", "2026", "direct", "index.html"));
             workHtml.Should().Contain("""<html lang="zh-TW">""");

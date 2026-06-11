@@ -64,7 +64,11 @@
             <button type="button" title='@I18n["markdownEditor.toolbar.link"]' aria-label='@I18n["markdownEditor.toolbar.link"]' @onclick='() => ApplyAsync("link")'>
                 <Blazicon Svg="Lucide.Link" />
             </button>
-            <button type="button" title='@I18n["markdownEditor.toolbar.image"]' aria-label='@I18n["markdownEditor.toolbar.image"]' @onclick='() => ApplyAsync("image")'>
+            <button type="button"
+                    title='@I18n["markdownEditor.toolbar.image"]'
+                    aria-label='@I18n["markdownEditor.toolbar.image"]'
+                    data-bocchi-markdown-image-mode="@ImageUploadMode"
+                    @onclick="InsertImageAsync">
                 <Blazicon Svg="Lucide.Image" />
             </button>
             <button type="button" title='@I18n["markdownEditor.toolbar.formula"]' aria-label='@I18n["markdownEditor.toolbar.formula"]' @onclick='() => ApplyAsync("formula")'>
@@ -136,9 +140,9 @@
     [Parameter]
     public string DefaultViewMode { get; set; } = "write";
 
-    /// <summary>浏览器粘贴图片时调用父组件上传到当前内容组 assets/，成功后返回要插入的 Markdown。</summary>
+    /// <summary>浏览器通过 paste、drop 或文件选择拿到图片后，调用父组件上传到当前内容组 assets/。</summary>
     [Parameter]
-    public Func<MarkdownEditorPastedImageRequest, Task<MarkdownEditorAssetUploadResult>>? OnPasteImageAsync { get; set; }
+    public Func<MarkdownEditorImageUploadRequest, Task<MarkdownEditorAssetUploadResult>>? OnImageUploadAsync { get; set; }
 
     /// <summary>承载 CodeMirror 实例的组件根元素。</summary>
     private ElementReference _root;
@@ -158,10 +162,10 @@
     /// <summary>默认视图只在首次渲染前读取一次，避免父组件重渲染时打断用户切换。</summary>
     private bool _viewModeInitialized;
 
-    /// <summary>单张粘贴图片的读取上限，避免浏览器把意外的大文件塞进 Blazor circuit。</summary>
-    private const long MaxPastedImageBytes = 20 * 1024 * 1024;
+    /// <summary>单张图片的读取上限，避免浏览器把意外的大文件塞进 Blazor circuit。</summary>
+    private const long MaxImageUploadBytes = 20 * 1024 * 1024;
 
-    /// <summary>粘贴上传失败时在编辑器本体内展示的短提示。</summary>
+    /// <summary>图片上传失败时在编辑器本体内展示的短提示。</summary>
     private string? _assetUploadError;
 
     private string ResolvedContentKindLabel => string.IsNullOrWhiteSpace(ContentKindLabel) ? Kicker : ContentKindLabel;
@@ -171,6 +175,9 @@
 
     /// <summary>CodeMirror placeholder 为空时回退到 Dashboard 当前语言的默认提示。</summary>
     private string ResolvedPlaceholder => string.IsNullOrWhiteSpace(Placeholder) ? I18n["markdownEditor.placeholder"] : Placeholder!;
+
+    /// <summary>图片按钮当前是打开上传选择器，还是只插入 Markdown snippet。</summary>
+    private string ImageUploadMode => OnImageUploadAsync is null ? "snippet" : "upload";
 
     /// <summary>传给 JavaScript 插入命令的本地化占位文本。</summary>
     private IReadOnlyDictionary<string, string> MarkdownSnippets => new Dictionary<string, string>(StringComparer.Ordinal)
@@ -233,14 +240,14 @@
         await ValueChanged.InvokeAsync(value);
     }
 
-    /// <summary>接收浏览器粘贴图片内容，并委托父组件写入当前内容组 assets/。</summary>
+    /// <summary>接收浏览器图片文件，并委托父组件写入当前内容组 assets/。</summary>
     [JSInvokable]
-    public async Task<MarkdownEditorAssetUploadResult> HandlePastedImageAsync(
+    public async Task<MarkdownEditorAssetUploadResult> HandleImageUploadAsync(
         string? fileName,
         string? contentType,
         IJSStreamReference content)
     {
-        if (OnPasteImageAsync is null)
+        if (OnImageUploadAsync is null)
         {
             var unavailable = I18n["markdownEditor.asset.uploadUnavailable"];
             _assetUploadError = unavailable;
@@ -250,8 +257,8 @@
 
         try
         {
-            await using var stream = await content.OpenReadStreamAsync(MaxPastedImageBytes);
-            var result = await OnPasteImageAsync(new MarkdownEditorPastedImageRequest
+            await using var stream = await content.OpenReadStreamAsync(MaxImageUploadBytes);
+            var result = await OnImageUploadAsync(new MarkdownEditorImageUploadRequest
             {
                 FileName = fileName,
                 ContentType = contentType,
@@ -272,7 +279,7 @@
 
     /// <summary>JS 桥接层自身失败时展示 Dashboard 当前语言下的错误。</summary>
     [JSInvokable]
-    public async Task HandlePastedImageFailureAsync(string? detail)
+    public async Task HandleImageUploadFailureAsync(string? detail)
     {
         _assetUploadError = string.IsNullOrWhiteSpace(detail)
             ? I18n["markdownEditor.asset.uploadFailed"]
@@ -298,6 +305,22 @@
         {
             await Js.InvokeVoidAsync("bocchiMarkdownEditor.insert", _root, action);
         }
+    }
+
+    private async Task InsertImageAsync()
+    {
+        if (!_mounted)
+        {
+            return;
+        }
+
+        if (OnImageUploadAsync is null)
+        {
+            await ApplyAsync("image");
+            return;
+        }
+
+        await Js.InvokeVoidAsync("bocchiMarkdownEditor.pickImages", _root);
     }
 
     private static string AriaPressed(bool pressed) => pressed ? "true" : "false";

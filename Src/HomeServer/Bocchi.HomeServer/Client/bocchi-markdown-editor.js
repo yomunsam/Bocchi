@@ -5,6 +5,8 @@ import { EditorView, keymap, placeholder as editorPlaceholder } from "@codemirro
 import { indentWithTab } from "@codemirror/commands";
 
 const editorByRoot = new WeakMap();
+const imageFileAccept = ".jpg,.jpeg,.png,.gif,.webp,.avif,image/jpeg,image/png,image/gif,image/webp,image/avif";
+const imageFileExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif"];
 
 const bocchiTheme = EditorView.theme({
   "&": {
@@ -115,8 +117,10 @@ function fencedBlock(selected) {
   return `\n\`\`\`\n${selected}\n\`\`\`\n`;
 }
 
-function replaceSelection(view, text) {
-  const selection = view.state.selection.main;
+function replaceSelection(view, text, position = null) {
+  const selection = position === null
+    ? view.state.selection.main
+    : { from: position, to: position };
   view.dispatch({
     changes: { from: selection.from, to: selection.to, insert: text },
     selection: { anchor: selection.from + text.length },
@@ -126,7 +130,16 @@ function replaceSelection(view, text) {
 }
 
 function isImageFile(file) {
-  return file?.type?.startsWith("image/") === true;
+  if (file?.type?.startsWith("image/") === true) {
+    return true;
+  }
+
+  const name = file?.name?.toLowerCase() ?? "";
+  return imageFileExtensions.some((extension) => name.endsWith(extension));
+}
+
+function imageFilesFrom(fileList) {
+  return Array.from(fileList ?? []).filter(isImageFile);
 }
 
 function fallbackImageName(file, index) {
@@ -142,10 +155,10 @@ function fallbackImageName(file, index) {
     "image/avif": ".avif",
     "image/svg+xml": ".svg",
   }[file.type] ?? ".png";
-  return `pasted-image-${index + 1}${extension}`;
+  return `uploaded-image-${index + 1}${extension}`;
 }
 
-async function uploadPastedImages(root, view, files) {
+async function uploadImageFiles(root, view, files, insertPosition = null) {
   const current = editorByRoot.get(root);
   if (!current?.dotNet) {
     return;
@@ -156,7 +169,7 @@ async function uploadPastedImages(root, view, files) {
     const file = files[index];
     try {
       const result = await current.dotNet.invokeMethodAsync(
-        "HandlePastedImageAsync",
+        "HandleImageUploadAsync",
         fallbackImageName(file, index),
         file.type ?? "",
         DotNet.createJSStreamReference(file));
@@ -166,29 +179,74 @@ async function uploadPastedImages(root, view, files) {
       }
     } catch (error) {
       await current.dotNet.invokeMethodAsync(
-        "HandlePastedImageFailureAsync",
+        "HandleImageUploadFailureAsync",
         error?.message ?? "");
     }
   }
 
   if (markdown.length > 0) {
-    replaceSelection(view, markdown.join("\n"));
+    replaceSelection(view, markdown.join("\n"), insertPosition);
   }
+}
+
+function dropInsertPosition(event, view) {
+  return view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? null;
 }
 
 function buildPasteAndDropHandlers(root) {
   return EditorView.domEventHandlers({
     paste(event, view) {
-      const files = Array.from(event.clipboardData?.files ?? []).filter(isImageFile);
+      const files = imageFilesFrom(event.clipboardData?.files);
       if (files.length === 0) {
         return false;
       }
 
       event.preventDefault();
-      void uploadPastedImages(root, view, files);
+      void uploadImageFiles(root, view, files);
+      return true;
+    },
+    dragover(event) {
+      if (imageFilesFrom(event.dataTransfer?.items).length === 0 &&
+          imageFilesFrom(event.dataTransfer?.files).length === 0) {
+        return false;
+      }
+
+      event.preventDefault();
+      return true;
+    },
+    drop(event, view) {
+      const files = imageFilesFrom(event.dataTransfer?.files);
+      if (files.length === 0) {
+        return false;
+      }
+
+      const position = dropInsertPosition(event, view);
+      event.preventDefault();
+      void uploadImageFiles(root, view, files, position);
       return true;
     },
   });
+}
+
+function createImagePicker(root) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = imageFileAccept;
+  input.multiple = true;
+  input.hidden = true;
+  input.setAttribute("aria-hidden", "true");
+  input.addEventListener("change", () => {
+    const current = editorByRoot.get(root);
+    const files = imageFilesFrom(input.files);
+    input.value = "";
+    if (!current?.view || files.length === 0) {
+      return;
+    }
+
+    void uploadImageFiles(root, current.view, files);
+  });
+  root.append(input);
+  return input;
 }
 
 function mount(root, dotNet, options = {}) {
@@ -222,7 +280,7 @@ function mount(root, dotNet, options = {}) {
     }),
   });
 
-  editorByRoot.set(root, { view, dotNet, snippets: options.snippets ?? {} });
+  editorByRoot.set(root, { view, dotNet, snippets: options.snippets ?? {}, imagePicker: null });
   setRootViewMode(root, options.defaultViewMode);
 }
 
@@ -258,12 +316,23 @@ function setViewMode(root, mode) {
   getEditor(root)?.requestMeasure();
 }
 
+function pickImages(root) {
+  const current = editorByRoot.get(root);
+  if (!current?.view) {
+    return;
+  }
+
+  current.imagePicker ??= createImagePicker(root);
+  current.imagePicker.click();
+}
+
 function dispose(root) {
   const current = editorByRoot.get(root);
   if (!current) {
     return;
   }
 
+  current.imagePicker?.remove();
   current.view.destroy();
   editorByRoot.delete(root);
 }
@@ -274,5 +343,6 @@ window.bocchiMarkdownEditor = {
   setValue,
   insert,
   setViewMode,
+  pickImages,
   dispose,
 };

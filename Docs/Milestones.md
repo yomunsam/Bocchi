@@ -368,7 +368,7 @@
 - SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。
 - workspace 作为 Git 工作区使用 `LibGit2Sharp`：M2 提供 `init / status / commit` 等本地能力；远程接入（push/pull、GitHub、凭据存储）显式延后到 M7 发布管线。
 - 2026-05-14 复查：`LibGit2Sharp` 0.31.0 是当前稳定版本，NuGet 计算兼容 `net10.0`；Bocchi 当前只使用 workspace 本地 init/status/commitAll，继续使用该库。
-- workspace 是"源工程"：禁止出现派生产物（webp、缩略图、HTML、搜索索引）；衍生媒体目录固定为 `<data>/cache/derivatives/`，由 M3 实施。
+- workspace 是"源工程"：禁止出现系统派生产物（缩略图、预览图、HTML、搜索索引等）；衍生媒体目录固定为 `<data>/cache/derivatives/`，供后续媒体派生管线使用。
 - Serilog 文件 sink 切换到 `<data>/logs/bocchi-.log`。
 
 详细决策与落地清单见 `Docs/Milestones/M2/M2.md`。

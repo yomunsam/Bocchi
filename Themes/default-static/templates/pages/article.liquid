@@ -2,7 +2,6 @@
   <header class="prose article-hero">
     <div class="caption"><a href="{{ section.url }}">← <span data-bocchi-i18n="theme.defaultStatic.articleBackPrefix">{{ text.articleBackPrefix }}</span> {{ section.name }}</a>{% if item.hasArticleTime %} · <bocchi-time class="article-time" data-bocchi-article-time data-bocchi-time="{{ item.time.payloadJson }}" role="button" tabindex="0" aria-expanded="false"><span class="article-time__label" data-bocchi-time-label data-bocchi-i18n="{{ item.time.active.labelKey }}">{{ item.time.active.label }}</span> <time class="article-time__value" data-bocchi-time-value datetime="{{ item.time.active.iso }}">{{ item.time.active.display }}</time> <span class="article-time__zone" data-bocchi-time-offset>{{ item.time.active.timeZoneLabel }}</span></bocchi-time>{% endif %}{% if item.meta %} · {{ item.meta }}{% endif %}</div>
     <h1 class="display article-display">{{ item.title }}</h1>
-    {% if item.summary %}<p class="lead">{{ item.summary }}</p>{% endif %}
   </header>
 
   {% if item.isTranslation %}

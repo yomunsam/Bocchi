@@ -43,7 +43,7 @@ public sealed partial class MarkdownPipeline
     }
 
     /// <summary>
-    /// 抽取摘要：取第一个段落的纯文本，最多 <paramref name="maxChars"/> 字符。返回 <c>null</c> 表示无内容。
+    /// 抽取摘要：取第一个不含图片的段落纯文本，最多 <paramref name="maxChars"/> 字符。返回 <c>null</c> 表示无内容。
     /// </summary>
     public string? ExtractExcerpt(string markdown, int maxChars = 160)
     {
@@ -58,7 +58,12 @@ public sealed partial class MarkdownPipeline
         {
             if (block is ParagraphBlock paragraph && paragraph.Inline is not null)
             {
-                var text = ExtractInlineText(paragraph.Inline);
+                if (ContainsImage(paragraph.Inline))
+                {
+                    continue;
+                }
+
+                var text = ExtractInlineText(paragraph.Inline, includeImages: false);
                 text = WhitespaceRegex().Replace(text, " ").Trim();
                 if (text.Length == 0)
                 {
@@ -110,19 +115,21 @@ public sealed partial class MarkdownPipeline
         }
     }
 
-    private static string ExtractInlineText(ContainerInline inline)
+    private static string ExtractInlineText(ContainerInline inline, bool includeImages = true)
     {
         var sb = new StringBuilder();
-        AppendInlineText(inline, sb);
+        AppendInlineText(inline, sb, includeImages);
         return sb.ToString();
     }
 
-    private static void AppendInlineText(IEnumerable<MarkdownObject> nodes, StringBuilder sb)
+    private static void AppendInlineText(IEnumerable<MarkdownObject> nodes, StringBuilder sb, bool includeImages)
     {
         foreach (var node in nodes)
         {
             switch (node)
             {
+                case LinkInline { IsImage: true } when !includeImages:
+                    break;
                 case LiteralInline literal:
                     sb.Append(literal.Content.ToString());
                     break;
@@ -133,10 +140,28 @@ public sealed partial class MarkdownPipeline
                     sb.Append(' ');
                     break;
                 case ContainerInline ci:
-                    AppendInlineText(ci, sb);
+                    AppendInlineText(ci, sb, includeImages);
                     break;
             }
         }
+    }
+
+    private static bool ContainsImage(IEnumerable<MarkdownObject> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node is LinkInline { IsImage: true })
+            {
+                return true;
+            }
+
+            if (node is ContainerInline container && ContainsImage(container))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]

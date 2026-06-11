@@ -10,12 +10,12 @@ namespace Bocchi.HomeServer.Components.Pages.Admin.Content;
 /// <summary>ContentEditor 的内容资产上传与编辑器预览 URL 处理。</summary>
 public partial class ContentEditor
 {
-    /// <summary>处理 Markdown editor 粘贴图片：写入当前内容组 assets/，并返回要插入的图片 Markdown。</summary>
-    private async Task<MarkdownEditorAssetUploadResult> UploadPastedImageAsync(MarkdownEditorPastedImageRequest request)
+    /// <summary>处理 Markdown editor 图片上传：写入当前内容组 assets/，并返回要插入的图片 Markdown。</summary>
+    private async Task<MarkdownEditorAssetUploadResult> UploadImageAssetAsync(MarkdownEditorImageUploadRequest request)
     {
         if (!HasEditorDocument || !request.Content.CanRead || CurrentKind() is not (ContentKind.Post or ContentKind.Page or ContentKind.Work))
         {
-            return MarkdownEditorAssetUploadResult.Failure(Text("contentEditor.asset.pasteUnavailable"));
+            return MarkdownEditorAssetUploadResult.Failure(Text("contentEditor.asset.uploadUnavailable"));
         }
 
         if (!LooksLikeImageUpload(request))
@@ -25,7 +25,7 @@ public partial class ContentEditor
 
         try
         {
-            var fileName = ResolvePastedImageFileName(request);
+            var fileName = ResolveImageUploadFileName(request);
             var uploaded = IsUnsavedDraft && _draftSession is not null
                 ? await ContentAssets.UploadDraftAssetAsync(
                     _draftSession.DraftId,
@@ -41,7 +41,7 @@ public partial class ContentEditor
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
         {
-            return MarkdownEditorAssetUploadResult.Failure(Text("contentEditor.asset.pasteFailed"));
+            return MarkdownEditorAssetUploadResult.Failure(Text("contentEditor.asset.uploadFailed"));
         }
     }
 
@@ -93,7 +93,7 @@ public partial class ContentEditor
     private string? CurrentContentRelativePathOrNull()
         => _file?.RelativePath ?? Path;
 
-    private static bool LooksLikeImageUpload(MarkdownEditorPastedImageRequest request)
+    private static bool LooksLikeImageUpload(MarkdownEditorImageUploadRequest request)
     {
         if (request.ContentType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
         {
@@ -104,7 +104,7 @@ public partial class ContentEditor
         return extension is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".avif" or ".svg";
     }
 
-    private static string ResolvePastedImageFileName(MarkdownEditorPastedImageRequest request)
+    private static string ResolveImageUploadFileName(MarkdownEditorImageUploadRequest request)
     {
         if (!string.IsNullOrWhiteSpace(request.FileName) &&
             !string.IsNullOrWhiteSpace(System.IO.Path.GetExtension(request.FileName)))
@@ -122,7 +122,7 @@ public partial class ContentEditor
             "image/svg+xml" => ".svg",
             _ => ".png",
         };
-        return "pasted-image" + extension;
+        return "uploaded-image" + extension;
     }
 
     [GeneratedRegex("""(?<attribute>\b(?:src|href))=(?<quote>["'])(?<target>(?:\./)?assets/[^"'<>]+)\k<quote>""", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

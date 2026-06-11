@@ -264,6 +264,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("bocchi-codemirror-host");
         body.Should().Contain("data-bocchi-codemirror-host");
+        body.Should().Contain("data-bocchi-markdown-image-mode=\"upload\"");
         body.Should().Contain("Unsaved draft");
         body.Should().Contain("Save draft");
         body.Should().Contain("Publish");
@@ -726,6 +727,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("bocchi-markdown-editor");
         body.Should().Contain("data-bocchi-codemirror-host");
+        body.Should().Contain("data-bocchi-markdown-image-mode=\"upload\"");
         body.Should().Contain("Frontmatter");
         body.Should().Contain("Content status");
         body.Should().Contain("Withdraw");
