@@ -185,16 +185,7 @@ public partial class ContentEditor
             await Scanner.ScanAsync();
             await Drafts.DeleteAsync(_draftSession.DraftId);
 
-            _file = saved;
-            _draftSession = null;
-            Path = saved.RelativePath;
-            Draft = null;
-            _yaml = saved.Yaml;
-            _originalYaml = saved.Yaml;
-            _originalMarkdown = saved.Markdown;
-            _previewHtml = saved.PreviewHtml;
-            _pathLockedAtLoad = _pathLocked;
-            await LoadLanguageVersionsAsync();
+            await ApplySavedFileToEditorAsync(saved, clearDraft: true);
             _saveMessage = targetStatus == ContentStatus.Published
                 ? Text("contentEditor.save.published")
                 : Text("contentEditor.save.draftSaved");

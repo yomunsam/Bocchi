@@ -265,6 +265,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("bocchi-codemirror-host");
         body.Should().Contain("data-bocchi-codemirror-host");
         body.Should().Contain("data-bocchi-markdown-image-mode=\"upload\"");
+        body.Should().Contain("class=\"bocchi-editor-mobile-tabs\" role=\"group\"");
+        body.Should().NotContain("class=\"bocchi-editor-mobile-tabs\" role=\"tablist\"");
+        body.Should().NotContain("bocchi-editor-mobile-tabs__tab\" role=\"tab\"");
+        body.Should().NotContain("bocchi-editor-commandbar__menu-panel\" role=\"menu\"");
+        body.Should().NotContain("bocchi-markdown-toolbar__heading-panel\" role=\"menu\"");
+        body.Should().NotMatchRegex("bocchi-editor-commandbar__menu-panel[\\s\\S]*role=\"menuitem\"");
+        body.Should().NotMatchRegex("bocchi-markdown-toolbar__heading-panel[\\s\\S]*role=\"menuitem\"");
         body.Should().Contain("Unsaved draft");
         body.Should().Contain("Save draft");
         body.Should().Contain("Publish");
@@ -272,6 +279,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Content status");
         body.Should().Contain("Language & versions");
         body.Should().Contain("Save this draft before adding language versions.");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Posts\"[^>]*class=\"bocchi-nav-child active\"[^>]*aria-current=\"page\"");
         body.Should().Contain("Heading 2");
         body.Should().NotContain("value=\"Published\"");
         body.Should().NotContain("value=\"Archived\"");
@@ -290,6 +298,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         pageResponse.EnsureSuccessStatusCode();
         body = WebUtility.HtmlDecode(await pageResponse.Content.ReadAsStringAsync());
         body.Should().Contain("Nothing to preview yet");
+        body.Should().MatchRegex("<a[^>]*href=\"/Admin/Pages\"[^>]*class=\"bocchi-nav-child active\"[^>]*aria-current=\"page\"");
 
         using var scope = factory.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IContentStateStore>();
@@ -334,8 +343,41 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("Current language");
         body.Should().Contain("Native");
         body.Should().Contain("Add language version");
-        body.Should().Contain("简体中文 / Simplified Chinese");
+        body.Should().Contain("简体中文");
+        body.Should().Contain("Simplified Chinese");
         body.Should().NotContain("Simplified Chinese (zh-CN)");
+    }
+
+    [Fact]
+    public async Task ContentEditor_SavedContentRewritesLocalAssetPreviewUrl()
+    {
+        using var factory = new IsolatedDataRootWebApplicationFactory();
+        using var client = await factory.CreateAdminClientAsync();
+        EditableContentFile saved;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            var drafts = services.GetRequiredService<EditorDraftService>();
+            var editor = services.GetRequiredService<ContentEditingService>();
+            var draft = await drafts.CreateAsync(ContentKind.Post);
+            Directory.CreateDirectory(draft.AssetsDirectory);
+            await File.WriteAllBytesAsync(Path.Combine(draft.AssetsDirectory, "cover.png"), [1, 2, 3]);
+            saved = await editor.CreateFromDraftAsync(
+                ContentKind.Post,
+                "title: Asset Preview\nslug: asset-preview\nstatus: draft",
+                "![cover](assets/cover.png)\n",
+                draft.AssetsDirectory);
+        }
+
+        var response = await client.GetAsync(ContentEditingService.EditUrl(saved.RelativePath));
+
+        response.EnsureSuccessStatusCode();
+        var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        body.Should().Contain("data-bocchi-markdown-image-mode=\"upload\"");
+        body.Should().Contain("/Admin/Content/Assets?path=" +
+            Uri.EscapeDataString(saved.RelativePath) +
+            "&asset=assets%2Fcover.png");
+        body.Should().NotContain("<img src=\"assets/cover.png\"");
     }
 
     [Fact]

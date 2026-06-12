@@ -40,7 +40,8 @@
 }
 
 .bocchi-editor-commandbar__back ::deep svg,
-.bocchi-editor-commandbar__actions button ::deep svg {
+.bocchi-editor-commandbar__actions button ::deep svg,
+.bocchi-editor-commandbar__menu-trigger ::deep svg {
     width: 0.92rem;
     height: 0.92rem;
 }
@@ -116,11 +117,6 @@
     user-select: none;
 }
 
-.bocchi-editor-commandbar__menu-trigger::-webkit-details-marker,
-.bocchi-editor-commandbar__menu-trigger::marker {
-    display: none;
-}
-
 .bocchi-editor-commandbar__menu-trigger:hover {
     border-color: color-mix(in srgb, var(--bocchi-action) 28%, var(--bocchi-border));
     color: var(--bocchi-text);
@@ -129,11 +125,6 @@
 .bocchi-editor-commandbar__menu-trigger:focus-visible {
     box-shadow: inset var(--bocchi-focus-ring);
     outline: none;
-}
-
-.bocchi-editor-commandbar__menu-trigger ::deep svg {
-    width: 0.92rem;
-    height: 0.92rem;
 }
 
 .bocchi-editor-commandbar__menu-panel {
@@ -346,27 +337,38 @@
     gap: 0.28rem;
 }
 
-.bocchi-summary-details__summary {
+.bocchi-summary-details__summary,
+.bocchi-editor-details-summary,
+.bocchi-advanced-details__summary {
     display: flex;
-    align-items: center;
-    gap: 0.28rem;
     cursor: pointer;
     list-style: none;
-    min-height: 1.75rem;
     border-radius: var(--bocchi-radius-sm);
+    transition: background 160ms ease;
+    user-select: none;
+}
+
+.bocchi-editor-commandbar__menu-trigger::-webkit-details-marker,
+.bocchi-editor-commandbar__menu-trigger::marker,
+.bocchi-summary-details__summary::-webkit-details-marker,
+.bocchi-summary-details__summary::marker,
+.bocchi-editor-details-summary::-webkit-details-marker,
+.bocchi-editor-details-summary::marker,
+.bocchi-advanced-details__summary::-webkit-details-marker,
+.bocchi-advanced-details__summary::marker {
+    display: none;
+}
+
+.bocchi-summary-details__summary {
+    align-items: center;
+    gap: 0.28rem;
+    min-height: 1.75rem;
     margin: 0 -0.12rem;
     padding: 0.22rem 0.18rem;
     color: var(--bocchi-text-muted);
     font-size: 0.76rem;
     font-weight: 520;
     line-height: 1.3;
-    transition: background 160ms ease;
-    user-select: none;
-}
-
-.bocchi-summary-details__summary::-webkit-details-marker,
-.bocchi-summary-details__summary::marker {
-    display: none;
 }
 
 /* 编辑页 details 折叠箭头：Lucide ChevronRight，展开时绕中心旋转 90°。 */
@@ -395,11 +397,15 @@
     color: var(--bocchi-text-muted);
 }
 
-.bocchi-summary-details__summary:hover {
+.bocchi-summary-details__summary:hover,
+.bocchi-editor-details-summary:hover,
+.bocchi-advanced-details__summary:hover {
     background: color-mix(in srgb, var(--bocchi-action) 5%, transparent);
 }
 
-.bocchi-summary-details__summary:focus-visible {
+.bocchi-summary-details__summary:focus-visible,
+.bocchi-editor-details-summary:focus-visible,
+.bocchi-advanced-details__summary:focus-visible {
     background: color-mix(in srgb, var(--bocchi-action) 7%, transparent);
     box-shadow: inset var(--bocchi-focus-ring);
     outline: none;
@@ -456,32 +462,11 @@
 }
 
 .bocchi-editor-details-summary {
-    display: flex;
     align-items: center;
     gap: 0.32rem;
-    cursor: pointer;
-    list-style: none;
     min-height: 1.85rem;
-    border-radius: var(--bocchi-radius-sm);
     margin: -0.12rem -0.18rem;
     padding: 0.18rem;
-    transition: background 160ms ease;
-    user-select: none;
-}
-
-.bocchi-editor-details-summary::-webkit-details-marker,
-.bocchi-editor-details-summary::marker {
-    display: none;
-}
-
-.bocchi-editor-details-summary:hover {
-    background: color-mix(in srgb, var(--bocchi-action) 5%, transparent);
-}
-
-.bocchi-editor-details-summary:focus-visible {
-    background: color-mix(in srgb, var(--bocchi-action) 7%, transparent);
-    box-shadow: inset var(--bocchi-focus-ring);
-    outline: none;
 }
 
 .bocchi-editor-details-summary__label {
@@ -534,41 +519,40 @@
     line-height: 1.35;
 }
 
-.bocchi-editor-inspector {
-    display: grid;
-    min-width: 0;
-    gap: 0.45rem;
-    overflow: hidden;
-}
-
-.bocchi-editor-ai {
-    display: grid;
-    min-width: 0;
-    gap: 0.35rem;
-    overflow: hidden;
-}
-
+.bocchi-editor-inspector,
+.bocchi-editor-ai,
 .bocchi-editor-language {
     display: grid;
     min-width: 0;
-    gap: 0.35rem;
     overflow: hidden;
 }
 
-.bocchi-editor-ai__empty {
+.bocchi-editor-inspector {
+    gap: 0.45rem;
+}
+
+.bocchi-editor-ai,
+.bocchi-editor-language {
+    gap: 0.35rem;
+}
+
+.bocchi-editor-ai__empty,
+.bocchi-editor-language__empty,
+.bocchi-editor-language__message,
+.bocchi-editor-language-form__hint {
     margin: 0;
-    color: var(--bocchi-text-subtle);
     font-size: 0.78rem;
     line-height: 1.35;
+}
+
+.bocchi-editor-ai__empty {
+    color: var(--bocchi-text-subtle);
 }
 
 .bocchi-editor-language__empty,
 .bocchi-editor-language__message,
 .bocchi-editor-language-form__hint {
-    margin: 0;
     color: var(--bocchi-text-muted);
-    font-size: 0.78rem;
-    line-height: 1.35;
 }
 
 .bocchi-editor-language__message {
@@ -608,7 +592,6 @@
 }
 
 .bocchi-editor-language__name-secondary::before {
-    color: var(--bocchi-text-subtle);
     content: " / ";
 }
 
@@ -652,7 +635,8 @@
 }
 
 .bocchi-editor-language__source a ::deep svg,
-.bocchi-editor-language button ::deep svg {
+.bocchi-editor-language button ::deep svg,
+.bocchi-editor-slug-control__ai ::deep svg {
     width: 0.88rem;
     height: 0.88rem;
 }
@@ -695,14 +679,10 @@
 .bocchi-editor-language__variant strong,
 .bocchi-editor-language__variant-name {
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.bocchi-editor-language__variant strong,
-.bocchi-editor-language__variant-name {
     font-size: 0.8rem;
     font-weight: 520;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .bocchi-editor-language__variant small {
@@ -776,11 +756,6 @@
     transform-origin: center;
 }
 
-.bocchi-editor-slug-control__ai ::deep svg {
-    width: 0.88rem;
-    height: 0.88rem;
-}
-
 .bocchi-editor-slug-status {
     color: var(--bocchi-text-muted);
     font-size: 0.72rem;
@@ -789,13 +764,8 @@
 }
 
 @keyframes bocchi-editor-spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .bocchi-editor-field-stack {
@@ -857,31 +827,10 @@
 }
 
 .bocchi-advanced-details__summary {
-    display: flex;
     align-items: flex-start;
     gap: 0.32rem;
-    cursor: pointer;
-    list-style: none;
-    border-radius: var(--bocchi-radius-sm);
     margin: 0 -0.12rem;
     padding: 0.18rem;
-    transition: background 160ms ease;
-    user-select: none;
-}
-
-.bocchi-advanced-details__summary::-webkit-details-marker,
-.bocchi-advanced-details__summary::marker {
-    display: none;
-}
-
-.bocchi-advanced-details__summary:hover {
-    background: color-mix(in srgb, var(--bocchi-action) 5%, transparent);
-}
-
-.bocchi-advanced-details__summary:focus-visible {
-    background: color-mix(in srgb, var(--bocchi-action) 7%, transparent);
-    box-shadow: inset var(--bocchi-focus-ring);
-    outline: none;
 }
 
 .bocchi-advanced-details__copy {
@@ -1010,27 +959,8 @@
         color: var(--bocchi-action);
     }
 
-    .bocchi-editor-layout[data-mobile-pane="write"] .bocchi-writing-surface {
-        display: grid;
-    }
-
-    .bocchi-editor-layout[data-mobile-pane="write"] .bocchi-editor-side {
-        display: none;
-    }
-
-    .bocchi-editor-layout[data-mobile-pane="settings"] .bocchi-writing-surface {
-        display: none;
-    }
-
-    .bocchi-editor-layout[data-mobile-pane="settings"] .bocchi-editor-side {
-        display: grid;
-        grid-template-columns: 1fr;
-    }
-
-    .bocchi-editor-layout[data-mobile-pane="preview"] .bocchi-writing-surface {
-        display: grid;
-    }
-
+    .bocchi-editor-layout[data-mobile-pane="write"] .bocchi-editor-side,
+    .bocchi-editor-layout[data-mobile-pane="settings"] .bocchi-writing-surface,
     .bocchi-editor-layout[data-mobile-pane="preview"] .bocchi-editor-side {
         display: none;
     }

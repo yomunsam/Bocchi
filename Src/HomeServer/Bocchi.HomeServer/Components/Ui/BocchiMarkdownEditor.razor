@@ -22,12 +22,11 @@
                     <span class="bocchi-markdown-toolbar__heading-trigger-label" aria-hidden="true">H</span>
                     <Blazicon Svg="Lucide.ChevronDown" />
                 </summary>
-                <div class="bocchi-markdown-toolbar__heading-panel" role="menu">
+                <div class="bocchi-markdown-toolbar__heading-panel">
                     @for (var level = 1; level <= 5; level++)
                     {
                         var headingLevel = level;
                         <button type="button"
-                                role="menuitem"
                                 title='@HeadingMenuItemLabel(headingLevel)'
                                 aria-label='@HeadingMenuItemLabel(headingLevel)'
                                 @onclick="() => ApplyHeadingAsync(headingLevel)">

@@ -45,14 +45,14 @@ public partial class ContentEditor
         _mobilePane = EditorMobilePane.Write;
     }
 
-    /// <summary>窄屏 tab 按钮样式。</summary>
+    /// <summary>窄屏 pane 按钮样式。</summary>
     private string MobileTabClass(EditorMobilePane pane)
         => _mobilePane == pane
             ? "bocchi-editor-mobile-tabs__tab is-active"
             : "bocchi-editor-mobile-tabs__tab";
 
-    /// <summary>tablist 的 aria-selected 字符串值。</summary>
-    private static string AriaSelected(bool selected) => selected ? "true" : "false";
+    /// <summary>button group 的 aria-pressed 字符串值。</summary>
+    private static string AriaPressed(bool pressed) => pressed ? "true" : "false";
 
     /// <summary>窄屏编辑 pane。</summary>
     private enum EditorMobilePane

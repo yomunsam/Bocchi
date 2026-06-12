@@ -134,14 +134,7 @@ public partial class ContentEditor
                 await Store.DeleteContentBySourcePathAsync(originalPath);
             }
 
-            _file = saved;
-            Path = saved.RelativePath;
-            _yaml = saved.Yaml;
-            _originalYaml = saved.Yaml;
-            _originalMarkdown = saved.Markdown;
-            _previewHtml = saved.PreviewHtml;
-            _pathLockedAtLoad = _pathLocked;
-            await LoadLanguageVersionsAsync();
+            await ApplySavedFileToEditorAsync(saved, clearDraft: false);
             _saveMessage = Text("contentEditor.save.saved");
             if (!string.Equals(originalPath, saved.RelativePath, StringComparison.Ordinal))
             {
@@ -211,6 +204,26 @@ public partial class ContentEditor
         RefreshPreview();
         LoadMetadataFromYaml(draft.Yaml, CurrentFallbackSlug);
         ResetOriginalSnapshots();
+    }
+
+    /// <summary>保存成功后用同一套编辑缓冲区刷新预览和 dirty 基线，避免 assets 预览 URL 回退。</summary>
+    private async Task ApplySavedFileToEditorAsync(EditableContentFile saved, bool clearDraft)
+    {
+        _file = saved;
+        if (clearDraft)
+        {
+            _draftSession = null;
+            Draft = null;
+        }
+
+        Path = saved.RelativePath;
+        _yaml = saved.Yaml;
+        _markdown = saved.Markdown;
+        LoadMetadataFromYaml(saved);
+        RefreshPreview();
+        ResetOriginalSnapshots();
+        _pathLockedAtLoad = _pathLocked;
+        await LoadLanguageVersionsAsync();
     }
 
     /// <summary>载入完成后用编辑器同一套 YAML 快照作为干净基线，避免序列化规范化造成打开即脏。</summary>

@@ -1,6 +1,3 @@
-using System.Net;
-using System.Text.RegularExpressions;
-
 using Bocchi.ContentModel;
 using Bocchi.HomeServer.Components.Ui;
 using Bocchi.HomeServer.Services;
@@ -53,38 +50,15 @@ public partial class ContentEditor
             return html;
         }
 
-        return EditorAssetAttributeRegex().Replace(html, match =>
-        {
-            var target = WebUtility.HtmlDecode(match.Groups["target"].Value);
-            var previewUrl = BuildEditorAssetPreviewUrl(target);
-            if (previewUrl is null)
-            {
-                return match.Value;
-            }
-
-            var attribute = match.Groups["attribute"].Value;
-            var quote = match.Groups["quote"].Value;
-            return $"{attribute}={quote}{WebUtility.HtmlEncode(previewUrl)}{quote}";
-        });
-    }
-
-    private string? BuildEditorAssetPreviewUrl(string assetRelativePath)
-    {
         if (IsUnsavedDraft && _draftSession is not null)
         {
-            return "/Admin/Content/Assets?draft=" +
-                Uri.EscapeDataString(_draftSession.DraftId) +
-                "&asset=" +
-                Uri.EscapeDataString(assetRelativePath);
+            return ContentEditorAssetPreviewRewriter.RewriteForDraft(html, _draftSession.DraftId);
         }
 
         var contentPath = CurrentContentRelativePathOrNull();
         return string.IsNullOrWhiteSpace(contentPath)
-            ? null
-            : "/Admin/Content/Assets?path=" +
-                Uri.EscapeDataString(contentPath) +
-                "&asset=" +
-                Uri.EscapeDataString(assetRelativePath);
+            ? html
+            : ContentEditorAssetPreviewRewriter.RewriteForContent(html, contentPath);
     }
 
     private string CurrentContentRelativePath()
@@ -125,6 +99,4 @@ public partial class ContentEditor
         return "uploaded-image" + extension;
     }
 
-    [GeneratedRegex("""(?<attribute>\b(?:src|href))=(?<quote>["'])(?<target>(?:\./)?assets/[^"'<>]+)\k<quote>""", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex EditorAssetAttributeRegex();
 }

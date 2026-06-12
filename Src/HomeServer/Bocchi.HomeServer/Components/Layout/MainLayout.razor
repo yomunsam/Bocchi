@@ -407,10 +407,12 @@
            || _currentPath.StartsWith("/Admin/Settings/", StringComparison.OrdinalIgnoreCase)
            || IsCurrentPath("/Admin/Users");
 
-    /// <summary>判断编辑页是否正在处理指定内容类型。</summary>
+    /// <summary>判断编辑页是否正在处理指定内容类型；新建草稿的 draft id 也携带内容类型前缀。</summary>
     private bool IsEditorFor(string kind, string encodedPathPrefix)
         => IsCurrentPath("/Admin/Content/Edit") &&
-           (CurrentQueryContains("kind=" + kind) || CurrentQueryContains("path=" + encodedPathPrefix));
+           (CurrentQueryContains("kind=" + kind) ||
+            CurrentQueryContains("path=" + encodedPathPrefix) ||
+            CurrentQueryContains("draft=" + kind + "-"));
 
     /// <summary>判断当前 query string 是否包含指定片段。</summary>
     private bool CurrentQueryContains(string value)

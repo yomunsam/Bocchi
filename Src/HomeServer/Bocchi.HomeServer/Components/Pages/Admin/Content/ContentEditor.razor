@@ -54,11 +54,10 @@
                                  aria-label='@Text("contentEditor.commandbar.menu.aria")'>
                             <Blazicon Svg="Lucide.Ellipsis" />
                         </summary>
-                        <div class="bocchi-editor-commandbar__menu-panel" role="menu">
+                        <div class="bocchi-editor-commandbar__menu-panel">
                             @if (IsUnsavedDraft)
                             {
                                 <button type="button"
-                                        role="menuitem"
                                         disabled="@_busy"
                                         @onclick="PublishAsync">
                                     <Blazicon Svg="Lucide.Send" />
@@ -68,14 +67,12 @@
                             else if (CurrentStatus == ContentStatus.Published)
                             {
                                 <button type="button"
-                                        role="menuitem"
                                         disabled="@_busy"
                                         @onclick="OpenWithdrawConfirm">
                                     <Blazicon Svg="Lucide.EyeOff" />
                                     @Text("contentEditor.action.withdraw")
                                 </button>
                                 <button type="button"
-                                        role="menuitem"
                                         disabled="@_busy"
                                         @onclick="OpenArchiveConfirm">
                                     <Blazicon Svg="Lucide.Archive" />
@@ -85,7 +82,6 @@
                             else if (CurrentStatus == ContentStatus.Archived)
                             {
                                 <button type="button"
-                                        role="menuitem"
                                         class="bocchi-editor-commandbar__menu-danger"
                                         disabled="@_busy"
                                         @onclick="OpenPermanentDeleteConfirm">
@@ -96,14 +92,12 @@
                             else
                             {
                                 <button type="button"
-                                        role="menuitem"
                                         disabled="@_busy"
                                         @onclick="PublishAsync">
                                     <Blazicon Svg="Lucide.Send" />
                                     @Text("contentEditor.action.publish")
                                 </button>
                                 <button type="button"
-                                        role="menuitem"
                                         class="bocchi-editor-commandbar__menu-danger"
                                         disabled="@_busy"
                                         @onclick="OpenDraftDeleteConfirm">
@@ -116,25 +110,22 @@
                 }
             </div>
             @* 窄屏 pane 切换与顶栏合一，避免操作区与 tabs 分成两块 heavy chrome。 *@
-            <div class="bocchi-editor-mobile-tabs" role="tablist" aria-label='@Text("contentEditor.mobileTabs.aria")'>
+            <div class="bocchi-editor-mobile-tabs" role="group" aria-label='@Text("contentEditor.mobileTabs.aria")'>
                 <button type="button"
-                        role="tab"
                         class="@MobileTabClass(EditorMobilePane.Write)"
-                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Write)"
+                        aria-pressed="@AriaPressed(_mobilePane == EditorMobilePane.Write)"
                         @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Write)">
                     @Text("contentEditor.mobileTabs.write")
                 </button>
                 <button type="button"
-                        role="tab"
                         class="@MobileTabClass(EditorMobilePane.Settings)"
-                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Settings)"
+                        aria-pressed="@AriaPressed(_mobilePane == EditorMobilePane.Settings)"
                         @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Settings)">
                     @Text("contentEditor.mobileTabs.settings")
                 </button>
                 <button type="button"
-                        role="tab"
                         class="@MobileTabClass(EditorMobilePane.Preview)"
-                        aria-selected="@AriaSelected(_mobilePane == EditorMobilePane.Preview)"
+                        aria-pressed="@AriaPressed(_mobilePane == EditorMobilePane.Preview)"
                         @onclick="() => SelectMobilePaneAsync(EditorMobilePane.Preview)">
                     @Text("contentEditor.mobileTabs.preview")
                 </button>
