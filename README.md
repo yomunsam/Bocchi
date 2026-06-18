@@ -19,6 +19,18 @@ Key features:
 
 <br>
 
+## Project status
+
+The project is in **early development**:
+
+- Runnable for early preview and experimentation.
+- Stability is not guaranteed; future version compatibility is not guaranteed.
+- Full data compatibility with future versions is not guaranteed.
+
+------
+
+<br>
+
 ## Quick Start
 
 **Bocchi Home Server** is meant to run on a home server, NAS, personal VPS, or similar. It includes an admin panel and is **not designed to be exposed directly to the public internet**. Once Home Server is deployed, you can use Bocchi's full feature set.
