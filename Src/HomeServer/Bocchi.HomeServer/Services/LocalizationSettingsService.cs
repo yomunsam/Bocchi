@@ -172,7 +172,10 @@ public sealed class LocalizationSettingsService
     /// <summary>读取数据库记录；缺失时写入与默认内容工作区一致的本地化设置。</summary>
     private async Task<LocalizationSettingsRecord> GetOrCreateRecordAsync(CancellationToken cancellationToken)
     {
-        var record = await _db.LocalizationSettings.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var record = await _db.LocalizationSettings
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (record is not null)
         {
             return record;

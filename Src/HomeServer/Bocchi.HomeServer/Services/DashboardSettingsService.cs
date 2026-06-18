@@ -22,7 +22,10 @@ public sealed class DashboardSettingsService
     /// <summary>读取单站点 Dashboard 设置；缺失时创建默认值。</summary>
     public async Task<DashboardSettings> GetAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await _db.DashboardSettings.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var settings = await _db.DashboardSettings
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (settings is not null)
         {
             return settings;

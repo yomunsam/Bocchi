@@ -118,6 +118,7 @@ public sealed class ExternalLoginOptionsConfigurator :
         var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
         return db.GitHubIntegrationSettings
             .AsNoTracking()
+            .OrderBy(x => x.Id)
             .FirstOrDefault();
     }
 

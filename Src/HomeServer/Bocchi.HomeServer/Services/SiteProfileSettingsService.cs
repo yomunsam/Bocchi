@@ -32,7 +32,10 @@ public sealed class SiteProfileSettingsService
     /// <summary>读取单站点基础设置；缺失时创建默认值。</summary>
     public async Task<SiteProfileSettings> GetAsync(CancellationToken cancellationToken = default)
     {
-        var settings = await _db.SiteProfileSettings.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var settings = await _db.SiteProfileSettings
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
         if (settings is not null)
         {
             return settings;
