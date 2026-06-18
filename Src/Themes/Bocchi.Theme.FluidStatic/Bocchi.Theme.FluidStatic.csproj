@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Bocchi.Theme.FluidStatic</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fluid.Core" />
+    <ProjectReference Include="..\..\Core\Bocchi.GeneratorContract\Bocchi.GeneratorContract.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Runtime\fluid-static-v1.js"
+                      LogicalName="Bocchi.Theme.FluidStatic.Runtime.fluid-static-v1.js" />
+  </ItemGroup>
+
+</Project>

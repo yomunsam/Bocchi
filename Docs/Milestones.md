@@ -18,7 +18,7 @@
 | [x] | M2 | Content Workspace | 定义并实现内容目录、Markdown/frontmatter 解析和 SQLite 管理状态 | workspace 初始化、内容扫描、解析日志、`Docs/Milestones/M2/M2.md` | 能扫描文章、页面、作品、短文、友链和站点设置 |
 | [x] | M3 | Generator Pipeline | 生成标准化内容图、Theme 输入数据和本地静态输出 | 构建任务、`cache/theme-input/`、`output/public/`、`Docs/Milestones/M3/M3.md` | Full Build 可产出完整本地站点目录 |
 | [x] | M4 | Home Server Dashboard | 提供正式但亲和的个人发布后台、Setup、Identity、Markdown 编辑和受保护前台预览 | `Docs/Milestones/M4/M4.md`、`Docs/Milestones/M4/UI-Design.md`、`/Setup`、`/Admin`、`/` Preview | 第一个 Admin 可完成 Setup；Dashboard 可管理内容、设置、发布、构建详情和预览 |
-| [x] | M5 | Default Static Theme | 提供默认静态前端 | `Docs/Milestones/M5/M5.md`、`default-static`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
+| [x] | M5 | Bocchi Mono Theme | 提供内置静态前端 | `Docs/Milestones/M5/M5.md`、`bocchi-mono`、Theme Contract 校验 | 首页、文章、页面、作品、短文、友链页面可静态输出 |
 | [x] | M6 | Localization and Content i18n | 完成 Dashboard i18n、站点语言设置、Theme 本地化约定和内容多语言版本 | `Docs/Milestones/M6/M6.md`、`Docs/Milestones/M6/Theme开发专项.md`、Settings / Localization、Theme Context、content variants | 普通写作流不受打扰；Post/Page/Work 可管理语言版本；默认 Theme 输出语言切换和 SEO 元数据 |
 | [~] | M7 | Feeds, Search and Publish | 完成 RSS、Sitemap、搜索索引、基础发布目标和 Remote Runner 规划 | RSS/Sitemap/search index、Local/Cloudflare Pages 输出、GitHub Actions Remote Runner | 本地发布可用，Cloudflare Pages 路径明确；Remote Runner 边界清楚 |
 | [ ] | M8 | Cloud Server 预留 | 为未来动态功能保留清晰接口 | Cloud Server ADR、动态功能候选列表 | 有边界设计，无无谓提前实现 |
@@ -200,12 +200,12 @@
 
 详细规划：见 [`Docs/Milestones/M5/M5.md`](./Milestones/M5/M5.md)。
 
-当前状态：已完成。`default-static` 的 canonical source 位于 `Themes/default-static/`，会作为 embedded resources 随包分发并物化到 `<data>/themes/default-static/`；`fluid-static` runner 可在不依赖 Node.js 的情况下执行该 Theme 实例中的 `.liquid` 模板，输出首页、文章、页面、作品、短文、友链、404、CSS、JS，并进入 `.bocchi-manifest.json`；`theme-context.json`、Theme 配置文件边界、manifest 对账、模板覆盖、Preview Host 首页、四个关键视口和 `bocchi-time` 双时区增强均已有验证。默认视觉方向为克制现代的前台个人主页：排版优先、网格清晰、纸墨中性色、少量焦橙 accent，不把 Dashboard 视觉或外部静态原型代码混入 Theme 架构。
+当前状态：已完成。`bocchi-mono` 的 canonical source 位于 `Themes/bocchi-mono/`，由 `Bocchi.Themes.BuiltIn.Bundle` 随包分发并物化到 `<data>/themes/bocchi-mono/`；`Bocchi.Theme.FluidStatic` 可在 Theme authoring 不依赖 .NET 或 Node.js 的情况下执行完整 `.liquid` 模板，输出标准路由、Theme assets 与公共 browser runtime，并进入 `.bocchi-manifest.json`。
 
 建议任务：
 
-- 建立 `Src/Themes/Bocchi.Theme.DefaultStatic/` 作为内置 Fluid 模板 renderer。
-- 明确内置默认 Theme 到 `<data>/themes/default-static/` manifest/schema/templates/assets 的物化方式。
+- 建立 `Src/Themes/Bocchi.Theme.FluidStatic/` 作为公共 Fluid Static renderer。
+- 明确 `Bocchi.Themes.BuiltIn.Bundle` 到 `<data>/themes/bocchi-mono/` manifest/schema/templates/assets 的物化方式。
 - 补齐 `theme-context.json` 输入，让 Dashboard Theme 设置和站点/作者/构建上下文参与构建。
 - 新增 `fluid-static` / `process` runner 边界，默认 Theme 走 `fluid-static`，第三方纯模板 Theme 也可使用它；高级 Theme 可继续走本机命令。
 - 新增 Theme 输出收集阶段，把 Theme 本地输出登记为 `ArtifactKind.ThemeOutput` 并纳入 manifest。

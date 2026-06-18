@@ -128,7 +128,7 @@
 
     /// <summary>默认前台 Theme id。</summary>
     [Parameter]
-    public string DefaultThemeId { get; set; } = "default-static";
+    public string DefaultThemeId { get; set; } = "bocchi-mono";
 
     /// <summary>页面是否可以渲染；Setup 已完成或 pending cookie 缺失时会先跳转。</summary>
     private bool _ready;
@@ -164,7 +164,7 @@
         _themeOptions = await ThemeSettings.ListAvailableThemesAsync().ConfigureAwait(false);
         if (_themeOptions.Count == 0)
         {
-            _themeOptions = [new ThemeOption("default-static", "Bocchi Mono")];
+            _themeOptions = [new ThemeOption("bocchi-mono", "Bocchi Mono")];
         }
 
         _ready = true;

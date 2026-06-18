@@ -45,7 +45,7 @@ public sealed class NavigationMenuServiceTests
                 new NavigationEditorItem
                 {
                     Id = "theme-ref",
-                    Label = "i18n://theme@theme.defaultStatic.colophonBuiltWith",
+                    Label = "i18n://theme@theme.bocchi-mono.colophonBuiltWith",
                     TargetType = "builtin",
                     TargetValue = "posts",
                 },
@@ -73,7 +73,7 @@ public sealed class NavigationMenuServiceTests
         var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
         var yaml = await File.ReadAllTextAsync(layout.Workspace.NavigationFile);
         yaml.Should().Contain("label: i18n://common@menu.custom.docs");
-        yaml.Should().Contain("label: i18n://theme@theme.defaultStatic.colophonBuiltWith");
+        yaml.Should().Contain("label: i18n://theme@theme.bocchi-mono.colophonBuiltWith");
 
         var settings = await localization.GetBuildLocalizationOptionsAsync();
         settings.Text["menu.custom.docs"]["en-US"].Should().Be("Docs");
@@ -84,7 +84,7 @@ public sealed class NavigationMenuServiceTests
         view.EnabledLanguages.Select(language => language.Code).Should().Contain(["en-US", "zh-CN"]);
         view.CommonTextOverrides.Should().Contain(overrideText => overrideText.Key == "menu.custom.docs");
         view.TargetOptions.Select(option => option.GroupLabel).Should().Contain("Built-in");
-        view.Items.Should().Contain(item => item.Label == "i18n://theme@theme.defaultStatic.colophonBuiltWith");
+        view.Items.Should().Contain(item => item.Label == "i18n://theme@theme.bocchi-mono.colophonBuiltWith");
     }
 
     [Fact]

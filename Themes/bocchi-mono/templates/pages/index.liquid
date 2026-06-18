@@ -1,0 +1,72 @@
+<section class="hero container">
+  <div class="meta caption">01 — <span data-bocchi-i18n="menu.home">{{ page.title }}</span></div>
+  <h1 class="display" data-bocchi-i18n="{{ home.heroTitleKey }}"{% if home.heroTitleFormat %} data-bocchi-i18n-format="{{ home.heroTitleFormat }}"{% endif %}>{{ home.heroTitleHtml | html }}</h1>
+  <p class="hero-subtitle" data-bocchi-i18n="{{ home.heroSubtitleKey }}"{% if home.heroSubtitleFormat %} data-bocchi-i18n-format="{{ home.heroSubtitleFormat }}"{% endif %}>{{ home.heroSubtitleHtml | html }}</p>
+  {% if home.hasTags %}
+  <div class="meta-line">
+    {% for tag in home.tagSlots %}<span data-bocchi-i18n="{{ tag.i18nKey }}">{{ tag.label }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="content py-96">
+  <div class="between section-title-row">
+    <span class="caption">02 — <span data-bocchi-i18n="theme.bocchi-mono.homeSelectedWriting">{{ text.homeSelectedWriting }}</span></span>
+    <a href="/posts/" class="arrow-link"><span data-bocchi-i18n="theme.bocchi-mono.all">{{ text.all }}</span> <span class="arrow">→</span></a>
+  </div>
+  {% if hasFeaturedPosts %}
+  <div class="article-list">
+    {% for item in featuredPosts %}
+    <a href="{{ item.url }}" class="row"{% if item.hasLanguageVariants %} data-bocchi-content-variants="{{ item.languageVariantsJson }}"{% endif %}>
+      <span class="date" data-bocchi-content-year-month>{{ item.yearMonth }}</span>
+      <span class="title" data-bocchi-content-title>{{ item.title }}</span>
+      <span class="cat" data-bocchi-content-meta>{{ item.meta }}</span>
+      <span class="arrow">→</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" data-bocchi-i18n="theme.bocchi-mono.emptyList">{{ text.emptyList }}</div>
+  {% endif %}
+</section>
+
+<section class="content py-96 section-divider">
+  <div class="between section-title-row">
+    <span class="caption">03 — <span data-bocchi-i18n="theme.bocchi-mono.homeSelectedWork">{{ text.homeSelectedWork }}</span></span>
+    <a href="/works/" class="arrow-link"><span data-bocchi-i18n="theme.bocchi-mono.all">{{ text.all }}</span> <span class="arrow">→</span></a>
+  </div>
+  {% if hasFeaturedWorks %}
+  <div class="proj-grid">
+    {% for item in featuredWorks %}
+    <article class="proj-card"{% if item.hasLanguageVariants %} data-bocchi-content-variants="{{ item.languageVariantsJson }}"{% endif %}>
+      <div class="head"><h3><a href="{{ item.url }}" aria-label="{{ item.title }}" data-bocchi-content-link><span data-bocchi-content-title>{{ item.title }}</span></a></h3><span class="fig-num">{{ forloop.index }}</span></div>
+      <p class="desc" data-bocchi-content-summary>{{ item.summary }}</p>
+      {% if item.hasStack %}<div class="stack">{% for tag in item.stack %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+      {% if item.hasLinks %}<div class="links">{% for link in item.links %}<a href="{{ link.url }}">{{ link.label }} →</a>{% endfor %}</div>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" data-bocchi-i18n="theme.bocchi-mono.emptyList">{{ text.emptyList }}</div>
+  {% endif %}
+</section>
+
+<section class="content py-96 section-divider">
+  <div class="between section-title-row">
+    <span class="caption">04 — <span data-bocchi-i18n="theme.bocchi-mono.homeRecentNotes">{{ text.homeRecentNotes }}</span></span>
+    <a href="/notes/" class="arrow-link"><span data-bocchi-i18n="theme.bocchi-mono.all">{{ text.all }}</span> <span class="arrow">→</span></a>
+  </div>
+  {% if hasRecentNotes %}
+  <div class="tw-list">
+    {% for item in recentNotes %}
+    <article class="tw-item">
+      <bocchi-time datetime="{{ item.isoDate }}" author-time-zone="{{ site.authorTimeZone }}"><time class="ts">{{ item.displayDateTime }}</time></bocchi-time>
+      <div class="body">{{ item.html | html }}</div>
+      {% if item.hasTags %}<div class="meta">{% for tag in item.tags %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" data-bocchi-i18n="theme.bocchi-mono.emptyList">{{ text.emptyList }}</div>
+  {% endif %}
+</section>

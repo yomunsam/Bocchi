@@ -42,7 +42,7 @@ public sealed class ThemeContractTests
     {
         var manifest = new ThemeManifest
         {
-            Id = "default-static",
+            Id = "bocchi-mono",
             Name = "Bocchi Mono",
             Version = "0.1.0",
             ContractVersion = ThemeContractVersion.V1,
@@ -64,7 +64,7 @@ public sealed class ThemeContractTests
     {
         var manifest = new ThemeManifest
         {
-            Id = "default-static",
+            Id = "bocchi-mono",
             Name = "Bocchi Mono",
             Version = "0.1.0",
             ContractVersion = ThemeContractVersion.V1,
@@ -76,7 +76,7 @@ public sealed class ThemeContractTests
                 [
                     new ThemeI18nKeyManifest
                     {
-                        Key = "theme.defaultStatic.colophonBuiltWith",
+                        Key = "theme.bocchi-mono.colophonBuiltWith",
                         Title = "Colophon built-with text",
                         Description = "Footer text used by Bocchi Mono.",
                         DefaultValues = new Dictionary<string, string>
@@ -92,7 +92,7 @@ public sealed class ThemeContractTests
         manifest.I18n.Should().NotBeNull();
         manifest.I18n!.SupportedLanguages.Should().Contain(["en-US", "zh-CN"]);
         manifest.I18n.Keys.Should().ContainSingle(key =>
-            key.Key == "theme.defaultStatic.colophonBuiltWith"
+            key.Key == "theme.bocchi-mono.colophonBuiltWith"
             && key.DefaultValues["zh-CN"] == "由 Bocchi 构建。");
     }
 

@@ -80,7 +80,7 @@ public sealed class IsolatedDataRootWebApplicationFactory
                 ["description"] = "Test publishing workspace",
                 ["publicBaseUrl"] = "https://bocchi.example/",
                 ["copyrightNotice"] = "Copyright © 2026 Bocchi Test.",
-                ["defaultThemeId"] = "default-static",
+                ["defaultThemeId"] = "bocchi-mono",
             }));
             created.StatusCode.Should().Be(System.Net.HttpStatusCode.Redirect);
             created.Headers.Location!.ToString().Should().Be("/Admin");

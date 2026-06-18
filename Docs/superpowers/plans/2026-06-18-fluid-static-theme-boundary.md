@@ -4,7 +4,7 @@
 
 **Goal:** 将公共 `fluid-static` renderer 与具体的 Bocchi Mono Theme 完全拆开，并让 Cozy 成为不依赖 Bocchi Mono、无需 .NET/Node.js 工具链的独立第三方 Theme demo。
 
-**Architecture:** `Bocchi.Theme.FluidStatic` 只实现公开 Fluid Static v1 profile；`Bocchi.Theme.BocchiMono` 只嵌入和物化 `Themes/bocchi-mono`。Generator 直接依赖这两个明确组件，但二者互不引用；第三方 Theme 只通过文件 Contract 使用 Fluid Static。
+**Architecture:** `Bocchi.Theme.FluidStatic` 只实现公开 Fluid Static v1 profile；`Bocchi.Themes.BuiltIn.Bundle` 只嵌入和物化随 Bocchi 分发的内置 Theme。Generator 直接依赖这两个明确组件，但二者互不引用；第三方 Theme 只通过文件 Contract 使用 Fluid Static。
 
 **Tech Stack:** .NET 10、C#、Fluid.Core、xUnit、FluentAssertions、Liquid、原生 JavaScript、MSBuild embedded resources
 
@@ -20,17 +20,17 @@
 - `Src/Themes/Bocchi.Theme.FluidStatic/FluidStaticTextResolver.cs`：Common、Theme 私有文案和语言 fallback。
 - `Src/Themes/Bocchi.Theme.FluidStatic/FluidStaticTemplateContract.cs`：v1 必需模板清单与检查。
 - `Src/Themes/Bocchi.Theme.FluidStatic/Runtime/fluid-static-v1.js`：跨 Theme 的语言、appearance、`bocchi-time` runtime。
-- `Src/Themes/Bocchi.Theme.BocchiMono/Bocchi.Theme.BocchiMono.csproj`：具体内置 Theme 资源项目。
-- `Src/Themes/Bocchi.Theme.BocchiMono/BocchiMonoThemeDefinition.cs`：内置 Theme 身份与物化入口。
-- `Src/Themes/Bocchi.Theme.BocchiMono/BocchiMonoThemeResources.cs`：跨平台 embedded resource 索引与读取。
+- `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/Bocchi.Themes.BuiltIn.Bundle.csproj`：内置 Theme 资源 Bundle 项目。
+- `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/DefaultThemeBundle.cs`：默认 Theme 身份与物化入口。
+- `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/DefaultThemeBundleResources.cs`：跨平台 embedded resource 索引与读取。
 - `Themes/bocchi-mono/`：由 `Themes/default-static/` 直接改名后的具体 Theme。
 
 ### Existing Bocchi files modified
 
-- `Bocchi.slnx`：替换 Theme project，加入 BocchiMono project。
-- `Src/Core/Bocchi.Generator/Bocchi.Generator.csproj`：同时引用 FluidStatic 与 BocchiMono。
+- `Bocchi.slnx`：替换 Theme project，加入 BuiltIn Bundle project。
+- `Src/Core/Bocchi.Generator/Bocchi.Generator.csproj`：同时引用 FluidStatic 与 BuiltIn Bundle。
 - `Src/Core/Bocchi.Generator/Theme/ThemeRunner.cs`：调用 `FluidStaticRenderer`。
-- `Src/Core/Bocchi.Generator/Theme/ThemeResolver.cs`：只通过 `BocchiMonoThemeDefinition` 识别内置 Theme。
+- `Src/Core/Bocchi.Generator/Theme/ThemeResolver.cs`：只通过 `DefaultThemeBundle` 识别内置默认 Theme。
 - `Src/Core/Bocchi.Generator/Theme/ThemePackageService.cs`：禁止 zip 覆盖 `bocchi-mono`，校验 Theme 私有 i18n namespace。
 - `Src/Core/Bocchi.Generator/Theme/ThemeManifestValidator.cs`：Resolver 与 Package 共用的 manifest 语义校验。
 - `Src/Core/Bocchi.Generator/GeneratorServiceCollectionExtensions.cs`：更新 namespace。
@@ -149,14 +149,14 @@ git add Src/Themes/Bocchi.Theme.DefaultStatic Tests/Bocchi.Generator.Tests
 git commit -m "fix: prevent cross-theme template fallback"
 ```
 
-## Task 2: Split the public renderer and Bocchi Mono materializer projects
+## Task 2: Split the public renderer and BuiltIn Bundle projects
 
 **Files:**
 - Create: `Src/Themes/Bocchi.Theme.FluidStatic/Bocchi.Theme.FluidStatic.csproj`
 - Move/rename: `Src/Themes/Bocchi.Theme.DefaultStatic/DefaultStatic*.cs`
-- Create: `Src/Themes/Bocchi.Theme.BocchiMono/Bocchi.Theme.BocchiMono.csproj`
-- Create: `Src/Themes/Bocchi.Theme.BocchiMono/BocchiMonoThemeDefinition.cs`
-- Create: `Src/Themes/Bocchi.Theme.BocchiMono/BocchiMonoThemeResources.cs`
+- Create: `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/Bocchi.Themes.BuiltIn.Bundle.csproj`
+- Create: `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/DefaultThemeBundle.cs`
+- Create: `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/DefaultThemeBundleResources.cs`
 - Modify: `Bocchi.slnx`
 - Modify: `Src/Core/Bocchi.Generator/Bocchi.Generator.csproj`
 - Modify: `Src/Core/Bocchi.Generator/Theme/ThemeRunner.cs`
@@ -193,17 +193,17 @@ All moved classes remain documented in zh-CN and use namespace:
 namespace Bocchi.Theme.FluidStatic;
 ```
 
-- [ ] **Step 3: Create the concrete BocchiMono resource project**
+- [ ] **Step 3: Create the BuiltIn Bundle resource project**
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Bocchi.Theme.BocchiMono</RootNamespace>
+    <RootNamespace>Bocchi.Themes.BuiltIn.Bundle</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\..\Themes\default-static\**\*"
                       Exclude="..\..\..\Themes\default-static\build\**\*">
-      <LogicalName>Bocchi.Theme.BocchiMono.Theme/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+      <LogicalName>Bocchi.Themes.BuiltIn.Bundle.Theme/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 </Project>
@@ -211,7 +211,7 @@ namespace Bocchi.Theme.FluidStatic;
 
 - [ ] **Step 4: Index actual manifest names instead of reconstructing separators**
 
-`BocchiMonoThemeResources` builds a normalized path-to-resource-name map:
+`DefaultThemeBundleResources` builds a normalized path-to-resource-name map:
 
 ```csharp
 private static readonly IReadOnlyDictionary<string, string> ResourceNames = Assembly
@@ -241,7 +241,7 @@ await FluidStaticRenderer.RenderAsync(new FluidStaticRenderRequest
 }, cancellationToken);
 ```
 
-`ThemeResolver` uses `BocchiMonoThemeDefinition.ThemeId` and `EnsureAsync` only; FluidStatic contains no reference to this type.
+`ThemeResolver` uses `DefaultThemeBundle.ThemeId` and `EnsureAsync` only; FluidStatic contains no reference to this type.
 
 - [ ] **Step 6: Build to catch mechanical namespace/path mistakes**
 
@@ -474,7 +474,7 @@ git commit -m "feat: provide fluid static browser runtime"
 **Files:**
 - Move: `Themes/default-static/` → `Themes/bocchi-mono/`
 - Delete: `Themes/bocchi-mono/build/`
-- Modify: `Src/Themes/Bocchi.Theme.BocchiMono/Bocchi.Theme.BocchiMono.csproj`
+- Modify: `Src/Themes/Bocchi.Themes.BuiltIn.Bundle/Bocchi.Themes.BuiltIn.Bundle.csproj`
 - Modify: `Themes/bocchi-mono/theme.json`
 - Modify: `Themes/bocchi-mono/templates/**/*.liquid`
 - Modify: all default id call sites under `Src/` and `Tests/`
@@ -511,7 +511,7 @@ Example:
 
 - [ ] **Step 4: Replace application defaults without aliases**
 
-Update workspace initializer, SiteProfile settings, Setup, Theme settings, Admin state and tests to `bocchi-mono`. Use `BocchiMonoThemeDefinition.ThemeId` where the Generator already owns the concrete built-in dependency; keep UI/service defaults as explicit `bocchi-mono` strings rather than moving a concrete default into GeneratorContract.
+Update workspace initializer, SiteProfile settings, Setup, Theme settings, Admin state and tests to `bocchi-mono`. Use `DefaultThemeBundle.ThemeId` where the Generator already owns the concrete built-in dependency; keep UI/service defaults as explicit `bocchi-mono` strings rather than moving a concrete default into GeneratorContract.
 
 - [ ] **Step 5: Run all Bocchi test projects**
 
@@ -599,7 +599,7 @@ Describe Bocchi Mono as a bundled concrete Theme and Cozy as the independent thi
 
 - [ ] **Step 4: Add a complete in-repo third-party conformance fixture**
 
-The fixture must provide every required template and its own namespace. It must build while the test intentionally avoids `BocchiMonoThemeDefinition.EnsureAsync`.
+The fixture must provide every required template and its own namespace. It must build while the test intentionally avoids `DefaultThemeBundle.EnsureAsync`.
 
 - [ ] **Step 5: Commit docs and conformance coverage**
 

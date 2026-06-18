@@ -92,5 +92,5 @@ public sealed partial class ThemeSettingsService
             : manifest.Runner.Kind.Trim();
 
     private static string NormalizeThemeId(string themeId)
-        => string.IsNullOrWhiteSpace(themeId) ? "default-static" : themeId.Trim();
+        => string.IsNullOrWhiteSpace(themeId) ? "bocchi-mono" : themeId.Trim();
 }

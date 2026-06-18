@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 using Bocchi.Generator.Pipeline;
 using Bocchi.GeneratorContract;
-using Bocchi.Theme.DefaultStatic;
+using Bocchi.Theme.FluidStatic;
 
 namespace Bocchi.Generator.Theme;
 
@@ -47,8 +47,8 @@ public sealed class ThemeRunner : IThemeRunner
     {
         try
         {
-            await DefaultStaticTemplateRenderer.RenderAsync(
-                new DefaultStaticRenderRequest
+            await FluidStaticRenderer.RenderAsync(
+                new FluidStaticRenderRequest
                 {
                     ThemeRoot = invocation.ThemeRoot,
                     InputDirectory = invocation.InputDirectoryAbsolute,
@@ -60,7 +60,7 @@ public sealed class ThemeRunner : IThemeRunner
                 cancellationToken).ConfigureAwait(false);
             onLog(BuildLogLevel.Info, $"[fluid-static] Theme '{invocation.Manifest.Id}' rendered.");
         }
-        catch (DefaultStaticThemeException ex)
+        catch (FluidStaticException ex)
         {
             throw new ThemeRunnerException($"Theme '{invocation.Manifest.Id}' fluid-static 渲染失败：{ex.Message}", ex);
         }

@@ -103,20 +103,20 @@ public sealed class ThemePackageServiceTests
         File.ReadAllText(configPath).Should().Be("""{"accent":"pink"}""");
     }
 
-    /// <summary>default-static 作为内置参考实现，不允许被 zip 安装流程覆盖。</summary>
+    /// <summary>bocchi-mono 作为内置 Theme，不允许被 zip 安装流程覆盖。</summary>
     [Fact]
-    public async Task InstallOrUpdateAsync_RejectsDefaultStaticPackage()
+    public async Task InstallOrUpdateAsync_RejectsBocchiMonoPackage()
     {
         using var temp = new TempPackageDataRoot();
-        var zipPath = Path.Combine(temp.Root, "default-static.zip");
-        await WriteThemeZipAsync(zipPath, id: "default-static", version: "1.0.0");
+        var zipPath = Path.Combine(temp.Root, "bocchi-mono.zip");
+        await WriteThemeZipAsync(zipPath, id: "bocchi-mono", version: "1.0.0");
         var service = CreateService(temp.Layout);
         var inspection = await service.InspectZipAsync(zipPath);
 
         var act = () => service.InstallOrUpdateAsync(inspection, trustProcessRunner: false);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*default-static*");
+            .WithMessage("*bocchi-mono*");
     }
 
     [Fact]
@@ -145,6 +145,25 @@ public sealed class ThemePackageServiceTests
         inspection.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-static-assets-to-relative");
     }
 
+    /// <summary>Package inspection 必须阻止 Theme 声明其他 Theme namespace 下的私有 i18n key。</summary>
+    [Fact]
+    public async Task InspectZipAsync_RejectsInvalidPrivateI18nNamespace()
+    {
+        using var temp = new TempPackageDataRoot();
+        var zipPath = Path.Combine(temp.Root, "wrong-namespace.zip");
+        await WriteThemeZipAsync(
+            zipPath,
+            id: "cozy",
+            version: "1.0.0",
+            i18nKey: "theme.bocchi-mono.cardLabel");
+        var service = CreateService(temp.Layout);
+
+        var inspection = await service.InspectZipAsync(zipPath);
+
+        inspection.IsInstallable.Should().BeFalse();
+        inspection.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-i18n-key-namespace-invalid");
+    }
+
     private static ThemePackageService CreateService(BocchiDataLayout layout)
         => new(
             layout,
@@ -159,12 +178,13 @@ public sealed class ThemePackageServiceTests
         string runnerKind = "fluid-static",
         string assetContent = "body{}",
         string? staticAssetsJson = null,
+        string? i18nKey = null,
         IReadOnlyList<(string Path, string Content)>? extraEntries = null)
     {
         var prefix = string.IsNullOrWhiteSpace(rootPrefix) ? string.Empty : rootPrefix.TrimEnd('/') + "/";
         await using var stream = File.Create(zipPath);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: false);
-        await WriteEntryAsync(archive, prefix + "theme.json", CreateManifestJson(id, version, runnerKind, staticAssetsJson));
+        await WriteEntryAsync(archive, prefix + "theme.json", CreateManifestJson(id, version, runnerKind, staticAssetsJson, i18nKey));
         await WriteEntryAsync(archive, prefix + "assets/app.css", assetContent);
         foreach (var (path, content) in extraEntries ?? [])
         {
@@ -172,11 +192,27 @@ public sealed class ThemePackageServiceTests
         }
     }
 
-    private static string CreateManifestJson(string id, string version, string runnerKind, string? staticAssetsJson)
+    private static string CreateManifestJson(string id, string version, string runnerKind, string? staticAssetsJson, string? i18nKey)
     {
         var staticAssetsBlock = string.IsNullOrWhiteSpace(staticAssetsJson)
             ? string.Empty
             : $",\n  \"staticAssets\": {staticAssetsJson}";
+        var i18nBlock = i18nKey is null
+            ? string.Empty
+            : $$"""
+              ,
+              "i18n": {
+                "keys": [
+                  {
+                    "key": "{{i18nKey}}",
+                    "title": "Test key",
+                    "defaultValues": {
+                      "en-US": "Test"
+                    }
+                  }
+                ]
+              }
+              """;
         if (string.Equals(runnerKind, "process", StringComparison.OrdinalIgnoreCase))
         {
             return $$"""
@@ -188,7 +224,7 @@ public sealed class ThemePackageServiceTests
               "runner": {
                 "kind": "process",
                 "command": "echo ok"
-              }{{staticAssetsBlock}}
+              }{{staticAssetsBlock}}{{i18nBlock}}
             }
             """;
         }
@@ -202,7 +238,7 @@ public sealed class ThemePackageServiceTests
           "runner": {
             "kind": "fluid-static",
             "entry": "fluid"
-          }{{staticAssetsBlock}}
+          }{{staticAssetsBlock}}{{i18nBlock}}
         }
         """;
     }

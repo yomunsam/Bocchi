@@ -40,7 +40,7 @@ public partial class ThemeLibrary
     private IOptions<ThemeDevelopmentOptions> ThemeDevelopment { get; set; } = default!;
 
     /// <summary>当前 active Theme id。</summary>
-    private string _activeThemeId = "default-static";
+    private string _activeThemeId = "bocchi-mono";
 
     /// <summary>Theme Catalog 页面缓存。</summary>
     private IReadOnlyList<ThemeCatalogItem> _catalog = [];
@@ -142,7 +142,7 @@ public partial class ThemeLibrary
     private async Task RefreshStateAsync()
     {
         var site = await SiteProfileSettings.GetAsync();
-        _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "default-static" : site.DefaultThemeId;
+        _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "bocchi-mono" : site.DefaultThemeId;
         _catalog = await ThemeSettings.ListThemeCatalogAsync();
     }
 

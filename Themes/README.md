@@ -2,7 +2,7 @@
 
 This directory contains repository-shipped Theme source trees.
 
-`default-static/` is the canonical source for Bocchi's built-in reference Theme. It is embedded into the `Bocchi.Theme.DefaultStatic` assembly during publish and materialized into `<data>/themes/default-static/` at runtime. The materialized DataRoot copy is the editable running instance; this directory remains the source-of-truth example for maintainers and third-party Theme authors.
+`bocchi-mono/` is the canonical source for Bocchi's bundled default Theme. `Bocchi.Themes.BuiltIn.Bundle` embeds it during publish and materializes it into `<data>/themes/bocchi-mono/` at runtime. The DataRoot copy is the editable running instance; third-party Themes do not reference this Bundle or depend on Bocchi Mono.
 
 Third-party Themes can copy this shape:
 

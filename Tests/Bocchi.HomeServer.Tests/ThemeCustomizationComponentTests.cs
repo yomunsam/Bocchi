@@ -29,8 +29,8 @@ public sealed class ThemeCustomizationComponentTests
         await InvokeSwitchThemeAsync(component, "next-theme");
 
         var site = await scope.ServiceProvider.GetRequiredService<SiteProfileSettingsService>().GetAsync();
-        site.DefaultThemeId.Should().Be("default-static");
-        GetPrivateField<string>(component, "_activeThemeId").Should().Be("default-static");
+        site.DefaultThemeId.Should().Be("bocchi-mono");
+        GetPrivateField<string>(component, "_activeThemeId").Should().Be("bocchi-mono");
         GetPrivateField<bool>(component, "_configDirty").Should().BeTrue();
         navigation.LastUri.Should().BeNull();
     }
@@ -53,9 +53,9 @@ public sealed class ThemeCustomizationComponentTests
 
         await InvokeSwitchThemeAsync(component, "next-theme");
 
-        navigation.LastUri.Should().Be("/Admin/Site/ThemeMigration?from=default-static&to=next-theme");
+        navigation.LastUri.Should().Be("/Admin/Site/ThemeMigration?from=bocchi-mono&to=next-theme");
         var site = await scope.ServiceProvider.GetRequiredService<SiteProfileSettingsService>().GetAsync();
-        site.DefaultThemeId.Should().Be("default-static");
+        site.DefaultThemeId.Should().Be("bocchi-mono");
     }
 
     /// <summary>无迁移项时只改变 DefaultThemeId，不能把站点基础设置回写成默认值。</summary>
@@ -79,7 +79,7 @@ public sealed class ThemeCustomizationComponentTests
             CopyrightNotice = "Copyright 2026 Custom Site.",
             Language = "en-US",
             TimeZone = "UTC",
-            DefaultThemeId = "default-static",
+            DefaultThemeId = "bocchi-mono",
         });
 
         var navigation = new RecordingNavigationManager();
@@ -109,7 +109,7 @@ public sealed class ThemeCustomizationComponentTests
         SetInjectedProperty(component, "LocalizationSettings", services.GetRequiredService<LocalizationSettingsService>());
         SetInjectedProperty(component, "Navigation", navigation);
         SetInjectedProperty(component, "I18n", services.GetRequiredService<DashboardLocalizationService>());
-        SetPrivateField(component, "_activeThemeId", "default-static");
+        SetPrivateField(component, "_activeThemeId", "bocchi-mono");
         return component;
     }
 
@@ -176,7 +176,7 @@ public sealed class ThemeCustomizationComponentTests
             new NavigationEditorItem
             {
                 Id = "theme-ref",
-                Label = ThemeMigrationService.ThemeRefPrefix + "theme.defaultStatic.colophonBuiltWith",
+                Label = ThemeMigrationService.ThemeRefPrefix + "theme.bocchi-mono.colophonBuiltWith",
                 TargetType = "builtin",
                 TargetValue = "home",
             },

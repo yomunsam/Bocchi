@@ -142,7 +142,7 @@ public sealed class BocchiDataInitializer
 
         social: []
 
-        defaultThemeId: default-static
+        defaultThemeId: bocchi-mono
         enableRss: true
         enableSitemap: true
         enableSearch: true

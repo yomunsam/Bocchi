@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Core\Bocchi.Generator\Bocchi.Generator.csproj" />
     <ProjectReference Include="..\..\Src\Core\Bocchi.Workspace\Bocchi.Workspace.csproj" />
+    <ProjectReference Include="..\..\Src\Themes\Bocchi.Theme.FluidStatic\Bocchi.Theme.FluidStatic.csproj" />
+    <ProjectReference Include="..\..\Src\Themes\Bocchi.Themes.BuiltIn.Bundle\Bocchi.Themes.BuiltIn.Bundle.csproj" />
   </ItemGroup>
 
   <ItemGroup>

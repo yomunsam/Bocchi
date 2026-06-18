@@ -380,7 +380,7 @@ public sealed class AccountAndSetupTests
             ["description"] = string.Empty,
             ["publicBaseUrl"] = string.Empty,
             ["copyrightNotice"] = "Copyright © 2026 Blank URL Site.",
-            ["defaultThemeId"] = "default-static",
+            ["defaultThemeId"] = "bocchi-mono",
         }));
 
         completed.StatusCode.Should().Be(HttpStatusCode.Redirect);
@@ -455,12 +455,12 @@ public sealed class AccountAndSetupTests
 
         using var scope = factory.Services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
-        await settings.SaveDefaultAsync("default-static", """{"visual":{"accentColor":"#E85D3A"}}""");
+        await settings.SaveDefaultAsync("bocchi-mono", """{"visual":{"accentColor":"#E85D3A"}}""");
 
         var db = scope.ServiceProvider.GetRequiredService<BocchiDbContext>();
-        db.ThemeConfigurations.Single().ThemeId.Should().Be("default-static");
+        db.ThemeConfigurations.Single().ThemeId.Should().Be("bocchi-mono");
         var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
-        var configPath = Path.Combine(layout.ThemeConfigDirectory, "default-static.json");
+        var configPath = Path.Combine(layout.ThemeConfigDirectory, "bocchi-mono.json");
         File.Exists(configPath).Should().BeTrue();
         (await File.ReadAllTextAsync(configPath)).Should().Contain("#E85D3A");
     }
@@ -475,10 +475,10 @@ public sealed class AccountAndSetupTests
 
         using var scope = factory.Services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
-        await settings.SaveDefaultAsync("default-static", """{"manual":{"keep":"yes"},"visual":{"accentColor":"#111111"}}""");
+        await settings.SaveDefaultAsync("bocchi-mono", """{"manual":{"keep":"yes"},"visual":{"accentColor":"#111111"}}""");
 
         await settings.SaveCustomizationAsync(
-            "default-static",
+            "bocchi-mono",
             [
                 new ThemeConfigValueInput
                 {
@@ -516,7 +516,7 @@ public sealed class AccountAndSetupTests
             ]);
 
         var layout = scope.ServiceProvider.GetRequiredService<BocchiDataLayout>();
-        var configPath = Path.Combine(layout.ThemeConfigDirectory, "default-static.json");
+        var configPath = Path.Combine(layout.ThemeConfigDirectory, "bocchi-mono.json");
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(configPath));
         var root = document.RootElement;
         root.GetProperty("manual").GetProperty("keep").GetString().Should().Be("yes");
@@ -530,7 +530,7 @@ public sealed class AccountAndSetupTests
         root.GetProperty("reading").GetProperty("timeZoneDisplayStyle").GetString().Should().Be("ianaTimeZone");
 
         var invalid = () => settings.SaveCustomizationAsync(
-            "default-static",
+            "bocchi-mono",
             [
                 new ThemeConfigValueInput
                 {
@@ -552,7 +552,7 @@ public sealed class AccountAndSetupTests
         using var scope = factory.Services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
 
-        var view = await settings.GetCustomizationAsync("default-static");
+        var view = await settings.GetCustomizationAsync("bocchi-mono");
 
         var homeFields = view.Groups.Single(group => group.Id == "home").Fields;
         var heroTitle = homeFields.Single(field => field.Key == "home.heroTitle");
@@ -588,16 +588,16 @@ public sealed class AccountAndSetupTests
 
         using var scope = factory.Services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
-        var view = await settings.GetI18nAsync("default-static");
-        var colophonKey = view.Keys.Should().ContainSingle(key => key.Key == "theme.defaultStatic.colophonBuiltWith").Subject;
+        var view = await settings.GetI18nAsync("bocchi-mono");
+        var colophonKey = view.Keys.Should().ContainSingle(key => key.Key == "theme.bocchi-mono.colophonBuiltWith").Subject;
         colophonKey.DefaultValues["zh-CN"].Should().Be("由 Bocchi 构建。");
 
         await settings.SaveI18nTextOverridesAsync(
-            "default-static",
+            "bocchi-mono",
             [
                 new ThemeI18nTextOverride
                 {
-                    Key = " theme.defaultStatic.colophonBuiltWith ",
+                    Key = " theme.bocchi-mono.colophonBuiltWith ",
                     Values = new Dictionary<string, string>
                     {
                         [" en-US "] = " Powered quietly ",
@@ -606,12 +606,12 @@ public sealed class AccountAndSetupTests
                 },
             ]);
 
-        var updated = await settings.GetI18nAsync("default-static");
+        var updated = await settings.GetI18nAsync("bocchi-mono");
         updated.TextOverrides.Should().ContainSingle(x =>
-            x.Key == "theme.defaultStatic.colophonBuiltWith"
+            x.Key == "theme.bocchi-mono.colophonBuiltWith"
             && x.Values["en-US"] == "Powered quietly");
-        var snapshot = await settings.GetBuildI18nTextOverridesAsync("default-static");
-        snapshot["theme.defaultStatic.colophonBuiltWith"]["en-US"].Should().Be("Powered quietly");
+        var snapshot = await settings.GetBuildI18nTextOverridesAsync("bocchi-mono");
+        snapshot["theme.bocchi-mono.colophonBuiltWith"]["en-US"].Should().Be("Powered quietly");
     }
 
     /// <summary>验证 Page Contract display ref 会按 Theme override、Theme 默认值和 Common 默认值解析。</summary>
@@ -626,11 +626,11 @@ public sealed class AccountAndSetupTests
         using var scope = factory.Services.CreateScope();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
         await settings.SaveI18nTextOverridesAsync(
-            "default-static",
+            "bocchi-mono",
             [
                 new ThemeI18nTextOverride
                 {
-                    Key = "theme.defaultStatic.pageTemplate.about",
+                    Key = "theme.bocchi-mono.pageTemplate.about",
                     Values = new Dictionary<string, string>
                     {
                         ["zh-CN"] = "关于页面（自定义）",
@@ -638,10 +638,10 @@ public sealed class AccountAndSetupTests
                 },
             ]);
 
-        var defaultStatic = await settings.GetPageContractAsync("default-static", "zh-CN");
-        defaultStatic.PageTemplates.Single(template => template.Name == "normal")
+        var bocchiMono = await settings.GetPageContractAsync("bocchi-mono", "zh-CN");
+        bocchiMono.PageTemplates.Single(template => template.Name == "normal")
             .DisplayName.Should().Be("普通页面");
-        defaultStatic.PageTemplates.Single(template => template.Name == "about")
+        bocchiMono.PageTemplates.Single(template => template.Name == "about")
             .DisplayName.Should().Be("关于页面（自定义）");
 
         var missingTheme = await settings.GetPageContractAsync("missing-theme", "zh-CN");

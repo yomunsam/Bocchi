@@ -1,0 +1,235 @@
+{
+  "id": "bocchi-mono",
+  "name": "Bocchi Mono",
+  "version": "0.1.0",
+  "contractVersion": "1.0",
+  "inputDir": "../../cache/theme-input",
+  "outputDir": "build",
+  "runner": {
+    "kind": "fluid-static",
+    "entry": "fluid"
+  },
+  "staticAssets": [
+    {
+      "from": "assets",
+      "to": "/assets"
+    }
+  ],
+  "features": {
+    "posts": true,
+    "pages": true,
+    "works": true,
+    "notes": true,
+    "friends": true,
+    "photos": false,
+    "search": false
+  },
+  "pageTemplates": [
+    {
+      "name": "normal",
+      "displayName": "i18n://theme@theme.bocchi-mono.pageTemplate.normal"
+    },
+    {
+      "name": "about",
+      "displayName": "i18n://theme@theme.bocchi-mono.pageTemplate.about"
+    },
+    {
+      "name": "faq",
+      "displayName": "i18n://theme@theme.bocchi-mono.pageTemplate.faq"
+    }
+  ],
+  "specialPages": [],
+  "i18n": {
+    "supportedLanguages": ["en-US", "zh-CN", "zh-TW", "ja-JP"],
+    "defaultLanguage": "en-US",
+    "keys": [
+      {
+        "key": "theme.bocchi-mono.pageTemplate.normal",
+        "title": "Normal page template name",
+        "description": "Dashboard label for the default standalone page template.",
+        "defaultValues": {
+          "en-US": "Normal",
+          "zh-CN": "普通页面",
+          "zh-TW": "普通頁面",
+          "ja-JP": "通常ページ"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.pageTemplate.about",
+        "title": "About page template name",
+        "description": "Dashboard label for the about page template.",
+        "defaultValues": {
+          "en-US": "About",
+          "zh-CN": "关于页面",
+          "zh-TW": "關於頁面",
+          "ja-JP": "紹介ページ"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.pageTemplate.faq",
+        "title": "FAQ page template name",
+        "description": "Dashboard label for the FAQ page template.",
+        "defaultValues": {
+          "en-US": "FAQ",
+          "zh-CN": "FAQ",
+          "zh-TW": "FAQ",
+          "ja-JP": "FAQ"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.colophonBuiltWith",
+        "title": "Colophon built-with text",
+        "description": "Footer text used by Bocchi Mono.",
+        "defaultValues": {
+          "en-US": "Built with Bocchi.",
+          "zh-CN": "由 Bocchi 构建。",
+          "zh-TW": "由 Bocchi 構建。",
+          "ja-JP": "Bocchi で構築。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.emptyList",
+        "title": "Empty list text",
+        "description": "Message shown when a content section has no published items.",
+        "defaultValues": {
+          "en-US": "Nothing here yet.",
+          "zh-CN": "这里还没有内容。",
+          "zh-TW": "這裡還沒有內容。",
+          "ja-JP": "まだ何もありません。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.homeSelectedWriting",
+        "title": "Home selected writing heading",
+        "description": "Heading for featured posts on the home page.",
+        "defaultValues": {
+          "en-US": "Selected Writing",
+          "zh-CN": "精选写作",
+          "zh-TW": "精選寫作",
+          "ja-JP": "選んだ文章"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.homeSelectedWork",
+        "title": "Home selected work heading",
+        "description": "Heading for featured works on the home page.",
+        "defaultValues": {
+          "en-US": "Selected Work",
+          "zh-CN": "精选作品",
+          "zh-TW": "精選作品",
+          "ja-JP": "選んだ制作"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.homeRecentNotes",
+        "title": "Home recent notes heading",
+        "description": "Heading for recent notes on the home page.",
+        "defaultValues": {
+          "en-US": "Recent Notes",
+          "zh-CN": "最近札记",
+          "zh-TW": "最近札記",
+          "ja-JP": "最近のノート"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.all",
+        "title": "All link text",
+        "description": "Short link text used by home page section links.",
+        "defaultValues": {
+          "en-US": "All",
+          "zh-CN": "全部",
+          "zh-TW": "全部",
+          "ja-JP": "すべて"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.postsDescription",
+        "title": "Posts listing description",
+        "description": "Lead text for the posts listing page.",
+        "defaultValues": {
+          "en-US": "Long-form notes and essays.",
+          "zh-CN": "长文章、随笔与记录。",
+          "zh-TW": "長文章、隨筆與記錄。",
+          "ja-JP": "長めのノートとエッセイ。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.worksDescription",
+        "title": "Works listing description",
+        "description": "Lead text for the works listing page.",
+        "defaultValues": {
+          "en-US": "Selected projects and experiments.",
+          "zh-CN": "选中的项目与实验。",
+          "zh-TW": "選中的專案與實驗。",
+          "ja-JP": "選んだプロジェクトと実験。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.notesDescription",
+        "title": "Notes listing description",
+        "description": "Lead text for the notes listing page.",
+        "defaultValues": {
+          "en-US": "Short updates in plain text.",
+          "zh-CN": "用纯文本记录的短更新。",
+          "zh-TW": "用純文字記錄的短更新。",
+          "ja-JP": "プレーンテキストの短い更新。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.friendsDescription",
+        "title": "Friends listing description",
+        "description": "Lead text for the friends listing page.",
+        "defaultValues": {
+          "en-US": "People and sites worth visiting.",
+          "zh-CN": "值得拜访的人与站点。",
+          "zh-TW": "值得拜訪的人與站點。",
+          "ja-JP": "訪ねたい人とサイト。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.linkLabel",
+        "title": "Link label",
+        "description": "Compact label used when a friend link has no avatar.",
+        "defaultValues": {
+          "en-US": "Link",
+          "zh-CN": "链接",
+          "zh-TW": "連結",
+          "ja-JP": "リンク"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.pageLabel",
+        "title": "Page label",
+        "description": "Eyebrow label for standalone pages.",
+        "defaultValues": {
+          "en-US": "Page",
+          "zh-CN": "页面",
+          "zh-TW": "頁面",
+          "ja-JP": "ページ"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.articleBackPrefix",
+        "title": "Article back prefix",
+        "description": "Text before the section name in article back links.",
+        "defaultValues": {
+          "en-US": "Back to",
+          "zh-CN": "返回",
+          "zh-TW": "返回",
+          "ja-JP": "戻る"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.notFoundDescription",
+        "title": "404 description",
+        "description": "Lead text for the 404 page.",
+        "defaultValues": {
+          "en-US": "This page is not in the static output.",
+          "zh-CN": "这个页面不在静态输出中。",
+          "zh-TW": "這個頁面不在靜態輸出中。",
+          "ja-JP": "このページは静的出力にありません。"
+        }
+      }
+    ]
+  }
+}

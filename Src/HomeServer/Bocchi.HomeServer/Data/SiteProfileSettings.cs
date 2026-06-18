@@ -30,7 +30,7 @@ public sealed class SiteProfileSettings
     public string TimeZone { get; set; } = "Asia/Shanghai";
 
     /// <summary>默认前台业务 Theme id。</summary>
-    public string DefaultThemeId { get; set; } = "default-static";
+    public string DefaultThemeId { get; set; } = "bocchi-mono";
 
     /// <summary>最后更新时间，便于设置页展示和后续审计。</summary>
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

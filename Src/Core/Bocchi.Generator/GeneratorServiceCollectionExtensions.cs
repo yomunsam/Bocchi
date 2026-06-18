@@ -4,8 +4,6 @@ using Bocchi.Generator.Pipeline.Stages;
 using Bocchi.Generator.State;
 using Bocchi.Generator.Theme;
 using Bocchi.Generator.ThemeInputs;
-using Bocchi.Theme.DefaultStatic;
-
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

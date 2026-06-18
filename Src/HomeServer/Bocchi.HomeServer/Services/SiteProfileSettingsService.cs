@@ -84,7 +84,7 @@ public sealed class SiteProfileSettingsService
         settings.CopyrightNotice = NormalizeRequired(update.CopyrightNotice, $"Copyright © {currentYear} {settings.SiteName}.");
         settings.Language = NormalizeRequired(update.Language, "zh-CN");
         settings.TimeZone = NormalizeRequired(update.TimeZone, "Asia/Shanghai");
-        settings.DefaultThemeId = NormalizeRequired(update.DefaultThemeId, "default-static");
+        settings.DefaultThemeId = NormalizeRequired(update.DefaultThemeId, "bocchi-mono");
     }
 
     private async Task SyncWorkspaceSiteYamlAsync(SiteProfileSettings settings, CancellationToken cancellationToken)

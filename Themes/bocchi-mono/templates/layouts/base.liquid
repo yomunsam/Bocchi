@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="{{ localization.currentLanguage }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="{{ site.description }}">
+  <title>{{ page.fullTitle }}</title>
+  {% if page.canonicalUrl %}<link rel="canonical" href="{{ page.canonicalUrl }}">{% endif %}
+  {% for alternate in page.alternates %}<link rel="alternate" hreflang="{{ alternate.hreflang }}" href="{{ alternate.href }}">{% endfor %}
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/assets/app.css">
+  <style>:root{--accent: {{ site.accentColor }};}</style>
+</head>
+<body{% if page.hasLanguageHrefs %} data-bocchi-page-hrefs="{{ page.languageHrefsJson }}"{% endif %}>
+  <header class="topbar">
+    <div class="inner">
+      <a class="wordmark" href="/">{{ site.title }}<span class="dot">.</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        {% for item in navigation %}<span class="nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} class="active" aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}{% if item.hasLanguageHrefs %} data-bocchi-nav-hrefs="{{ item.languageHrefsJson }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.childrenHtml | html }}</span>{% endfor %}
+      </nav>
+      <div class="top-actions">
+        <details class="theme-menu" data-bocchi-language-control>
+          <summary aria-label="{{ text.languageLabel }}" title="{{ text.languageLabel }}">
+            <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguageName }}</span>
+            <span class="theme-menu__chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="m6 9 6 6 6-6"></path></svg>
+            </span>
+          </summary>
+          <div class="theme-menu__menu" role="menu" aria-label="{{ text.languageLabel }}">
+            {% for language in localization.languages %}
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-language-option="{{ language.code }}" aria-current="{% if language.code == localization.currentLanguage %}true{% else %}false{% endif %}">
+              <span>{{ language.nativeName }}</span>
+            </button>
+            {% endfor %}
+          </div>
+        </details>
+        <details class="theme-menu" data-bocchi-appearance-control>
+          <summary aria-label="{{ text.appearanceLabel }}" title="{{ text.appearanceLabel }}">
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--auto" aria-hidden="true">◐</span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--light" aria-hidden="true">☀</span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--dark" aria-hidden="true">☾</span>
+            <span class="theme-menu__chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="m6 9 6 6 6-6"></path></svg>
+            </span>
+          </summary>
+          <div class="theme-menu__menu" role="menu" aria-label="{{ text.appearanceLabel }}">
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="auto" aria-current="true"><span data-bocchi-i18n="common.appearanceAuto">{{ text.appearanceAuto }}</span></button>
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="light" aria-current="false"><span data-bocchi-i18n="common.appearanceLight">{{ text.appearanceLight }}</span></button>
+            <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="dark" aria-current="false"><span data-bocchi-i18n="common.appearanceDark">{{ text.appearanceDark }}</span></button>
+          </div>
+        </details>
+        <button class="icon-button menu-btn" type="button" data-mobile-toggle aria-expanded="false" aria-label="{{ text.openMenu }}">☰</button>
+      </div>
+    </div>
+    <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
+      {% for item in navigation %}<div class="mobile-nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}{% if item.hasLanguageHrefs %} data-bocchi-nav-hrefs="{{ item.languageHrefsJson }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="mobile-nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.mobileChildrenHtml | html }}</div>{% endfor %}
+    </nav>
+  </header>
+  <main>{{ content | html }}</main>
+  <footer class="site">
+    <div class="row">
+      <div class="footer-copy">
+        <span class="footer-copy__copyright">{{ site.copyrightNotice }}</span>
+        <span class="footer-copy__built" data-bocchi-i18n="theme.bocchi-mono.colophonBuiltWith">{{ text.colophonBuiltWith }}</span>
+      </div>
+      <span class="footer-mark-line" aria-hidden="true">· · <span>🐾</span> · ·</span>
+      <span class="footer-links"><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span>
+    </div>
+  </footer>
+  <script type="application/json" id="bocchi-i18n-data">{{ localization.textJson | html }}</script>
+  <script type="module" src="{{ runtime.scriptUrl }}"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 using Bocchi.Generator.Theme;
-using Bocchi.Theme.DefaultStatic;
+using Bocchi.Themes.BuiltIn.Bundle;
 using Bocchi.Workspace;
 
 using Microsoft.Extensions.Options;
@@ -11,7 +11,7 @@ public sealed class ThemeResolverTests
 {
     /// <summary>默认 Theme 应由 Resolver 物化，同时普通 installed Theme 应进入可用 Catalog。</summary>
     [Fact]
-    public async Task ListAvailableThemesAsync_MaterializesDefaultStaticAndInstalledTheme()
+    public async Task ListAvailableThemesAsync_MaterializesBocchiMonoAndInstalledTheme()
     {
         using var temp = new TempThemeDataRoot();
         await WriteThemeAsync(Path.Combine(temp.Layout.ThemesDirectory, "my-theme"), "my-theme", "1.2.3");
@@ -20,7 +20,7 @@ public sealed class ThemeResolverTests
         var catalog = await resolver.ListAvailableThemesAsync();
 
         catalog.Should().Contain(item =>
-            item.Id == DefaultStaticThemeDefinition.ThemeId &&
+            item.Id == DefaultThemeBundle.ThemeId &&
             item.SourceKind == ThemeSourceKind.BuiltIn &&
             item.IsAvailable);
         catalog.Should().Contain(item =>
@@ -105,6 +105,25 @@ public sealed class ThemeResolverTests
         var item = catalog.Should().ContainSingle(x => x.Id == "broken-theme").Subject;
         item.IsAvailable.Should().BeFalse();
         item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-manifest-json-invalid");
+    }
+
+    /// <summary>Installed Theme 的私有 i18n key 必须严格使用自己的 Theme id namespace。</summary>
+    [Fact]
+    public async Task ListAvailableThemesAsync_InvalidPrivateI18nNamespaceReturnsDiagnosticItem()
+    {
+        using var temp = new TempThemeDataRoot();
+        await WriteThemeAsync(
+            Path.Combine(temp.Layout.ThemesDirectory, "cozy"),
+            "cozy",
+            "1.0.0",
+            i18nKey: "theme.bocchi-mono.cardLabel");
+        var resolver = CreateResolver(temp.Layout);
+
+        var catalog = await resolver.ListAvailableThemesAsync();
+
+        var item = catalog.Should().ContainSingle(x => x.Id == "cozy").Subject;
+        item.IsAvailable.Should().BeFalse();
+        item.Diagnostics.Should().Contain(diagnostic => diagnostic.Code == "theme-i18n-key-namespace-invalid");
     }
 
     [Fact]
@@ -203,9 +222,25 @@ public sealed class ThemeResolverTests
                 AllowDevLinks = allowDevLinks,
             }));
 
-    private static async Task WriteThemeAsync(string root, string id, string version)
+    private static async Task WriteThemeAsync(string root, string id, string version, string? i18nKey = null)
     {
         Directory.CreateDirectory(root);
+        var i18nBlock = i18nKey is null
+            ? string.Empty
+            : $$"""
+              ,
+              "i18n": {
+                "keys": [
+                  {
+                    "key": "{{i18nKey}}",
+                    "title": "Test key",
+                    "defaultValues": {
+                      "en-US": "Test"
+                    }
+                  }
+                ]
+              }
+              """;
         await File.WriteAllTextAsync(
             Path.Combine(root, "theme.json"),
             $$"""
@@ -217,7 +252,7 @@ public sealed class ThemeResolverTests
               "runner": {
                 "kind": "fluid-static",
                 "entry": "fluid"
-              }
+              }{{i18nBlock}}
             }
             """);
     }

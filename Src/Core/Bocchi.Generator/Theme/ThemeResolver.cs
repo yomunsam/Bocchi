@@ -1,7 +1,7 @@
 using System.Text.Json;
 
 using Bocchi.GeneratorContract;
-using Bocchi.Theme.DefaultStatic;
+using Bocchi.Themes.BuiltIn.Bundle;
 using Bocchi.Workspace;
 
 using Microsoft.Extensions.Options;
@@ -35,7 +35,7 @@ public sealed class ThemeResolver
     /// <summary>列出当前 Catalog 中可见的 Theme；无效 Theme 也保留为带诊断的条目。</summary>
     public async Task<IReadOnlyList<ThemeCatalogItem>> ListAvailableThemesAsync(CancellationToken cancellationToken = default)
     {
-        await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
+        await DefaultThemeBundle.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
 
         var items = new Dictionary<string, ThemeCatalogItem>(StringComparer.Ordinal);
         foreach (var themeDirectory in Directory.EnumerateDirectories(_layout.ThemesDirectory).Order(StringComparer.Ordinal))
@@ -46,7 +46,7 @@ public sealed class ThemeResolver
                 continue;
             }
 
-            var sourceKind = string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal)
+            var sourceKind = string.Equals(themeId, DefaultThemeBundle.ThemeId, StringComparison.Ordinal)
                 ? ThemeSourceKind.BuiltIn
                 : ThemeSourceKind.Installed;
             var item = await InspectThemeRootAsync(themeId, themeDirectory, sourceKind, shadowsInstalledTheme: false, [], cancellationToken)
@@ -64,7 +64,7 @@ public sealed class ThemeResolver
         }
 
         return items.Values
-            .OrderByDescending(x => string.Equals(x.Id, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+            .OrderByDescending(x => string.Equals(x.Id, DefaultThemeBundle.ThemeId, StringComparison.Ordinal))
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Id, StringComparer.Ordinal)
             .ToList();
@@ -100,13 +100,13 @@ public sealed class ThemeResolver
             }
         }
 
-        if (string.Equals(normalizedThemeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+        if (string.Equals(normalizedThemeId, DefaultThemeBundle.ThemeId, StringComparison.Ordinal))
         {
-            await DefaultStaticThemeDefinition.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
+            await DefaultThemeBundle.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
         }
 
         var installedRoot = Path.Combine(_layout.ThemesDirectory, normalizedThemeId);
-        var installedSource = string.Equals(normalizedThemeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal)
+        var installedSource = string.Equals(normalizedThemeId, DefaultThemeBundle.ThemeId, StringComparison.Ordinal)
             ? ThemeSourceKind.BuiltIn
             : ThemeSourceKind.Installed;
         var installedItem = await InspectThemeRootAsync(
@@ -333,6 +333,7 @@ public sealed class ThemeResolver
         }
 
         ValidateRunner(manifest, diagnostics);
+        diagnostics.AddRange(ThemeManifestValidator.ValidatePrivateI18nNamespace(manifest));
         diagnostics.AddRange(ThemeStaticAssetManifestValidator.Validate(manifest, themeRoot));
     }
 

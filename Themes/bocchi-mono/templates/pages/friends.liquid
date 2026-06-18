@@ -1,0 +1,22 @@
+<section class="content listing-hero">
+  <div class="caption" style="margin-bottom:16px;">{{ hero.number }} — <span{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</span> · {{ itemCount }}</div>
+  <h1 class="display listing-display"{% if hero.titleKey %} data-bocchi-i18n="{{ hero.titleKey }}"{% endif %}>{{ hero.title }}</h1>
+  <p class="lead"{% if hero.descriptionKey %} data-bocchi-i18n="{{ hero.descriptionKey }}"{% endif %}>{{ hero.description }}</p>
+</section>
+
+<section class="content listing-body">
+  {% if hasItems %}
+  <div class="article-list">
+    {% for item in items %}
+    <a href="{{ item.url }}" class="row friend-row">
+      <span class="date">{% if item.hasAvatar %}<img class="friend-avatar" src="{{ item.avatar.path }}" alt="{{ item.avatar.alt }}">{% else %}<span data-bocchi-i18n="theme.bocchi-mono.linkLabel">{{ text.linkLabel }}</span>{% endif %}</span>
+      <span class="title">{{ item.title }}</span>
+      <span class="cat">{{ item.summary }}</span>
+      <span class="arrow">→</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty" data-bocchi-i18n="{{ emptyTextKey }}">{{ emptyText }}</div>
+  {% endif %}
+</section>

@@ -2,7 +2,9 @@
 
 Bocchi Theme 是一个可以独立开发、安装和更新的前台静态站点外观包。一个 Theme 应该只负责公开站点的页面结构、样式、前端交互和 Theme 自有资源；Dashboard、账户、安装向导等管理界面不属于 Theme 覆盖范围。
 
-本文介绍当前推荐的第三方 Theme 开发方式：维护一个独立的 Theme Root，使用 `theme.json` 声明 Theme Contract，通过 `fluid-static` Runner 渲染 Liquid 模板，并用 Dev Link 接入本地 Bocchi 实例调试。完成后，Theme 以 zip 包形式安装或更新到正式实例。
+Theme Contract 不限制第三方作者采用哪一种技术栈。`fluid-static` 只是 Runner 之一；需要自定义工具链时可以使用 `process` Runner。
+
+本文介绍无需任何 .NET 或 Node.js 项目依赖的 Fluid Static 方式：维护一个只包含静态文件的独立 Theme Root，使用 `theme.json` 声明 Theme Contract，通过 Liquid 模板输出站点，并用 Dev Link 接入本地 Bocchi 实例调试。独立的 `bocchi-theme-cozy` repo 按第三方作者视角提供完整参考，不依赖 Bocchi Mono。
 
 ## 基本概念
 
@@ -81,7 +83,7 @@ my-theme/
   "pageTemplates": [
     {
       "name": "normal",
-      "displayName": "i18n://theme@theme.myTheme.pageTemplate.normal"
+      "displayName": "i18n://theme@theme.my-theme.pageTemplate.normal"
     }
   ],
   "specialPages": [],
@@ -90,7 +92,7 @@ my-theme/
     "defaultLanguage": "en-US",
     "keys": [
       {
-        "key": "theme.myTheme.pageTemplate.normal",
+        "key": "theme.my-theme.pageTemplate.normal",
         "title": "Normal page template name",
         "description": "Dashboard label for the default standalone page template.",
         "defaultValues": {
@@ -116,11 +118,13 @@ my-theme/
 - `pageTemplates`：声明 Dashboard 中可选的独立页面模板。
 - `i18n.keys`：声明 Theme 自有文案。模板和客户端脚本中的可见文案应通过 Theme i18n 提供默认值。
 
+每个 Theme 私有 key 必须严格使用 `theme.<theme-id>.*` namespace。例如 id 为 `my-theme` 时只能声明 `theme.my-theme.*`；Package inspection 和 Dev Link/Installed Theme 解析都会拒绝其他 namespace。
+
 ## Liquid 模板
 
 `fluid-static` Runner 会读取 `templates/pages/` 下的页面模板，并用 Bocchi 提供的 Theme 输入数据渲染静态 HTML。
 
-常用页面模板：
+Fluid Static v1 要求 Theme 自己提供以下完整模板，缺失时构建会明确失败，不会从 Bocchi Mono 或其他 Theme 回退：
 
 - `index.liquid`：首页。
 - `posts.liquid`：文章列表页。
@@ -133,6 +137,10 @@ my-theme/
 - `404.liquid`：404 页面。
 
 模板可以通过 `templates/layouts/base.liquid` 复用全站 HTML 外壳。公共片段可以放在 `templates/partials/`，由 Theme 自己组织。
+
+公共模板模型包含 `site`、`theme`、`runtime`、`page`、`navigation`、`localization` 和内容页对应的数据。`theme.id/name/version` 来自当前 manifest，`theme.config` 暴露当前 Theme 的完整有效配置。
+
+Fluid Static 提供两个 filter：`html` 只用于 Generator 已确认可信的正文 HTML，普通 Theme 文案不要通过它绕过 escaping；`t` 按当前语言解析一个 i18n key。每次构建还会输出 `/_bocchi/fluid-static-v1.js`，模板通过 `{{ runtime.scriptUrl }}` 加载它，以获得语言、appearance、导航和 `bocchi-time` 协议行为。
 
 ## 资源规则
 
@@ -171,7 +179,7 @@ Theme 可以放在任意本地目录中开发。开发时，在 Bocchi DataRoot 
 - `dev-links.json` 属于 DataRoot 运行数据，不属于站点 workspace，也不应进入 Theme 包。
 - Development 环境默认启用 Dev Link；Production 环境默认忽略 Dev Link，除非显式启用 `Bocchi:Themes:AllowDevLinks=true`。
 
-在 Bocchi 源码仓库根目录执行一次构建：
+如果使用 Bocchi 源码实例，可以在 Bocchi 仓库根目录执行一次构建；下面的 .NET 命令用于运行 Bocchi 本体，不是 Theme repo 的依赖：
 
 ```bash
 dotnet run --project Src/HomeServer/Bocchi.HomeServer -- build --theme=my-theme --env=Development --include-drafts

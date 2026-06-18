@@ -90,7 +90,7 @@ public sealed class GeneratorSeoOutputTests
     }
 
     [Fact]
-    public async Task SitemapAndDefaultStaticTheme_RenderMultilingualSeoLinks()
+    public async Task SitemapAndBocchiMonoTheme_RenderMultilingualSeoLinks()
     {
         using var fixture = new TestWorkspaceFixture();
         await SeedMultilingualContentAsync(fixture);
@@ -169,7 +169,7 @@ public sealed class GeneratorSeoOutputTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_RendersPageLanguageContextAndTranslationNotice()
+    public async Task BocchiMonoTheme_RendersPageLanguageContextAndTranslationNotice()
     {
         using var fixture = new TestWorkspaceFixture();
         await SeedMultilingualContentAsync(fixture);
@@ -270,7 +270,7 @@ public sealed class GeneratorSeoOutputTests
               name: Author
 
             social: []
-            defaultThemeId: default-static
+            defaultThemeId: bocchi-mono
             enableRss: true
             enableSitemap: true
             enableSearch: true

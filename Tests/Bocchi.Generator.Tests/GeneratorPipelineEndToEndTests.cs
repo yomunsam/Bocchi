@@ -7,7 +7,7 @@ using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.Generator.State;
 using Bocchi.Generator.Theme;
-using Bocchi.Theme.DefaultStatic;
+using Bocchi.Themes.BuiltIn.Bundle;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -52,7 +52,7 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "sitemap.xml")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "feed.xml")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, ".bocchi-manifest.json")).Should().BeTrue();
-        File.Exists(Path.Combine(fixture.Layout.ThemesDirectory, "default-static", "theme.json")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.ThemesDirectory, "bocchi-mono", "theme.json")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "index.html")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "2025", "hello", "index.html")).Should().BeTrue();
@@ -179,7 +179,7 @@ public sealed class GeneratorPipelineEndToEndTests
         contextDoc.RootElement.GetProperty("data").GetProperty("site").GetProperty("defaultTitle").GetString().Should().Be("My Site");
         contextDoc.RootElement.GetProperty("data").GetProperty("site").GetProperty("copyrightNotice").GetString()
             .Should().Be("Copyright © 2026 My Site.");
-        contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("id").GetString().Should().Be("default-static");
+        contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("id").GetString().Should().Be("bocchi-mono");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
             .GetProperty("visual").GetProperty("accentColor").GetString().Should().Be("#E85D3A");
         contextDoc.RootElement.GetProperty("data").GetProperty("theme").GetProperty("config")
@@ -189,7 +189,7 @@ public sealed class GeneratorPipelineEndToEndTests
         themeI18n.GetProperty("supportedLanguages").EnumerateArray().Should()
             .Contain(language => language.GetString() == "zh-CN");
         themeI18n.GetProperty("keys").EnumerateArray().Should().Contain(key =>
-            key.GetProperty("key").GetString() == "theme.defaultStatic.colophonBuiltWith"
+            key.GetProperty("key").GetString() == "theme.bocchi-mono.colophonBuiltWith"
             && key.GetProperty("defaultValues").GetProperty("zh-CN").GetString() == "由 Bocchi 构建。");
         var localization = contextDoc.RootElement.GetProperty("data").GetProperty("localization");
         localization.GetProperty("primaryLanguage").GetString().Should().Be("zh-CN");
@@ -451,7 +451,7 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_RendersInternalUrlsRelativeToEachOutputPage()
+    public async Task BocchiMonoTheme_RendersInternalUrlsRelativeToEachOutputPage()
     {
         using var fixture = new TestWorkspaceFixture();
         await File.WriteAllTextAsync(fixture.Layout.Workspace.SiteSettingsFile, """
@@ -467,7 +467,7 @@ public sealed class GeneratorPipelineEndToEndTests
               name: Author
 
             social: []
-            defaultThemeId: default-static
+            defaultThemeId: bocchi-mono
             enableRss: true
             enableSitemap: true
             enableSearch: true
@@ -562,14 +562,14 @@ public sealed class GeneratorPipelineEndToEndTests
         {
             Text = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                ["theme.bocchi-mono.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["en-US"] = "Common fallback",
                 },
             },
             ThemeTextOverrides = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                ["theme.bocchi-mono.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["en-US"] = "Powered quietly",
                 },
@@ -590,12 +590,12 @@ public sealed class GeneratorPipelineEndToEndTests
             .GetProperty("data")
             .GetProperty("localization")
             .GetProperty("text")
-            .GetProperty("theme.defaultStatic.colophonBuiltWith");
+            .GetProperty("theme.bocchi-mono.colophonBuiltWith");
         text.GetProperty("en-US").GetString().Should().Be("Powered quietly");
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_LocalizesChromeFromThemeContext()
+    public async Task BocchiMonoTheme_LocalizesChromeFromThemeContext()
     {
         using var fixture = new TestWorkspaceFixture();
         var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
@@ -604,7 +604,7 @@ public sealed class GeneratorPipelineEndToEndTests
             PrimaryLanguage = "zh-CN",
             ThemeTextOverrides = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                ["theme.bocchi-mono.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["zh-CN"] = "由测试构建。",
                 },
@@ -643,7 +643,7 @@ public sealed class GeneratorPipelineEndToEndTests
         html.Should().Contain("""<span style="color:var(--accent)">与札记。</span>""");
         visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.heroSubtitle\" data-bocchi-i18n-format=\"inlineColor\">一个安静的个人站点");
         visibleHtml.Should().Contain("data-bocchi-i18n=\"theme.config.home.tag.0\">个人站点</span>");
-        visibleHtml.Should().Contain("theme.defaultStatic.homeSelectedWriting\">精选写作</span>");
+        visibleHtml.Should().Contain("theme.bocchi-mono.homeSelectedWriting\">精选写作</span>");
         visibleHtml.Should().Contain("由测试构建。");
         visibleHtml.Should().NotContain("kanban");
         visibleHtml.Should().NotContain("myaccount");
@@ -661,7 +661,7 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_UsesThemeHomeCopyAndSiteMetaSeparately()
+    public async Task BocchiMonoTheme_UsesThemeHomeCopyAndSiteMetaSeparately()
     {
         using var fixture = new TestWorkspaceFixture();
         var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
@@ -678,12 +678,12 @@ public sealed class GeneratorPipelineEndToEndTests
               name: Author
 
             social: []
-            defaultThemeId: default-static
+            defaultThemeId: bocchi-mono
             enableRss: true
             enableSitemap: true
             enableSearch: true
             """);
-        WriteThemeConfig(fixture, "default-static", """
+        WriteThemeConfig(fixture, "bocchi-mono", """
             {
               "home": {
                 "heroTitle": {
@@ -736,10 +736,10 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_RendersInlineColorMarkupOnlyForDeclaredHomeText()
+    public async Task BocchiMonoTheme_RendersInlineColorMarkupOnlyForDeclaredHomeText()
     {
         using var fixture = new TestWorkspaceFixture();
-        WriteThemeConfig(fixture, "default-static", """
+        WriteThemeConfig(fixture, "bocchi-mono", """
             {
               "home": {
                 "heroTitle": {
@@ -790,13 +790,13 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_MaterializesReferenceSourceAndPreservesUserFiles()
+    public async Task BocchiMonoTheme_MaterializesBundledSourceAndPreservesUserFiles()
     {
         using var fixture = new TestWorkspaceFixture();
-        var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "default-static");
+        var themeRoot = Path.Combine(fixture.Layout.ThemesDirectory, "bocchi-mono");
         var appCss = Path.Combine(themeRoot, "assets", "app.css");
 
-        await DefaultStaticThemeDefinition.EnsureAsync(fixture.Layout.ThemesDirectory);
+        await DefaultThemeBundle.EnsureAsync(fixture.Layout.ThemesDirectory);
 
         var manifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"));
         manifest.Should().Contain("\"kind\": \"fluid-static\"");
@@ -807,7 +807,7 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(themeRoot, "README.md")).Should().BeTrue();
 
         await File.WriteAllTextAsync(appCss, "/* user custom css */");
-        await DefaultStaticThemeDefinition.EnsureAsync(fixture.Layout.ThemesDirectory);
+        await DefaultThemeBundle.EnsureAsync(fixture.Layout.ThemesDirectory);
 
         (await File.ReadAllTextAsync(appCss)).Should().Be("/* user custom css */");
     }
@@ -1065,7 +1065,7 @@ public sealed class GeneratorPipelineEndToEndTests
             bocchiVersion: "0.0.0-test",
             cancellationToken: default);
 
-        var indexTemplate = Path.Combine(fixture.Layout.ThemesDirectory, "default-static", "templates", "pages", "index.liquid");
+        var indexTemplate = Path.Combine(fixture.Layout.ThemesDirectory, "bocchi-mono", "templates", "pages", "index.liquid");
         await File.WriteAllTextAsync(indexTemplate, """<section id="theme-template-changed">Changed template</section>""");
 
         var second = await pipeline.RunAsync(
@@ -1082,10 +1082,10 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_ExecutesWorkspaceFluidTemplate()
+    public async Task BocchiMonoTheme_ExecutesWorkspaceFluidTemplate()
     {
         using var fixture = new TestWorkspaceFixture();
-        var pageTemplateDirectory = Path.Combine(fixture.Layout.ThemesDirectory, "default-static", "templates", "pages");
+        var pageTemplateDirectory = Path.Combine(fixture.Layout.ThemesDirectory, "bocchi-mono", "templates", "pages");
         Directory.CreateDirectory(pageTemplateDirectory);
         await File.WriteAllTextAsync(Path.Combine(pageTemplateDirectory, "index.liquid"), """
             <section id="fluid-override">
@@ -1108,7 +1108,7 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
-    public async Task DefaultStaticTheme_RendersBodyHtmlThroughExplicitHtmlFilter()
+    public async Task BocchiMonoTheme_RendersBodyHtmlThroughExplicitHtmlFilter()
     {
         using var fixture = new TestWorkspaceFixture();
         var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
@@ -1162,7 +1162,7 @@ public sealed class GeneratorPipelineEndToEndTests
         {
             ThemeTextOverrides = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["theme.defaultStatic.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                ["theme.bocchi-mono.colophonBuiltWith"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["en-US"] = englishText,
                 },
@@ -1245,6 +1245,12 @@ public sealed class GeneratorPipelineEndToEndTests
         File.WriteAllText(Path.Combine(themeRoot, "templates", "pages", "index.liquid"), """
             <section id="third-party-fluid-static">{{ site.title }}</section>
             """);
+        foreach (var template in new[] { "posts", "works", "notes", "friends", "article", "standalone-page", "404" })
+        {
+            File.WriteAllText(
+                Path.Combine(themeRoot, "templates", "pages", template + ".liquid"),
+                $"<section data-third-party-template=\"{template}\">{{{{ page.title }}}}</section>");
+        }
     }
 
     /// <summary>写入测试 Theme 的原始配置文件，模拟 Dashboard 保存后的构建输入。</summary>

@@ -16,7 +16,7 @@ public partial class ThemeCustomization
     private const string TextTab = "text";
 
     /// <summary>当前站点正在使用的前台 Theme id，来自站点基础约定。</summary>
-    private string _activeThemeId = "default-static";
+    private string _activeThemeId = "bocchi-mono";
 
     /// <summary>Theme schema 定制页视图。</summary>
     private ThemeCustomizationView? _customization;
@@ -102,7 +102,7 @@ public partial class ThemeCustomization
     protected override async Task OnInitializedAsync()
     {
         var site = await SiteProfileSettings.GetAsync();
-        _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "default-static" : site.DefaultThemeId;
+        _activeThemeId = string.IsNullOrWhiteSpace(site.DefaultThemeId) ? "bocchi-mono" : site.DefaultThemeId;
         await LoadLocalizationAsync();
         await LoadCustomizationAsync();
         await LoadThemeI18nAsync();

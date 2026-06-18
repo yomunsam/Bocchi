@@ -2,7 +2,7 @@ using System.IO.Compression;
 using System.Text.Json;
 
 using Bocchi.GeneratorContract;
-using Bocchi.Theme.DefaultStatic;
+using Bocchi.Themes.BuiltIn.Bundle;
 using Bocchi.Workspace;
 
 using Microsoft.Extensions.Logging;
@@ -129,9 +129,9 @@ public sealed class ThemePackageService
         }
 
         var themeId = inspection.Manifest.Id.Trim();
-        if (string.Equals(themeId, DefaultStaticThemeDefinition.ThemeId, StringComparison.Ordinal))
+        if (string.Equals(themeId, DefaultThemeBundle.ThemeId, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("default-static 是内置参考 Theme，不能通过 zip 覆盖。");
+            throw new InvalidOperationException("bocchi-mono 是内置 Theme，不能通过 zip 覆盖。");
         }
 
         if (!Directory.Exists(inspection.SourceRoot))
@@ -321,6 +321,7 @@ public sealed class ThemePackageService
 
         }
 
+        diagnostics.AddRange(ThemeManifestValidator.ValidatePrivateI18nNamespace(manifest));
         diagnostics.AddRange(ThemeStaticAssetManifestValidator.Validate(manifest, sourceRoot));
     }
 

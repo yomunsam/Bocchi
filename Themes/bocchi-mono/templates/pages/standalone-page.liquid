@@ -1,0 +1,18 @@
+<article>
+  <header class="prose article-hero">
+    <div class="caption" data-bocchi-i18n="theme.bocchi-mono.pageLabel">{{ text.pageLabel }}</div>
+    <h1 class="display article-display">{{ item.title }}</h1>
+  </header>
+  {% if item.isTranslation %}
+  <aside class="prose translation-notice" data-bocchi-translation-notice>
+    <span>
+      <span data-bocchi-i18n="content.translationNotice">{{ text.translationNotice }}</span>
+      {% if item.sourceLanguageName %}<span class="translation-notice__source">{{ item.sourceLanguageName }}</span>{% endif %}
+    </span>
+    {% if item.hasSourceAlternate %}
+    <a class="arrow-link" href="{{ item.sourceAlternate.url }}" data-bocchi-language-link="{{ item.sourceAlternate.language }}" data-bocchi-i18n="content.viewOriginal">{{ text.viewOriginal }}</a>
+    {% endif %}
+  </aside>
+  {% endif %}
+  <section class="prose prose-body">{{ item.html | html }}</section>
+</article>

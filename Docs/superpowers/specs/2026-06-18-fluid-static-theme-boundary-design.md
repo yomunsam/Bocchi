@@ -65,12 +65,12 @@
 
 主要类型采用 `FluidStatic*` 命名，例如 `FluidStaticRenderer`、`FluidStaticRenderRequest`、`FluidStaticTextResolver` 和 `FluidStaticException`。
 
-### 4.3 Bocchi.Theme.BocchiMono
+### 4.3 Bocchi.Themes.BuiltIn.Bundle
 
 新增小型具体项目，职责仅限于随 Bocchi 分发内置 Theme：
 
 - 嵌入 `Themes/bocchi-mono`。
-- 提供 `BocchiMonoThemeDefinition`。
+- 提供 `DefaultThemeBundle` 作为默认 Theme 身份与物化入口。
 - 把缺失的内置 Theme 文件物化到 `<data>/themes/bocchi-mono/`。
 - 保证 embedded resource 路径在 Windows 与 Unix 上使用一致的逻辑分隔符。
 
@@ -182,7 +182,7 @@ Renderer 将该 runtime 写入稳定的 `_bocchi` 输出路径，Theme 通过公
 
 - `default-static` → `bocchi-mono`。
 - `Bocchi.Theme.DefaultStatic` → `Bocchi.Theme.FluidStatic`。
-- 具体内置资源代码进入 `Bocchi.Theme.BocchiMono`。
+- 具体内置资源代码进入 `Bocchi.Themes.BuiltIn.Bundle`。
 - `DefaultStatic*` 公共实现类型 → `FluidStatic*`。
 - `theme.defaultStatic.*` 分别改为各 Theme 自己的 namespace。
 
@@ -199,7 +199,7 @@ Renderer 将该 runtime 写入稳定的 `_bocchi` 输出路径，Theme 通过公
 
 ### 9.2 Fluid Static tests
 
-- Renderer 测试项目只引用 GeneratorContract 与 FluidStatic，不引用 BocchiMono。
+- Renderer 测试只依赖 GeneratorContract 与 FluidStatic，不读取 BuiltIn Bundle 资源。
 - 覆盖输入读取、model、filters、URL 相对化、多语言、SEO 和 runtime 输出。
 - 缺少必需模板时验证明确失败。
 - 验证自定义独立页面模板只在当前 Theme 内 fallback。
@@ -223,7 +223,7 @@ Renderer 将该 runtime 写入稳定的 `_bocchi` 输出路径，Theme 通过公
 
 - 项目和类型命名能直接表达公共实现与具体 Theme 的区别。
 - 删除 Bocchi Mono 资源后，Cozy 仍可完整构建。
-- `Bocchi.Theme.FluidStatic` 的程序集依赖中不存在 `Bocchi.Theme.BocchiMono`。
+- `Bocchi.Theme.FluidStatic` 的程序集依赖中不存在 `Bocchi.Themes.BuiltIn.Bundle`。
 - Bocchi Mono 与 Cozy 都是完整、自包含的 Fluid Static Theme。
 - 第三方作者只根据文档和 Cozy demo 即可创建 Theme，不需要阅读 Bocchi Mono 或 .NET renderer 源码。
 - Windows 上的 embedded resource 路径问题得到验证。

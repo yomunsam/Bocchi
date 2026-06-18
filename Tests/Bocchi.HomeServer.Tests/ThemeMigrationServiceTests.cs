@@ -22,11 +22,11 @@ public sealed class ThemeMigrationServiceTests
         await SeedAsync(scope);
 
         var migration = scope.ServiceProvider.GetRequiredService<ThemeMigrationService>();
-        var plan = await migration.ScanAsync("default-static", "some-other-theme");
+        var plan = await migration.ScanAsync("bocchi-mono", "some-other-theme");
 
         plan.Entries.Should().HaveCount(1);
         var entry = plan.Entries[0];
-        entry.OldKey.Should().Be("theme.defaultStatic.colophonBuiltWith");
+        entry.OldKey.Should().Be("theme.bocchi-mono.colophonBuiltWith");
         entry.OldValues["en-US"].Should().Be("Built with Bocchi (custom)");
         entry.OldValues["zh-CN"].Should().Be("基于 Bocchi（自定义）");
         // 目标 Theme 没有 manifest，因此不应识别为已存在
@@ -45,7 +45,7 @@ public sealed class ThemeMigrationServiceTests
         await SeedAsync(scope);
 
         var migration = scope.ServiceProvider.GetRequiredService<ThemeMigrationService>();
-        var plan = await migration.ScanAsync("default-static", "some-other-theme");
+        var plan = await migration.ScanAsync("bocchi-mono", "some-other-theme");
         var entry = plan.Entries.Single();
 
         var decisions = new Dictionary<string, ThemeMigrationDecision>(StringComparer.Ordinal)
@@ -80,7 +80,7 @@ public sealed class ThemeMigrationServiceTests
         await SeedAsync(scope);
 
         var migration = scope.ServiceProvider.GetRequiredService<ThemeMigrationService>();
-        var plan = await migration.ScanAsync("default-static", "some-other-theme");
+        var plan = await migration.ScanAsync("bocchi-mono", "some-other-theme");
         var entry = plan.Entries.Single();
 
         await migration.ApplyAsync(plan, new Dictionary<string, ThemeMigrationDecision>
@@ -101,11 +101,11 @@ public sealed class ThemeMigrationServiceTests
         await localization.SaveAsync("en-US", ["zh-CN"], []);
 
         var theme = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
-        await theme.SaveI18nTextOverridesAsync("default-static",
+        await theme.SaveI18nTextOverridesAsync("bocchi-mono",
         [
             new ThemeI18nTextOverride
             {
-                Key = "theme.defaultStatic.colophonBuiltWith",
+                Key = "theme.bocchi-mono.colophonBuiltWith",
                 Values = new Dictionary<string, string>
                 {
                     ["en-US"] = "Built with Bocchi (custom)",
@@ -120,7 +120,7 @@ public sealed class ThemeMigrationServiceTests
             new NavigationEditorItem
             {
                 Id = "theme-ref",
-                Label = "i18n://theme@theme.defaultStatic.colophonBuiltWith",
+                Label = "i18n://theme@theme.bocchi-mono.colophonBuiltWith",
                 TargetType = "builtin",
                 TargetValue = "home",
             },

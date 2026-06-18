@@ -67,7 +67,7 @@ public sealed partial class ThemeSettingsService
             .ConfigureAwait(false);
         return record ?? new ThemeConfigurationRecord
         {
-            ThemeId = "default-static",
+            ThemeId = "bocchi-mono",
             ConfigurationJson = "{}",
             I18nTextOverridesJson = "{}",
             UpdatedAt = _time.GetUtcNow(),
@@ -103,7 +103,7 @@ public sealed partial class ThemeSettingsService
         string configurationJson,
         CancellationToken cancellationToken = default)
     {
-        var normalizedThemeId = string.IsNullOrWhiteSpace(themeId) ? "default-static" : themeId.Trim();
+        var normalizedThemeId = string.IsNullOrWhiteSpace(themeId) ? "bocchi-mono" : themeId.Trim();
         var normalizedJson = NormalizeConfigurationJson(configurationJson);
         var record = await GetOrCreateThemeRecordAsync(normalizedThemeId, cancellationToken).ConfigureAwait(false);
 

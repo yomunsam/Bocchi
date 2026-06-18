@@ -75,7 +75,7 @@ internal sealed record SetupSiteFormValues
     public string CopyrightNotice { get; init; } = string.Empty;
 
     /// <summary>默认前台 Theme id。</summary>
-    public string DefaultThemeId { get; init; } = "default-static";
+    public string DefaultThemeId { get; init; } = "bocchi-mono";
 
     /// <summary>用现有站点配置构造第二页默认值。</summary>
     public static SetupSiteFormValues FromSite(SiteProfileSettings site)
