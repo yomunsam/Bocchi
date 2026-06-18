@@ -11,18 +11,26 @@
             <span>@I18n["auth.brand.name"]</span>
         </a>
         <div class="bocchi-auth-topbar__actions">
-            <form class="bocchi-auth-language" method="post" action="@UiLanguageAction">
-                <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
-                <label>
+            @* 不用原生 select，避免系统下拉弹层在 dark mode 下样式漂移。 *@
+            <details class="bocchi-auth-language">
+                <summary aria-label='@I18n["auth.language.aria"]' title='@I18n["auth.language.aria"]'>
                     <span class="bocchi-material-symbol" aria-hidden="true">translate</span>
-                    <select name="uiLanguage" aria-label='@I18n["auth.language.aria"]' onchange="this.form.submit()">
-                        @foreach (var language in DashboardLocalizationService.SupportedDashboardLanguages)
-                        {
-                            <option value="@language.Code" selected="@IsCurrentLanguage(language.Code)">@language.NativeName</option>
-                        }
-                    </select>
-                </label>
-            </form>
+                    <span>@I18n.CurrentLanguage.NativeName</span>
+                </summary>
+                <form class="bocchi-auth-language__menu" method="post" action="@UiLanguageAction">
+                    <input type="hidden" name="returnUrl" value="@CurrentReturnUrl" />
+                    @foreach (var language in DashboardLocalizationService.SupportedDashboardLanguages)
+                    {
+                        <button type="submit"
+                                name="uiLanguage"
+                                value="@language.Code"
+                                class="@LanguageOptionClass(language.Code)"
+                                aria-current="@(IsCurrentLanguage(language.Code) ? "true" : null)">
+                            @language.NativeName
+                        </button>
+                    }
+                </form>
+            </details>
             <button
                 class="bocchi-auth-icon-button"
                 type="button"
@@ -60,4 +68,10 @@
     /// <summary>判断当前 Dashboard UI language 是否为目标语言。</summary>
     private bool IsCurrentLanguage(string code)
         => string.Equals(I18n.CurrentLanguage.Code, code, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>生成语言菜单选项 class。</summary>
+    private string LanguageOptionClass(string code)
+        => IsCurrentLanguage(code)
+            ? "bocchi-auth-language__option is-active"
+            : "bocchi-auth-language__option";
 }
