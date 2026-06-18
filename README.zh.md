@@ -1,6 +1,10 @@
-# Bocchi
+<div align="center">
+
+<h1 align="center">Bocchi</h1>
 
 [English](./README.md)|简体中文
+
+</div>
 
 Bocchi 是一个依据作者个人喜好、品味而设计的个人主页/Blog系统，并具备良好的兼容性与扩展性。
 
