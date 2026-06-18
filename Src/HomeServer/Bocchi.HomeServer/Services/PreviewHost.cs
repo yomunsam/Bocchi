@@ -127,7 +127,7 @@ public sealed class PreviewHost
                 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
                 <link rel="manifest" href="/site.webmanifest">
                 <meta name="theme-color" content="#f8f7fc">
-                <link rel="stylesheet" href="/app.css">
+                <link rel="stylesheet" href="/app.min.css">
             </head>
             <body>
                 <main class="bocchi-preview-empty">

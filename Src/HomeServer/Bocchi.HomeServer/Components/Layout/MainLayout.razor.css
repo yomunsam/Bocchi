@@ -1,4 +1,4 @@
-/* MainLayout 专用：Admin 外壳布局、侧栏、顶栏。所有可在多处复用的 token 与组件类放在 wwwroot/app.css。 */
+/* MainLayout 专用：Admin 外壳布局、侧栏、顶栏。所有可在多处复用的 token 与组件类放在 wwwroot/app.min.css。 */
 
 .bocchi-admin-shell {
     display: grid;

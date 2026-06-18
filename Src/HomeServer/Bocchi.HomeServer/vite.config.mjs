@@ -8,7 +8,7 @@ export default defineConfig({
       entry: "Client/bocchi-markdown-editor.js",
       formats: ["iife"],
       name: "BocchiMarkdownEditorBundle",
-      fileName: () => "bocchi-markdown-editor.js",
+      fileName: () => "bocchi-markdown-editor.min.js",
     },
     rollupOptions: {
       output: {
