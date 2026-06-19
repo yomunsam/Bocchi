@@ -3,6 +3,8 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <PropertyGroup>
+    <!-- xUnit v3 测试程序集同时是可独立运行的测试应用。 -->
+    <OutputType>Exe</OutputType>
     <!--
       测试方法名沿用 .NET 社区惯例 Method_Scenario_Expectation，下划线在测试中是表意必需的。
       在测试项目中放宽 CA1707（成员名不应包含下划线）。

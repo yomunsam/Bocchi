@@ -19,10 +19,6 @@
     <Project Path="Src/Themes/Bocchi.Themes.BuiltIn.Bundle/Bocchi.Themes.BuiltIn.Bundle.csproj" />
   </Folder>
   <Folder Name="/Tests/">
-    <Project Path="Tests/Bocchi.ContentModel.Tests/Bocchi.ContentModel.Tests.csproj" />
-    <Project Path="Tests/Bocchi.Generator.Tests/Bocchi.Generator.Tests.csproj" />
     <Project Path="Tests/Bocchi.GeneratorContract.Tests/Bocchi.GeneratorContract.Tests.csproj" />
-    <Project Path="Tests/Bocchi.HomeServer.Tests/Bocchi.HomeServer.Tests.csproj" />
-    <Project Path="Tests/Bocchi.Workspace.Tests/Bocchi.Workspace.Tests.csproj" />
   </Folder>
 </Solution>

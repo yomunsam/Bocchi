@@ -503,3 +503,4 @@ Src/HomeServer/Bocchi.HomeServer/workspace/
 *.lscache
 *.min.js
 *.min.css
+.dotnet/
