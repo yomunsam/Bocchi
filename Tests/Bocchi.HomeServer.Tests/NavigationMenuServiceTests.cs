@@ -83,7 +83,8 @@ public sealed class NavigationMenuServiceTests
         var view = await menu.GetEditorAsync();
         view.EnabledLanguages.Select(language => language.Code).Should().Contain(["en-US", "zh-CN"]);
         view.CommonTextOverrides.Should().Contain(overrideText => overrideText.Key == "menu.custom.docs");
-        view.TargetOptions.Select(option => option.GroupLabel).Should().Contain("Built-in");
+        view.TargetOptions.Should().Contain(option =>
+            option.Type == "builtin" && option.Value == "home" && option.Available);
         view.Items.Should().Contain(item => item.Label == "i18n://theme@theme.bocchi-mono.colophonBuiltWith");
     }
 

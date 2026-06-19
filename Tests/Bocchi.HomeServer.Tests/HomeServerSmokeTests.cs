@@ -375,7 +375,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         body.Should().Contain("data-bocchi-markdown-image-mode=\"upload\"");
         body.Should().Contain("/Admin/Content/Assets?path=" +
-            Uri.EscapeDataString(saved.RelativePath) +
+            Uri.EscapeDataString(saved.RelativePath.Replace('\\', '/')) +
             "&asset=assets%2Fcover.png");
         body.Should().NotContain("<img src=\"assets/cover.png\"");
     }
@@ -672,13 +672,13 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
 
         response.EnsureSuccessStatusCode();
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
-        body.Should().Contain("bocchi-theme-library-shell");
-        body.Should().Contain("Theme library");
-        body.Should().Contain("Active Theme");
+        body.Should().Contain("bocchi-themes-page");
+        body.Should().Contain("Site themes");
+        body.Should().Contain("Active theme");
         body.Should().Contain("Bocchi Mono");
-        body.Should().Contain("Installed and development Themes");
-        body.Should().Contain("Upload Theme package");
-        body.Should().Contain("Theme zip");
+        body.Should().Contain("Available themes");
+        body.Should().Contain("Install theme");
+        body.Should().Contain("Choose package");
     }
 
     [Fact]
@@ -882,7 +882,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
                 "defaultLanguage": "en-US",
                 "keys": [
                   {
-                    "key": "theme.placeholder.footer",
+                    "key": "theme.{{id}}.footer",
                     "title": "Footer text",
                     "defaultValues": {
                       "en-US": "Built for tests.",

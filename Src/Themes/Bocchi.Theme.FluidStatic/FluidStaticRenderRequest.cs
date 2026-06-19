@@ -5,7 +5,7 @@ namespace Bocchi.Theme.FluidStatic;
 /// <summary>默认静态 Theme renderer 的一次渲染请求。</summary>
 public sealed record FluidStaticRenderRequest
 {
-    /// <summary>Theme 实例根目录，例如 <c>&lt;data&gt;/themes/bocchi-mono</c> 或第三方 Theme Root。</summary>
+    /// <summary>当前 Theme 实例根目录，例如 <c>&lt;data&gt;/themes/&lt;theme-id&gt;</c> 或 Dev Link 指向的 Theme Root。</summary>
     public required string ThemeRoot { get; init; }
 
     /// <summary>Theme Contract 输入目录，通常是 <c>&lt;workspace&gt;/../../cache/theme-input</c>。</summary>

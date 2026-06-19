@@ -59,7 +59,7 @@ public sealed class GeneratorPipelineEndToEndTests
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "notes", "k7p9xq2m", "index.html")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "notes", "2025", "0314", "1230-k7p9xq2m", "index.html")).Should().BeFalse();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.css")).Should().BeTrue();
-        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "app.js")).Should().BeTrue();
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "_bocchi", "fluid-static-v1.js")).Should().BeTrue();
         File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "assets", "favicon.svg")).Should().BeTrue();
 
         // 媒体应被复制到 output/public/media/posts/<year>/<slug>/<file>
@@ -505,7 +505,7 @@ public sealed class GeneratorPipelineEndToEndTests
         result.Status.Should().Be(BuildStatus.Succeeded);
         var indexHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html"));
         indexHtml.Should().Contain("href=\"assets/app.css\"");
-        indexHtml.Should().Contain("src=\"assets/app.js\"");
+        indexHtml.Should().Contain("src=\"_bocchi/fluid-static-v1.js\"");
         indexHtml.Should().Contain("href=\"posts/\"");
         indexHtml.Should().Contain("href=\"feed.xml\"");
         indexHtml.Should().NotContain("href=\"/");
@@ -513,7 +513,7 @@ public sealed class GeneratorPipelineEndToEndTests
 
         var postsHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "index.html"));
         postsHtml.Should().Contain("href=\"../assets/app.css\"");
-        postsHtml.Should().Contain("src=\"../assets/app.js\"");
+        postsHtml.Should().Contain("src=\"../_bocchi/fluid-static-v1.js\"");
         postsHtml.Should().Contain("href=\"../\"");
         postsHtml.Should().Contain("href=\"./\" class=\"active\"");
         postsHtml.Should().NotContain("href=\"/");
@@ -521,7 +521,7 @@ public sealed class GeneratorPipelineEndToEndTests
 
         var postHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "posts", "2025", "hello", "index.html"));
         postHtml.Should().Contain("href=\"../../../assets/app.css\"");
-        postHtml.Should().Contain("src=\"../../../assets/app.js\"");
+        postHtml.Should().Contain("src=\"../../../_bocchi/fluid-static-v1.js\"");
         postHtml.Should().Contain("src=\"../../../media/posts/2025/hello/c.jpg\"");
         postHtml.Should().Contain("href=\"../../\">←");
         postHtml.Should().NotContain("href=\"/");

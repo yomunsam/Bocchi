@@ -81,7 +81,7 @@ public sealed class EditorDraftServiceTests
             $"Body ![cover]({assetReference})\n",
             draft.AssetsDirectory);
 
-        saved.RelativePath.Should().EndWith("asset-post/index.md");
+        saved.RelativePath.Should().EndWith(Path.Combine("asset-post", "index.md"));
         saved.Markdown.Should().Contain("assets/cover.png");
         var finalAsset = Path.Combine(
             factory.DataRoot,
@@ -226,10 +226,11 @@ public sealed class EditorDraftServiceTests
             factory.DataRoot,
             "workspace",
             Path.GetDirectoryName(saved.RelativePath)!.Replace('/', Path.DirectorySeparatorChar));
-        var pathParts = saved.RelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var editedContentDirectory = Path.Combine(factory.DataRoot, "workspace", "posts", pathParts[1], "edited-post");
+        var contentDirectory = Path.GetDirectoryName(saved.RelativePath)!;
+        var contentYearDirectory = Path.GetDirectoryName(contentDirectory)!;
+        var editedContentDirectory = Path.Combine(factory.DataRoot, "workspace", contentYearDirectory, "edited-post");
 
-        updated.RelativePath.Should().Be(saved.RelativePath);
+        updated.RelativePath.Replace('\\', '/').Should().Be(saved.RelativePath.Replace('\\', '/'));
         updated.Yaml.Should().Contain("slug: published-post");
         Directory.Exists(oldContentDirectory).Should().BeTrue();
         Directory.Exists(editedContentDirectory).Should().BeFalse();
