@@ -22,7 +22,6 @@
     <header class="bocchi-page-intro">
         <span class="bocchi-eyebrow">@CurrentEyebrow</span>
         <h1>@CurrentHeading</h1>
-        <p>@CurrentDescription</p>
     </header>
 
     @if (IsPublishHomeSection)
@@ -68,7 +67,6 @@
 @code {
     /// <summary>发布首页：主操作、发布方案和辅助状态分栏展示，避免把配置表单压到第一屏。</summary>
     private RenderFragment RenderPublishDashboard() => @<div class="bocchi-publish-dashboard">
-        @RenderStatsBar()
         <div class="bocchi-publish-main">
             @RenderOneClickCard()
             @RenderPublishPlans()
@@ -86,20 +84,19 @@
                 <h2 id="publish-one-click-heading">@I18n["publish.oneClick.title"]</h2>
                 <BocchiStatusPill Tone="@OneClickTargetTone()">@OneClickTargetText()</BocchiStatusPill>
             </div>
-            <p>@I18n["publish.oneClick.description"]</p>
             <form class="bocchi-publish-run-form" @onsubmit="PublishOneClickAsync" @onsubmit:preventDefault>
-                <button type="submit" class="bocchi-publish-primary-action bocchi-publish-primary-action--hero" disabled="@_busy">
+                <button type="submit" class="bocchi-publish-primary-action bocchi-publish-primary-action--hero" disabled="@_busy" title='@I18n["publish.oneClick.description"]'>
                     <Blazicon Svg="Lucide.Send" />
                     <span>@(_busy ? I18n["publish.action.publishing"] : I18n["publish.action.publishNow"])</span>
                 </button>
                 <div class="bocchi-publish-quick-actions">
-                    <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
+                    <a class="bocchi-button secondary bocchi-button--icon" href="/" target="_blank" rel="noopener"
+                       title='@I18n["publish.action.preview"]' aria-label='@I18n["publish.action.preview"]'>
                         <Blazicon Svg="Lucide.Eye" />
-                        <span>@I18n["publish.action.preview"]</span>
                     </a>
-                    <a class="bocchi-button secondary" href="/Admin/Publish/download" target="_blank" rel="noopener">
-                        <Blazicon Svg="Lucide.Save" />
-                        <span>@I18n["publish.action.downloadZip"]</span>
+                    <a class="bocchi-button secondary bocchi-button--icon" href="/Admin/Publish/download" target="_blank" rel="noopener"
+                       title='@I18n["publish.action.downloadZip"]' aria-label='@I18n["publish.action.downloadZip"]'>
+                        <Blazicon Svg="Lucide.Download" />
                     </a>
                 </div>
             </form>
@@ -116,7 +113,6 @@
         <div class="bocchi-publish-section-heading">
             <div>
                 <h2 id="publish-plans-heading">@I18n["publish.plans.title"]</h2>
-                <p>@I18n["publish.plans.description"]</p>
             </div>
             <a class="bocchi-button secondary" href="/Admin/Publish/AddPlan">
                 <Blazicon Svg="Lucide.Plus" />
@@ -488,19 +484,4 @@
         <BocchiStatusPill Tone="@tone">@status</BocchiStatusPill>
     </div>;
 
-    /// <summary>渲染发布中心顶部统计概览，用最少的空间展示最关键的指标。</summary>
-    private RenderFragment RenderStatsBar() => @<div class="bocchi-publish-stats" aria-label='@I18n["publish.statusCard.title"]'>
-        @RenderStatItem(Lucide.Layers, I18n["publish.statusCard.planCount"], PublishPlanCountText())
-        @RenderStatItem(Lucide.Hammer, I18n["publish.statusCard.lastBuild"], LatestBuildTimeText())
-        @RenderStatItem(Lucide.Send, I18n["publish.statusCard.lastPublish"], LatestRemotePublishText())
-    </div>;
-
-    /// <summary>渲染统计概览单个指标项。</summary>
-    private RenderFragment RenderStatItem(SvgIcon icon, string label, string value) => @<div class="bocchi-publish-stat-item">
-        <span class="bocchi-publish-stat-item__icon" aria-hidden="true"><Blazicon Svg="@icon" /></span>
-        <div>
-            <span class="bocchi-publish-stat-item__label">@label</span>
-            <strong class="bocchi-publish-stat-item__value">@value</strong>
-        </div>
-    </div>;
 }

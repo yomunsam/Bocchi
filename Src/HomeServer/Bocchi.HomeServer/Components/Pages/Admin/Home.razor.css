@@ -272,3 +272,25 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* 手机上最近内容去掉类型图标和时间，标题最多两行，不再被截成几个字 */
+@media (max-width: 620px) {
+    .bocchi-recent .bocchi-content-item {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
+    }
+
+    .bocchi-recent .bocchi-content-item__icon,
+    .bocchi-recent .bocchi-content-time {
+        display: none;
+    }
+
+    .bocchi-recent .bocchi-content-item__title,
+    .bocchi-recent .bocchi-content-item__excerpt {
+        display: -webkit-box;
+        white-space: normal;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+}

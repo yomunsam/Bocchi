@@ -11,6 +11,16 @@
     transform: none;
 }
 
+.bocchi-kind-action--refresh[aria-busy="true"] ::deep svg {
+    animation: bocchi-kind-spin 0.9s linear infinite;
+}
+
+@keyframes bocchi-kind-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .bocchi-content-item__variants {
     grid-column: 2 / -1;
     margin-top: -0.25rem;

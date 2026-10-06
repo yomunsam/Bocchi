@@ -203,19 +203,9 @@
 }
 
 .bocchi-quick-card__body {
-    display: grid;
-    gap: 0.18rem;
     min-width: 0;
-}
-
-.bocchi-quick-card__body strong {
     font-size: 0.92rem;
-}
-
-.bocchi-quick-card__body span {
-    color: var(--bocchi-text-muted);
-    font-size: 0.83rem;
-    line-height: 1.4;
+    font-weight: 600;
 }
 
 .bocchi-link-pill {
@@ -402,8 +392,8 @@
 }
 
 .bocchi-content-item__icon--lavender {
-    background: color-mix(in srgb, var(--bocchi-lavender) 38%, var(--bocchi-surface));
-    color: #8f6bf0;
+    background: color-mix(in srgb, var(--bocchi-clip-blue) 14%, var(--bocchi-surface));
+    color: color-mix(in srgb, var(--bocchi-clip-blue) 80%, var(--bocchi-text));
 }
 
 .bocchi-content-item__icon--blue {

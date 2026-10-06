@@ -592,6 +592,19 @@
     padding: 0.95rem 1rem 1.05rem;
 }
 
+.bocchi-themes-dev__summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 2rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.bocchi-themes-dev__summary::-webkit-details-marker {
+    display: none;
+}
+
 .bocchi-themes-dev__badge {
     justify-self: start;
     border-radius: 999px;

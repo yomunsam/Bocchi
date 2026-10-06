@@ -12,9 +12,7 @@
 
 <article class="bocchi-shell bocchi-shell--dashboard">
     <header class="bocchi-page-intro">
-        <span class="bocchi-eyebrow">@I18n["home.page.eyebrow"]</span>
         <h1>@I18n["home.page.heading"]</h1>
-        <p>@I18n["home.page.description"]</p>
     </header>
 
     @* Note 发布的全局提示：错误用警告色，成功不抢戏。 *@
@@ -65,14 +63,11 @@
     <section class="bocchi-quick-actions" aria-label="@I18n["home.page.heading"]">
         @foreach (var q in QuickActions)
         {
-            <a class="bocchi-quick-card" href="@q.Url">
+            <a class="bocchi-quick-card" href="@q.Url" title="@I18n[q.SubtitleKey]">
                 <span class="bocchi-quick-card__icon bocchi-quick-card__icon--@q.Tone">
                     <Blazicon Svg="@q.Icon" />
                 </span>
-                <span class="bocchi-quick-card__body">
-                    <strong>@I18n[q.TitleKey]</strong>
-                    <span>@I18n[q.SubtitleKey]</span>
-                </span>
+                <strong class="bocchi-quick-card__body">@I18n[q.TitleKey]</strong>
             </a>
         }
     </section>
@@ -86,8 +81,7 @@
                 <Blazicon Svg="Lucide.Monitor" />
                 <h2>@I18n["home.preview.title"]</h2>
             </div>
-            <p class="bocchi-card-copy">@I18n["home.preview.description"]</p>
-            <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
+            <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener" title="@I18n["home.preview.description"]">
                 <span>@I18n["home.preview.open"]</span>
                 <Blazicon Svg="Lucide.ExternalLink" />
             </a>

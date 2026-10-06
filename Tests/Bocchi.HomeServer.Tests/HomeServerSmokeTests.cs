@@ -538,7 +538,6 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("href=\"/Admin/Settings/Integrations\"");
         body.Should().MatchRegex("<span[^>]*aria-current=\"page\"[^>]*>GitHub");
         body.Should().Contain("GitHub integration");
-        body.Should().Contain("With the GitHub integration, you can later sign in to the Bocchi Admin panel with a GitHub account and publish the site to a GitHub repository or GitHub Pages.");
         body.Should().Contain("GitHub OAuth App integration");
         body.Should().Contain("View existing OAuth Apps");
         body.Should().Contain("GitHub OAuth App Client ID");

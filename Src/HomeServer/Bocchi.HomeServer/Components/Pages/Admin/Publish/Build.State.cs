@@ -204,12 +204,4 @@ public partial class Build
         AddPlanSection => I18n["publish.addPlan.heading"],
         _ => I18n["publish.page.heading"],
     };
-
-    /// <summary>当前页面说明。</summary>
-    private string CurrentDescription => CurrentSection switch
-    {
-        LocalOutputSection => I18n["publish.localOutput.description"],
-        AddPlanSection => I18n["publish.addPlan.description"],
-        _ => I18n["publish.page.description"],
-    };
 }

@@ -13,9 +13,7 @@
 
 <article class="bocchi-shell bocchi-shell--dashboard">
     <header class="bocchi-page-intro">
-        <span class="bocchi-eyebrow">@I18n["nav." + KindSlug]</span>
         <h1>@I18n[$"kind.{KindSlug}.title"]</h1>
-        <p>@I18n[$"kind.{KindSlug}.description"]</p>
     </header>
 
     @if (Kind == ContentKind.Note)
@@ -36,9 +34,13 @@
                     @* 类别树现在是独立页面（/Admin/Site/Categories），不再在列表页内嵌展开。 *@
                     <a class="bocchi-kind-action bocchi-kind-action--grouped"
                        href="@CategoriesUrl">
-                        @I18n["kind.index.actions.categories"]
+                        <Blazicon Svg="Lucide.FolderTree" />
+                        <span>@I18n["kind.index.actions.categories"]</span>
                     </a>
-                    <button type="button" class="bocchi-kind-action bocchi-kind-action--grouped">@I18n["kind.index.actions.tags"]</button>
+                    <button type="button" class="bocchi-kind-action bocchi-kind-action--grouped">
+                        <Blazicon Svg="Lucide.Tag" />
+                        <span>@I18n["kind.index.actions.tags"]</span>
+                    </button>
                 </div>
             }
         }
@@ -47,9 +49,9 @@
                 title='@I18n["kind.index.actions.refreshTitle"]'
                 aria-label='@I18n["kind.index.actions.refreshTitle"]'
                 disabled="@_refreshing"
+                aria-busy="@(_refreshing ? "true" : "false")"
                 @onclick="RefreshWorkspaceAsync">
-            <Blazicon Svg="Lucide.Repeat2" />
-            <span>@(_refreshing ? I18n["kind.index.actions.refreshing"] : I18n["kind.index.actions.refresh"])</span>
+            <Blazicon Svg="Lucide.RefreshCw" />
         </button>
     </section>
 

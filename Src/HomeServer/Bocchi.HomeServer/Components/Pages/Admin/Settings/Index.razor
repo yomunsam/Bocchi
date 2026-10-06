@@ -16,9 +16,11 @@
 
 <article class="bocchi-shell bocchi-shell--dashboard bocchi-settings-shell">
     <header class="bocchi-page-intro">
-        <span class="bocchi-eyebrow">@I18n["settings.page.eyebrow"]</span>
+        @if (!IsSettingsHub)
+        {
+            <span class="bocchi-eyebrow">@I18n["settings.page.eyebrow"]</span>
+        }
         <h1>@CurrentHeading</h1>
-        <p>@CurrentDescription</p>
     </header>
 
     @if (IsSettingsHub)
@@ -26,14 +28,11 @@
         <section class="bocchi-quick-actions bocchi-settings-hub" aria-label='@I18n["settings.nav.aria"]'>
             @foreach (var card in HubCards)
             {
-                <a class="bocchi-quick-card bocchi-settings-hub-card" href="@card.Url">
+                <a class="bocchi-quick-card bocchi-settings-hub-card" href="@card.Url" title="@I18n[card.DescriptionKey]">
                     <span class="bocchi-quick-card__icon bocchi-quick-card__icon--@card.Tone">
                         <Blazicon Svg="@card.Icon" />
                     </span>
-                    <span class="bocchi-quick-card__body">
-                        <strong>@I18n[card.TitleKey]</strong>
-                        <span>@I18n[card.DescriptionKey]</span>
-                    </span>
+                    <strong class="bocchi-quick-card__body">@I18n[card.TitleKey]</strong>
                 </a>
             }
         </section>
@@ -464,7 +463,6 @@
     private string CurrentHeading => IsSettingsHub ? I18n["settings.page.heading"] : I18n[$"settings.{CurrentSection}.title"];
 
     /// <summary>当前页说明文案。</summary>
-    private string CurrentDescription => IsSettingsHub ? I18n["settings.page.description"] : I18n[$"settings.{CurrentSection}.description"];
 
     /// <summary>站点名称编辑缓冲区。</summary>
     private string _siteName = "Bocchi";

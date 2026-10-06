@@ -5,7 +5,6 @@
 <article class="bocchi-themes-page">
     <header class="bocchi-themes-page__head">
         <h1>@I18n["themeLibrary.page.heading"]</h1>
-        <p>@I18n["themeLibrary.page.description"]</p>
     </header>
 
     @if (_loading)
@@ -49,8 +48,7 @@
         @* 可切换的主题列表 *@
         <section class="bocchi-themes-list" aria-labelledby="themes-list-heading">
             <div class="bocchi-themes-list__head">
-                <h2 id="themes-list-heading">@I18n["themeLibrary.list.title"]</h2>
-                <p>@I18n["themeLibrary.list.help"]</p>
+                <h2 id="themes-list-heading" title='@I18n["themeLibrary.list.help"]'>@I18n["themeLibrary.list.title"]</h2>
             </div>
 
             @if (!_catalog.Any())
@@ -226,10 +224,12 @@
 
         @if (IsThemeDevelopmentMode)
         {
-            <section class="bocchi-themes-dev" aria-labelledby="themes-dev-heading">
-                <div class="bocchi-themes-dev__badge">@I18n["themeLibrary.dev.modeBadge"]</div>
-                <h2 id="themes-dev-heading">@I18n["themeLibrary.dev.title"]</h2>
-                <p>@I18n["themeLibrary.dev.notice"]</p>
+            @* 开发模式说明默认收起，只给开发 Theme 的人看 *@
+            <details class="bocchi-themes-dev">
+                <summary class="bocchi-themes-dev__summary" title='@I18n["themeLibrary.dev.notice"]'>
+                    <span class="bocchi-themes-dev__badge">@I18n["themeLibrary.dev.modeBadge"]</span>
+                    <h2 id="themes-dev-heading">@I18n["themeLibrary.dev.title"]</h2>
+                </summary>
                 <p class="bocchi-themes-dev__path">@string.Format(System.Globalization.CultureInfo.CurrentCulture, I18n["themeLibrary.dev.pathHint"], DevLinksPath)</p>
                 <p>@I18n["themeLibrary.dev.devLinksIntro"]</p>
                 <figure class="bocchi-themes-dev__example">
@@ -243,7 +243,7 @@
                     @I18n["themeLibrary.dev.docsLink"]
                     <Blazicon Svg="Lucide.ExternalLink" aria-hidden="true" />
                 </a>
-            </section>
+            </details>
         }
     }
 </article>
