@@ -74,7 +74,7 @@ public sealed class GeneratorPipelineEndToEndTests
             var note = notesDoc.RootElement.GetProperty("data").EnumerateArray().Single();
             note.GetProperty("id").GetString().Should().Be("k7p9xq2m");
             note.GetProperty("siteRelativeUrl").GetString().Should().Be("/notes/k7p9xq2m/");
-            note.GetProperty("url").GetString().Should().Be("/notes/k7p9xq2m/");
+            note.GetProperty("siteRelativeUrl").GetString().Should().Be("/notes/k7p9xq2m/");
             note.GetProperty("markdown").GetString().Should().Contain("/media/notes/k7p9xq2m/note.jpg");
             note.GetProperty("media").EnumerateArray().Single().GetProperty("path").GetString()
                 .Should().Be("/media/notes/k7p9xq2m/note.jpg");
@@ -223,7 +223,7 @@ public sealed class GeneratorPipelineEndToEndTests
         using var postsDoc = JsonDocument.Parse(postsJson);
         var post = postsDoc.RootElement.GetProperty("data").EnumerateArray().Single();
         post.GetProperty("siteRelativeUrl").GetString().Should().Be("/posts/2025/hello/");
-        post.GetProperty("url").GetString().Should().Be("/posts/2025/hello/");
+        post.GetProperty("siteRelativeUrl").GetString().Should().Be("/posts/2025/hello/");
         post.GetProperty("id").GetString().Should().Be("posts/2025/hello@zh-CN");
         post.GetProperty("language").GetString().Should().Be("zh-CN");
         post.GetProperty("localization").GetProperty("groupId").GetString().Should().Be("posts/2025/hello");
@@ -270,7 +270,7 @@ public sealed class GeneratorPipelineEndToEndTests
         localization.GetProperty("sourceContentId").GetString().Should().Be("posts/2025/hello@zh-CN");
         localization.GetProperty("alternates").EnumerateArray().Should().Contain(alternate =>
             alternate.GetProperty("language").GetString() == "zh-CN" &&
-            alternate.GetProperty("url").GetString() == "/posts/2025/hello/");
+            alternate.GetProperty("siteRelativeUrl").GetString() == "/posts/2025/hello/");
     }
 
     [Fact]

@@ -75,12 +75,10 @@ public sealed record PostInput
     public required IReadOnlyList<string> Tags { get; init; }
     public string? Summary { get; init; }
     public MediaReferenceInput? Cover { get; init; }
-    /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
+    /// <summary>站点根相对 URL。</summary>
     public required string SiteRelativeUrl { get; init; }
     /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>
     public required string CanonicalUrl { get; init; }
-    /// <summary>站点根相对 URL 的兼容别名。</summary>
-    public required string Url { get; init; }
     public required string Markdown { get; init; }
     public required string Html { get; init; }
     public string? Excerpt { get; init; }
@@ -100,12 +98,10 @@ public sealed record PageInput
     public required bool ShowInNavigation { get; init; }
     public string? Summary { get; init; }
     public required string Template { get; init; }
-    /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
+    /// <summary>站点根相对 URL。</summary>
     public required string SiteRelativeUrl { get; init; }
     /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>
     public required string CanonicalUrl { get; init; }
-    /// <summary>站点根相对 URL 的兼容别名。</summary>
-    public required string Url { get; init; }
     public required string Markdown { get; init; }
     public required string Html { get; init; }
     public string? Excerpt { get; init; }
@@ -129,12 +125,10 @@ public sealed record WorkInput
     public required IReadOnlyList<string> Stack { get; init; }
     public string? Summary { get; init; }
     public required bool Featured { get; init; }
-    /// <summary>站点根相对 URL。新 Theme 应优先使用它；<see cref="Url"/> 保留为 v1 兼容别名。</summary>
+    /// <summary>站点根相对 URL。</summary>
     public required string SiteRelativeUrl { get; init; }
     /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>
     public required string CanonicalUrl { get; init; }
-    /// <summary>站点根相对 URL 的兼容别名。</summary>
-    public required string Url { get; init; }
     public required string Markdown { get; init; }
     public required string Html { get; init; }
     public string? Excerpt { get; init; }
@@ -161,8 +155,6 @@ public sealed record ContentAlternateInput
     public required string Title { get; init; }
     /// <summary>目标 variant 的站点根相对 URL。</summary>
     public required string SiteRelativeUrl { get; init; }
-    /// <summary>目标 variant 的站点根相对 URL 兼容别名。</summary>
-    public required string Url { get; init; }
     /// <summary>目标 variant 的绝对 URL，用于 <c>link rel="alternate"</c>。</summary>
     public required string Href { get; init; }
 }
@@ -174,8 +166,6 @@ public sealed record NoteInput
     public required string Year { get; init; }
     /// <summary>短文详情页的站点根相对 URL。</summary>
     public required string SiteRelativeUrl { get; init; }
-    /// <summary>站点根相对 URL 的兼容别名。</summary>
-    public required string Url { get; init; }
     public required string Status { get; init; }
     public DateTimeOffset? PublishedAt { get; init; }
     public required IReadOnlyList<string> Tags { get; init; }
@@ -203,7 +193,6 @@ public sealed record PostCategoryInput
     public required string Name { get; init; }
     public required string Slug { get; init; }
     public required string SiteRelativeUrl { get; init; }
-    public required string Url { get; init; }
     public required int Count { get; init; }
     public required IReadOnlyList<PostCategoryInput> Children { get; init; }
 }

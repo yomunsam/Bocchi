@@ -834,7 +834,6 @@ public sealed class FluidStaticRendererTests
             ["language"] = alternate.Language,
             ["title"] = alternate.Title,
             ["siteRelativeUrl"] = alternate.SiteRelativeUrl,
-            ["url"] = alternate.SiteRelativeUrl,
             ["href"] = alternate.Href,
             ["hreflang"] = alternate.Language,
         };
@@ -863,7 +862,6 @@ public sealed class FluidStaticRendererTests
             ["status"] = "published",
             ["language"] = language,
             ["siteRelativeUrl"] = siteRelativeUrl,
-            ["url"] = siteRelativeUrl,
             ["canonicalUrl"] = canonicalUrl,
             ["publishedAt"] = publishedAt,
             ["updatedAt"] = updatedAt,

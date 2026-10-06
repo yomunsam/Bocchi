@@ -237,6 +237,26 @@ public sealed class LoaderTests
     }
 
     [Fact]
+    public void PostLoader_WarnsWhenTagsIsAScalar()
+    {
+        var raw = "---\ntitle: T\ntags: a, b\n---\nbody\n";
+
+        var result = new PostLoader(Markdown).Load(Loc("posts/2025/t/index.md"), "2025", "t", raw, TimeSpan.Zero);
+
+        result.Document.Should().NotBeNull();
+        result.Document!.Frontmatter.Tags.Should().BeEmpty();
+        result.Errors.Should().ContainSingle(e => e.Code == "POST_TAGS_NOT_A_LIST" && e.Severity == ContentErrorSeverity.Warning);
+    }
+
+    [Fact]
+    public void FriendLinksLoader_RejectsTopLevelSequence()
+    {
+        var result = FriendLinksLoader.Load(Loc("friends/friends.yaml"), "- name: Alice\n  url: https://alice.example\n");
+
+        result.Errors.Should().Contain(e => e.Code == "FRIENDS_INVALID_SHAPE");
+    }
+
+    [Fact]
     public void FriendLinksLoader_RejectsItemWithoutNameOrUrl()
     {
         var yaml = "friends:\n  - name: Alice\n";

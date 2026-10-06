@@ -211,7 +211,7 @@ public sealed partial class FluidStaticRenderer
             .Select(alternate =>
             {
                 var language = GetString(alternate, "language", GetString(alternate, "hreflang"));
-                var siteRelativeUrl = GetString(alternate, "siteRelativeUrl", GetString(alternate, "url"));
+                var siteRelativeUrl = GetString(alternate, "siteRelativeUrl");
                 return new { Language = language, Url = siteRelativeUrl };
             })
             .Where(item => !string.IsNullOrWhiteSpace(item.Language) && !string.IsNullOrWhiteSpace(item.Url))
@@ -749,12 +749,8 @@ public sealed partial class FluidStaticRenderer
         return null;
     }
 
-    /// <summary>读取内容的 canonical 站点根相对 URL；优先使用新的 siteRelativeUrl 字段。</summary>
-    private static string GetContentUrl(JsonElement item)
-    {
-        var siteRelativeUrl = GetString(item, "siteRelativeUrl");
-        return string.IsNullOrWhiteSpace(siteRelativeUrl) ? GetString(item, "url") : siteRelativeUrl;
-    }
+    /// <summary>读取内容的 canonical 站点根相对 URL。</summary>
+    private static string GetContentUrl(JsonElement item) => GetString(item, "siteRelativeUrl");
 
     /// <summary>读取字符串属性。</summary>
     private static string GetString(JsonElement item, string key, string fallback = "")

@@ -2,6 +2,7 @@ using Bocchi.ContentModel;
 using Bocchi.Workspace.Scanning;
 
 using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
 
 namespace Bocchi.Workspace.Content.Loaders;
 
@@ -89,6 +90,16 @@ public sealed class PostLoader
 
         var category = YamlAccess.GetString(mapping, "category");
         var tags = YamlAccess.GetStringList(mapping, "tags");
+        if (mapping.Children.TryGetValue(new YamlScalarNode("tags"), out var tagsNode)
+            && tagsNode is YamlScalarNode { Value: { Length: > 0 } })
+        {
+            // tags 必须写成 YAML 列表；写成一行文本时不会被当作标签，提示用户改正。
+            errors.Add(new ContentValidationError(
+                location.RelativePath, ContentKind.Post, "tags",
+                ContentErrorSeverity.Warning, "POST_TAGS_NOT_A_LIST",
+                "tags 需要写成列表，例如 tags: [a, b]，当前写法会被忽略。"));
+        }
+
         var summary = YamlAccess.GetString(mapping, "summary");
         var coverPath = YamlAccess.GetString(mapping, "cover");
         MediaReference? cover = string.IsNullOrWhiteSpace(coverPath)

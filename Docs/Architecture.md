@@ -124,7 +124,7 @@ data/                                 <-- DataRoot（非开发环境必须显式
             index.md
             assets/
     friends/
-      friends.yaml                    <-- 友链：单文件 YAML 列表
+      friends.yaml                    <-- 友链：顶层 friends: [...] 列表
     photos/                           <-- M2 仅占位
     site/
       site.yaml
@@ -543,7 +543,7 @@ Home Server 向 Theme 写入一组稳定 JSON 文件。
 - 内容正文可以同时提供 `markdown`、`html` 和 `excerpt`，由 Theme 选择使用。
 - 公开 Theme 的正文主路径是消费 `html`。Bocchi Markdown Extensions 由统一 Markdown pipeline 渲染为稳定语义 HTML，Theme 不应自行解析正文 Markdown。
 - Figure、lightbox、lazy load、占位和响应式图片优先通过语义 HTML、媒体 variants 与 Theme config 实现，不以前台 block AST 作为前置条件。
-- Post / Page / Work 的 canonical route 使用 `siteRelativeUrl`；`url` 暂时保留为 v1 兼容别名。Theme 不应从 slug/title 自己推导内容 URL。
+- Post / Page / Work / Note 的 canonical route 只使用 `siteRelativeUrl`，输入里不再有 `url` 别名（友链和外链的 `url` 是真实地址，不受影响）。Theme 不应从 slug/title 自己推导内容 URL。
 - Post / Page / Work 同时输出绝对 `canonicalUrl`；多语言内容的 `localization.alternates[]` 输出 `language`、`hreflang`、站点根相对 `url` 和绝对 `href`，供 Theme 与 Sitemap 直接生成 SEO alternate link。
 - Theme Contract 中的内部 route 和媒体路径保持站点根相对；具体 HTML 输出可以按当前页面位置改写为相对 URL，以支持同一份静态文件部署在域名根目录或二级路径。
 - 媒体路径统一转换为站点输出路径，不暴露本机绝对路径。

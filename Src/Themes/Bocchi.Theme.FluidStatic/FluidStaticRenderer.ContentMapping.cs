@@ -241,7 +241,7 @@ public sealed partial class FluidStaticRenderer
         {
             var language = GetString(alternate, "language");
             var contentId = GetString(alternate, "contentId");
-            var siteRelativeUrl = GetString(alternate, "siteRelativeUrl", GetString(alternate, "url"));
+            var siteRelativeUrl = GetString(alternate, "siteRelativeUrl");
             var url = string.IsNullOrWhiteSpace(siteRelativeUrl) ? GetString(alternate, "href") : siteRelativeUrl;
             if (string.IsNullOrWhiteSpace(language) || string.IsNullOrWhiteSpace(url))
             {

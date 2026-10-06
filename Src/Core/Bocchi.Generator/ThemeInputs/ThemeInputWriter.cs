@@ -796,7 +796,6 @@ public sealed class ThemeInputWriter
         Cover = MapMedia(p.Cover),
         SiteRelativeUrl = p.SiteRelativeUrl,
         CanonicalUrl = AbsoluteUrl(baseUrl, p.SiteRelativeUrl),
-        Url = p.SiteRelativeUrl,
         Markdown = p.BodyMarkdown,
         Html = p.BodyHtml,
         Excerpt = p.Excerpt,
@@ -817,7 +816,6 @@ public sealed class ThemeInputWriter
         Template = p.Template,
         SiteRelativeUrl = p.SiteRelativeUrl,
         CanonicalUrl = AbsoluteUrl(baseUrl, p.SiteRelativeUrl),
-        Url = p.SiteRelativeUrl,
         Markdown = p.BodyMarkdown,
         Html = p.BodyHtml,
         Excerpt = p.Excerpt,
@@ -842,7 +840,6 @@ public sealed class ThemeInputWriter
         Featured = w.Featured,
         SiteRelativeUrl = w.SiteRelativeUrl,
         CanonicalUrl = AbsoluteUrl(baseUrl, w.SiteRelativeUrl),
-        Url = w.SiteRelativeUrl,
         Markdown = w.BodyMarkdown,
         Html = w.BodyHtml,
         Excerpt = w.Excerpt,
@@ -865,7 +862,6 @@ public sealed class ThemeInputWriter
         Hreflang = alternate.Language,
         Title = alternate.Title,
         SiteRelativeUrl = alternate.Url,
-        Url = alternate.Url,
         Href = AbsoluteUrl(baseUrl, alternate.Url),
     };
 
@@ -878,7 +874,6 @@ public sealed class ThemeInputWriter
         Id = n.Id,
         Year = n.Year,
         SiteRelativeUrl = n.SiteRelativeUrl,
-        Url = n.SiteRelativeUrl,
         Status = StatusToString(n.Status),
         PublishedAt = n.PublishedAt,
         Tags = n.Tags,
@@ -904,7 +899,6 @@ public sealed class ThemeInputWriter
         Name = category.Name,
         Slug = category.Slug,
         SiteRelativeUrl = category.SiteRelativeUrl,
-        Url = category.SiteRelativeUrl,
         Count = category.Count,
         Children = category.Children.Select(MapPostCategory).ToArray(),
     };

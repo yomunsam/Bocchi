@@ -39,20 +39,15 @@ public static class FriendLinksLoader
             return LoadResult.Fail<IReadOnlyList<FriendLink>>(errors);
         }
 
-        // 兼容两种顶层形态：直接 sequence，或 mapping 下含 friends: [...]
-        YamlSequenceNode? seq = root switch
-        {
-            YamlSequenceNode s => s,
-            YamlMappingNode m => YamlAccess.GetSequence(m, "friends"),
-            _ => null,
-        };
+        // 顶层固定是 mapping，友链放在 friends: [...] 下（与初始化写出的文件一致）
+        var seq = root is YamlMappingNode rootMapping ? YamlAccess.GetSequence(rootMapping, "friends") : null;
 
         if (seq is null)
         {
             errors.Add(new ContentValidationError(
                 location.RelativePath, ContentKind.FriendLink, null,
                 ContentErrorSeverity.Error, "FRIENDS_INVALID_SHAPE",
-                "friends.yaml 顶层必须是数组，或包含 friends 数组的对象。"));
+                "friends.yaml 顶层必须是包含 friends 数组的对象。"));
             return LoadResult.Fail<IReadOnlyList<FriendLink>>(errors);
         }
 

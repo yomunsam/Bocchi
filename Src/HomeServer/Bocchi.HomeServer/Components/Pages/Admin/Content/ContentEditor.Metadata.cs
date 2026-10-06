@@ -264,7 +264,7 @@ public partial class ContentEditor
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : null;
     }
 
-    /// <summary>从 YAML mapping 中读取字符串数组；兼容历史逗号分隔 scalar。</summary>
+    /// <summary>从 YAML mapping 中读取字符串数组（只认 sequence，与生成器一致）。</summary>
     private static List<string> ReadStringList(YamlMappingNode? root, string key)
     {
         if (root?.Children.TryGetValue(new YamlScalarNode(key), out var node) != true)
@@ -272,18 +272,13 @@ public partial class ContentEditor
             return [];
         }
 
-        if (node is YamlSequenceNode sequence)
-        {
-            return sequence.Children
+        return node is YamlSequenceNode sequence
+            ? sequence.Children
                 .OfType<YamlScalarNode>()
                 .Select(x => x.Value?.Trim())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x!)
-                .ToList();
-        }
-
-        return node is YamlScalarNode scalar && !string.IsNullOrWhiteSpace(scalar.Value)
-            ? ParseCommaList(scalar.Value)
+                .ToList()
             : [];
     }
 
