@@ -17,4 +17,7 @@ public static class ServerInfo
 
     /// <summary>显示名。</summary>
     public const string DisplayName = "Bocchi Home Server";
+
+    /// <summary>Data Protection 的固定应用名。默认值取决于安装路径，固定后换目录也能解密旧数据。</summary>
+    public const string DataProtectionApplicationName = "Bocchi.HomeServer";
 }

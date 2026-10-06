@@ -51,7 +51,7 @@ public sealed record BocchiDataLayout
     /// <summary>可见 Theme 实例目录。</summary>
     public string ThemesDirectory => Path.Combine(DataRoot, "themes");
 
-    /// <summary>Bocchi / Home Server 状态目录（SQLite、Data Protection keys、Theme 配置等）。</summary>
+    /// <summary>Bocchi / Home Server 状态目录（SQLite、Theme 配置、编辑器草稿等）。</summary>
     public string StateDirectory => Path.Combine(DataRoot, "state");
 
     /// <summary>编辑器尚未保存到 workspace 的临时草稿目录；它属于 Home Server 状态，不是内容事实源。</summary>
@@ -59,6 +59,9 @@ public sealed record BocchiDataLayout
 
     /// <summary>SQLite 状态数据库路径。</summary>
     public string SqliteDatabasePath => Path.Combine(StateDirectory, "bocchi.sqlite");
+
+    /// <summary>ASP.NET Core Data Protection 密钥目录；丢失后数据库里加密保存的凭据都无法解密。</summary>
+    public string DataProtectionKeysDirectory => Path.Combine(DataRoot, "keys");
 
     /// <summary>Bocchi 日志目录。</summary>
     public string LogsDirectory => Path.Combine(DataRoot, "logs");

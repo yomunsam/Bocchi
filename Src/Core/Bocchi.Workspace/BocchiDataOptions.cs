@@ -9,8 +9,7 @@ public sealed class BocchiDataOptions
     public const string SectionName = "Bocchi";
 
     /// <summary>
-    /// DataRoot 的绝对或相对路径。相对路径相对于宿主传入的 base path 解析。
-    /// 留空时回退到宿主传入 base path 下的 <c>data/</c>。
+    /// DataRoot 的绝对或相对路径。相对路径相对于宿主传入的 base path 解析；必须配置。
     /// </summary>
     public string? DataRoot { get; set; }
 

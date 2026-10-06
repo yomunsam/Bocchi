@@ -8,6 +8,7 @@ using Bocchi.HomeServer.Build;
 using Bocchi.HomeServer.Components;
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Data.State;
+using Bocchi.HomeServer.Hosting;
 using Bocchi.HomeServer.Security;
 using Bocchi.HomeServer.Services;
 using Bocchi.HomeServer.Services.Ai;
@@ -43,13 +44,17 @@ try
     Log.Information("Starting Bocchi Home Server");
 
     var builder = WebApplication.CreateBuilder(args);
-    ApplyDevelopmentDataRootDefault(builder);
 
-    // DataRoot 必须先注册：数据库、日志和内容 workspace 路径都从这里统一解析。
-    var dataRootBasePath = ResolveDataRootBase(builder.Environment);
-    builder.Services.AddBocchiData(
-        builder.Configuration,
-        _ => dataRootBasePath);
+    // DataRoot 必须先解析：数据库、密钥、日志和内容 workspace 路径都从这里派生。
+    // 解析结果写回配置，后续 BocchiDataOptions 拿到的一定是绝对路径。
+    var dataRoot = DataRootResolver.Resolve(builder.Configuration, builder.Environment);
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        [DataRootResolver.ConfigurationKey] = dataRoot,
+    });
+    var dataLayout = new BocchiDataLayout(dataRoot);
+    builder.Services.AddSingleton(dataLayout);
+    builder.Services.AddBocchiData(builder.Configuration, _ => dataRoot);
     builder.Services.AddBocchiGenerator(builder.Configuration);
     builder.Services.PostConfigure<ThemeDevelopmentOptions>(options => options.EnvironmentName = builder.Environment.EnvironmentName);
     builder.Services.AddSingleton<BuildOrchestrator>();
@@ -137,9 +142,11 @@ try
         options.SupportedUICultures = cultures;
     });
 
-    var dataRootForKeys = ResolveDataRoot(builder.Configuration, dataRootBasePath);
+    // 密钥固定放在 DataRoot 下并固定 ApplicationName：移动安装目录、升级二进制或换容器后，
+    // 已加密的 token / client secret 仍能解密。keys 目录必须和数据库一起备份。
     builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataRootForKeys, "state", "data-protection-keys")));
+        .PersistKeysToFileSystem(new DirectoryInfo(dataLayout.DataProtectionKeysDirectory))
+        .SetApplicationName(ServerInfo.DataProtectionApplicationName);
 
     if (!builder.Environment.IsEnvironment("Testing"))
     {
@@ -242,6 +249,11 @@ try
 
     app.Run();
 }
+catch (BocchiStartupException ex)
+{
+    Log.Fatal("{Message}", ex.Message);
+    Environment.ExitCode = 1;
+}
 catch (Exception ex) when (ex is not HostAbortedException)
 {
     Log.Fatal(ex, "Bocchi Home Server terminated unexpectedly");
@@ -250,39 +262,6 @@ catch (Exception ex) when (ex is not HostAbortedException)
 finally
 {
     Log.CloseAndFlush();
-}
-
-/// <summary>开发期默认 DataRoot 避开源码目录，避免 macOS/Windows 大小写不敏感文件系统把 <c>data/</c> 合并进 <c>Data/</c>。</summary>
-static void ApplyDevelopmentDataRootDefault(WebApplicationBuilder builder)
-{
-    var key = $"{BocchiDataOptions.SectionName}:DataRoot";
-    if (!builder.Environment.IsDevelopment() || !string.IsNullOrWhiteSpace(builder.Configuration[key]))
-    {
-        return;
-    }
-
-    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-    {
-        [key] = ".bocchi-dev-data",
-    });
-}
-
-/// <summary>解析相对 DataRoot 的基准路径：开发期贴近项目目录，发布后贴近程序目录。</summary>
-static string ResolveDataRootBase(IHostEnvironment environment)
-    => environment.IsDevelopment() ? environment.ContentRootPath : AppContext.BaseDirectory;
-
-/// <summary>根据配置解析 DataRoot 绝对路径，供 Data Protection 在 DI 完成前落盘。</summary>
-static string ResolveDataRoot(IConfiguration configuration, string dataRootBasePath)
-{
-    var configured = configuration[$"{BocchiDataOptions.SectionName}:DataRoot"];
-    if (string.IsNullOrWhiteSpace(configured))
-    {
-        return Path.GetFullPath(Path.Combine(dataRootBasePath, "data"));
-    }
-
-    return Path.IsPathRooted(configured)
-        ? Path.GetFullPath(configured)
-        : Path.GetFullPath(Path.Combine(dataRootBasePath, configured));
 }
 
 /// <summary>渲染前台 preview；后台静态资源缺失时明确 404，避免 catch-all 返回 HTML 污染 JS/manifest/JSON 请求。</summary>

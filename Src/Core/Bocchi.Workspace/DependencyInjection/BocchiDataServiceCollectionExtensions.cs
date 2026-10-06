@@ -21,7 +21,7 @@ public static class BocchiDataServiceCollectionExtensions
     /// <param name="services">DI 容器。</param>
     /// <param name="configuration">用于绑定 <see cref="BocchiDataOptions"/> 的根配置。</param>
     /// <param name="dataRootBaseResolver">
-    /// 在 <see cref="BocchiDataOptions.DataRoot"/> 为空或为相对路径时使用的基准路径提供者。
+    /// <see cref="BocchiDataOptions.DataRoot"/> 为相对路径时使用的基准路径提供者。
     /// </param>
     public static IServiceCollection AddBocchiData(
         this IServiceCollection services,
@@ -43,10 +43,11 @@ public static class BocchiDataServiceCollectionExtensions
             var root = opts.DataRoot;
             if (string.IsNullOrWhiteSpace(root))
             {
-                var fallback = dataRootBaseResolver(sp);
-                root = Path.Combine(fallback, "data");
+                // 不再回退到程序目录：DataRoot 由宿主显式提供。
+                throw new InvalidOperationException("Bocchi:DataRoot 未配置。");
             }
-            else if (!Path.IsPathRooted(root))
+
+            if (!Path.IsPathRooted(root))
             {
                 var basePath = dataRootBaseResolver(sp);
                 root = Path.GetFullPath(Path.Combine(basePath, root));

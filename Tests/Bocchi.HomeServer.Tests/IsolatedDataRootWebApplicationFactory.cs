@@ -25,13 +25,8 @@ public sealed class IsolatedDataRootWebApplicationFactory
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        builder.ConfigureAppConfiguration((_, config) =>
-        {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Bocchi:DataRoot"] = DataRoot,
-            });
-        });
+        // UseSetting 在 Program 读取配置之前生效；ConfigureAppConfiguration 要到 Build 时才合并，DataRoot 解析会看不到。
+        builder.UseSetting("Bocchi:DataRoot", DataRoot);
         base.ConfigureWebHost(builder);
     }
 
