@@ -20,8 +20,8 @@ public sealed class DataBackupService
     /// <summary>当前备份格式版本。</summary>
     public const int FormatVersion = 1;
 
-    /// <summary>不进入备份、恢复时也保留的顶层目录。</summary>
-    private static readonly string[] ExcludedTopLevel = ["backups", "cache", "logs", "output"];
+    /// <summary>不进入备份的顶层目录和文件（含服务运行时的锁文件）。</summary>
+    private static readonly string[] ExcludedTopLevel = ["backups", "cache", "logs", "output", Hosting.DataRootLock.FileName];
 
     private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
@@ -75,7 +75,7 @@ public sealed class DataBackupService
     }
 
     /// <summary>
-    /// 从备份恢复。必须在服务停止时执行。DataRoot 已有数据时需要 <paramref name="force"/>：
+    /// 从备份恢复。必须在服务停止时执行（调用方负责先拿到 <see cref="Hosting.DataRootLock"/>）。DataRoot 已有数据时需要 <paramref name="force"/>：
     /// 先把现有数据另做一份备份，再清空（保留 backups/logs）后解压。
     /// </summary>
     /// <returns>强制恢复前自动生成的备份路径；DataRoot 原本为空时为 <c>null</c>。</returns>

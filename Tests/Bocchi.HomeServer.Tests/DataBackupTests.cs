@@ -1,6 +1,7 @@
 using System.IO.Compression;
 
 using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Hosting;
 using Bocchi.HomeServer.Maintenance;
 using Bocchi.Workspace;
 
@@ -84,6 +85,36 @@ public sealed class DataBackupTests : IDisposable
         safety.Should().NotBeNull();
         using var zip = ZipFile.OpenRead(safety!);
         zip.GetEntry("workspace/only-in-target.md").Should().NotBeNull();
+    }
+
+    [Fact]
+    public void DataRootLock_IsExclusiveUntilReleased()
+    {
+        var root = Path.Combine(_root, "locked");
+        using (var first = DataRootLock.TryAcquire(root))
+        {
+            first.Should().NotBeNull();
+            DataRootLock.TryAcquire(root).Should().BeNull();
+        }
+
+        using var again = DataRootLock.TryAcquire(root);
+        again.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void RestoreCommand_RefusesWhileServerHoldsTheLock()
+    {
+        var source = SeedDataRoot("source", "from-backup");
+        var zipPath = new DataBackupService(source, TimeProvider.System).CreateBackup(Path.Combine(_root, "b.zip"));
+        var target = SeedDataRoot("target", "current");
+        using var serverLock = DataRootLock.TryAcquire(target.DataRoot);
+        var output = new StringWriter();
+
+        var exitCode = MaintenanceCli.Run(["restore", zipPath, "--force"], target, output);
+
+        exitCode.Should().Be(1);
+        output.ToString().Should().Contain("请先停止服务");
+        ReadMarker(target).Should().Be("current");
     }
 
     [Fact]

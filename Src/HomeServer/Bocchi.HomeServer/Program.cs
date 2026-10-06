@@ -63,6 +63,10 @@ try
         return;
     }
 
+    // 服务运行期间独占 DataRoot：同一数据目录不能起两个服务，restore 也会因此拒绝执行。
+    using var dataRootLock = DataRootLock.TryAcquire(dataRoot)
+        ?? throw new BocchiStartupException($"数据目录 {dataRoot} 正被另一个 Bocchi 进程使用（服务或 restore）。请先停止它再启动。");
+
     builder.Services.AddSingleton(dataLayout);
     builder.Services.AddBocchiData(builder.Configuration, _ => dataRoot);
     builder.Services.AddBocchiGenerator(builder.Configuration);
