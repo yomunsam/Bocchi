@@ -2,9 +2,9 @@
 # 用法见 Docs/Guide_Hans 下的部署指南；启动：docker compose -f Deploy/compose.yaml up -d
 services:
   bocchi:
-    # 使用发布的镜像，BOCCHI_VERSION 可固定到某个版本（如 1.2.0）；
-    # 只有预发布版本时没有 latest，需要写明版本。想从源码构建时注释掉 image，改用下面的 build
-    image: ghcr.io/yomunsam/bocchi:${BOCCHI_VERSION:-latest}
+    # 镜像不提供 latest，启动前设置 BOCCHI_VERSION（如 0.1.0）。
+    # 想从源码构建时注释掉 image，改用下面的 build
+    image: ghcr.io/yomunsam/bocchi:${BOCCHI_VERSION:?请设置 BOCCHI_VERSION，例如 0.1.0}
     # build:
     #   context: ..
     restart: unless-stopped
