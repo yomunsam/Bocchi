@@ -163,11 +163,16 @@ public sealed class PreviewHost
 
         return $$$"""
             <style>
-            .bocchi-preview-toolbar{position:fixed;right:1rem;bottom:1rem;z-index:2147483000;display:flex;align-items:center;gap:.45rem;border:1px solid #e8e4ef;border-radius:8px;background:#fff;color:#26253a;box-shadow:0 14px 34px rgba(77,67,107,.16);font:14px/1.35 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:.55rem}
-            .bocchi-preview-toolbar__status{border-radius:999px;background:#f2f7ff;color:#407fc2;font-weight:760;padding:.28rem .58rem}
-            .bocchi-preview-toolbar__route{max-width:min(38vw,22rem);overflow:hidden;color:#747186;text-overflow:ellipsis;white-space:nowrap}
-            .bocchi-preview-toolbar__button{border:1px solid #e8e4ef;border-radius:8px;background:#fff;color:#26253a;font-weight:760;padding:.42rem .64rem;text-decoration:none}
-            @media (max-width:640px){.bocchi-preview-toolbar{left:.75rem;right:.75rem;bottom:.75rem;flex-wrap:wrap}.bocchi-preview-toolbar__route{max-width:100%}}
+            .bocchi-preview-toolbar{--bpt-bg:#fff;--bpt-fg:#2a2327;--bpt-mute:#7a6e74;--bpt-line:#ebe3e6;--bpt-accent:#c2457a;position:fixed;right:1rem;bottom:1rem;z-index:2147483000;display:flex;align-items:center;gap:.4rem;max-width:calc(100vw - 2rem);border:1px solid var(--bpt-line);border-radius:10px;background:var(--bpt-bg);color:var(--bpt-fg);box-shadow:0 10px 28px rgba(40,24,32,.16);font:13px/1.3 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:.35rem}
+            :root[data-theme="dark"] .bocchi-preview-toolbar{--bpt-bg:#1d191b;--bpt-fg:#f3eef0;--bpt-mute:#a99ba2;--bpt-line:#3a3236;--bpt-accent:#f4a6c0}
+            @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .bocchi-preview-toolbar{--bpt-bg:#1d191b;--bpt-fg:#f3eef0;--bpt-mute:#a99ba2;--bpt-line:#3a3236;--bpt-accent:#f4a6c0}}
+            .bocchi-preview-toolbar__status{display:inline-flex;align-items:center;gap:.35rem;color:var(--bpt-accent);font-weight:650;padding:0 .4rem}
+            .bocchi-preview-toolbar__status::before{content:"";width:.45rem;height:.45rem;border-radius:999px;background:currentColor}
+            .bocchi-preview-toolbar__route{min-width:0;max-width:min(38vw,22rem);overflow:hidden;color:var(--bpt-mute);text-overflow:ellipsis;white-space:nowrap}
+            .bocchi-preview-toolbar__button{display:inline-flex;align-items:center;min-height:2rem;border:1px solid var(--bpt-line);border-radius:8px;background:transparent;color:var(--bpt-fg);font-weight:600;padding:0 .65rem;text-decoration:none}
+            .bocchi-preview-toolbar__button:hover{border-color:var(--bpt-accent);color:var(--bpt-accent)}
+            .bocchi-preview-toolbar__button:focus-visible{outline:2px solid var(--bpt-accent);outline-offset:2px}
+            @media (max-width:640px){.bocchi-preview-toolbar{right:.75rem;bottom:.75rem;max-width:calc(100vw - 1.5rem)}.bocchi-preview-toolbar__route{display:none}.bocchi-preview-toolbar__button{min-height:2.75rem;padding:0 .9rem}}
             </style>
             <nav class="bocchi-preview-toolbar" aria-label="Bocchi preview toolbar">
                 <span class="bocchi-preview-toolbar__status">Preview</span>
