@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -167,6 +168,10 @@ try
         });
     }
 
+    var reverseProxy = builder.Configuration.GetSection(ReverseProxyOptions.SectionName).Get<ReverseProxyOptions>()
+        ?? new ReverseProxyOptions();
+    builder.Services.Configure<ForwardedHeadersOptions>(reverseProxy.ApplyTo);
+
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
 
@@ -186,6 +191,9 @@ try
 
         await sp.GetRequiredService<HomeServerSetupService>().EnsureDatabaseAsync();
     }
+
+    // 最先处理转发头：之后的日志、HSTS、同源守卫、OAuth 回调都看到代理前的真实 scheme/host/客户端 IP。
+    app.UseForwardedHeaders();
 
     if (!app.Environment.IsEnvironment("Testing"))
     {
