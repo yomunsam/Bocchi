@@ -6,7 +6,7 @@
 
 <PageTitle>@I18n["login.page.title"] · Bocchi</PageTitle>
 
-<section class="grid min-h-[calc(100vh-6rem)] items-center gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+<section class="@(_providers.Count > 0 ? "grid min-h-[calc(100vh-6rem)] items-center gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]" : "mx-auto grid min-h-[calc(100vh-6rem)] w-full max-w-xl items-center gap-6 py-6")">
     <form class="grid gap-6 rounded-bocchi-xl bg-bocchi-surface p-6 shadow-bocchi-soft sm:p-8" method="post" action="@LoginAction">
         <header class="grid gap-2">
             <p class="m-0 inline-flex w-fit items-center gap-2 rounded-full bg-bocchi-action-soft px-3 py-1 text-xs font-semibold text-bocchi-action">
@@ -14,7 +14,6 @@
                 <span>@I18n["login.page.eyebrow"]</span>
             </p>
             <h1 class="m-0 text-3xl font-semibold leading-tight text-bocchi-text sm:text-4xl">@I18n["login.page.heading"]</h1>
-            <p class="m-0 max-w-2xl text-base leading-7 text-bocchi-muted">@I18n["login.page.description"]</p>
         </header>
 
         @if (!string.IsNullOrWhiteSpace(Message))
@@ -53,19 +52,16 @@
         </button>
     </form>
 
-    <aside class="grid gap-4 rounded-bocchi-xl border border-bocchi-border bg-bocchi-surface-muted p-6">
-        <div class="flex items-center gap-3 border-b border-bocchi-border pb-4">
-            <span class="inline-flex size-10 items-center justify-center rounded-full bg-bocchi-action-soft text-bocchi-action">
-                <Blazicon Svg="Lucide.KeyRound" />
-            </span>
-            <h2 class="m-0 text-xl font-semibold text-bocchi-text">@I18n["login.external.title"]</h2>
-        </div>
-        @if (_providers.Count == 0)
-        {
-            <p class="m-0 text-sm leading-6 text-bocchi-muted">@I18n["login.external.empty"]</p>
-        }
-        else
-        {
+    @* 没有可用的第三方登录时整块不显示 *@
+    @if (_providers.Count > 0)
+    {
+        <aside class="grid gap-4 rounded-bocchi-xl border border-bocchi-border bg-bocchi-surface-muted p-6">
+            <div class="flex items-center gap-3 border-b border-bocchi-border pb-4">
+                <span class="inline-flex size-10 items-center justify-center rounded-full bg-bocchi-action-soft text-bocchi-action">
+                    <Blazicon Svg="Lucide.KeyRound" />
+                </span>
+                <h2 class="m-0 text-xl font-semibold text-bocchi-text">@I18n["login.external.title"]</h2>
+            </div>
             <div class="grid gap-2">
                 @foreach (var provider in _providers)
                 {
@@ -80,8 +76,8 @@
                     </form>
                 }
             </div>
-        }
-    </aside>
+        </aside>
+    }
 </section>
 
 @code {
