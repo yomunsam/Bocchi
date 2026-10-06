@@ -35,11 +35,13 @@ Bocchi 是一个依据作者个人喜好、品味而设计的个人主页/Blog�
 
 ### 从二进制文件启动
 
-你可从[Github Release](https://github.com/yomunsam/Bocchi/releases)下载稳定版Bocchi Home Server的二进制文件，并运行它。无需数据库、SDK、运行时依赖。
+你可从[Github Release](https://github.com/yomunsam/Bocchi/releases)下载稳定版Bocchi Home Server的二进制文件，并运行它。无需数据库、SDK、运行时依赖。启动前需要用 `Bocchi__DataRoot` 指定数据目录。
 
 ### 从容器启动
 
-> TODO 文档待补充
+镜像为 `ghcr.io/yomunsam/bocchi`，Compose 示例见 [Deploy/compose.yaml](Deploy/compose.yaml)。
+
+数据目录、反向代理、备份恢复与升级等说明见[部署与运维](Docs/Guide_Hans/Deploy/0_部署与运维.md)。
 
 ## 制作自己的前台Theme
 

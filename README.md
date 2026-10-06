@@ -37,11 +37,13 @@ The project is in **early development**:
 
 ### Start from binaries
 
-Download stable Bocchi Home Server binaries from [GitHub Releases](https://github.com/yomunsam/Bocchi/releases) and run them. No database, SDK, or runtime dependencies required.
+Download stable Bocchi Home Server binaries from [GitHub Releases](https://github.com/yomunsam/Bocchi/releases) and run them. No database, SDK, or runtime dependencies required. Set the data directory with `Bocchi__DataRoot` before starting.
 
 ### Start from a container
 
-> TODO Documentation to be added
+The image is `ghcr.io/yomunsam/bocchi`; see [Deploy/compose.yaml](Deploy/compose.yaml) for a Compose example.
+
+The deployment guide (data directory, reverse proxy, backup/restore, upgrades) is currently in Chinese: [部署与运维](Docs/Guide_Hans/Deploy/0_部署与运维.md).
 
 ## Build your own frontend theme
 
