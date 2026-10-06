@@ -49,6 +49,26 @@
     transform: rotate(-18deg);
 }
 
+.bocchi-logo__clips {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    align-self: flex-start;
+    margin-top: 0.3rem;
+}
+
+.bocchi-logo__clips i {
+    display: block;
+    width: 0.34rem;
+    height: 0.4rem;
+    border-radius: 2px;
+    background: var(--bocchi-clip-blue);
+}
+
+.bocchi-logo__clips i + i {
+    background: var(--bocchi-clip-yellow);
+}
+
 .bocchi-logo:hover ::deep svg {
     color: var(--bocchi-action-strong);
 }

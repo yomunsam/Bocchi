@@ -64,6 +64,22 @@
     }
 
     // Dashboard 外观只控制后台明暗模式；不要和前台业务 Theme 混用。
+    // 配色：默认「运动服」；localStorage 里存了 maid / clip 时切换，只写 data 属性，颜色全在 tokens.css。
+    function applyPalette() {
+        let palette = null;
+        try {
+            palette = localStorage.getItem("bocchi.dashboard.palette");
+        } catch {
+            palette = null;
+        }
+
+        if (palette === "maid" || palette === "clip") {
+            root.dataset.bocchiPalette = palette;
+        } else {
+            delete root.dataset.bocchiPalette;
+        }
+    }
+
     function apply(mode) {
         const normalized = normalize(mode);
         const effective = effectiveMode(normalized);
@@ -166,6 +182,7 @@
     }
 
     apply(readStoredMode());
+    applyPalette();
     query.addEventListener("change", () => apply(root.dataset.bocchiAppearance || "auto"));
     document.addEventListener("DOMContentLoaded", setupAppearanceControls);
     document.addEventListener("enhancedload", syncSoon);
