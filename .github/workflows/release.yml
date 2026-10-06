@@ -123,8 +123,8 @@ jobs:
 
   image:
     name: Docker image
-    # 二进制全部发布成功后再推镜像
-    needs: binaries
+    # 二进制和 GitHub Release 都成功后再推镜像
+    needs: [binaries, release]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
