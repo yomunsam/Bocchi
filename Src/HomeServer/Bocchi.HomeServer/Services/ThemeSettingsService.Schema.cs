@@ -45,7 +45,8 @@ public sealed partial class ThemeSettingsService
     private static async Task<List<ThemeConfigGroupView>> LoadConfigGroupsAsync(
         string themeRoot,
         JsonObject configuration,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<string, string>? resolveText = null)
     {
         var schemaPath = Path.Combine(themeRoot, "config-schema.json");
         if (!File.Exists(schemaPath))
@@ -89,7 +90,7 @@ public sealed partial class ThemeSettingsService
 
             var fields = groupNode["fields"] is JsonArray fieldArray
                 ? fieldArray.OfType<JsonObject>()
-                    .Select(field => MapConfigField(field, configuration))
+                    .Select(field => MapConfigField(field, configuration, resolveText))
                     .Where(field => field is not null)
                     .Cast<ThemeConfigFieldView>()
                     .ToList()
@@ -105,8 +106,14 @@ public sealed partial class ThemeSettingsService
         return result;
     }
 
-    private static ThemeConfigFieldView? MapConfigField(JsonObject field, JsonObject configuration)
+    private static ThemeConfigFieldView? MapConfigField(
+        JsonObject field,
+        JsonObject configuration,
+        Func<string, string>? resolveText)
     {
+        // 标题、说明、占位提示可以写 i18n://theme@key，按 Dashboard 语言取 theme.json 里的文案
+        string? Text(string? raw) => raw is null || resolveText is null ? raw : resolveText(raw);
+
         var key = ReadString(field["key"]);
         var title = ReadString(field["title"]);
         var typeName = ReadString(field["type"]);
@@ -124,11 +131,11 @@ public sealed partial class ThemeSettingsService
         {
             Key = key.Trim(),
             Type = type,
-            Title = title.Trim(),
-            Description = TrimOrNull(ReadString(field["description"])),
+            Title = Text(title.Trim())!,
+            Description = TrimOrNull(Text(ReadString(field["description"]))),
             TextFormat = NormalizeTextFormat(type, ReadString(field["textFormat"])),
-            Placeholder = TrimOrNull(ReadString(field["placeholder"])),
-            HelpText = TrimOrNull(ReadString(field["helpText"])),
+            Placeholder = TrimOrNull(Text(ReadString(field["placeholder"]))),
+            HelpText = TrimOrNull(Text(ReadString(field["helpText"]))),
             Required = ReadBool(field["required"]),
             Options = ReadOptions(field["options"]),
             TextValue = JsonNodeToText(currentValue),
@@ -171,11 +178,39 @@ public sealed partial class ThemeSettingsService
                 break;
             case ThemeConfigFieldType.Group:
                 break;
+            case ThemeConfigFieldType.Url:
+                ApplyUrlValue(configuration, field.Key, input.Value);
+                break;
             default:
                 ApplyStringValue(configuration, field, input.Value, validateOptions: false);
                 break;
         }
     }
+
+    /// <summary>url 字段只收完整的 https 网址；留空表示不设置。</summary>
+    private static void ApplyUrlValue(JsonObject configuration, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            RemoveNestedValue(configuration, key);
+            return;
+        }
+
+        var normalized = value.Trim();
+        if (!IsAbsoluteHttpsUrl(normalized))
+        {
+            throw new InvalidOperationException($"Theme 配置字段 '{key}' 需要以 https:// 开头的完整网址。");
+        }
+
+        SetNestedValue(configuration, key, JsonValue.Create(normalized));
+    }
+
+    /// <summary>完整的 https 网址：有主机名，不含空白和控制字符；javascript:、data:、http: 和相对路径都不行。</summary>
+    internal static bool IsAbsoluteHttpsUrl(string value)
+        => !value.Any(ch => char.IsWhiteSpace(ch) || char.IsControl(ch))
+           && Uri.TryCreate(value, UriKind.Absolute, out var uri)
+           && string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)
+           && !string.IsNullOrEmpty(uri.Host);
 
     private static void ApplyNumberValue(JsonObject configuration, string key, string? value)
     {

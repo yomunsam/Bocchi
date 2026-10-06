@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -14,6 +15,10 @@ namespace Bocchi.HomeServer.Services;
 /// </summary>
 public sealed partial class ThemeSettingsService
 {
+    /// <summary>解析 schema 文案引用时不带用户覆盖，直接用 theme.json 的默认文案。</summary>
+    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> EmptyTextOverrides =
+        new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+
     /// <summary>Theme 设置 JSON 使用 camelCase，与 theme.json 和 Theme Context 保持一致。</summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -125,7 +130,11 @@ public sealed partial class ThemeSettingsService
         var configuration = ParseConfigurationObject(record.ConfigurationJson);
         var groups = loadedTheme is null
             ? []
-            : await LoadConfigGroupsAsync(loadedTheme.Root, configuration, cancellationToken).ConfigureAwait(false);
+            : await LoadConfigGroupsAsync(
+                loadedTheme.Root,
+                configuration,
+                cancellationToken,
+                raw => ResolveDisplayName(raw, loadedTheme.Manifest, EmptyTextOverrides, CultureInfo.CurrentUICulture.Name)).ConfigureAwait(false);
 
         return new ThemeCustomizationView
         {
