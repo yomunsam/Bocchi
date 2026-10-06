@@ -74,6 +74,8 @@ textarea:focus-visible {
     position: absolute;
     left: 50%;
     z-index: 30;
+    /* 隐藏时不生成盒子：opacity:0 的提示框仍会撑出横向滚动 */
+    display: none;
     opacity: 0;
     pointer-events: none;
     transition: opacity 120ms ease, transform 120ms ease;
@@ -111,9 +113,25 @@ textarea:focus-visible {
 .bocchi-tooltip:focus-visible::before,
 .bocchi-tooltip:focus-visible::after,
 .bocchi-tooltip:focus-within::before,
-.bocchi-tooltip:focus-within::after {
+.bocchi-tooltip[data-bocchi-tooltip-open]::before,
+.bocchi-tooltip:focus-within::after,
+.bocchi-tooltip[data-bocchi-tooltip-open]::after {
+    display: block;
     opacity: 1;
     transform: translate(-50%, 0);
+}
+
+@starting-style {
+    .bocchi-tooltip:is(:hover, :focus-visible, :focus-within, [data-bocchi-tooltip-open])::before,
+    .bocchi-tooltip:is(:hover, :focus-visible, :focus-within, [data-bocchi-tooltip-open])::after {
+        opacity: 0;
+    }
+}
+
+/* Esc 关掉后，等鼠标移开或失焦再恢复 */
+.bocchi-tooltip[data-bocchi-tooltip-dismissed]::before,
+.bocchi-tooltip[data-bocchi-tooltip-dismissed]::after {
+    display: none;
 }
 
 .bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]::before {
@@ -135,7 +153,9 @@ textarea:focus-visible {
 .bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-visible::before,
 .bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-visible::after,
 .bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-within::before,
-.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-within::after {
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"][data-bocchi-tooltip-open]::before,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"]:focus-within::after,
+.bocchi-tooltip[data-bocchi-tooltip-placement="bottom"][data-bocchi-tooltip-open]::after {
     transform: translate(-50%, 0);
 }
 
@@ -228,18 +248,43 @@ textarea:focus-visible {
     line-height: 1.45;
 }
 
-/* BocchiInfoTip：可聚焦的说明图标，悬停、键盘聚焦或轻点后显示 tooltip */
+/* BocchiInfoTip：说明图标按钮，悬停、键盘聚焦或轻点后显示 tooltip */
+.bocchi-admin-shell button.bocchi-info-tip,
 .bocchi-info-tip {
     display: inline-flex;
     width: 1.5rem;
+    min-height: 0;
     height: 1.5rem;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
+    padding: 0;
+    border: 0;
     border-radius: 999px;
+    background: transparent;
     color: var(--bocchi-text-subtle);
     cursor: help;
+    font: inherit;
     vertical-align: middle;
+}
+
+.bocchi-admin-shell button.bocchi-info-tip:hover {
+    transform: none;
+}
+
+/* 提示框右对齐图标，放在靠右的位置时用 */
+.bocchi-tooltip[data-bocchi-tooltip-align="end"]::before,
+.bocchi-tooltip[data-bocchi-tooltip-align="end"]:is(:hover, :focus-visible, :focus-within, [data-bocchi-tooltip-open])::before {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+/* 手机上点按区域撑到 44px（全局规则），用负外边距抵掉，不把标题行撑高 */
+@media (max-width: 620px) {
+    .bocchi-admin-shell button.bocchi-info-tip {
+        margin: -0.625rem -0.3rem;
+    }
 }
 
 .bocchi-info-tip svg {

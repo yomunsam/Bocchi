@@ -150,6 +150,28 @@
         }
     }
 
+    function closeTooltipsExcept(target) {
+        for (const tip of document.querySelectorAll("[data-bocchi-tooltip-open]")) {
+            if (!target || !tip.contains(target)) {
+                tip.removeAttribute("data-bocchi-tooltip-open");
+            }
+        }
+    }
+
+    // Esc 关提示但不移走焦点（WCAG 1.4.13）
+    function dismissTooltips() {
+        const active = document.activeElement instanceof Element ? document.activeElement.closest(".bocchi-tooltip") : null;
+        const tips = new Set(document.querySelectorAll(".bocchi-tooltip:hover, [data-bocchi-tooltip-open]"));
+        if (active) {
+            tips.add(active);
+        }
+
+        for (const tip of tips) {
+            tip.removeAttribute("data-bocchi-tooltip-open");
+            tip.setAttribute("data-bocchi-tooltip-dismissed", "");
+        }
+    }
+
     function syncSoon() {
         if (syncQueued) {
             return;
@@ -192,6 +214,23 @@
                 return;
             }
 
+            // InfoTip：轻点切换（Safari 点按钮不给焦点，不能只靠 :focus）
+            const infoTip = target.closest(".bocchi-info-tip");
+            if (infoTip instanceof HTMLElement) {
+                const open = !infoTip.hasAttribute("data-bocchi-tooltip-open");
+                closeTooltipsExcept(null);
+                if (open) {
+                    infoTip.removeAttribute("data-bocchi-tooltip-dismissed");
+                    infoTip.setAttribute("data-bocchi-tooltip-open", "");
+                } else {
+                    // 再点一次关掉；按钮还有焦点，所以用 dismissed 压住 :focus-within
+                    infoTip.setAttribute("data-bocchi-tooltip-dismissed", "");
+                }
+                return;
+            }
+
+            closeTooltipsExcept(target);
+
             const closeDelete = target.closest("[data-bocchi-close-delete]");
             if (closeDelete instanceof HTMLElement) {
                 event.preventDefault();
@@ -210,8 +249,20 @@
             }
         });
 
+        // 鼠标移开或失焦后，Esc 关掉的提示恢复正常
+        const restoreTooltip = event => {
+            const tip = event.target instanceof Element ? event.target.closest(".bocchi-tooltip") : null;
+            if (tip && !(event.relatedTarget instanceof Node && tip.contains(event.relatedTarget))) {
+                tip.removeAttribute("data-bocchi-tooltip-dismissed");
+                tip.removeAttribute("data-bocchi-tooltip-open");
+            }
+        };
+        document.addEventListener("focusout", restoreTooltip);
+        document.addEventListener("mouseout", restoreTooltip);
+
         document.addEventListener("keydown", event => {
             if (event.key === "Escape") {
+                dismissTooltips();
                 closeOpenMenusExcept(null);
             }
         });
