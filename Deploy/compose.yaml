@@ -12,11 +12,21 @@ services:
       # 只监听本机，由同机的反向代理（Caddy / Nginx）对外提供 HTTPS
       - "127.0.0.1:8080:8080"
     environment:
-      # 反向代理所在的地址或网段，Bocchi 只信任这些来源的 X-Forwarded-* 头。
-      # 代理跑在宿主机上时，它从 Docker 网桥网关连进来，常见是 172.16.0.0/12 里的地址。
-      Bocchi__ReverseProxy__TrustedProxies: "172.16.0.0/12"
+      # Bocchi 只信任这些来源的 X-Forwarded-* 头。
+      # 宿主机上的代理经下面 bocchi 网络的网关连进容器，所以只信任这个网关。
+      Bocchi__ReverseProxy__TrustedProxies: "172.31.250.1"
+    networks:
+      - bocchi
     volumes:
       - bocchi-data:/data
+
+networks:
+  # 固定网段，网关地址才稳定。和本机已有网段冲突时，两处一起改。
+  bocchi:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+          gateway: 172.31.250.1
 
 volumes:
   bocchi-data:
