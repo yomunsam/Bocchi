@@ -4,6 +4,7 @@
 @inject UserManager<BocchiUser> UsersService
 @inject RoleManager<IdentityRole> RolesService
 @inject DashboardLocalizationService I18n
+@inject DashboardTimeFormatter Times
 
 <PageTitle>@I18n["settings.users.title"] · Bocchi</PageTitle>
 
@@ -36,8 +37,8 @@
                         </ChildContent>
                         <Metadata>
                             <BocchiStatusPill Tone="@(user.IsDisabled ? "warning" : "success")">@(user.IsDisabled ? "Disabled" : "Can sign in")</BocchiStatusPill>
-                            <span>Created @user.CreatedAt.ToString("yyyy-MM-dd")</span>
-                            <span>@(user.LastLoginAt is null ? "No login yet" : $"Last login {user.LastLoginAt:yyyy-MM-dd HH:mm}")</span>
+                            <span>Created @Times.FormatDate(user.CreatedAt)</span>
+                            <span>@(user.LastLoginAt is null ? "No login yet" : $"Last login {Times.FormatDateTime(user.LastLoginAt.Value)}")</span>
                         </Metadata>
                         <Action>
                             <button type="button" class="secondary" @onclick="() => ToggleAdminAsync(user.Id)">
@@ -101,6 +102,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await Times.LoadAsync();
         if (!await RolesService.RoleExistsAsync(BocchiRoleNames.Admin))
         {
             await RolesService.CreateAsync(new IdentityRole(BocchiRoleNames.Admin));

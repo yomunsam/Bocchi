@@ -130,6 +130,7 @@ try
     builder.Services.AddScoped<DashboardSettingsService>();
     builder.Services.AddScoped<GitHubIntegrationSettingsService>();
     builder.Services.AddScoped<SiteProfileSettingsService>();
+    builder.Services.AddScoped<DashboardTimeFormatter>();
     builder.Services.AddScoped<ExternalLoginSettingsService>();
     builder.Services.AddScoped<ThemeSettingsService>();
     builder.Services.AddScoped<LocalizationSettingsService>();

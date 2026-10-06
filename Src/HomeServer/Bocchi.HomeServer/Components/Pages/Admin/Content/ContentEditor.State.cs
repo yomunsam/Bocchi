@@ -286,7 +286,7 @@ public partial class ContentEditor
     /// <summary>最后保存时间；临时草稿使用明确的未保存提示。</summary>
     private string LastSavedLabel => IsUnsavedDraft
         ? Text("contentEditor.lastSaved.unsaved")
-        : _file?.LastModifiedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture) ?? "-";
+        : (_file is null ? "-" : Times.FormatDateTime(_file.LastModifiedUtc));
 
     /// <summary>保存和生成 slug 时使用的 fallback slug。</summary>
     private string CurrentFallbackSlug => _file is not null

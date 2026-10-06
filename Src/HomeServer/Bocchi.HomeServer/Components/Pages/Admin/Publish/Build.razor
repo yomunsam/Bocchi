@@ -11,6 +11,7 @@
 @inject BuildOrchestrator Orchestrator
 @inject IBuildStateStore Store
 @inject DashboardLocalizationService I18n
+@inject DashboardTimeFormatter Times
 @inject PublishPlanService PublishPlans
 @inject PublishExecutionService PublishExecution
 @inject GitProviderConnectionService GitConnections
@@ -454,7 +455,7 @@
                         I18n["publish.activity.remotePublish"],
                         PublishStatusTone(publishRun.Status),
                         PublishStatusText(publishRun.Status),
-                        publishRun.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture))
+                        Times.FormatDateTime(publishRun.StartedAt))
                 }
                 @if (_recent.FirstOrDefault() is { } buildRun)
                 {
@@ -463,7 +464,7 @@
                         I18n["publish.activity.localBuild"],
                         BuildStatusTone(buildRun.Status),
                         BuildStatusText(buildRun.Status),
-                        buildRun.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture))
+                        Times.FormatDateTime(buildRun.StartedAt))
                 }
             </div>
         }

@@ -34,7 +34,7 @@ public partial class Build
             CultureInfo.CurrentCulture,
             I18n["publish.last.historyRunFormat"],
             BuildStatusText(latest.Status),
-            latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture));
+            Times.FormatDateTime(latest.StartedAt));
     }
 
     /// <summary>最近一次生成产物摘要；历史投影没有文件数量时展示稳定占位。</summary>
@@ -95,13 +95,13 @@ public partial class Build
     {
         if (_lastResult is not null)
         {
-            return _lastResult.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+            return Times.FormatDateTime(_lastResult.StartedAt);
         }
 
         var latest = _recent is { Count: > 0 } ? _recent[0] : null;
         return latest is null
             ? I18n["publish.statusCard.never"]
-            : latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+            : Times.FormatDateTime(latest.StartedAt);
     }
 
     /// <summary>最新远端发布时间。</summary>
@@ -110,7 +110,7 @@ public partial class Build
         var latest = _publishRuns is { Count: > 0 } ? _publishRuns[0] : null;
         return latest is null
             ? I18n["publish.statusCard.never"]
-            : latest.StartedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+            : Times.FormatDateTime(latest.StartedAt);
     }
 
     /// <summary>默认发布方案名称。</summary>

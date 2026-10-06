@@ -8,6 +8,7 @@ public partial class ContentEditor
 {
     protected override async Task OnParametersSetAsync()
     {
+        await Times.LoadAsync();
         ResetTitleMirrorState();
         ResetMobilePaneState();
         _saveMessage = null;

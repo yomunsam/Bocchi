@@ -9,6 +9,7 @@ public partial class Build
 {
     protected override async Task OnInitializedAsync()
     {
+        await Times.LoadAsync();
         await RefreshAsync();
         await LoadGitHubPublishAuthSettingsAsync();
         await LoadGitConnectionsAsync();
