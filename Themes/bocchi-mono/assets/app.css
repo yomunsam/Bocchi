@@ -613,6 +613,17 @@ bocchi-time{display:inline-flex;align-items:center;gap:8px}
 .prose-body pre code{background:transparent;padding:0}
 .prose-body img{margin:32px 0;border:1px solid var(--line)}
 .article-taxonomy{padding-top:36px;padding-bottom:36px;display:grid;gap:14px}
+/* About 页：有封面时作为小幅头像放在正文左侧 */
+.about-body{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}
+.about-body:has(.about-portrait){grid-template-columns:160px minmax(0,1fr);align-items:start}
+.about-portrait{margin:6px 0 0;aspect-ratio:1/1;border:1px solid var(--line);background:var(--bg-soft);overflow:hidden}
+.about-portrait img{width:100%;height:100%;object-fit:cover}
+.about-body .prose-body{min-width:0}
+/* FAQ 页：二、三级标题作为问题，用分隔线把每组问答隔开 */
+.faq-body h2,.faq-body h3{margin:0;padding-top:28px;border-top:1px solid var(--line);font-size:21px}
+.faq-body h2 + p,.faq-body h3 + p{margin-top:12px}
+.faq-body > :last-child{padding-bottom:28px;border-bottom:1px solid var(--line)}
+.faq-body > p,.faq-body > ul,.faq-body > ol,.faq-body > blockquote{margin-bottom:28px;color:var(--ink-2)}
 .article-nav{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -709,6 +720,8 @@ footer.site a:hover{color:var(--accent)}
   .article-time[data-bocchi-time-open] .bocchi-time__popover{transform:translate(0,0)}
   .translation-notice{align-items:flex-start;border-radius:var(--radius);flex-direction:column}
   .article-nav{grid-template-columns:1fr}
+  .about-body:has(.about-portrait){grid-template-columns:1fr}
+  .about-portrait{width:120px}
   footer.site .row{grid-template-columns:minmax(0,1fr) auto;align-items:start;padding:0 20px}
   .footer-copy{flex-direction:column;gap:4px;line-height:1.5}
   .footer-mark-line{grid-column:1 / -1;grid-row:1;justify-self:center}

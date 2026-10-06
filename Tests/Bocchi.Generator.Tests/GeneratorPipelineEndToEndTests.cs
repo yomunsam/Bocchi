@@ -529,6 +529,32 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
+    public async Task BuiltInTheme_RendersAboutAndFaqPageTemplates()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pagesDir = fixture.Layout.Workspace.PagesDirectory;
+        await File.WriteAllTextAsync(Path.Combine(pagesDir, "about", "index.md"),
+            "---\ntitle: About\nslug: about\nstatus: Published\ntemplate: about\n---\nAbout body.\n");
+        Directory.CreateDirectory(Path.Combine(pagesDir, "faq"));
+        await File.WriteAllTextAsync(Path.Combine(pagesDir, "faq", "index.md"),
+            "---\ntitle: FAQ\nslug: faq\nstatus: Published\ntemplate: faq\n---\n## Question?\n\nAnswer.\n");
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+
+        var result = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild },
+            new FileSystemBuildSink(fixture.Layout),
+            themeId: null,
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: default);
+
+        result.Status.Should().Be(BuildStatus.Succeeded);
+        var aboutHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "about", "index.html"));
+        aboutHtml.Should().Contain("class=\"page-about\"").And.Contain("About body.");
+        var faqHtml = await File.ReadAllTextAsync(Path.Combine(fixture.Layout.PublicOutputDirectory, "faq", "index.html"));
+        faqHtml.Should().Contain("class=\"page-faq\"").And.Contain("faq-body").And.Contain("Question?");
+    }
+
+    [Fact]
     public async Task FullBuild_WhenLocalizationTextChanges_DoesNotShortCircuit()
     {
         using var fixture = new TestWorkspaceFixture();
