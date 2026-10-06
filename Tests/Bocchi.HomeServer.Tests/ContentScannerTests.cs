@@ -179,6 +179,25 @@ public sealed class ContentScannerTests
     }
 
     [Fact]
+    public async Task Scan_WarnsAboutMarkdownDirectlyUnderNoteYearDirectory()
+    {
+        var (temp, scanner, _) = await NewScannerAsync();
+        using (temp)
+        {
+            var yearDir = Path.Combine(temp.Layout.Workspace.NotesDirectory, "2025");
+            Directory.CreateDirectory(yearDir);
+            await WriteAsync(Path.Combine(yearDir, "hello.md"), "---\nid: k7p9xq2m\n---\nbody\n");
+
+            var result = await scanner.ScanAsync();
+
+            result.Errors.Should().ContainSingle(e =>
+                e.Code == "NOTE_UNEXPECTED_FILE"
+                && e.Severity == ContentErrorSeverity.Warning
+                && e.RelativePath.EndsWith("hello.md", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
     public async Task Scan_FlagsSuspiciousDerivativesInAssets()
     {
         var (temp, scanner, _) = await NewScannerAsync();

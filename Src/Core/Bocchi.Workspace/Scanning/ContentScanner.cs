@@ -429,6 +429,15 @@ public sealed partial class ContentScanner
                 continue;
             }
 
+            // 年份目录下直接放的 Markdown 不会被读取，提示用户放进目录型结构
+            foreach (var strayFile in Directory.EnumerateFiles(yearDir, "*.md", SearchOption.TopDirectoryOnly))
+            {
+                errors.Add(new ContentValidationError(
+                    cs.ToRelative(strayFile), ContentKind.Note, null,
+                    ContentErrorSeverity.Warning, "NOTE_UNEXPECTED_FILE",
+                    "这个文件不会被当作短文读取。短文需要放在 notes/yyyy/MMdd/HHmm-id/index.md。"));
+            }
+
             foreach (var monthDayDir in Directory.EnumerateDirectories(yearDir))
             {
                 var monthDay = Path.GetFileName(monthDayDir);
