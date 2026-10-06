@@ -73,6 +73,38 @@ public sealed class ContentStateStoreTests
     }
 
     [Fact]
+    public async Task ListContentSummaries_OrdersMixedOffsetsByRealInstantAndShowsSiteTimeZone()
+    {
+        var (temp, store) = await NewStoreAsync();
+        using (temp)
+        {
+            async Task AddAsync(string id, DateTimeOffset publishedAt)
+            {
+                var fileId = await store.UpsertFileAsync(new FileUpsert(
+                    $"posts/2025/{id}/index.md", ContentKind.Post, "abc", DateTimeOffset.UtcNow));
+                await store.UpsertContentItemAsync(new ContentItemUpsert(
+                    ContentKind.Post, id, id, id, ContentStatus.Published, "2025",
+                    publishedAt, null, null, $"posts/2025/{id}/index.md"), fileId);
+            }
+
+            // 墙上时间 09:00+08:00 比 02:00Z 大，但真实时间更早（01:00Z）
+            await AddAsync("earlier", new DateTimeOffset(2025, 3, 1, 9, 0, 0, TimeSpan.FromHours(8)));
+            await AddAsync("later", new DateTimeOffset(2025, 3, 1, 2, 0, 0, TimeSpan.Zero));
+            await using (var db = temp.CreateDbContext())
+            {
+                db.SiteProfileSettings.Add(new Data.SiteProfileSettings { TimeZone = "Asia/Tokyo" });
+                await db.SaveChangesAsync();
+            }
+
+            var items = await store.ListContentSummariesAsync(ContentKind.Post);
+
+            items.Select(x => x.ContentId).Should().Equal("later", "earlier");
+            items[0].PublishedAt!.Value.Offset.Should().Be(TimeSpan.FromHours(9));
+            items[0].PublishedAt!.Value.Hour.Should().Be(11);
+        }
+    }
+
+    [Fact]
     public async Task UpsertContentItem_OverwritesOnSameKindAndId()
     {
         var (temp, store) = await NewStoreAsync();

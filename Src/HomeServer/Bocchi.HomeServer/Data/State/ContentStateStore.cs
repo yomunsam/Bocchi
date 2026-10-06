@@ -162,7 +162,7 @@ public sealed class ContentStateStore : IContentStateStore
         }
 
         // 发布时间倒序，未发布（无时间）的排在最后。
-        return await query
+        var items = await query
             .OrderBy(x => x.Kind)
             .ThenBy(x => x.PublishedAt == null)
             .ThenByDescending(x => x.PublishedAt)
@@ -172,6 +172,24 @@ public sealed class ContentStateStore : IContentStateStore
                 x.SourceLanguage, x.SourceContentId))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        // 库里存的是 UTC，列表按站点时区展示。
+        var timeZoneId = await db.SiteProfileSettings.AsNoTracking()
+            .Select(x => x.TimeZone)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (timeZoneId is null || !TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out var timeZone))
+        {
+            return items;
+        }
+
+        return items
+            .Select(x => x with
+            {
+                PublishedAt = x.PublishedAt is { } published ? TimeZoneInfo.ConvertTime(published, timeZone) : null,
+                UpdatedAt = x.UpdatedAt is { } updated ? TimeZoneInfo.ConvertTime(updated, timeZone) : null,
+            })
+            .ToList();
     }
 
     public async Task DeleteContentBySourcePathAsync(string relativePath, CancellationToken cancellationToken = default)

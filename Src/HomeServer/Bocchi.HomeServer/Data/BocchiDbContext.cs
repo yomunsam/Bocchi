@@ -3,7 +3,6 @@ using Bocchi.HomeServer.Data.State;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Bocchi.HomeServer.Data;
 
@@ -84,8 +83,8 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
         ArgumentNullException.ThrowIfNull(configurationBuilder);
 
         // SQLite 没有原生 DateTimeOffset：默认存成 TEXT 后 EF 无法在服务端排序/比较。
-        // 统一存成可排序的 INTEGER（UTC ticks + offset），让构建历史、内容列表能在数据库里排序。
-        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
+        // 统一存成 UTC ticks（INTEGER），不同 offset 的时间也按真实先后排序；读出来是 +00:00。
+        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<UtcDateTimeOffsetConverter>();
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
