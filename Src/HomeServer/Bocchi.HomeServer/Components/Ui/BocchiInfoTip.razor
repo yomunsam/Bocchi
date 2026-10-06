@@ -1,0 +1,17 @@
+@* 说明图标：文案放进 .bocchi-tooltip，悬停、键盘聚焦和轻点都能看到，不用浏览器原生 title。 *@
+<span class="bocchi-tooltip bocchi-info-tip"
+      tabindex="0"
+      role="note"
+      aria-label="@Text"
+      data-bocchi-tooltip="@Text"
+      data-bocchi-tooltip-placement="@Placement">
+    <Blazicon Svg="Lucide.Info" />
+</span>
+
+@code {
+    /// <summary>已经过 i18n 的说明文案。</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>tooltip 位置，目前支持 top 和 bottom。</summary>
+    [Parameter] public string Placement { get; set; } = "bottom";
+}

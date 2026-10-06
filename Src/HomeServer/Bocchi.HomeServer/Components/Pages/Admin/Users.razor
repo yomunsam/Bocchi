@@ -65,6 +65,7 @@
                     <label>Email (optional)<input type="email" @bind="_newEmail" /></label>
                     <label>Password<input type="password" @bind="_newPassword" /></label>
                     <label class="bocchi-checkbox"><input type="checkbox" @bind="_newIsAdmin" />Admin</label>
+                    <p class="bocchi-hint">@I18n["settings.users.adminHint"]</p>
                     <button type="button" @onclick="CreateUserAsync">Create</button>
                     @if (!string.IsNullOrWhiteSpace(_message))
                     {

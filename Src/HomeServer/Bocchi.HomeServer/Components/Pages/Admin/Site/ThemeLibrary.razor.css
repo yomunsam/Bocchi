@@ -166,6 +166,12 @@
     gap: 0.65rem;
 }
 
+.bocchi-themes-list__head {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
 .bocchi-themes-list__head h2 {
     margin: 0;
     color: var(--bocchi-text);

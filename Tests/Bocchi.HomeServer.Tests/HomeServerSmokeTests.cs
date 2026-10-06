@@ -48,7 +48,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         body.Should().Contain("data-bocchi-appearance-option=\"auto\"");
         body.Should().NotContain("bocchi-appearance-select");
         body.Should().NotContain("Ctrl K");
-        body.Should().Contain("Open the editor and shape a longer piece.");
+        body.Should().Contain("Write a post");
         body.Should().NotContain("No fact-checking required.");
         body.Should().NotContain("Good to see you.");
         body.Should().NotContain("Setup complete");
@@ -708,7 +708,7 @@ public sealed class HomeServerSmokeTests : IClassFixture<IsolatedDataRootWebAppl
         // 新版首页改用 Dashboard 主标题与站点预览卡作为中文渲染锚点。
         body.Should().Contain("下午好");
         body.Should().Contain("站点预览");
-        body.Should().Contain("打开编辑器，慢慢写一篇长文。");
+        body.Should().Contain("写文章");
         body.Should().NotContain("没有事实核对。");
         body.Should().NotContain("Setup 已完成");
 

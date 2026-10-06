@@ -28,7 +28,7 @@
         <section class="bocchi-quick-actions bocchi-settings-hub" aria-label='@I18n["settings.nav.aria"]'>
             @foreach (var card in HubCards)
             {
-                <a class="bocchi-quick-card bocchi-settings-hub-card" href="@card.Url" title="@I18n[card.DescriptionKey]">
+                <a class="bocchi-quick-card bocchi-settings-hub-card" href="@card.Url">
                     <span class="bocchi-quick-card__icon bocchi-quick-card__icon--@card.Tone">
                         <Blazicon Svg="@card.Icon" />
                     </span>
@@ -441,13 +441,13 @@
     /// <summary>Settings hub 卡片定义，复用 Overview quick-card 的正式视觉语言。</summary>
     private static readonly SettingsHubCard[] HubCards =
     [
-        new("/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal, "pink"),
-        new("/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages, "lavender"),
-        new("/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound, "blue"),
-        new("/Admin/Settings/Integrations", "settings.nav.integrations", "settings.nav.integrationsDescription", Lucide.Link, "blue"),
-        new("/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users, "green"),
-        new("/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database, "blue"),
-        new("/Admin/Site/Theme", "nav.themeCustomization", "settings.nav.themeDescription", Lucide.SunMoon, "pink"),
+        new("/Admin/Settings/Profile", "settings.nav.profile", Lucide.SlidersHorizontal, "pink"),
+        new("/Admin/Settings/Localization", "settings.nav.localization", Lucide.Languages, "lavender"),
+        new("/Admin/Settings/Login", "settings.nav.login", Lucide.KeyRound, "blue"),
+        new("/Admin/Settings/Integrations", "settings.nav.integrations", Lucide.Link, "blue"),
+        new("/Admin/Users", "settings.nav.users", Lucide.Users, "green"),
+        new("/Admin/Settings/System", "settings.nav.system", Lucide.Database, "blue"),
+        new("/Admin/Site/Theme", "nav.themeCustomization", Lucide.SunMoon, "pink"),
     ];
 
     /// <summary>规范化后的当前 Settings section；未知片段回到 hub，避免空页面。</summary>
@@ -984,7 +984,7 @@
         };
 
     /// <summary>Settings hub 卡片定义。</summary>
-    private sealed record SettingsHubCard(string Url, string TitleKey, string DescriptionKey, SvgIcon Icon, string Tone);
+    private sealed record SettingsHubCard(string Url, string TitleKey, SvgIcon Icon, string Tone);
 
     /// <summary>Provider 表单缓冲区，不直接暴露受保护 secret。</summary>
     private sealed class ProviderForm

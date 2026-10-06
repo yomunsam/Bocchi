@@ -247,7 +247,7 @@
                 </div>
 
                 <details class="bocchi-advanced-details">
-                    <summary class="bocchi-advanced-details__summary" title='@Text("contentEditor.advanced.help")'>
+                    <summary class="bocchi-advanced-details__summary">
                         <span class="bocchi-details-chevron" aria-hidden="true">
                             <Blazicon Svg="Lucide.ChevronRight" />
                         </span>
@@ -255,6 +255,7 @@
                             <span>@Text("contentEditor.advanced.title")</span>
                         </span>
                     </summary>
+                    <p class="bocchi-hint">@Text("contentEditor.advanced.help")</p>
                     <textarea class="bocchi-editor-frontmatter"
                               aria-label='@Text("contentEditor.advanced.title")'
                               @bind="_yaml"></textarea>

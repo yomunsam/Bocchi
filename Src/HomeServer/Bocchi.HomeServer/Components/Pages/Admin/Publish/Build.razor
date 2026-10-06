@@ -85,7 +85,7 @@
                 <BocchiStatusPill Tone="@OneClickTargetTone()">@OneClickTargetText()</BocchiStatusPill>
             </div>
             <form class="bocchi-publish-run-form" @onsubmit="PublishOneClickAsync" @onsubmit:preventDefault>
-                <button type="submit" class="bocchi-publish-primary-action bocchi-publish-primary-action--hero" disabled="@_busy" title='@I18n["publish.oneClick.description"]'>
+                <button type="submit" class="bocchi-publish-primary-action bocchi-publish-primary-action--hero" disabled="@_busy">
                     <Blazicon Svg="Lucide.Send" />
                     <span>@(_busy ? I18n["publish.action.publishing"] : I18n["publish.action.publishNow"])</span>
                 </button>
@@ -100,6 +100,7 @@
                     </a>
                 </div>
             </form>
+            <p class="bocchi-hint">@I18n["publish.oneClick.description"]</p>
             @if (!string.IsNullOrWhiteSpace(_oneClickMessage))
             {
                 <p class="@OneClickMessageClass()">@_oneClickMessage</p>

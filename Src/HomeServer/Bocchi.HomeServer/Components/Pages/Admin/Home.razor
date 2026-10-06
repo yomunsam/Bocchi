@@ -63,7 +63,7 @@
     <section class="bocchi-quick-actions" aria-label="@I18n["home.page.heading"]">
         @foreach (var q in QuickActions)
         {
-            <a class="bocchi-quick-card" href="@q.Url" title="@I18n[q.SubtitleKey]">
+            <a class="bocchi-quick-card" href="@q.Url">
                 <span class="bocchi-quick-card__icon bocchi-quick-card__icon--@q.Tone">
                     <Blazicon Svg="@q.Icon" />
                 </span>
@@ -81,10 +81,11 @@
                 <Blazicon Svg="Lucide.Monitor" />
                 <h2>@I18n["home.preview.title"]</h2>
             </div>
-            <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener" title="@I18n["home.preview.description"]">
+            <a class="bocchi-button secondary" href="/" target="_blank" rel="noopener">
                 <span>@I18n["home.preview.open"]</span>
                 <Blazicon Svg="Lucide.ExternalLink" />
             </a>
+            <p class="bocchi-hint">@I18n["home.preview.description"]</p>
         </aside>
     </div>
 
@@ -179,10 +180,10 @@
     /// <summary>首页 4 张快捷动作的元数据。Tone 对应 quick-card 配色变体。</summary>
     private static readonly QuickAction[] QuickActions =
     [
-        new("home.quick.writePost.title", "home.quick.writePost.subtitle", "/Admin/Content/Edit?kind=post", Lucide.FileText, "pink"),
-        new("home.quick.writeNote.title", "home.quick.writeNote.subtitle", "#bocchi-composer", Lucide.PenLine, "lavender"),
-        new("home.quick.editPage.title", "home.quick.editPage.subtitle", "/Admin/Pages", Lucide.BookOpen, "blue"),
-        new("home.quick.publish.title", "home.quick.publish.subtitle", "/Admin/Publish", Lucide.Send, "green"),
+        new("home.quick.writePost.title", "/Admin/Content/Edit?kind=post", Lucide.FileText, "pink"),
+        new("home.quick.writeNote.title", "#bocchi-composer", Lucide.PenLine, "lavender"),
+        new("home.quick.editPage.title", "/Admin/Pages", Lucide.BookOpen, "blue"),
+        new("home.quick.publish.title", "/Admin/Publish", Lucide.Send, "green"),
     ];
 
     protected override async Task OnInitializedAsync()
@@ -300,6 +301,6 @@
         };
 
     /// <summary>首页快捷动作卡片的不可变描述。</summary>
-    private sealed record QuickAction(string TitleKey, string SubtitleKey, string Url, SvgIcon Icon, string Tone);
+    private sealed record QuickAction(string TitleKey, string Url, SvgIcon Icon, string Tone);
 
 }

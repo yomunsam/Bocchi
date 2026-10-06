@@ -209,3 +209,36 @@ textarea:focus-visible {
     height: var(--bocchi-segmented-icon-size);
     color: currentColor;
 }
+
+/* 控件旁边的一行提示：只写规则或关键信息，不写段落 */
+.bocchi-hint {
+    margin: 0;
+    color: var(--bocchi-text-muted);
+    font-size: 0.8rem;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+/* BocchiInfoTip：可聚焦的说明图标，悬停、键盘聚焦或轻点后显示 tooltip */
+.bocchi-info-tip {
+    display: inline-flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--bocchi-text-subtle);
+    cursor: help;
+    vertical-align: middle;
+}
+
+.bocchi-info-tip svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.bocchi-info-tip:hover,
+.bocchi-info-tip:focus-visible {
+    color: var(--bocchi-text);
+}

@@ -48,6 +48,7 @@
                     <div>
                         <span>@string.Format(CultureInfo.CurrentCulture, I18n["siteNavigation.editor.countFormat"], CountItems(_items))</span>
                         <h2 id="navigation-tree-heading">@I18n["siteNavigation.editor.treeTitle"]</h2>
+                        <p class="bocchi-hint">@I18n["siteNavigation.page.hint"]</p>
                     </div>
                     <button type="button" class="secondary" @onclick="AddRoot">
                         <Blazicon Svg="Lucide.Plus" />
