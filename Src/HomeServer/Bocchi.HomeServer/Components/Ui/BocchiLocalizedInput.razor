@@ -75,8 +75,7 @@
         var stale = IsStale(langCode);
         var langLabel = FindDisplayName(langCode);
         <div class="bocchi-loc-input__secondary @(stale ? "bocchi-loc-input__secondary--stale" : null)">
-            <span class="bocchi-loc-input__badge"
-                  title="@(stale ? I18n["localizedInput.staleHint"] : null)">
+            <span class="bocchi-loc-input__badge">
                 @if (stale)
                 {
                     <span class="bocchi-loc-input__warn" aria-hidden="true">⚠</span>
@@ -85,6 +84,11 @@
                 @if (!string.IsNullOrEmpty(langLabel))
                 {
                     <small class="bocchi-loc-input__badge-name">@langLabel</small>
+                }
+                @if (stale)
+                {
+                    <small class="bocchi-loc-input__stale">@I18n["localizedInput.staleLabel"]</small>
+                    <BocchiInfoTip Text='@I18n["localizedInput.staleHint"]' />
                 }
             </span>
             @if (Mode == BocchiLocalizedInputMode.MultiLine)

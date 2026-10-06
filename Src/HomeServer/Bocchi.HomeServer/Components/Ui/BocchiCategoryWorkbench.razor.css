@@ -250,6 +250,16 @@
     font-size: 0.72rem;
 }
 
+/* 已停用语言：图标后面直接写短标签，不靠悬停提示 */
+.bocchi-category-workbench__stale {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--bocchi-warning-strong);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
 .bocchi-category-workbench__children {
     list-style: none;
     margin: 0;

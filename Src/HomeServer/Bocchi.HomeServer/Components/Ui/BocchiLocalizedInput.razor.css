@@ -293,6 +293,12 @@
     line-height: 1;
 }
 
+.bocchi-loc-input__stale {
+    color: var(--bocchi-warning-strong);
+    font-size: 0.68rem;
+    white-space: nowrap;
+}
+
 /* 响应式布局 */
 @media (max-width: 640px) {
     .bocchi-loc-input__secondary {

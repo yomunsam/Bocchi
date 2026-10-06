@@ -731,9 +731,10 @@
                 }
                 @if (stale)
                 {
-                    <span class="bocchi-category-workbench__warn"
-                          title='@I18n["category.workbench.staleHint"]'
-                          aria-label='@I18n["category.workbench.staleHint"]'>⚠</span>
+                    <span class="bocchi-category-workbench__stale">
+                        <span class="bocchi-category-workbench__warn" aria-hidden="true">⚠</span>
+                        <span>@I18n["category.workbench.staleLabel"]</span>
+                    </span>
                 }
             </div>
             <div class="bocchi-category-workbench__drop-band @(dropTarget && _dropPosition == DropPosition.After ? "is-active" : null)"
