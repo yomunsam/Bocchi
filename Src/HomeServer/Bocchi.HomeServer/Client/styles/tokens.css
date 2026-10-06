@@ -199,7 +199,8 @@
     --bocchi-action: #2b2528;
     --bocchi-action-strong: #141113;
     --bocchi-action-fill: #2b2528;
-    --bocchi-nav-active-bar: #e58aa8;
+    /* 浅粉在白底上不到 3:1，指示条用深一点的玫粉 */
+    --bocchi-nav-active-bar: #c4507a;
     --bocchi-avatar-bg: #f6e6ec;
     --bocchi-focus-ring: 0 0 0 3px rgba(43, 37, 40, 0.22);
 }
@@ -240,7 +241,8 @@
     --bocchi-action: #286aa3;
     --bocchi-action-strong: #1d4f7c;
     --bocchi-action-fill: #286aa3;
-    --bocchi-nav-active-bar: #e0b330;
+    /* 浅色底上亮黄只有 1.6:1，指示条和图标用深一点的金色，保证 3:1 */
+    --bocchi-nav-active-bar: #9c7400;
     --bocchi-avatar-bg: #e3eef8;
     --bocchi-focus-ring: 0 0 0 3px rgba(40, 106, 163, 0.28);
 }
