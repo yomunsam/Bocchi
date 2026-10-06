@@ -1,0 +1,18 @@
+# 只把构建需要的源码送进 Docker 构建上下文
+**/bin/
+**/obj/
+**/node_modules/
+**/.bocchi-dev-data/
+**/data/
+**/*.user
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+Docs/
+Tests/
+output/
+Src/HomeServer/Bocchi.HomeServer/wwwroot/*.min.js
+Src/HomeServer/Bocchi.HomeServer/wwwroot/*.min.css
+Src/HomeServer/Bocchi.HomeServer/wwwroot/assets/

@@ -1,0 +1,22 @@
+# Bocchi HomeServer 的 Docker Compose 示例。
+# 用法见 Docs/Guide_Hans 下的部署指南；启动：docker compose -f Deploy/compose.yaml up -d
+services:
+  bocchi:
+    # 使用发布的镜像，BOCCHI_VERSION 可固定到某个版本（如 1.2.0）；
+    # 只有预发布版本时没有 latest，需要写明版本。想从源码构建时注释掉 image，改用下面的 build
+    image: ghcr.io/yomunsam/bocchi:${BOCCHI_VERSION:-latest}
+    # build:
+    #   context: ..
+    restart: unless-stopped
+    ports:
+      # 只监听本机，由同机的反向代理（Caddy / Nginx）对外提供 HTTPS
+      - "127.0.0.1:8080:8080"
+    environment:
+      # 反向代理所在的地址或网段，Bocchi 只信任这些来源的 X-Forwarded-* 头。
+      # 代理跑在宿主机上时，它从 Docker 网桥网关连进来，常见是 172.16.0.0/12 里的地址。
+      Bocchi__ReverseProxy__TrustedProxies: "172.16.0.0/12"
+    volumes:
+      - bocchi-data:/data
+
+volumes:
+  bocchi-data:
