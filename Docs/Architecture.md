@@ -98,7 +98,7 @@ Bocchi 在物理上做严格切分：**DataRoot** 是 Home Server / Bocchi 的�
 ### 3.2 默认目录布局
 
 ```text
-data/                                 <-- DataRoot（发布后程序 ./data；Docker /app/data）
+data/                                 <-- DataRoot（非开发环境必须显式配置绝对路径；Docker 为 /data）
   workspace/                          <-- 用户内容 workspace（可独立 / 可作为 Git 仓库）
     README.md                         <-- 自动生成，说明本目录的"源工程"性质
     .gitignore                        <-- 自动生成
@@ -129,9 +129,10 @@ data/                                 <-- DataRoot（发布后程序 ./data；Do
     site/
       site.yaml
       navigation.yaml
+  keys/                               <-- Data Protection 密钥（固定 ApplicationName，必须随数据库一起备份）
+  backups/                            <-- backup 命令输出与迁移前数据库快照
   state/                              <-- Home Server / Bocchi 状态
     bocchi.sqlite
-    data-protection-keys/
     theme-config/                     <-- Theme 实例配置（与具体 Theme 绑定，不可移植）
   themes/                             <-- 可见 Theme 实例
     bocchi-mono/
@@ -330,7 +331,7 @@ Post Category URL 固定为：
 
 ## 5. SQLite 职责
 
-SQLite 用于 Home Server 的应用状态、管理状态和派生索引，不作为内容唯一事实源。M4 起，Home Server 的 SQLite 访问应优先通过 EF Core 和 migration 管理；早期为扫描 / 构建打通闭环的手写 `Microsoft.Data.Sqlite` store 不应继续扩大边界。
+SQLite 用于 Home Server 的应用状态、管理状态和派生索引，不作为内容唯一事实源。全部表（包括内容扫描和构建状态）都由 EF Core 模型和 CLI 生成的 migration 管理，启动时执行 `Migrate()`；已有数据库且有待执行迁移时，先把数据库快照到 `backups/database/`。早期手写的 `Microsoft.Data.Sqlite` store 和 `SchemaMigrator` 已移除。
 
 适合进入 SQLite 的内容：
 
@@ -433,7 +434,7 @@ Theme/
   static/
 ```
 
-非 Node.js Theme 可以没有 `package.json`，但必须在 `theme.json` 中声明 runner。M3 早期的 `build.command` 可视为 `runner.kind = process` 的兼容形态。
+非 Node.js Theme 可以没有 `package.json`，但必须在 `theme.json` 中声明 runner。M3 早期的 `build.command` 写法已不再支持。
 
 ### 7.2 theme.json
 
@@ -506,7 +507,7 @@ Theme/
 }
 ```
 
-M3 代码中的 `build.command` 是 process runner 的早期形态。M5 起文档以 `runner` 为准，代码实现可以保留 `build.command` 作为兼容别名。
+M3 代码中的 `build.command` 是 process runner 的早期形态，现已移除，`theme.json` 必须声明 `runner`。
 
 Theme 可以声明两类 Page 相关能力：
 

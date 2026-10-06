@@ -1,5 +1,7 @@
 # xUnit v3 与 Microsoft Testing Platform v2 迁移设计
 
+> 状态（2026-10-06）：历史设计文档，已落地，仅作记录。
+
 ## 目标
 
 将五个测试项目从已弃用的 `xunit` v2 元包迁移到 `xunit.v3.mtp-v2`，并让 .NET 10 SDK 的 `dotnet test` 统一使用 Microsoft Testing Platform v2。迁移同时以 Microsoft Code Coverage extension 替换不支持 MTP 模式的 Coverlet collector。

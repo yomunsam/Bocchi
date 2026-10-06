@@ -1,5 +1,7 @@
 # 截止 M6 的全局 Review 落实计划
 
+> 状态（2026-10-06）：历史计划，仅作记录，各项落实情况以代码和 `Docs/Milestones.md` 为准。之后数据层已统一为 EF Core（单一 `InitialCreate` migration），DataRoot 在非开发环境必须显式配置。
+
 > 日期：2026-05-27
 > 来源：`Docs/Milestones/M6/截止M6的全局Review报告.md`
 > 目的：把全局 Review 中确实存在、值得进入后续工作的事项转成可派发计划；同时记录需要讨论或不同意的判断，避免把宽泛审查结论直接变成无边界重构。

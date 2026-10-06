@@ -1,5 +1,7 @@
 # Fluid Static Theme Boundary Implementation Plan
 
+> 状态（2026-10-06）：历史实施计划，已执行完毕，仅作记录。文中的 FluentAssertions 已换成 AwesomeAssertions，`theme.json` 的 `build.command` 兼容写法已移除。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将公共 `fluid-static` renderer 与具体的 Bocchi Mono Theme 完全拆开，并让 Cozy 成为不依赖 Bocchi Mono、无需 .NET/Node.js 工具链的独立第三方 Theme demo。

@@ -1,5 +1,7 @@
 # xUnit v3 与 Microsoft Testing Platform v2 迁移实施计划
 
+> 状态（2026-10-06）：历史实施计划，已执行完毕，仅作记录。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将全部测试项目迁移到 xUnit v3 与 Microsoft Testing Platform v2，并用 Microsoft Code Coverage extension 替代 Coverlet collector。

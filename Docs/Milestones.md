@@ -102,7 +102,7 @@
 - workspace 初始化流程落地，强制"workspace / DataRoot 运行数据"切分（`BocchiDataLayout` + `WorkspaceLayout`）。
 - workspace 默认目录约定生效：年份目录一级分类；Post / Work = 目录 + `assets/`；Page 不按年份；Note = `notes/{yyyy}/{MMdd}/{HHmm}-{id}/index.md` 目录型 Markdown；Friends / Site = YAML。
 - Markdown + YAML frontmatter 解析（Markdig + YamlDotNet）：六个内容类型独立 Loader，统一错误模型 `ContentValidationError(Severity / Code / Field / Message)`。
-- SQLite 管理状态（`Microsoft.Data.Sqlite`）：`SchemaMigrator` 基于 `PRAGMA user_version`；`ContentStateStore` 持久化文件 hash、内容索引、扫描运行、错误聚合；不复制正文。
+- SQLite 管理状态（`Microsoft.Data.Sqlite`）：`SchemaMigrator` 基于 `PRAGMA user_version`；`ContentStateStore` 持久化文件 hash、内容索引、扫描运行、错误聚合；不复制正文。（已被取代：现由 EF Core 模型和单一 `InitialCreate` migration 管理，见 `Docs/Architecture.md` §5。）
 - `ContentScanner` 端到端打通：年份目录校验、媒体引用校验、孤儿媒体 Info、可疑派生产物 Warning。
 - workspace Git 集成（LibGit2Sharp）：本地 `init/status/commitAll`；远程接入按决策延后到 M7。
 - Home Server `/Admin/Content` 页面、首页入口；Serilog 文件 sink 切换到 `<data>/logs/`。
@@ -355,7 +355,7 @@
 - 日志：采用 **Serilog**（Console + File sink），通过 `appsettings.json` 配置；M1 文件输出落在运行目录 `logs/`，M2 引入 DataRoot 后切换到 `<data>/logs/`，期间无过渡方案，仅修改配置即可。
 - 包管理：仓库根启用 **Central Package Management**（`Directory.Packages.props`）；所有项目版本统一在该文件维护。
 - 公共编译选项：`Nullable=enable`、`ImplicitUsings=enable`、`TreatWarningsAsErrors=true`、`LangVersion=latest`、`AnalysisLevel=latest-recommended` —— 一开始就把质量门槛拉满。
-- 测试：xUnit + FluentAssertions；Home Server 集成测试基于 `Microsoft.AspNetCore.Mvc.Testing`。
+- 测试：xUnit + FluentAssertions（现为 AwesomeAssertions）；Home Server 集成测试基于 `Microsoft.AspNetCore.Mvc.Testing`。
 - 监听策略：Home Server 默认仅绑定 `http://127.0.0.1:5081`，与 Architecture §12 一致。
 
 ### 2026-05-14 (M2)
@@ -366,7 +366,7 @@
 - Note 采用 **目录型 Markdown**（`notes/<year>/<MMdd>/<HHmm>-<id>/index.md`），`id` 为 8 位小写字母数字并写入 frontmatter；公开 URL 使用 `/notes/{id}/`，正文即 Markdown 正文，不在 frontmatter 中重复 `text` 字段。旧单文件 Note 不再作为目标模型。
 - frontmatter 一律使用 **YAML**。关闭原 frontmatter 格式待决问题。
 - Markdown 引擎 `Markdig`，YAML 引擎 `YamlDotNet`。
-- SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。
+- SQLite 客户端使用 `Microsoft.Data.Sqlite`，schema 版本由 `PRAGMA user_version` 显式管理；不引入 EF Core；SQLite 只承担状态/索引/缓存职责，**绝不复制内容正文**。（schema 管理方式已被取代：M4 起改用 EF Core，扫描与构建状态也已并入单一 `InitialCreate` migration；不复制正文的约束不变。）
 - workspace 作为 Git 工作区使用 `LibGit2Sharp`：M2 提供 `init / status / commit` 等本地能力；远程接入（push/pull、GitHub、凭据存储）显式延后到 M7 发布管线。
 - 2026-05-14 复查：`LibGit2Sharp` 0.31.0 是当前稳定版本，NuGet 计算兼容 `net10.0`；Bocchi 当前只使用 workspace 本地 init/status/commitAll，继续使用该库。
 - workspace 是"源工程"：禁止出现系统派生产物（缩略图、预览图、HTML、搜索索引等）；衍生媒体目录固定为 `<data>/cache/derivatives/`，供后续媒体派生管线使用。
