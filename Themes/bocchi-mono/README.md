@@ -11,7 +11,7 @@
 
 ## Fonts
 
-Only the Latin fonts are bundled: Instrument Serif (400 regular and italic) and Inter Tight (400–700), as latin-subset woff2 files under `assets/fonts/`, each with its SIL OFL 1.1 license (`OFL.txt`). Chinese and Japanese text uses system font stacks (Noto CJK, Source Han, Songti/PingFang, Hiragino, Yu Mincho/Gothic and so on), because CJK web fonts would cost visitors several megabytes. Code uses the system monospace stack.
+Only the Latin fonts are bundled: Instrument Serif (400 regular and italic) and Inter Tight (400–700), as latin-subset woff2 files under `assets/fonts/`, each with its SIL OFL 1.1 license (`OFL.txt`). Chinese and Japanese text uses system font stacks (Noto CJK, Source Han, Songti/PingFang, Hiragino, Yu Mincho/Gothic and so on; Windows headings fall back to SimSun), because CJK web fonts would cost visitors several megabytes. No monospace font is bundled: code uses JetBrains Mono if the visitor has it installed, otherwise the system monospace stack.
 
 ## Preview Compatibility
 
