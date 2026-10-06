@@ -455,3 +455,33 @@
         flex-basis: 1.75rem;
     }
 }
+
+/* 手机：工具栏改成自动换行的网格，按钮保持 44px，全部按钮都留在屏幕内 */
+@media (max-width: 620px) {
+    .bocchi-markdown-toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+        gap: 0.1rem;
+    }
+
+    .bocchi-markdown-toolbar__scroll,
+    .bocchi-markdown-toolbar__group {
+        display: contents;
+    }
+
+    .bocchi-markdown-toolbar__group + .bocchi-markdown-toolbar__group::before {
+        display: none;
+    }
+
+    .bocchi-markdown-toolbar > .bocchi-markdown-toolbar__heading-menu > .bocchi-markdown-toolbar__heading-trigger,
+    .bocchi-markdown-toolbar__group > button {
+        width: 100%;
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+        flex-basis: auto;
+    }
+
+    .bocchi-markdown-toolbar__heading-panel button {
+        min-height: 2.75rem;
+    }
+}

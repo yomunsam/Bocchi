@@ -82,9 +82,10 @@ h1:focus,
     }
 }
 
-/* 手机上所有可点控件至少 44px。组件样式是 scoped CSS，优先级更高，这里只能用 !important 统一兜底。 */
+/* 手机上可点控件至少 44px。组件样式是 scoped CSS，优先级更高，这里只能用 !important 统一兜底。
+   Markdown 工具栏按钮多，自己在组件里排成两行网格，不吃这条规则。 */
 @media (max-width: 620px) {
-    .bocchi-admin-shell :is(button, summary, select, [role="button"], .bocchi-nav-child, .bocchi-primary-nav > a, a[class*="btn"], a[class*="button"], a[class*="action"]),
+    .bocchi-admin-shell :is(button, summary, select, [role="button"], .bocchi-nav-child, .bocchi-primary-nav > a, a[class*="btn"], a[class*="button"], a[class*="action"]):not(.bocchi-markdown-toolbar *),
     .bocchi-auth-shell :is(button, summary, select) {
         min-height: 2.75rem !important;
         min-width: 2.75rem !important;
