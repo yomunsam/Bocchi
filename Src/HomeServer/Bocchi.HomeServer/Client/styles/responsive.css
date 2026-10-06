@@ -3,8 +3,9 @@
         grid-template-columns: 2.8rem minmax(0, 1fr) auto;
     }
 
+    /* 操作按钮放到第二行右侧，第三列只留状态，标题能多占一些宽度 */
     .bocchi-content-item__actions {
-        grid-column: 3;
+        grid-column: 2 / -1;
         grid-row: 2;
         align-self: start;
         justify-self: end;
@@ -161,6 +162,7 @@
 
     /* 列表标题在手机上最多两行，不再截成几个字 */
     .bocchi-content-item__title,
+    .bocchi-content-item__main strong,
     .bocchi-content-item__excerpt {
         display: -webkit-box;
         white-space: normal;
