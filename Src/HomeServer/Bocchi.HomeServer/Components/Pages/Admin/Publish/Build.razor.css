@@ -787,14 +787,17 @@
     }
 
     .bocchi-publish-run-form,
-    .bocchi-publish-quick-actions,
     .bocchi-publish-section-heading {
         align-items: stretch;
         flex-direction: column;
     }
 
+    /* 预览、下载只有图标，并排放在一行，不拉满宽度 */
+    .bocchi-publish-quick-actions {
+        justify-content: center;
+    }
+
     .bocchi-publish-primary-action--hero,
-    .bocchi-publish-quick-actions .bocchi-button,
     .bocchi-publish-section-heading .bocchi-button {
         width: 100%;
         justify-content: center;
