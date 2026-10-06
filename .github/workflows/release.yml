@@ -1,6 +1,7 @@
 name: Release
 
 # 推送 v* tag 时发布：各平台自包含二进制包 → GitHub Release，Docker 镜像 → GHCR。
+# 先跑测试，再发二进制，最后推镜像。第一次发布先打 rc tag（如 v0.1.0-rc.1）走通整条流程。
 on:
   push:
     tags: ["v*"]
@@ -15,8 +16,39 @@ env:
   PROJECT: Src/HomeServer/Bocchi.HomeServer/Bocchi.HomeServer.csproj
 
 jobs:
+  # 测试不过就不发布任何产物
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.ADMIN_DIR }}/package-lock.json
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build admin client assets
+        working-directory: ${{ env.ADMIN_DIR }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build
+        run: dotnet build Bocchi.slnx -c Release -p:BocchiSkipAdminAssetsBuild=true
+
+      - name: Test
+        run: dotnet test --solution Bocchi.slnx --no-build -c Release
+
   binaries:
     name: Publish ${{ matrix.rid }}
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -91,6 +123,8 @@ jobs:
 
   image:
     name: Docker image
+    # 二进制全部发布成功后再推镜像
+    needs: binaries
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
