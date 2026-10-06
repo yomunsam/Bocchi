@@ -429,14 +429,6 @@ public sealed partial class ContentScanner
                 continue;
             }
 
-            foreach (var legacyFile in Directory.EnumerateFiles(yearDir, "*.md", SearchOption.TopDirectoryOnly))
-            {
-                errors.Add(new ContentValidationError(
-                    cs.ToRelative(legacyFile), ContentKind.Note, null,
-                    ContentErrorSeverity.Error, "NOTE_LEGACY_FILE_UNSUPPORTED",
-                    "短文必须使用 notes/yyyy/MMdd/HHmm-id/index.md 目录型结构，旧单文件 Note 不再支持。"));
-            }
-
             foreach (var monthDayDir in Directory.EnumerateDirectories(yearDir))
             {
                 var monthDay = Path.GetFileName(monthDayDir);

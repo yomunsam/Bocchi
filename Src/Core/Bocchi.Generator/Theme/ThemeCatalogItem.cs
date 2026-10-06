@@ -26,7 +26,7 @@ public sealed record ThemeCatalogItem
     /// <summary>已成功读取的 manifest；manifest 缺失或 JSON 无法解析时为空。</summary>
     public ThemeManifest? Manifest { get; init; }
 
-    /// <summary>Theme runner 类型；旧版 build.command 兼容 manifest 记为 <c>process</c>。</summary>
+    /// <summary>Theme runner 类型；未声明 runner 时为空。</summary>
     public string? RunnerKind { get; init; }
 
     /// <summary>发现与校验诊断。</summary>

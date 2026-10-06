@@ -88,7 +88,7 @@ public sealed partial class ThemeSettingsService
 
     private static string ResolveRunnerKind(ThemeManifest manifest)
         => string.IsNullOrWhiteSpace(manifest.Runner?.Kind)
-            ? (string.IsNullOrWhiteSpace(manifest.Build?.Command) ? "unknown" : "process")
+            ? "unknown"
             : manifest.Runner.Kind.Trim();
 
     private static string NormalizeThemeId(string themeId)

@@ -107,7 +107,7 @@ public sealed class ThemeConfigFieldView
     public string? DefaultText { get; init; }
 }
 
-/// <summary>Theme 配置字段的选项视图，兼容 schema 中的字符串选项和 value/label 对象。</summary>
+/// <summary>Theme 配置字段的选项视图，对应 schema 中的 value/label 对象。</summary>
 public sealed class ThemeConfigOptionView
 {
     /// <summary>写入 Theme 配置 JSON 的稳定值。</summary>

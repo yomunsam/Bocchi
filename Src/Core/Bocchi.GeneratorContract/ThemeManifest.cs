@@ -1,15 +1,5 @@
 namespace Bocchi.GeneratorContract;
 
-/// <summary>Theme 构建命令配置。M3 时代字段，M5 起作为 <c>runner.kind = process</c> 的兼容别名保留。</summary>
-public sealed record ThemeBuildSpec
-{
-    /// <summary>构建命令行，例如 <c>pnpm build</c>。</summary>
-    public required string Command { get; init; }
-
-    /// <summary>显式安装命令。默认构建不会自动执行它，只能由调用方明确要求。</summary>
-    public string? InstallCommand { get; init; }
-}
-
 /// <summary>Theme Runner 声明，描述当前 Theme 应由哪类执行器处理。</summary>
 public sealed record ThemeRunnerSpec
 {
@@ -143,11 +133,8 @@ public sealed record ThemeManifest
     /// <summary>Theme 构建产物目录（相对 Theme 根）。默认 <c>build</c>。</summary>
     public string OutputDir { get; init; } = "build";
 
-    /// <summary>M5 起使用的 Runner 声明。为空时允许回退到旧 <see cref="Build"/> 字段。</summary>
+    /// <summary>Runner 声明，必填（manifest 校验阶段报告缺失）。</summary>
     public ThemeRunnerSpec? Runner { get; init; }
-
-    /// <summary>旧版 process 构建字段。新 Theme 应使用 <see cref="Runner"/>。</summary>
-    public ThemeBuildSpec? Build { get; init; }
 
     /// <summary>Theme 支持的内容功能开关。</summary>
     public ThemeFeatureFlags Features { get; init; } = new();

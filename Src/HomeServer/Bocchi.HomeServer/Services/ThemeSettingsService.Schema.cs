@@ -437,33 +437,26 @@ public sealed partial class ThemeSettingsService
             .ToList();
     }
 
-    /// <summary>读取 select option，兼容旧版字符串和新版 value/label 对象。</summary>
+    /// <summary>读取 value/label 形式的 select option；其他形态忽略。</summary>
     private static ThemeConfigOptionView? ReadOption(JsonNode? node)
     {
-        if (node is JsonObject obj)
+        if (node is not JsonObject obj)
         {
-            var value = ReadString(obj["value"]);
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return null;
-            }
-
-            var label = ReadString(obj["label"]);
-            return new ThemeConfigOptionView
-            {
-                Value = value.Trim(),
-                Label = string.IsNullOrWhiteSpace(label) ? value.Trim() : label.Trim(),
-            };
+            return null;
         }
 
-        var text = ReadString(node);
-        return string.IsNullOrWhiteSpace(text)
-            ? null
-            : new ThemeConfigOptionView
-            {
-                Value = text.Trim(),
-                Label = text.Trim(),
-            };
+        var value = ReadString(obj["value"]);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var label = ReadString(obj["label"]);
+        return new ThemeConfigOptionView
+        {
+            Value = value.Trim(),
+            Label = string.IsNullOrWhiteSpace(label) ? value.Trim() : label.Trim(),
+        };
     }
 
     /// <summary>判断提交值是否属于 schema 声明的选项；没有声明选项时保持旧行为允许保存。</summary>

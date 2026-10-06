@@ -47,7 +47,7 @@ public sealed record ThemeConfigField
     /// <summary>字段默认值，类型由字段声明决定。</summary>
     public object? Default { get; init; }
 
-    /// <summary>Select 和 MultiSelect 字段的可选项；兼容旧版字符串数组和新版 value/label 对象。</summary>
+    /// <summary>Select 和 MultiSelect 字段的可选项，每项是 value/label 对象。</summary>
     public IReadOnlyList<ThemeConfigOption>? Options { get; init; }
 }
 
@@ -84,25 +84,15 @@ public sealed record ThemeConfigSchema
     public IReadOnlyList<ThemeConfigGroup> Groups { get; init; } = [];
 }
 
-/// <summary>兼容读取旧版字符串 option 和新版 value/label option。</summary>
+/// <summary>读写 value/label 形式的 option 对象。</summary>
 internal sealed class ThemeConfigOptionJsonConverter : JsonConverter<ThemeConfigOption>
 {
     /// <inheritdoc />
     public override ThemeConfigOption Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            var value = reader.GetString() ?? string.Empty;
-            return new ThemeConfigOption
-            {
-                Value = value,
-                Label = value,
-            };
-        }
-
         if (reader.TokenType != JsonTokenType.StartObject)
         {
-            throw new JsonException("Theme config option must be a string or an object.");
+            throw new JsonException("Theme config option must be an object with value/label.");
         }
 
         using var document = JsonDocument.ParseValue(ref reader);

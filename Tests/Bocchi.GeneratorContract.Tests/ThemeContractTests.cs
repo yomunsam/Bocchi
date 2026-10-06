@@ -26,7 +26,6 @@ public sealed class ThemeContractTests
             Name = "Default Svelte Theme",
             Version = "0.1.0",
             ContractVersion = ThemeContractVersion.V1,
-            Build = new ThemeBuildSpec { Command = "pnpm build", InstallCommand = "pnpm install" },
         };
 
         manifest.Id.Should().Be("default-svelte");
@@ -38,7 +37,7 @@ public sealed class ThemeContractTests
     }
 
     [Fact]
-    public void ThemeManifest_SupportsRunnerSpecWithoutLegacyBuildCommand()
+    public void ThemeManifest_SupportsRunnerSpec()
     {
         var manifest = new ThemeManifest
         {
@@ -56,7 +55,6 @@ public sealed class ThemeContractTests
         manifest.Runner.Should().NotBeNull();
         manifest.Runner!.Kind.Should().Be("fluid-static");
         manifest.Runner.Entry.Should().Be("fluid");
-        manifest.Build.Should().BeNull();
     }
 
     [Fact]
@@ -221,9 +219,9 @@ public sealed class ThemeContractTests
     }
 
     [Fact]
-    public void ThemeConfigSchema_DeserializesLegacyStringOptions()
+    public void ThemeConfigSchema_RejectsStringOptions()
     {
-        var schema = DeserializeThemeConfigSchema("""
+        var act = () => DeserializeThemeConfigSchema("""
             {
               "groups": [
                 {
@@ -242,11 +240,7 @@ public sealed class ThemeContractTests
             }
             """);
 
-        var field = schema.Groups.Single().Fields.Single();
-        field.Type.Should().Be(ThemeConfigFieldType.Select);
-        field.Options.Should().NotBeNull();
-        field.Options!.Select(option => (option.Value, option.Label))
-            .Should().Equal(("utcOffset", "utcOffset"), ("ianaTimeZone", "ianaTimeZone"));
+        act.Should().Throw<System.Text.Json.JsonException>();
     }
 
     [Fact]

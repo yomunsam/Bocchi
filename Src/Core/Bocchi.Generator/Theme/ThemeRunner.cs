@@ -66,19 +66,14 @@ public sealed class ThemeRunner : IThemeRunner
         }
     }
 
-    /// <summary>把新旧 Theme manifest 统一解析成 process runner 命令。</summary>
+    /// <summary>把 Theme manifest 的 runner 声明解析成 process runner 命令。</summary>
     internal static ResolvedProcessRunner ResolveProcessRunner(ThemeManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
         if (manifest.Runner is null)
         {
-            if (manifest.Build is null)
-            {
-                throw new ThemeRunnerException($"Theme '{manifest.Id}' 未声明 runner，也没有旧版 build.command。");
-            }
-
-            return new ResolvedProcessRunner(manifest.Build.Command, manifest.Build.InstallCommand);
+            throw new ThemeRunnerException($"Theme '{manifest.Id}' 未声明 runner。");
         }
 
         var kind = manifest.Runner.Kind.Trim();
@@ -87,18 +82,15 @@ public sealed class ThemeRunner : IThemeRunner
             throw new ThemeRunnerException($"Theme '{manifest.Id}' runner.kind='{manifest.Runner.Kind}' 尚未由当前 Generator 支持。");
         }
 
-        var command = string.IsNullOrWhiteSpace(manifest.Runner.Command)
-            ? manifest.Build?.Command
-            : manifest.Runner.Command;
-        if (string.IsNullOrWhiteSpace(command))
+        if (string.IsNullOrWhiteSpace(manifest.Runner.Command))
         {
             throw new ThemeRunnerException($"Theme '{manifest.Id}' 的 process runner 缺少 command。");
         }
 
         var installCommand = string.IsNullOrWhiteSpace(manifest.Runner.InstallCommand)
-            ? manifest.Build?.InstallCommand
+            ? null
             : manifest.Runner.InstallCommand;
-        return new ResolvedProcessRunner(command!, installCommand);
+        return new ResolvedProcessRunner(manifest.Runner.Command, installCommand);
     }
 
     private static async Task ExecuteAsync(

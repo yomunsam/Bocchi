@@ -341,11 +341,7 @@ public sealed class ThemeResolver
     {
         if (manifest.Runner is null)
         {
-            if (manifest.Build is null || string.IsNullOrWhiteSpace(manifest.Build.Command))
-            {
-                diagnostics.Add(Error("theme-runner-missing", "theme.json 必须声明 runner 或旧版 build.command。"));
-            }
-
+            diagnostics.Add(Error("theme-runner-missing", "theme.json 必须声明 runner。"));
             return;
         }
 
@@ -361,10 +357,7 @@ public sealed class ThemeResolver
             return;
         }
 
-        var command = string.IsNullOrWhiteSpace(manifest.Runner.Command)
-            ? manifest.Build?.Command
-            : manifest.Runner.Command;
-        if (string.IsNullOrWhiteSpace(command))
+        if (string.IsNullOrWhiteSpace(manifest.Runner.Command))
         {
             diagnostics.Add(Error("theme-process-command-missing", "process runner 必须声明 command。"));
         }
@@ -372,17 +365,7 @@ public sealed class ThemeResolver
 
     private static string? ResolveRunnerKind(ThemeManifest? manifest)
     {
-        if (manifest is null)
-        {
-            return null;
-        }
-
-        if (manifest.Runner is null)
-        {
-            return string.IsNullOrWhiteSpace(manifest.Build?.Command) ? null : "process";
-        }
-
-        return manifest.Runner.Kind.Trim();
+        return manifest?.Runner?.Kind.Trim();
     }
 
     private bool InstalledThemeRootExists(string themeId)

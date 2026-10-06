@@ -29,7 +29,7 @@ public sealed record ThemePackageInspection
     /// <summary>Theme version；manifest 不可用时为空。</summary>
     public string? Version => Manifest?.Version;
 
-    /// <summary>Runner 类型；旧版 build.command 兼容包记为 <c>process</c>。</summary>
+    /// <summary>Runner 类型；未声明 runner 时为空。</summary>
     public string? RunnerKind { get; init; }
 
     /// <summary>process runner 是否需要 Admin 显式信任后才能安装或激活。</summary>

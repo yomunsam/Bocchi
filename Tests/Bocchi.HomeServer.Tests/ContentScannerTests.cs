@@ -84,7 +84,7 @@ public sealed class ContentScannerTests
     }
 
     [Fact]
-    public async Task Scan_ValidatesDirectoryNoteIdsAndRejectsLegacyFiles()
+    public async Task Scan_ValidatesDirectoryNoteIds()
     {
         var (temp, scanner, _) = await NewScannerAsync();
         using (temp)
@@ -99,16 +99,12 @@ public sealed class ContentScannerTests
             await WriteAsync(
                 Path.Combine(notes, "2025", "0314", "1232-a1b2c3d4", "index.md"),
                 "---\nid: z9y8x7w6\nstatus: Published\npublishedAt: 2025-03-14T12:32:00+08:00\n---\n目录 id 不一致。\n");
-            await WriteAsync(
-                Path.Combine(notes, "2025", "2025-03-14-1233-old.md"),
-                "旧单文件短文。\n");
 
             var result = await scanner.ScanAsync();
 
             result.Notes.Should().ContainSingle(n => n.Frontmatter.Id == "k7p9xq2m");
             result.Errors.Should().Contain(e => e.Code == "NOTE_DUPLICATE_ID");
             result.Errors.Should().Contain(e => e.Code == "NOTE_ID_DIRECTORY_MISMATCH");
-            result.Errors.Should().Contain(e => e.Code == "NOTE_LEGACY_FILE_UNSUPPORTED");
         }
     }
 

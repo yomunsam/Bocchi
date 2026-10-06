@@ -68,6 +68,6 @@ public sealed class LoadThemeStage : IBuildStage
 
     private static string ResolveRunnerKind(ResolvedTheme resolved)
         => string.IsNullOrWhiteSpace(resolved.Manifest.Runner?.Kind)
-            ? (string.IsNullOrWhiteSpace(resolved.Manifest.Build?.Command) ? "unknown" : "process")
+            ? "unknown"
             : resolved.Manifest.Runner.Kind.Trim();
 }
