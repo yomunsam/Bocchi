@@ -11,6 +11,14 @@
           "title": "Accent color",
           "description": "前台链接、active underline 和少量强调文字使用的主题色。",
           "default": "#E85D3A"
+        },
+        {
+          "key": "visual.cjkFontStylesheetUrl",
+          "type": "url",
+          "title": "i18n://theme@theme.bocchi-mono.config.cjkFontUrl.title",
+          "description": "i18n://theme@theme.bocchi-mono.config.cjkFontUrl.description",
+          "placeholder": "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&display=swap",
+          "default": ""
         }
       ]
     },

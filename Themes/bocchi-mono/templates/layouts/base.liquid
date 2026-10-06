@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ localization.currentLanguage }}">
+<html lang="{{ localization.currentLanguage }}"{% if site.cjkFontStylesheetUrl != "" %} data-cjk-webfont{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -9,6 +9,9 @@
   {% for alternate in page.alternates %}<link rel="alternate" hreflang="{{ alternate.hreflang }}" href="{{ alternate.href }}">{% endfor %}
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
   <link rel="stylesheet" href="/assets/app.css">
+  {% if site.cjkFontStylesheetUrl != "" %}<link rel="preconnect" href="{{ site.cjkFontOrigin }}">
+  <link rel="stylesheet" href="{{ site.cjkFontStylesheetUrl }}" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="{{ site.cjkFontStylesheetUrl }}"></noscript>{% endif %}
   <style>:root{--accent: {{ site.accentColor }};}</style>
 </head>
 <body{% if page.hasLanguageHrefs %} data-bocchi-page-hrefs="{{ page.languageHrefsJson }}"{% endif %}>

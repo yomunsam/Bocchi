@@ -25,6 +25,53 @@ public sealed class FluidStaticRendererTests
             .WithMessage("*Fluid Static Theme 缺少必需模板 'templates/pages/posts.liquid'*");
     }
 
+    /// <summary>中文网页字体：留空或不是完整 https 网址时 head 里没有任何外部字体请求。</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/css,body{}")]
+    [InlineData("http://fonts.example/cjk.css")]
+    [InlineData("/assets/cjk.css")]
+    [InlineData("https://fonts.example/a b.css")]
+    public async Task RenderAsync_WithoutValidCjkFontUrl_AddsNoExternalFontLinks(string? url)
+    {
+        var html = await RenderIndexAsync(CreateThemeContext(themeConfig: CreateCjkFontConfig(url)));
+
+        html.Should().NotContain("data-cjk-webfont");
+        html.Should().NotContain("preconnect");
+        html.Should().NotContain("onload=");
+        html.Should().NotContain("<noscript>");
+        html.Should().NotContain("fonts.example");
+        html.Should().NotContain("javascript:");
+    }
+
+    /// <summary>中文网页字体：完整 https 网址按属性转义输出，样式表不阻塞渲染。</summary>
+    [Fact]
+    public async Task RenderAsync_WithCjkFontUrl_AddsEscapedNonBlockingStylesheet()
+    {
+        const string url = "https://fonts.example/css2?family=Noto+Serif+SC:wght@400;500&display=swap&x=\"><script>alert(1)</script>";
+
+        var html = await RenderIndexAsync(CreateThemeContext(themeConfig: CreateCjkFontConfig(url)));
+
+        html.Should().Contain("data-cjk-webfont");
+        html.Should().Contain("<link rel=\"preconnect\" href=\"https://fonts.example\">");
+        // HtmlEncoder 会把 + 写成 &#x2B;，浏览器解析属性时还原
+        html.Should().Contain("href=\"https://fonts.example/css2?family=Noto&#x2B;Serif&#x2B;SC:wght@400;500&amp;display=swap&amp;x=&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;\" media=\"print\" onload=\"this.media='all'\"");
+        html.Should().Contain("<noscript><link rel=\"stylesheet\" href=\"https://fonts.example/css2?");
+        html.Should().NotContain("<script>alert(1)</script>");
+    }
+
+    private static Dictionary<string, object?> CreateCjkFontConfig(string? url)
+        => new(StringComparer.Ordinal)
+        {
+            ["visual"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["accentColor"] = "#E85D3A",
+                ["cjkFontStylesheetUrl"] = url,
+            },
+        };
+
     /// <summary>验证公共 Fluid Static model 暴露当前 Theme 身份与任意 config 字段，不依赖默认 Theme 的固定 schema。</summary>
     [Fact]
     public async Task RenderAsync_ExposesActiveThemeIdentityAndArbitraryConfig()

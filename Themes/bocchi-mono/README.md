@@ -13,6 +13,20 @@
 
 Only the Latin fonts are bundled: Instrument Serif (400 regular and italic) and Inter Tight (400–700), as latin-subset woff2 files under `assets/fonts/`, each with its SIL OFL 1.1 license (`OFL.txt`). Chinese and Japanese text uses system font stacks (Noto CJK, Source Han, Songti/PingFang, Hiragino, Yu Mincho/Gothic and so on; Windows headings fall back to SimSun), because CJK web fonts would cost visitors several megabytes. No monospace font is bundled: code uses JetBrains Mono if the visitor has it installed, otherwise the system monospace stack.
 
+### Chinese web font
+
+Theme setting `visual.cjkFontStylesheetUrl` (Dashboard: Theme customization → visual) takes an optional CSS stylesheet URL from any font CDN.
+
+- Empty (the default): the site makes no external font requests at all.
+- Set: it must be an absolute `https://` URL; anything else is rejected on save and ignored at build time. Pages get a `preconnect` to the stylesheet's origin and a non-blocking stylesheet link (`media="print"` switched to `all` on load, with a `<noscript>` fallback), so a slow font host never blocks rendering. Headings on `zh` / `ja` pages then try `Noto Serif SC` / `TC` / `JP` before the system stack.
+- Ask for `display=swap` and only the weights headings use (400 and 500). Providers that split fonts by `unicode-range` only download the slices a page actually needs; a page without Chinese text downloads the stylesheet but no font files.
+- Visitors' IP addresses are sent to the font host.
+
+Examples:
+
+- Google Fonts: `https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&display=swap`
+- <!-- TODO: more verified CDN examples (e.g. mirrors reachable from mainland China) go here once tested. -->
+
 ## Preview Compatibility
 
 Home Server live preview is a first-class build mode. A Theme should:

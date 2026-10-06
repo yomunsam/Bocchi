@@ -44,6 +44,28 @@
     "defaultLanguage": "en-US",
     "keys": [
       {
+        "key": "theme.bocchi-mono.config.cjkFontUrl.title",
+        "title": "CJK web font setting label",
+        "description": "Dashboard label for the optional CJK web font stylesheet URL.",
+        "defaultValues": {
+          "en-US": "CJK web font stylesheet URL",
+          "zh-CN": "中文网页字体样式表",
+          "zh-TW": "中文網頁字體樣式表",
+          "ja-JP": "CJK Web フォントのスタイルシート URL"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.config.cjkFontUrl.description",
+        "title": "CJK web font setting help",
+        "description": "Dashboard help line for the CJK web font stylesheet URL.",
+        "defaultValues": {
+          "en-US": "Leave empty to load nothing. When set, visitors' IP addresses go to the font host.",
+          "zh-CN": "留空就不加载。填了以后，访客的 IP 会发给字体服务商。",
+          "zh-TW": "留空就不載入。填了以後，訪客的 IP 會發給字體服務商。",
+          "ja-JP": "空欄なら何も読み込みません。設定すると、訪問者の IP がフォント配信元に送られます。"
+        }
+      },
+      {
         "key": "theme.bocchi-mono.pageTemplate.normal",
         "title": "Normal page template name",
         "description": "Dashboard label for the default standalone page template.",

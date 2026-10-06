@@ -250,6 +250,8 @@ public sealed partial class FluidStaticRenderer
             ["authorName"] = site.AuthorName,
             ["authorTimeZone"] = site.AuthorTimeZone,
             ["accentColor"] = site.AccentColor,
+            ["cjkFontStylesheetUrl"] = site.CjkFontStylesheetUrl,
+            ["cjkFontOrigin"] = site.CjkFontOrigin,
             ["generatedYear"] = site.GeneratedYear,
         };
     }
@@ -804,6 +806,23 @@ public sealed partial class FluidStaticRenderer
     private static string FormatDate(DateTimeOffset? value, string timeZone)
         => value is null ? string.Empty : $"{value.Value:yyyy-MM-dd} {timeZone}";
 
+    /// <summary>中文网页字体样式表只接受完整的 https 网址，其余一律当作没设置（不发任何外部请求）。</summary>
+    internal static string NormalizeCjkFontStylesheetUrl(string? value)
+    {
+        var trimmed = value?.Trim() ?? string.Empty;
+        return trimmed.Length > 0
+               && !trimmed.Any(ch => char.IsWhiteSpace(ch) || char.IsControl(ch))
+               && Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+               && string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)
+               && !string.IsNullOrEmpty(uri.Host)
+            ? trimmed
+            : string.Empty;
+    }
+
+    /// <summary>样式表所在的 origin，用于 preconnect；没设置时为空。</summary>
+    private static string CjkFontOrigin(string stylesheetUrl)
+        => stylesheetUrl.Length == 0 ? string.Empty : new Uri(stylesheetUrl).GetLeftPart(UriPartial.Authority);
+
     /// <summary>只接受十六进制 CSS color，避免配置值逃逸到 style 上下文。</summary>
     private static string NormalizeAccentColor(string? value)
     {
@@ -877,6 +896,12 @@ public sealed partial class FluidStaticRenderer
         /// <summary>经过 CSS 安全归一化的 accent color。</summary>
         public required string AccentColor { get; init; }
 
+        /// <summary>可选的中文网页字体样式表（完整 https 网址），空表示不加载。</summary>
+        public string CjkFontStylesheetUrl { get; init; } = string.Empty;
+
+        /// <summary>样式表 origin，供 preconnect 使用。</summary>
+        public string CjkFontOrigin { get; init; } = string.Empty;
+
         /// <summary>前台 primary menu tree。</summary>
         public JsonElement[] Navigation { get; init; } = [];
 
@@ -901,6 +926,8 @@ public sealed partial class FluidStaticRenderer
             var timeZoneDisplayStyle = NormalizeTimeZoneDisplayStyle(
                 TryGetPath(context, ["theme", "config", "reading", "timeZoneDisplayStyle"])?.GetString());
             var accent = NormalizeAccentColor(TryGetPath(context, ["theme", "config", "visual", "accentColor"])?.GetString());
+            var cjkFontUrl = NormalizeCjkFontStylesheetUrl(
+                TryGetPath(context, ["theme", "config", "visual", "cjkFontStylesheetUrl"]) is { ValueKind: JsonValueKind.String } cjk ? cjk.GetString() : null);
             var generatedAtRaw = TryGetPath(context, ["build", "generatedAt"])?.GetString();
             var generatedYear = DateTimeOffset.TryParse(generatedAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var generatedAt)
                 ? generatedAt.Year
@@ -919,6 +946,8 @@ public sealed partial class FluidStaticRenderer
                 ShowUpdatedAt = showUpdatedAt,
                 TimeZoneDisplayStyle = timeZoneDisplayStyle,
                 AccentColor = accent,
+                CjkFontStylesheetUrl = cjkFontUrl,
+                CjkFontOrigin = CjkFontOrigin(cjkFontUrl),
                 GeneratedYear = generatedYear,
             };
         }
