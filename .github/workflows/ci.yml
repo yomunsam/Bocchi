@@ -1,0 +1,53 @@
+name: CI
+
+# 只在 master 推送和指向 master 的 PR 上运行，避免在临时分支上浪费额度。
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  ADMIN_DIR: Src/HomeServer/Bocchi.HomeServer
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.ADMIN_DIR }}/package-lock.json
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build admin client assets
+        working-directory: ${{ env.ADMIN_DIR }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Restore
+        run: dotnet restore Bocchi.slnx
+
+      # 资产已在上一步构建，这里跳过 MSBuild 里的 npm run build；缺失时 BOCCHI001 会让构建失败。
+      - name: Build
+        run: dotnet build Bocchi.slnx --no-restore -c Release -p:BocchiSkipAdminAssetsBuild=true
+
+      - name: Test
+        run: dotnet test --solution Bocchi.slnx --no-build -c Release
