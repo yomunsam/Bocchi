@@ -9,6 +9,10 @@
 - `templates/` contains Liquid templates rendered by Bocchi's built-in `fluid-static` runner.
 - `assets/` contains static files copied into the Theme output by the Theme Contract `staticAssets` stage. Theme Contract routes stay site-root-relative, while the built-in runner emits relative HTML links so the same output can be served from a domain root or a nested path.
 
+## Fonts
+
+Only the Latin fonts are bundled: Instrument Serif (400 regular and italic) and Inter Tight (400–700), as latin-subset woff2 files under `assets/fonts/`, each with its SIL OFL 1.1 license (`OFL.txt`). Chinese and Japanese text uses system font stacks (Noto CJK, Source Han, Songti/PingFang, Hiragino, Yu Mincho/Gothic and so on), because CJK web fonts would cost visitors several megabytes. Code uses the system monospace stack.
+
 ## Preview Compatibility
 
 Home Server live preview is a first-class build mode. A Theme should:

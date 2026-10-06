@@ -1,4 +1,11 @@
 *,*::before,*::after{box-sizing:border-box}
+/* 只自托管拉丁字体（OFL，授权文件在 fonts/ 下）；中日文字体太大，走系统字体 */
+@font-face{font-family:"Instrument Serif";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/instrument-serif/instrument-serif-latin-400-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url("fonts/instrument-serif/instrument-serif-latin-400-italic.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:400;font-display:swap;src:url("fonts/inter-tight/inter-tight-latin-400-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:500;font-display:swap;src:url("fonts/inter-tight/inter-tight-latin-500-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:600;font-display:swap;src:url("fonts/inter-tight/inter-tight-latin-600-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Inter Tight";font-style:normal;font-weight:700;font-display:swap;src:url("fonts/inter-tight/inter-tight-latin-700-normal.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 html{color-scheme:light}
 html[data-theme="dark"]{color-scheme:dark}
 :root{
@@ -11,14 +18,22 @@ html[data-theme="dark"]{color-scheme:dark}
   --line:#e5e5e0;
   --accent:#e85d3a;
   --accent-soft:#ffe9e0;
-  --font-display:"Instrument Serif","Noto Serif SC",ui-serif,Georgia,serif;
-  --font-body:"Inter Tight","Inter","Noto Sans SC",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"Instrument Serif","Noto Serif CJK SC","Noto Serif SC","Source Han Serif SC","Songti SC","STSong",ui-serif,Georgia,serif;
+  --font-body:"Inter Tight","Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",ui-sans-serif,system-ui,sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --topbar-h:56px;
   --container:1280px;
   --content:1080px;
   --prose:700px;
   --radius:8px;
+}
+html:lang(zh-TW),html:lang(zh-Hant){
+  --font-display:"Instrument Serif","Noto Serif CJK TC","Noto Serif TC","Source Han Serif TC","Songti TC",ui-serif,Georgia,serif;
+  --font-body:"Inter Tight","Noto Sans CJK TC","Noto Sans TC","Source Han Sans TC","PingFang TC","Microsoft JhengHei",ui-sans-serif,system-ui,sans-serif;
+}
+html:lang(ja){
+  --font-display:"Instrument Serif","Noto Serif CJK JP","Noto Serif JP","Source Han Serif JP","Hiragino Mincho ProN","Yu Mincho",ui-serif,Georgia,serif;
+  --font-body:"Inter Tight","Noto Sans CJK JP","Noto Sans JP","Source Han Sans JP","Hiragino Sans","Yu Gothic",ui-sans-serif,system-ui,sans-serif;
 }
 html[data-theme="dark"]{
   --bg:#0a0a0b;
