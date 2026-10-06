@@ -198,6 +198,27 @@ public sealed class DataBackupTests : IDisposable
     }
 
     [Fact]
+    public async Task Migrator_RefusesDatabaseFromNewerVersion()
+    {
+        var layout = new BocchiDataLayout(Path.Combine(_root, "newer"));
+        var migrator = CreateMigrator(layout, retain: 5);
+        await using (var db = CreateDb(layout))
+        {
+            await migrator.MigrateAsync(db);
+            // 模拟新版本多应用了一个本程序不认识的 migration
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('29990101000000_FromTheFuture', '10.0.0')");
+        }
+
+        await using (var db = CreateDb(layout))
+        {
+            var act = () => migrator.MigrateAsync(db);
+
+            (await act.Should().ThrowAsync<BocchiStartupException>()).WithMessage("*29990101000000_FromTheFuture*");
+        }
+    }
+
+    [Fact]
     public void Migrator_KeepsOnlyConfiguredNumberOfSnapshots()
     {
         var layout = new BocchiDataLayout(Path.Combine(_root, "prune"));
