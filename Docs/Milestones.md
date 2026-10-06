@@ -30,6 +30,7 @@
 - 如果实现偏离 `Docs/Architecture.md`，先更新架构文档，再改代码。
 - 每个里程碑结束时补一段验证记录，说明跑过的命令、手工检查和残留风险。
 - 文档、代码和验证记录要一起推进，避免只能从聊天记录恢复项目状态。
+- 测试走 Microsoft Testing Platform（见 `global.json`），MSBuild 参数只能交给 `dotnet build`，不能直接拼到 `dotnet test` 后面：先 `dotnet build Bocchi.slnx -m:1 -nr:false`，再 `dotnet test --solution Bocchi.slnx --no-build`（或 `dotnet test --project <测试项目> --no-build`）。历史验证记录里带 `/m:1 /nr:false` 的 `dotnet test` 命令只代表当时的执行方式，迁到 MTP 后已不可直接复用。
 
 ## M0 架构与计划基线
 

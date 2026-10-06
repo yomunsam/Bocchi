@@ -538,9 +538,10 @@ Todo：
 代码验证：
 
 ```bash
-dotnet test Tests/Bocchi.Generator.Tests/Bocchi.Generator.Tests.csproj --no-restore --disable-build-servers -v:minimal /m:1 /nr:false
-dotnet test Tests/Bocchi.HomeServer.Tests/Bocchi.HomeServer.Tests.csproj --no-restore --disable-build-servers -v:minimal /m:1 /nr:false
-dotnet test Bocchi.slnx --no-restore --disable-build-servers -v:minimal /m:1 /nr:false
+dotnet build Bocchi.slnx --no-restore -m:1 -nr:false
+dotnet test --project Tests/Bocchi.Generator.Tests/Bocchi.Generator.Tests.csproj --no-build
+dotnet test --project Tests/Bocchi.HomeServer.Tests/Bocchi.HomeServer.Tests.csproj --no-build
+dotnet test --solution Bocchi.slnx --no-build
 git diff --check
 ```
 
