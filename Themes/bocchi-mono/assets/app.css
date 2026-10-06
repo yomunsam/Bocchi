@@ -429,7 +429,8 @@ bocchi-time{display:inline-flex;align-items:center;gap:8px}
   top:calc(100% + 10px);
   left:50%;
   z-index:20;
-  display:grid;
+  /* 隐藏时不留盒子，否则手机上会撑出横向滚动 */
+  display:none;
   min-width:220px;
   gap:8px;
   border:1px solid var(--line);
@@ -462,9 +463,15 @@ bocchi-time{display:inline-flex;align-items:center;gap:8px}
 .article-time:hover .bocchi-time__popover,
 .article-time:focus .bocchi-time__popover,
 .article-time[data-bocchi-time-open] .bocchi-time__popover{
+  display:grid;
   opacity:1;
   pointer-events:auto;
   transform:translate(-50%,0);
+}
+@starting-style{
+  .article-time:hover .bocchi-time__popover,
+  .article-time:focus .bocchi-time__popover,
+  .article-time[data-bocchi-time-open] .bocchi-time__popover{opacity:0}
 }
 .bocchi-time__popover-row{
   display:flex;
@@ -728,8 +735,11 @@ footer.site a:hover{color:var(--accent)}
   .featured-work__figure{min-height:220px}
   .article-hero{padding-top:64px;padding-bottom:32px}
   .article-time{white-space:normal}
-  .bocchi-time__popover{left:0;min-width:min(260px,80vw);transform:translate(0,4px)}
-  .bocchi-time__popover::before{left:18px;transform:rotate(45deg)}
+  /* 手机上弹层按整行 caption 定位，宽度不超过正文 */
+  .article-hero .caption{position:relative}
+  .article-hero .article-time{position:static}
+  .bocchi-time__popover{left:0;min-width:0;width:min(260px,100%);transform:translate(0,4px)}
+  .bocchi-time__popover::before{display:none}
   .article-time:hover .bocchi-time__popover,
   .article-time:focus .bocchi-time__popover,
   .article-time[data-bocchi-time-open] .bocchi-time__popover{transform:translate(0,0)}
