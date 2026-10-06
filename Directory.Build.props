@@ -13,6 +13,9 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <NeutralLanguage>en-US</NeutralLanguage>
+    <!-- 本地构建默认是 0.1.0-dev；发布流程用 -p:Version 按 tag 覆盖。 -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>dev</VersionSuffix>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <Deterministic>true</Deterministic>
