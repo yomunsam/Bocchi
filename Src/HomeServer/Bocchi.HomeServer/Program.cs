@@ -67,6 +67,13 @@ try
     using var dataRootLock = DataRootLock.TryAcquire(dataRoot)
         ?? throw new BocchiStartupException($"数据目录 {dataRoot} 正被另一个 Bocchi 进程使用（服务或 restore）。请先停止它再启动。");
 
+    // 能提前发现的配置错误在这里抛出，不要等到迁移或迁移前快照做了一半才失败。
+    var reverseProxy = builder.Configuration.GetSection(ReverseProxyOptions.SectionName).Get<ReverseProxyOptions>()
+        ?? new ReverseProxyOptions();
+    reverseProxy.ApplyTo(new ForwardedHeadersOptions());
+    builder.Services.Configure<ForwardedHeadersOptions>(reverseProxy.ApplyTo);
+    BackupOptions.EnsureValid(builder.Configuration);
+
     builder.Services.AddSingleton(dataLayout);
     builder.Services.AddBocchiData(builder.Configuration, _ => dataRoot);
     builder.Services.AddBocchiGenerator(builder.Configuration);
@@ -182,10 +189,6 @@ try
                     formatProvider: CultureInfo.InvariantCulture);
         });
     }
-
-    var reverseProxy = builder.Configuration.GetSection(ReverseProxyOptions.SectionName).Get<ReverseProxyOptions>()
-        ?? new ReverseProxyOptions();
-    builder.Services.Configure<ForwardedHeadersOptions>(reverseProxy.ApplyTo);
 
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();

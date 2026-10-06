@@ -119,6 +119,19 @@ public sealed class ForwardedHeadersTests
         act.Should().Throw<BocchiStartupException>().WithMessage("*proxy.local*");
     }
 
+    [Fact]
+    public void InvalidTrustedProxies_FailsBeforeTouchingDatabase()
+    {
+        using var root = new IsolatedDataRootWebApplicationFactory();
+        using var factory = CreateFactory(root, remoteIp: "127.0.0.1", trustedProxies: "proxy.local");
+
+        var act = () => factory.CreateClient(ClientOptions);
+
+        act.Should().Throw<Exception>();
+        File.Exists(Path.Combine(root.DataRoot, "state", "bocchi.sqlite")).Should().BeFalse();
+        Directory.Exists(Path.Combine(root.DataRoot, "backups")).Should().BeFalse();
+    }
+
     private static WebApplicationFactory<Program> CreateFactory(
         IsolatedDataRootWebApplicationFactory root, string remoteIp, string? trustedProxies)
         => root.WithWebHostBuilder(builder =>
