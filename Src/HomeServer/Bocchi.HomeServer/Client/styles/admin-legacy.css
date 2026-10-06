@@ -310,7 +310,7 @@
 
 .bocchi-kind-action--primary:hover {
     background: color-mix(in srgb, var(--bocchi-action-fill) 88%, #000);
-    color: #fff;
+    color: var(--bocchi-on-action);
 }
 
 .bocchi-kind-action svg {
