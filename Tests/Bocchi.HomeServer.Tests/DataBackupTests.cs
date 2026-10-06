@@ -104,6 +104,18 @@ public sealed class DataBackupTests : IDisposable
     }
 
     [Fact]
+    public void DataRootLock_UnreadableLockFile_GivesClearMessage()
+    {
+        // 锁文件位置被目录占住时 .NET 抛 UnauthorizedAccessException，root 下也能复现
+        var root = Path.Combine(_root, "unreadable");
+        Directory.CreateDirectory(Path.Combine(root, DataRootLock.FileName));
+
+        var act = () => DataRootLock.TryAcquire(root);
+
+        act.Should().Throw<BocchiStartupException>().WithMessage("*另一个用户*");
+    }
+
+    [Fact]
     public void RestoreCommand_RefusesWhileServerHoldsTheLock()
     {
         var source = SeedDataRoot("source", "from-backup");

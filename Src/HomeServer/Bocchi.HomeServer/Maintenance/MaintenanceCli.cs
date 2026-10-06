@@ -54,7 +54,7 @@ public static class MaintenanceCli
             output.WriteLine($"已从 {source} 恢复到 {layout.DataRoot}。启动服务后会按需应用数据库迁移。");
             return 0;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or InvalidDataException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is InvalidOperationException or InvalidDataException or IOException or UnauthorizedAccessException or BocchiStartupException)
         {
             output.WriteLine($"失败：{ex.Message}");
             return 1;
