@@ -896,6 +896,7 @@
   "themeLibrary.list.title": "可用主题",
   "themeLibrary.list.help": "以下为服务器已识别的全部主题。仅状态正常的主题可用于前台展示。",
   "themeLibrary.list.empty": "暂无可用主题。您可以通过下方上传安装包添加主题。",
+  "themeLibrary.list.noOthers": "没有其他主题。想换主题，先在下方上传安装包。",
   "themeLibrary.list.active": "当前使用",
   "themeLibrary.list.switch": "启用",
   "themeLibrary.list.unavailable": "不可用",

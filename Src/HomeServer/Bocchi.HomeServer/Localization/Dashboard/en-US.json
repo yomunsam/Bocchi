@@ -896,6 +896,7 @@
   "themeLibrary.list.title": "Available themes",
   "themeLibrary.list.help": "All themes recognized by this server are listed below. Only themes in good standing can be used on the public site.",
   "themeLibrary.list.empty": "No themes are available yet. Upload an installation package below to add one.",
+  "themeLibrary.list.noOthers": "No other themes yet. Upload a package below to add one.",
   "themeLibrary.list.active": "Active",
   "themeLibrary.list.switch": "Activate",
   "themeLibrary.list.unavailable": "Unavailable",

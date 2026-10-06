@@ -56,6 +56,10 @@
             {
                 <p class="bocchi-themes-list__empty">@I18n["themeLibrary.list.empty"]</p>
             }
+            else if (!OrderedCatalog.Any())
+            {
+                <p class="bocchi-themes-list__empty">@I18n["themeLibrary.list.noOthers"]</p>
+            }
             else
             {
                 <div class="bocchi-themes-cards">

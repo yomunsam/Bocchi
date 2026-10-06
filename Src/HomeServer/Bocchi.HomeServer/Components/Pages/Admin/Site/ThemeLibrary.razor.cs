@@ -100,6 +100,8 @@ public partial class ThemeLibrary
     /// <summary>排序后的 Catalog：当前 → 可用 → 名称。</summary>
     private IEnumerable<ThemeCatalogItem> OrderedCatalog
         => _catalog
+            // 当前主题正常时已经在顶部卡片里，列表不再重复；异常时留在列表里显示诊断
+            .Where(item => !(IsActiveTheme(item.Id) && item.IsAvailable))
             .OrderByDescending(item => IsActiveTheme(item.Id))
             .ThenByDescending(item => item.IsAvailable)
             .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase);
