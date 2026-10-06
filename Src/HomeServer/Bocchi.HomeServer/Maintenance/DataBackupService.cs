@@ -89,6 +89,8 @@ public sealed class DataBackupService
         var source = Path.GetFullPath(backupPath);
         using var zip = ZipFile.OpenRead(source);
         ValidateManifest(zip);
+        // 先把所有条目校验完，有问题就在动现有数据之前退出
+        var plan = PlanExtraction(zip);
 
         string? safetyBackup = null;
         if (HasRestorableData())
@@ -104,7 +106,22 @@ public sealed class DataBackupService
 
         ClearForRestore();
 
+        foreach (var (entry, destination) in plan)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            entry.ExtractToFile(destination, overwrite: true);
+        }
+
+        return safetyBackup;
+    }
+
+    /// <summary>
+    /// 校验全部条目并算出解压目标：拒绝绝对路径、越出数据目录的路径，以及落到不属于备份范围的目录（如 backups、logs）的条目。
+    /// </summary>
+    private List<(ZipArchiveEntry Entry, string Destination)> PlanExtraction(ZipArchive zip)
+    {
         var root = Path.GetFullPath(_layout.DataRoot) + Path.DirectorySeparatorChar;
+        var plan = new List<(ZipArchiveEntry, string)>();
         foreach (var entry in zip.Entries)
         {
             if (entry.FullName == ManifestFileName || entry.FullName.EndsWith('/'))
@@ -113,16 +130,21 @@ public sealed class DataBackupService
             }
 
             var destination = Path.GetFullPath(Path.Combine(root, entry.FullName));
-            if (!destination.StartsWith(root, StringComparison.Ordinal))
+            if (Path.IsPathRooted(entry.FullName) || !destination.StartsWith(root, StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"备份中的路径 '{entry.FullName}' 越出了数据目录。");
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            entry.ExtractToFile(destination, overwrite: true);
+            var top = Path.GetRelativePath(root, destination).Split(Path.DirectorySeparatorChar)[0];
+            if (ExcludedTopLevel.Contains(top, StringComparer.Ordinal))
+            {
+                throw new InvalidDataException($"备份中的路径 '{entry.FullName}' 不属于可恢复的数据。");
+            }
+
+            plan.Add((entry, destination));
         }
 
-        return safetyBackup;
+        return plan;
     }
 
     /// <summary>

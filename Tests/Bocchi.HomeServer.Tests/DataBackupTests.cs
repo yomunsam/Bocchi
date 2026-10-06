@@ -119,6 +119,30 @@ public sealed class DataBackupTests : IDisposable
         ReadMarker(target).Should().Be("current");
     }
 
+    [Theory]
+    [InlineData("../escape.txt")]
+    [InlineData("workspace/../../escape.txt")]
+    [InlineData("logs/injected.log")]
+    public void Restore_RejectsUnsafeEntryBeforeTouchingExistingData(string entryName)
+    {
+        var source = SeedDataRoot("source", "from-backup");
+        var zipPath = new DataBackupService(source, TimeProvider.System).CreateBackup(Path.Combine(_root, "b.zip"));
+        using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Update))
+        {
+            using var writer = new StreamWriter(zip.CreateEntry(entryName).Open());
+            writer.Write("x");
+        }
+
+        var target = SeedDataRoot("target", "current");
+
+        var act = () => new DataBackupService(target, TimeProvider.System).Restore(zipPath, force: true);
+
+        act.Should().Throw<InvalidDataException>();
+        ReadMarker(target).Should().Be("current");
+        File.ReadAllText(Path.Combine(target.Workspace.Root, "posts", "a.md")).Should().Be("post");
+        Directory.Exists(target.BackupsDirectory).Should().BeFalse("校验失败时不应生成安全备份");
+    }
+
     [Fact]
     public void Restore_RejectsArchiveWithoutManifest()
     {
