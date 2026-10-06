@@ -41,10 +41,24 @@
     <InternalsVisibleTo Include="Bocchi.HomeServer.Tests" />
   </ItemGroup>
 
+  <!-- 后台前端产物（Vite 输出）不进仓库：装过 node_modules 时构建前自动 npm run build。 -->
   <Target Name="BuildAdminClientAssets"
-          BeforeTargets="BeforeBuild"
           Condition="Exists('package.json') and Exists('node_modules') and '$(BocchiSkipAdminAssetsBuild)' != 'true'">
     <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <ItemGroup>
+    <BocchiAdminClientAsset Include="wwwroot/app.min.css;wwwroot/bocchi-markdown-editor.min.js" />
+  </ItemGroup>
+
+  <!-- 产物缺失时直接失败，避免后台在没有样式和编辑器脚本的情况下静默运行。 -->
+  <Target Name="EnsureAdminClientAssets"
+          BeforeTargets="BeforeBuild"
+          DependsOnTargets="BuildAdminClientAssets"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('%(BocchiAdminClientAsset.Identity)')"
+           Code="BOCCHI001"
+           Text="后台前端资产缺失：%(BocchiAdminClientAsset.Identity)。请在 $(MSBuildProjectDirectory) 下执行 'npm ci'（之后 dotnet build 会自动运行 'npm run build'），或手动执行 'npm ci &amp;&amp; npm run build'。" />
   </Target>
 
 </Project>
