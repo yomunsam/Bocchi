@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="@Assets["favicon-48x48.png"]" />
     <link rel="apple-touch-icon" sizes="180x180" href="@Assets["apple-touch-icon.png"]" />
     <link rel="manifest" href="@Assets["site.webmanifest"]" />
-    <meta name="theme-color" content="#f8f7fc" />
+    <meta name="theme-color" content="#fbf8f8" />
     <script>
         (() => {
             const storageKey = "bocchi.dashboard.appearance";
@@ -29,6 +29,15 @@
             root.dataset.bocchiAppearance = mode;
             root.dataset.bocchiEffectiveAppearance = effective;
             root.style.colorScheme = effective;
+            // 配色在首屏前写入，避免闪一下默认色
+            try {
+                const palette = localStorage.getItem("bocchi.dashboard.palette");
+                if (palette === "maid" || palette === "clip") {
+                    root.dataset.bocchiPalette = palette;
+                }
+            } catch {
+                // localStorage 不可用时用默认配色
+            }
         })();
     </script>
     <ResourcePreloader />
