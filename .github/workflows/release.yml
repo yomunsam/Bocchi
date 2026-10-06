@@ -1,0 +1,131 @@
+name: Release
+
+# 推送 v* tag 时发布：各平台自包含二进制包 → GitHub Release，Docker 镜像 → GHCR。
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  ADMIN_DIR: Src/HomeServer/Bocchi.HomeServer
+  PROJECT: Src/HomeServer/Bocchi.HomeServer/Bocchi.HomeServer.csproj
+
+jobs:
+  binaries:
+    name: Publish ${{ matrix.rid }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true
+      matrix:
+        # macOS arm64 需要在 macOS 上签名，暂不发布
+        rid: [linux-x64, linux-arm64, win-x64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.ADMIN_DIR }}/package-lock.json
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build admin client assets
+        working-directory: ${{ env.ADMIN_DIR }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="bocchi-${version}-${{ matrix.rid }}"
+          dotnet publish "$PROJECT" -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:Version="$version" -p:BocchiSkipAdminAssetsBuild=true -o "out/$name"
+          cp LICENSE README.md README.zh.md "out/$name/"
+          cd out
+          if [[ "${{ matrix.rid }}" == win-* ]]; then
+            zip -qr "$name.zip" "$name"
+          else
+            tar -czf "$name.tar.gz" "$name"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bocchi-${{ matrix.rid }}
+          path: |
+            out/*.zip
+            out/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          generate_release_notes: true
+          # v1.0.0-preview.1 这类带连字符的 tag 标为预发布
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # 运行时阶段的 RUN 需要在目标架构里执行，arm64 靠 QEMU
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/bocchi
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BOCCHI_VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
