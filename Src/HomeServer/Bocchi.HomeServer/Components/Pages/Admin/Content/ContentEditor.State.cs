@@ -112,6 +112,9 @@ public partial class ContentEditor
     /// <summary>Post 标签字段，UI 使用逗号分隔，保存时写回 YAML sequence。</summary>
     private string _tagsText = string.Empty;
 
+    /// <summary>载入时的标签文本；标签框没改过时保存不回写 tags，避免抹掉写错格式的原文。</summary>
+    private string _tagsTextAtLoad = string.Empty;
+
     /// <summary>Post 发布时间字段；保持文本输入是为了允许用户显式控制时区。</summary>
     private string _publishedAt = string.Empty;
 

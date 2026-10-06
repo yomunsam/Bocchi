@@ -57,6 +57,7 @@ public partial class ContentEditor
         _summary = ReadString(root, "summary") ?? string.Empty;
         _category = ReadString(root, "category") ?? string.Empty;
         _tagsText = string.Join(", ", ReadStringList(root, "tags"));
+        _tagsTextAtLoad = _tagsText;
         _publishedAt = ReadString(root, "publishedAt") ?? string.Empty;
         _template = ReadString(root, "template") ?? "normal";
         _showInNavigation = ReadBool(root, "showInNavigation") ?? false;
@@ -100,7 +101,12 @@ public partial class ContentEditor
         if (IsPostFile)
         {
             SetScalar(root, "category", _category, removeWhenBlank: true);
-            SetSequence(root, "tags", ParseCommaList(_tagsText));
+            // 标签框没动过就保留原行，标量 tags 的生成器警告也能留下
+            if (!string.Equals(_tagsText, _tagsTextAtLoad, StringComparison.Ordinal))
+            {
+                SetSequence(root, "tags", ParseCommaList(_tagsText));
+            }
+
             SetScalar(root, "publishedAt", _publishedAt, removeWhenBlank: true);
             if (refreshUpdatedAt)
             {
