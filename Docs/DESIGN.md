@@ -1,162 +1,104 @@
 ---
-name: Milk & Berry Admin
+name: Bocchi Admin
+# 默认「运动服」配色（浅色）。数值以 Client/styles/tokens.css 为准，改配色时两边一起改。
 colors:
-  surface: '#fbf9f7'
-  surface-dim: '#dbdad8'
-  surface-bright: '#fbf9f7'
-  surface-container-lowest: '#ffffff'
-  surface-container-low: '#f5f3f1'
-  surface-container: '#efedeb'
-  surface-container-high: '#eae8e6'
-  surface-container-highest: '#e4e2e0'
-  on-surface: '#1b1c1b'
-  on-surface-variant: '#574146'
-  inverse-surface: '#30302f'
-  inverse-on-surface: '#f2f0ee'
-  outline: '#8a7176'
-  outline-variant: '#ddbfc5'
-  surface-tint: '#ab2c5d'
-  primary: '#ab2c5d'
-  on-primary: '#ffffff'
-  primary-container: '#f06292'
-  on-primary-container: '#5e002b'
-  inverse-primary: '#ffb1c5'
-  secondary: '#4A454E'
-  on-secondary: '#ffffff'
-  secondary-container: '#e5dde8'
-  on-secondary-container: '#66606a'
-  tertiary: '#8C8590'
-  on-tertiary: '#ffffff'
-  tertiary-container: '#949392'
-  on-tertiary-container: '#2c2c2b'
-  error: '#ba1a1a'
-  on-error: '#ffffff'
-  error-container: '#ffdad6'
-  on-error-container: '#93000a'
-  primary-fixed: '#ffd9e1'
-  primary-fixed-dim: '#ffb1c5'
-  on-primary-fixed: '#3f001b'
-  on-primary-fixed-variant: '#8b0e45'
-  secondary-fixed: '#e8e0eb'
-  secondary-fixed-dim: '#ccc4cf'
-  on-secondary-fixed: '#1e1a22'
-  on-secondary-fixed-variant: '#4a454e'
-  tertiary-fixed: '#e4e2e0'
-  tertiary-fixed-dim: '#c7c6c4'
-  on-tertiary-fixed: '#1b1c1b'
-  on-tertiary-fixed-variant: '#464746'
-  background: '#fbf9f7'
-  on-background: '#1b1c1b'
-  surface-variant: '#e4e2e0'
+  bg: '#fbf8f8'
+  surface: '#ffffff'
+  surface-muted: '#f6f2f3'
+  surface-soft: '#efe9eb'
+  text: '#241e21'
+  text-muted: '#5c5157'
+  text-subtle: '#736770'
+  border: '#ebe3e6'
+  border-strong: '#e0c8d1'
+  action: '#b83b70'
+  action-strong: '#93264f'
+  action-fill: '#b83b70'
+  on-action: '#ffffff'
+  pink: '#f4a6c0'
+  clip-blue: '#4a9fd8'
+  clip-yellow: '#f2c94c'
+  success-soft: '#e9f8f0'
+  success-strong: '#2e7d32'
+  warning-soft: '#fff5dc'
+  warning-strong: '#7a5710'
+  danger-soft: '#fff0f0'
+  danger-strong: '#ba1a1a'
 typography:
-  headline-lg:
-    fontFamily: Sora
-    fontSize: 32px
-    fontWeight: '600'
-    lineHeight: 40px
-    letterSpacing: -0.02em
-  headline-md:
-    fontFamily: Sora
-    fontSize: 24px
-    fontWeight: '600'
-    lineHeight: 32px
-    letterSpacing: -0.01em
-  headline-sm:
-    fontFamily: Sora
-    fontSize: 20px
-    fontWeight: '600'
-    lineHeight: 28px
-  body-lg:
-    fontFamily: Sora
-    fontSize: 16px
-    fontWeight: '400'
-    lineHeight: 24px
-  body-md:
-    fontFamily: Sora
-    fontSize: 14px
-    fontWeight: '400'
-    lineHeight: 20px
-  label-lg:
-    fontFamily: Sora
-    fontSize: 14px
-    fontWeight: '600'
-    lineHeight: 20px
-    letterSpacing: 0.01em
-  label-md:
-    fontFamily: Sora
-    fontSize: 12px
-    fontWeight: '500'
-    lineHeight: 16px
-  headline-lg-mobile:
-    fontFamily: Sora
-    fontSize: 24px
-    fontWeight: '600'
-    lineHeight: 32px
+  family: Sora
+  headline-lg: { fontSize: 32px, fontWeight: '600', lineHeight: 40px }
+  headline-md: { fontSize: 24px, fontWeight: '600', lineHeight: 32px }
+  body-md: { fontSize: 14px, fontWeight: '400', lineHeight: 20px }
+  label-md: { fontSize: 12px, fontWeight: '500', lineHeight: 16px }
 rounded:
-  sm: 0.25rem
-  DEFAULT: 0.5rem
-  md: 0.75rem
-  lg: 1rem
-  xl: 1.5rem
-  full: 9999px
+  sm: 4px
+  md: 6px
+  lg: 8px
+  xl: 12px
+  pill: 999px
 spacing:
-  unit: 8px
-  gutter: 24px
-  margin-desktop: 32px
-  margin-mobile: 16px
-  container-max-width: 1440px
+  unit: 4px
+  scale: [4, 8, 12, 16, 24, 32, 48]
 ---
 
 ## Brand & Style
-The brand personality is professional and organized, yet retains a distinctive approachable warmth. It targets power users who spend long hours in an administrative environment, prioritizing the reduction of visual fatigue through a "Milk & Berry" aesthetic. 
+Bocchi Admin is a calm, long-session workspace. The look is minimal with a few small nods to Bocchi: the pink of her hair and tracksuit, and the blue and yellow hair clips (the two marks next to the sidebar logo). Accents stay small; structure comes from neutral surfaces and spacing.
 
-The design style is **Corporate / Modern** with a **Minimalist** foundation, punctuated by subtle "cute" accents. It utilizes heavy whitespace and a refined color balance to create an airy, focused atmosphere. The emotional response is one of calm efficiency, moving away from overstimulation toward a sophisticated, high-utility workspace.
+## Palettes
+All components use the semantic variables in `Client/styles/tokens.css`. Never hard-code a brand color in a component. Three palettes exist; each overrides only brand and surface variables, for light and dark:
 
-## Colors
-This design system utilizes a sophisticated palette to ensure long-term legibility and comfort. 
+| Palette | How to select | Light | Dark |
+| --- | --- | --- | --- |
+| Tracksuit (default) | no attribute, or `data-bocchi-palette="tracksuit"` | pink action `#b83b70`, warm off-white surfaces | light pink accent `#f4a6c0`, button fill `#b83b70` |
+| Maid | `data-bocchi-palette="maid"` | black and white, action `#2b2528`, pink nav bar | inverted primary: fill `#f2f2f2` with text `#1c1a1b` |
+| Clip | `data-bocchi-palette="clip"` | blue action `#286aa3`, yellow nav bar | light blue accent `#8cc4ec`, button fill `#286aa3` |
 
-- **Primary (Berry):** A refined pink used exclusively for primary action buttons, active states, and critical status indicators. It serves as a high-contrast focal point rather than a structural element.
-- **Neutral Surface (Milk):** The primary background uses a warm off-white (`#FDFBF9`) to eliminate the harsh glare of pure white.
-- **Secondary (Charcoal):** A deep, warm charcoal used for body text and headers to ensure high readability without the "vibration" of pure black on white.
-- **Surface Container:** A subtle warm grey (`#F5F3F1`) is used for sidebars and section nesting to create depth without the need for heavy lines.
+The attribute is set on `<html>` before first paint from `localStorage["bocchi.dashboard.palette"]`. There is no switcher in the UI yet.
+
+Key variables:
+- `--bocchi-action`: links, active icons, small accents. `--bocchi-action-strong` is the darker text variant.
+- `--bocchi-action-fill` + `--bocchi-on-action`: background and text of primary buttons and other filled controls. Always pair them; never assume white text.
+- `--bocchi-text`, `--bocchi-text-muted`, `--bocchi-text-subtle`: three text levels. `subtle` is for dates, paths, slugs and counts, which people still need to read.
+- `--bocchi-success-*`, `--bocchi-warning-*`, `--bocchi-danger-*`: status pills and messages.
+- `--bocchi-clip-blue` / `--bocchi-clip-yellow`: decorative only (logo clips, focus ring).
+
+Contrast rules, checked for every palette in light and dark:
+- Body text and `text-subtle` reach at least 4.5:1 on `surface`, `bg` and `surface-muted`.
+- Status pill text reaches 4.5:1 on its soft background.
+- Primary button text reaches 4.5:1 on `action-fill`, and a primary button must stand out from a secondary button next to it.
 
 ## Typography
-Sora provides a modern, geometric clarity that feels technical yet friendly. To reduce fatigue, the hierarchy is enforced through generous vertical rhythm. 
+Sora (self-hosted, `Client/styles/fonts.css`) provides a modern, geometric clarity that feels technical yet friendly. To reduce fatigue, the hierarchy is enforced through generous vertical rhythm. 
 
 Headers use a semi-bold weight and tighter letter spacing for a punchy, professional look. Body text is set with comfortable line heights to facilitate scanning of data-heavy tables and reports. Labels utilize a slightly increased letter-spacing to improve clarity at smaller sizes.
 
 ## Layout & Spacing
 The layout follows a **Fixed Grid** model for the main content area to maintain line-length readability, while the sidebar remains fixed to the viewport.
 
-- **Desktop:** 12-column grid with 24px gutters. Sections are separated by large 48px or 64px vertical gaps to emphasize an "airy" feel.
+- **Desktop:** 12-column grid with 24px gutters.
 - **Tablet:** 8-column grid with 16px gutters.
 - **Mobile:** 4-column grid with 16px margins.
-- **Spacing Logic:** All padding and margins are increments of an 8px base unit. Component-internal spacing (like inside a card) should prioritize 16px or 24px padding to maintain the "clean" aesthetic.
+- **Spacing Logic:** Padding and margins come from the `--space-1` to `--space-7` scale (4–48px). Component-internal spacing (like inside a card) should prioritize 16px or 24px padding to maintain the "clean" aesthetic.
 
 ## Elevation & Depth
 Depth is achieved primarily through **Tonal Layers** and extremely **Ambient Shadows**. 
 
-Surfaces are distinguished by slight shifts in background color (e.g., a card using pure white sitting on a Milk-colored background). Shadows must be "airy": use a high blur radius (16px to 32px), very low opacity (4-8%), and a hint of the secondary charcoal color in the shadow tint to keep it grounded. Avoid hard shadows or inner glows. Use 1px borders in a very light grey-beige for subtle definition on interactive elements.
+Surfaces are distinguished by slight shifts in background color (e.g., a white card on the off-white page background). Shadows must be "airy": use a high blur radius (16px to 32px), very low opacity (4-8%), and a hint of the secondary charcoal color in the shadow tint to keep it grounded. Avoid hard shadows or inner glows. Use 1px borders in a very light grey-beige for subtle definition on interactive elements.
 
 ## Shapes
 The shape language is consistently **Rounded**, reinforcing the approachable personality. 
 
-Standard components like buttons and input fields use a 12px (`0.5rem`) radius. Larger containers, such as dashboard cards and modals, use a 16px (`1rem`) radius. Selection indicators (like active menu items) may use a fully rounded/pill shape for clear visual distinction.
+Radii come from `--radius-sm/md/lg/xl` (4/6/8/12px). Buttons and inputs use 8px; cards and panels use 8–12px. Selection indicators (like active menu items) may use a fully rounded/pill shape for clear visual distinction.
 
 ## Components
-- **Buttons:** Primary buttons are solid "Berry" with white text. Secondary buttons use a ghost style with 1px charcoal borders.
-- **Input Fields:** Use the "Milk" background with a 1px border that shifts to "Berry" only on focus. Labels should always be visible above the field in "Charcoal."
-- **Cards:** White backgrounds with 16px rounded corners and a very soft ambient shadow. No borders.
-- **Lists & Tables:** Use subtle horizontal dividers in a light neutral tint. Avoid alternating row colors; instead, use a soft hover state change.
-- **Chips:** Small, pill-shaped elements with light "Berry" backgrounds (10% opacity) and "Berry" text for a soft, professional accent.
-- **Iconography:** Use line icons with a consistent 2px stroke weight, utilizing the "Berry" color for active states and "Charcoal" for inactive.
+- **Buttons:** Primary buttons declare `bocchi-button--primary` (or use their own class with `action-fill` / `on-action`). Disabled primary buttons switch to `surface-muted` with a border instead of fading with opacity. Secondary buttons use `surface` with a 1px border.
+- **Input Fields:** `surface` background with a 1px border; focus shows `--bocchi-focus-ring`. Labels stay visible above the field.
+- **Cards:** White (`surface`) with an 8–12px radius, a 1px border and a very soft shadow.
+- **Lists:** Horizontal dividers, soft hover state, no zebra rows. On phones, titles wrap to two lines instead of being cut to a few characters.
+- **Status pills:** Soft background with the matching strong text (`success`, `warning`, `danger`, `info`, `neutral`).
+- **Iconography:** Lucide line icons. Active states use `action`, inactive ones `text-muted`.
+- **Help text:** No descriptive paragraphs under page titles. A rule the user must know (who can sign in, what a button really does) goes right next to the control as one `.bocchi-hint` line. Optional explanations use `BocchiInfoTip` (a focusable icon with a `.bocchi-tooltip`), which works on hover, keyboard focus and tap. Do not rely on the native `title` attribute for help.
+- **Touch targets:** At ≤620px, interactive controls are at least 44px (`base.css`). The Markdown toolbar opts out of that rule and lays itself out as a wrapping 44px grid, so no button is pushed off screen.
 
 ## Dark Mode
-Dark mode follows the same Milk & Berry philosophy but inverts the surface hierarchy. The palette **retains a subtle Berry pink undertone** (H:330-340°, saturation 2-5%) across all surface layers as a deliberate brand signature — this warmth distinguishes it from generic dark themes. The key is restraint: the undertone should feel like a faint warmth, never an obvious tint.
-
-- **Background (`#1e1a1d`):** Very dark with a whisper of Berry warmth. Avoids the cold neutrality of pure gray and the harshness of pure black.
-- **Surface (`#282427`):** Cards and panels sit ~3 lightness points above the background. The gap is deliberately small to maintain a "flat" feel rather than a stacked construction-paper look.
-- **Surface Layers:** `muted` → `soft` → `pink` form a 3-step tonal ladder. All carry the faint Berry undertone; only `surface-pink` (`#352530`) pushes saturation higher for icon containers and brand-colored badges.
-- **Text:** `#f4f1ef` (warm near-white) for primary content; `#bfadb5` (pink-gray) for secondary; `#907e86` for the least prominent labels. The secondary/subtle tones deliberately echo the Berry warmth.
-- **Borders:** `#453d41` for standard dividers, `#66595e` for strong/emphasized borders. Both carry the pink undertone to stay cohesive with the surface palette.
-- **Shadows:** Pure black at reduced opacity (28-40%) since the dark background absorbs colored shadows.
+Dark mode keeps the same structure with a faint warm undertone in the tracksuit palette (maid is neutral grey, clip is cool blue-grey). Surfaces step up from `bg` to `surface` to `surface-muted` to `surface-soft`. In tracksuit and clip, the light accent (`action`) is used for icons and borders while buttons keep a deeper `action-fill`; maid inverts its primary button to light grey. Shadows are pure black at 28–40% opacity.
