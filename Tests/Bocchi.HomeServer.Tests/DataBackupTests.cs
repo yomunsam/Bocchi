@@ -82,6 +82,8 @@ public sealed class DataBackupTests : IDisposable
         ReadMarker(target).Should().Be("from-backup");
         File.Exists(Path.Combine(target.Workspace.Root, "only-in-target.md")).Should().BeFalse();
         File.Exists(Path.Combine(target.LogsDirectory, "app.log")).Should().BeTrue("logs 不属于恢复范围");
+        File.Exists(Path.Combine(target.PublicOutputDirectory, "index.html")).Should().BeFalse("旧的生成结果不能留到恢复之后");
+        File.Exists(Path.Combine(target.CacheDirectory, "x.bin")).Should().BeFalse();
         safety.Should().NotBeNull();
         using var zip = ZipFile.OpenRead(safety!);
         zip.GetEntry("workspace/only-in-target.md").Should().NotBeNull();

@@ -112,6 +112,25 @@ public sealed class GeneratorPipelineEndToEndTests
     }
 
     [Fact]
+    public async Task FullBuild_WhenOutputManifestIsMissing_RebuildsDespiteSameFingerprint()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        var pipeline = fixture.Services.GetRequiredService<GeneratorPipeline>();
+        var first = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild }, new FileSystemBuildSink(fixture.Layout), null, "0.0.0-test", default);
+        first.Status.Should().Be(BuildStatus.Succeeded);
+        // 模拟 restore 后 output 被清空：数据库里还记着同一份指纹
+        Directory.Delete(fixture.Layout.OutputDirectory, recursive: true);
+
+        var second = await pipeline.RunAsync(
+            new BuildOptions { Mode = BuildMode.FullBuild }, new FileSystemBuildSink(fixture.Layout), null, "0.0.0-test", default);
+
+        second.Status.Should().Be(BuildStatus.Succeeded);
+        second.Fingerprint!.Value.Should().Be(first.Fingerprint!.Value);
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "index.html")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task FullBuild_WithDifferentOutputOption_DoesNotShortCircuit()
     {
         using var fixture = new TestWorkspaceFixture();

@@ -23,6 +23,11 @@ public sealed class DataBackupService
     /// <summary>不进入备份的顶层目录和文件（含服务运行时的锁文件）。</summary>
     private static readonly string[] ExcludedTopLevel = ["backups", "cache", "logs", "output", Hosting.DataRootLock.FileName];
 
+    /// <summary>
+    /// 恢复时保留的顶层条目。cache/output 会被清掉：它们能重新生成，留着旧的会让恢复后的第一次发布用上恢复前的站点。
+    /// </summary>
+    private static readonly string[] KeptOnRestore = ["backups", "logs", Hosting.DataRootLock.FileName];
+
     private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
 
@@ -76,7 +81,7 @@ public sealed class DataBackupService
 
     /// <summary>
     /// 从备份恢复。必须在服务停止时执行（调用方负责先拿到 <see cref="Hosting.DataRootLock"/>）。DataRoot 已有数据时需要 <paramref name="force"/>：
-    /// 先把现有数据另做一份备份，再清空（保留 backups/logs）后解压。
+    /// 先把现有数据另做一份备份，再清空（保留 backups/logs）后解压。cache/output 无论如何都会清空。
     /// </summary>
     /// <returns>强制恢复前自动生成的备份路径；DataRoot 原本为空时为 <c>null</c>。</returns>
     public string? Restore(string backupPath, bool force)
@@ -95,8 +100,9 @@ public sealed class DataBackupService
             }
 
             safetyBackup = CreateBackup(Path.Combine(_layout.BackupsDirectory, $"bocchi-before-restore-{Stamp()}.zip"));
-            ClearRestorableData();
         }
+
+        ClearForRestore();
 
         var root = Path.GetFullPath(_layout.DataRoot) + Path.DirectorySeparatorChar;
         foreach (var entry in zip.Entries)
@@ -167,11 +173,16 @@ public sealed class DataBackupService
             && Directory.EnumerateFileSystemEntries(_layout.DataRoot)
                 .Any(path => !ExcludedTopLevel.Contains(Path.GetFileName(path), StringComparer.Ordinal));
 
-    private void ClearRestorableData()
+    private void ClearForRestore()
     {
+        if (!Directory.Exists(_layout.DataRoot))
+        {
+            return;
+        }
+
         foreach (var path in Directory.EnumerateFileSystemEntries(_layout.DataRoot))
         {
-            if (ExcludedTopLevel.Contains(Path.GetFileName(path), StringComparer.Ordinal))
+            if (KeptOnRestore.Contains(Path.GetFileName(path), StringComparer.Ordinal))
             {
                 continue;
             }
