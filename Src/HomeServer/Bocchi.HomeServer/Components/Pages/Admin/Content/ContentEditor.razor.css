@@ -92,6 +92,24 @@
     flex: 0 0 auto;
 }
 
+/* 保存/更新走配色的主按钮色；不可保存时是浅底描边，不用半透明 */
+.bocchi-editor-commandbar__actions .bocchi-editor-commandbar__primary {
+    border: 1px solid var(--bocchi-action-fill);
+    background: var(--bocchi-action-fill);
+    color: var(--bocchi-on-action);
+}
+
+.bocchi-editor-commandbar__actions .bocchi-editor-commandbar__primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--bocchi-action-fill) 85%, #000);
+}
+
+.bocchi-editor-commandbar__actions .bocchi-editor-commandbar__primary:disabled {
+    border-color: var(--bocchi-border);
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text-muted);
+    opacity: 1;
+}
+
 .bocchi-editor-commandbar__actions .bocchi-editor-commandbar__danger {
     border-color: color-mix(in srgb, var(--bocchi-danger-strong) 42%, var(--bocchi-border));
     color: var(--bocchi-danger-strong);
@@ -909,16 +927,7 @@
         width: 2rem;
         min-height: 2rem;
         justify-content: center;
-        border: 1px solid var(--bocchi-border);
-        background: var(--bocchi-surface);
-        color: var(--bocchi-text-muted);
         padding: 0;
-    }
-
-    .bocchi-editor-commandbar__primary:not(:disabled) {
-        border-color: color-mix(in srgb, var(--bocchi-action) 32%, var(--bocchi-border));
-        background: var(--bocchi-text);
-        color: var(--bocchi-surface);
     }
 
     .bocchi-editor-commandbar__primary-label {
