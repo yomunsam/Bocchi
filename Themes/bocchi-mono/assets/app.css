@@ -33,6 +33,10 @@ html[data-theme="dark"]{
 }
 body{
   margin:0;
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
   background:var(--bg);
   color:var(--ink);
   font-family:var(--font-body);
@@ -43,6 +47,7 @@ body{
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
+main{flex:1 0 auto}
 a{color:inherit;text-decoration:none}
 a:hover{color:var(--accent)}
 button,input,textarea,select{font:inherit;color:inherit;letter-spacing:0}
@@ -56,11 +61,11 @@ code,pre{font-family:var(--font-mono)}
 .content{max-width:var(--content);margin:0 auto;padding:0 32px}
 .prose{max-width:var(--prose);margin:0 auto;padding:0 32px}
 .between{display:flex;align-items:center;justify-content:space-between;gap:24px}
-.py-96{padding-top:96px;padding-bottom:96px}
+.py-96{padding-top:80px;padding-bottom:80px}
 .section-divider{border-top:1px solid var(--line)}
 .caption,.fig-num{
   font-family:var(--font-mono);
-  font-size:11px;
+  font-size:12px;
   line-height:1.4;
   letter-spacing:0;
   text-transform:uppercase;
@@ -78,7 +83,14 @@ code,pre{font-family:var(--font-mono)}
   letter-spacing:0;
   white-space:pre-line;
   overflow-wrap:anywhere;
+  text-wrap:balance;
 }
+/* 中文、日文没有真正的斜体，浏览器只会把字形硬拉斜；这些语言下标题、引用一律用正体。 */
+:lang(zh) .display,:lang(ja) .display,
+:lang(zh) .prose-body blockquote,:lang(ja) .prose-body blockquote,
+:lang(zh) .mobile-nav a,:lang(ja) .mobile-nav a,
+:lang(zh) .mobile-nav__label,:lang(ja) .mobile-nav__label{font-style:normal}
+:lang(zh) .display,:lang(ja) .display{font-weight:500;letter-spacing:-.01em}
 .lead,.hero-subtitle{
   max-width:660px;
   margin:28px 0 0;
@@ -193,6 +205,7 @@ html[data-theme="dark"] .nav__children{box-shadow:0 18px 38px rgba(0,0,0,.34)}
   justify-content:center;
 }
 .icon-button:hover{background:var(--bg-soft);color:var(--ink)}
+.icon-button svg,.theme-menu__appearance-icon svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none}
 .menu-btn{display:none}
 
 .theme-menu{position:relative;display:inline-flex;color:var(--ink);font-size:13px}
@@ -217,7 +230,7 @@ html[data-theme="dark"] .nav__children{box-shadow:0 18px 38px rgba(0,0,0,.34)}
 .theme-menu__chevron{display:inline-flex;align-items:center;justify-content:center;color:var(--ink-mute);transition:transform .14s ease}
 .theme-menu__chevron svg{width:15px;height:15px;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;fill:none}
 .theme-menu[open] .theme-menu__chevron{transform:rotate(180deg)}
-.theme-menu__appearance-icon{display:none;font-size:16px;line-height:1}
+.theme-menu__appearance-icon{display:none;line-height:1}
 .theme-menu:not([data-bocchi-appearance-mode]) .theme-menu__appearance-icon--auto,
 .theme-menu[data-bocchi-appearance-mode="auto"] .theme-menu__appearance-icon--auto,
 .theme-menu[data-bocchi-appearance-mode="light"] .theme-menu__appearance-icon--light,
@@ -284,9 +297,8 @@ html[data-theme="dark"] .theme-menu__menu{box-shadow:0 18px 38px rgba(0,0,0,.34)
 .mobile-nav__children a,.mobile-nav__children .mobile-nav__label{font-size:22px;color:var(--ink-2)}
 
 .hero{
-  min-height:calc(100vh - var(--topbar-h));
-  padding-top:64px;
-  padding-bottom:96px;
+  padding-top:112px;
+  padding-bottom:88px;
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -325,6 +337,7 @@ html[data-theme="dark"] .theme-menu__menu{box-shadow:0 18px 38px rgba(0,0,0,.34)
 }
 .article-list .title{
   min-width:0;
+  text-wrap:pretty;
   color:var(--ink);
   font-size:18px;
   font-weight:600;
@@ -355,7 +368,6 @@ html[data-theme="dark"] .theme-menu__menu{box-shadow:0 18px 38px rgba(0,0,0,.34)
 .proj-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
 .proj-card{
   position:relative;
-  min-height:250px;
   border:1px solid var(--line);
   margin:-1px 0 0 -1px;
   padding:32px;
@@ -583,6 +595,8 @@ bocchi-time{display:inline-flex;align-items:center;gap:8px}
   overflow:hidden;
 }
 .media-cover img{width:100%;height:100%;object-fit:cover}
+.prose-body h2,.prose-body h3,.article-nav strong{text-wrap:balance}
+.prose-body p,.prose-body li{text-wrap:pretty}
 .prose-body{
   color:var(--ink);
   font-size:17px;
@@ -662,7 +676,7 @@ footer.site .row{
   margin:0 auto;
   padding:0 32px;
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  grid-template-columns:minmax(0,1fr) auto;
   align-items:center;
   gap:16px;
   color:var(--ink-mute);
@@ -674,8 +688,6 @@ footer.site a:hover{color:var(--accent)}
 .footer-copy{display:flex;align-items:baseline;gap:14px;min-width:0;text-align:left}
 .footer-copy__copyright{color:var(--ink-mute)}
 .footer-copy__built{color:var(--ink-mute);font-size:12px}
-.footer-mark-line{justify-self:center;color:var(--ink-mute);font-size:12px;white-space:nowrap}
-.footer-mark-line span{color:var(--accent)}
 .footer-links{justify-self:end;white-space:nowrap}
 
 @media(max-width:960px){
@@ -691,6 +703,9 @@ footer.site a:hover{color:var(--accent)}
   .nav-links{display:none}
   .menu-btn{display:inline-flex}
   .theme-menu__current{display:none}
+  .icon-button,.theme-menu summary{width:auto;min-width:44px;height:44px}
+  .filter-row a{min-height:44px;padding:0 16px}
+  .nav__children a,.theme-menu__option{min-height:44px}
   .theme-menu[data-bocchi-language-control] .theme-menu__current{display:inline-block;max-width:76px}
   .container,.content,.prose{padding:0 20px}
   .py-96{padding-top:64px;padding-bottom:64px}
@@ -724,13 +739,15 @@ footer.site a:hover{color:var(--accent)}
   .about-portrait{width:120px}
   footer.site .row{grid-template-columns:minmax(0,1fr) auto;align-items:start;padding:0 20px}
   .footer-copy{flex-direction:column;gap:4px;line-height:1.5}
-  .footer-mark-line{grid-column:1 / -1;grid-row:1;justify-self:center}
-  .footer-copy{grid-column:1;grid-row:2}
-  .footer-links{grid-column:2;grid-row:2;align-self:start}
+  .footer-links{align-self:start}
 }
 @media(max-width:420px){
   .display{font-size:42px}
   .top-actions{gap:4px}
-  .icon-button,.theme-menu summary{min-height:32px;height:32px;min-width:32px}
+  .topbar .inner{padding:0 16px}
   .mobile-nav a,.mobile-nav__label{font-size:28px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important}
+  .proj-card:hover{transform:none}
 }

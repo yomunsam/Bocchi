@@ -36,9 +36,9 @@
         </details>
         <details class="theme-menu" data-bocchi-appearance-control>
           <summary aria-label="{{ text.appearanceLabel }}" title="{{ text.appearanceLabel }}">
-            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--auto" aria-hidden="true">◐</span>
-            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--light" aria-hidden="true">☀</span>
-            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--dark" aria-hidden="true">☾</span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--auto" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"></path></svg></span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--light" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></span>
+            <span class="theme-menu__appearance-icon theme-menu__appearance-icon--dark" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg></span>
             <span class="theme-menu__chevron" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false"><path d="m6 9 6 6 6-6"></path></svg>
             </span>
@@ -49,7 +49,7 @@
             <button class="theme-menu__option" type="button" role="menuitemradio" data-bocchi-appearance-option="dark" aria-current="false"><span data-bocchi-i18n="common.appearanceDark">{{ text.appearanceDark }}</span></button>
           </div>
         </details>
-        <button class="icon-button menu-btn" type="button" data-mobile-toggle aria-expanded="false" aria-label="{{ text.openMenu }}">☰</button>
+        <button class="icon-button menu-btn" type="button" data-mobile-toggle aria-expanded="false" aria-label="{{ text.openMenu }}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       </div>
     </div>
     <nav class="mobile-nav" data-mobile-nav aria-label="Mobile primary">
@@ -63,7 +63,6 @@
         <span class="footer-copy__copyright">{{ site.copyrightNotice }}</span>
         <span class="footer-copy__built" data-bocchi-i18n="theme.bocchi-mono.colophonBuiltWith">{{ text.colophonBuiltWith }}</span>
       </div>
-      <span class="footer-mark-line" aria-hidden="true">· · <span>🐾</span> · ·</span>
       <span class="footer-links"><a href="/feed.xml">RSS</a> · <a href="/sitemap.xml">Sitemap</a></span>
     </div>
   </footer>
