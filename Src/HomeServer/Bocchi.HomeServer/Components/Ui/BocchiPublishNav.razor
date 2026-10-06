@@ -7,8 +7,7 @@
         @* 发布中心使用与 Settings 同款的二级导航，避免把未来发布目标扩展塞进 tabbar。 *@
         <a href="@item.Url"
            class="@ItemClass(item)"
-           aria-current="@AriaCurrent(item)"
-           title='@I18n[item.DescriptionKey]'>
+           aria-current="@AriaCurrent(item)">
             <span class="bocchi-publish-nav__icon" aria-hidden="true">
                 @if (item.IconAsset is not null)
                 {
@@ -32,8 +31,8 @@
     /// <summary>发布中心子页面定义；Help 页属于发布方案流程，不放到全局 Settings。</summary>
     private static readonly PublishNavItem[] Items =
     [
-        new(string.Empty, "/Admin/Publish", "publish.nav.publish", "publish.nav.publishDescription", Lucide.Send),
-        new("AddPlan", "/Admin/Publish/AddPlan", "publish.nav.addPlan", "publish.nav.addPlanDescription", Lucide.Plus),
+        new(string.Empty, "/Admin/Publish", "publish.nav.publish", Lucide.Send),
+        new("AddPlan", "/Admin/Publish/AddPlan", "publish.nav.addPlan", Lucide.Plus),
     ];
 
     /// <summary>当前 Dashboard 路径，用于判断发布中心二级导航 active 状态。</summary>
@@ -71,5 +70,5 @@
         => "/" + value.Trim('/').TrimEnd('/');
 
     /// <summary>发布中心二级导航项定义。</summary>
-    private sealed record PublishNavItem(string Section, string Url, string TitleKey, string DescriptionKey, SvgIcon Icon, string? IconAsset = null);
+    private sealed record PublishNavItem(string Section, string Url, string TitleKey, SvgIcon Icon, string? IconAsset = null);
 }

@@ -3,7 +3,7 @@
 
 <nav class="bocchi-settings-nav" aria-label='@I18n["settings.nav.aria"]'>
     @* Settings hub 是上级入口，不参与二级导航 active 规则，避免“返回”和“当前 section”混在一起。 *@
-    <a class="bocchi-settings-nav__back" href="/Admin/Settings" title='@I18n["settings.nav.backDescription"]'>
+    <a class="bocchi-settings-nav__back" href="/Admin/Settings">
         <span class="bocchi-settings-nav__icon" aria-hidden="true">
             <Blazicon Svg="Lucide.ArrowLeft" />
         </span>
@@ -17,8 +17,7 @@
                active 与 sidebar 同款 soft 风格：左侧 3px 粉条 + 8% 粉底。 *@
             <a href="@item.Url"
                class="@ItemClass(item)"
-               aria-current="@AriaCurrent(item)"
-               title='@I18n[item.DescriptionKey]'>
+               aria-current="@AriaCurrent(item)">
                 <span class="bocchi-settings-nav__icon" aria-hidden="true">
                     <Blazicon Svg="@item.Icon" />
                 </span>
@@ -36,12 +35,12 @@
     /// <summary>Settings 导航项的固定定义；Users 是设置体系的一部分，但保留独立路由。</summary>
     private static readonly SettingsNavItem[] Items =
     [
-        new("profile", "/Admin/Settings/Profile", "settings.nav.profile", "settings.nav.profileDescription", Lucide.SlidersHorizontal),
-        new("localization", "/Admin/Settings/Localization", "settings.nav.localization", "settings.nav.localizationDescription", Lucide.Languages),
-        new("login", "/Admin/Settings/Login", "settings.nav.login", "settings.nav.loginDescription", Lucide.KeyRound),
-        new("integrations", "/Admin/Settings/Integrations", "settings.nav.integrations", "settings.nav.integrationsDescription", Lucide.Link),
-        new("users", "/Admin/Users", "settings.nav.users", "settings.nav.usersDescription", Lucide.Users),
-        new("system", "/Admin/Settings/System", "settings.nav.system", "settings.nav.systemDescription", Lucide.Database),
+        new("profile", "/Admin/Settings/Profile", "settings.nav.profile", Lucide.SlidersHorizontal),
+        new("localization", "/Admin/Settings/Localization", "settings.nav.localization", Lucide.Languages),
+        new("login", "/Admin/Settings/Login", "settings.nav.login", Lucide.KeyRound),
+        new("integrations", "/Admin/Settings/Integrations", "settings.nav.integrations", Lucide.Link),
+        new("users", "/Admin/Users", "settings.nav.users", Lucide.Users),
+        new("system", "/Admin/Settings/System", "settings.nav.system", Lucide.Database),
     ];
 
     /// <summary>当前 Dashboard 路径，用于设置导航 active 状态。</summary>
@@ -85,5 +84,5 @@
         => "/" + value.Trim('/').TrimEnd('/');
 
     /// <summary>Settings 导航项定义。</summary>
-    private sealed record SettingsNavItem(string Section, string Url, string TitleKey, string DescriptionKey, SvgIcon Icon);
+    private sealed record SettingsNavItem(string Section, string Url, string TitleKey, SvgIcon Icon);
 }
