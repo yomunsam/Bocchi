@@ -37,7 +37,8 @@
     --bocchi-surface-pink: #fdeef3;
     --bocchi-text: #241e21;
     --bocchi-text-muted: #5c5157;
-    --bocchi-text-subtle: #8c7d84;
+    /* 日期、路径这类要读的小字，三种底色上都不低于 4.5:1 */
+    --bocchi-text-subtle: #736770;
     --bocchi-border: #ebe3e6;
     --bocchi-border-strong: #e0c8d1;
     /* accents：波奇的发色（粉）和两只发夹（蓝、黄），只做小面积点缀 */
@@ -49,9 +50,9 @@
     --bocchi-clip-yellow: #f2c94c;
     /* status */
     --bocchi-success-soft: #e9f8f0;
-    --bocchi-success-strong: #4daf50;
+    --bocchi-success-strong: #2e7d32;
     --bocchi-warning-soft: #fff5dc;
-    --bocchi-warning-strong: #936a16;
+    --bocchi-warning-strong: #7a5710;
     --bocchi-danger-soft: #fff0f0;
     --bocchi-danger-strong: #ba1a1a;
     /* shadows & focus */
@@ -136,7 +137,7 @@
     --bocchi-surface-pink: #3a2530;
     --bocchi-text: #f5eff1;
     --bocchi-text-muted: #c4b4bb;
-    --bocchi-text-subtle: #96858d;
+    --bocchi-text-subtle: #a3939a;
     --bocchi-border: #3d3438;
     --bocchi-border-strong: #5c4c53;
     --bocchi-blue: #8ba8c6;
@@ -192,7 +193,7 @@
     --bocchi-surface-pink: #fbeef2;
     --bocchi-text: #1c1a1b;
     --bocchi-text-muted: #545052;
-    --bocchi-text-subtle: #858083;
+    --bocchi-text-subtle: #6c676a;
     --bocchi-border: #e6e6e6;
     --bocchi-border-strong: #cfcfcf;
     --bocchi-action: #2b2528;
@@ -211,12 +212,14 @@
     --bocchi-surface-pink: #33262c;
     --bocchi-text: #f2f2f2;
     --bocchi-text-muted: #bdbdbd;
-    --bocchi-text-subtle: #8a8a8a;
+    --bocchi-text-subtle: #959595;
     --bocchi-border: #333333;
     --bocchi-border-strong: #4a4a4a;
     --bocchi-action: #f2f2f2;
     --bocchi-action-strong: #ffffff;
-    --bocchi-action-fill: #4a4347;
+    /* 深色女仆的主按钮反色：浅灰底深色字，和深色次按钮拉开层级 */
+    --bocchi-action-fill: #f2f2f2;
+    --bocchi-on-action: #1c1a1b;
     --bocchi-nav-active-bar: #f4a6c0;
     --bocchi-avatar-bg: #2c2c2c;
     --bocchi-focus-ring: 0 0 0 3px rgba(242, 242, 242, 0.28);
@@ -231,7 +234,7 @@
     --bocchi-surface-pink: #fdf3d6;
     --bocchi-text: #1c2026;
     --bocchi-text-muted: #4f5864;
-    --bocchi-text-subtle: #7d8794;
+    --bocchi-text-subtle: #626c78;
     --bocchi-border: #e3e7ed;
     --bocchi-border-strong: #c9d3df;
     --bocchi-action: #286aa3;
@@ -250,7 +253,7 @@
     --bocchi-surface-pink: #2e2a1c;
     --bocchi-text: #eef2f6;
     --bocchi-text-muted: #b3bdc9;
-    --bocchi-text-subtle: #85909d;
+    --bocchi-text-subtle: #8d98a5;
     --bocchi-border: #333b46;
     --bocchi-border-strong: #4b5563;
     --bocchi-action: #8cc4ec;

@@ -79,7 +79,7 @@
     padding: 0 0.35rem;
     border-radius: 999px;
     background: var(--bocchi-action-fill);
-    color: #fff;
+    color: var(--bocchi-on-action);
     font-size: 0.7rem;
     font-weight: 600;
     line-height: 1;

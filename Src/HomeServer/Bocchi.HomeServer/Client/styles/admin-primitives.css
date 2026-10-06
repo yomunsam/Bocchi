@@ -149,7 +149,7 @@ textarea:focus-visible {
 .bocchi-admin-shell button.bocchi-button--primary,
 .bocchi-button--primary {
     background: var(--bocchi-action-fill);
-    color: #fff;
+    color: var(--bocchi-on-action);
     padding: 0 1.15rem;
 }
 

@@ -46,7 +46,7 @@
 .bocchi-category-workbench__toolbar-main button:not(.secondary) {
     background: var(--bocchi-action-fill);
     border-color: var(--bocchi-action-fill);
-    color: #fff;
+    color: var(--bocchi-on-action);
 }
 
 .bocchi-category-workbench__toolbar-main button:not(.secondary):hover:not(:disabled) {

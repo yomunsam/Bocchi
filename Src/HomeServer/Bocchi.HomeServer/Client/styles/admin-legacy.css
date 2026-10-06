@@ -305,7 +305,7 @@
 .bocchi-kind-action--primary {
     border-color: color-mix(in srgb, var(--bocchi-action-fill) 45%, var(--bocchi-border));
     background: var(--bocchi-action-fill);
-    color: #fff;
+    color: var(--bocchi-on-action);
 }
 
 .bocchi-kind-action--primary:hover {

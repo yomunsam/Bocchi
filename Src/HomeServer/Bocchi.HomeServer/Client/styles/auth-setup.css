@@ -550,7 +550,7 @@
     min-width: 10.625rem;
     border: 0;
     background: var(--bocchi-action-fill);
-    color: #ffffff;
+    color: var(--bocchi-on-action);
     cursor: pointer;
     padding: 0.75rem 2rem;
     transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
