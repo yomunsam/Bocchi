@@ -1,0 +1,28 @@
+@inject DashboardLocalizationService I18n
+
+@* 后台配色：只存在当前浏览器（localStorage bocchi.dashboard.palette），App.razor 的 head 脚本在首屏前读取。
+   选中态由 CSS 按 <html data-bocchi-palette> 画出，radio 的 checked 由 bocchi-appearance.js 同步，避免服务端猜错。 *@
+<section class="bocchi-panel bocchi-palette-picker" aria-labelledby="bocchi-palette-heading">
+    <h2 id="bocchi-palette-heading">@I18n["settings.palette.title"]</h2>
+    <div class="bocchi-palette-picker__options" role="radiogroup" aria-labelledby="bocchi-palette-heading">
+        @foreach (var palette in Palettes)
+        {
+            var label = I18n[$"settings.palette.{palette}"];
+            <label class="bocchi-palette-option bocchi-tooltip" data-bocchi-tooltip="@label" data-bocchi-tooltip-placement="bottom">
+                <input type="radio"
+                       name="bocchi-dashboard-palette"
+                       value="@palette"
+                       aria-label="@label"
+                       data-bocchi-palette-option="@palette" />
+                <span class="bocchi-palette-option__swatch bocchi-palette-option__swatch--@palette" aria-hidden="true">
+                    <Blazicon Svg="Lucide.Check" />
+                </span>
+            </label>
+        }
+    </div>
+</section>
+
+@code {
+    /// <summary>可选配色，第一项是默认值；和 tokens.css 的 data-bocchi-palette 取值一一对应。</summary>
+    internal static readonly string[] Palettes = ["tracksuit", "maid", "clip"];
+}

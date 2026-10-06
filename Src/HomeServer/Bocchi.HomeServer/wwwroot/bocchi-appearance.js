@@ -65,19 +65,48 @@
 
     // Dashboard 外观只控制后台明暗模式；不要和前台业务 Theme 混用。
     // 配色：默认「运动服」；localStorage 里存了 maid / clip 时切换，只写 data 属性，颜色全在 tokens.css。
-    function applyPalette() {
-        let palette = null;
+    const paletteKey = "bocchi.dashboard.palette";
+
+    function normalizePalette(value) {
+        return value === "maid" || value === "clip" ? value : "tracksuit";
+    }
+
+    function readStoredPalette() {
         try {
-            palette = localStorage.getItem("bocchi.dashboard.palette");
+            return normalizePalette(localStorage.getItem(paletteKey));
         } catch {
-            palette = null;
+            return "tracksuit";
+        }
+    }
+
+    function syncPaletteControls(palette) {
+        for (const input of document.querySelectorAll("[data-bocchi-palette-option]")) {
+            if (input instanceof HTMLInputElement) {
+                input.checked = input.value === palette;
+            }
+        }
+    }
+
+    function applyPalette(value) {
+        const palette = normalizePalette(value);
+        if (palette === "tracksuit") {
+            delete root.dataset.bocchiPalette;
+        } else {
+            root.dataset.bocchiPalette = palette;
         }
 
-        if (palette === "maid" || palette === "clip") {
-            root.dataset.bocchiPalette = palette;
-        } else {
-            delete root.dataset.bocchiPalette;
+        syncPaletteControls(palette);
+    }
+
+    function setPalette(value) {
+        const palette = normalizePalette(value);
+        try {
+            localStorage.setItem(paletteKey, palette);
+        } catch {
+            // 存不下时只在本页生效。
         }
+
+        applyPalette(palette);
     }
 
     function apply(mode) {
@@ -97,6 +126,7 @@
             apply(normalized);
         },
         apply,
+        setPalette,
     };
 
     function closeMenuFrom(element) {
@@ -129,6 +159,7 @@
         queueMicrotask(() => {
             syncQueued = false;
             apply(root.dataset.bocchiAppearance || "auto");
+            syncPaletteControls(normalizePalette(root.dataset.bocchiPalette));
         });
     }
 
@@ -171,6 +202,14 @@
             closeOpenMenusExcept(target);
         });
 
+        // 配色 radio：方向键和点击都会触发 change，立即换色并记住
+        document.addEventListener("change", event => {
+            const input = event.target;
+            if (input instanceof HTMLInputElement && input.matches("[data-bocchi-palette-option]") && input.checked) {
+                setPalette(input.value);
+            }
+        });
+
         document.addEventListener("keydown", event => {
             if (event.key === "Escape") {
                 closeOpenMenusExcept(null);
@@ -182,7 +221,13 @@
     }
 
     apply(readStoredMode());
-    applyPalette();
+    applyPalette(readStoredPalette());
+    // 别的标签页改了配色，这里跟着换
+    window.addEventListener("storage", event => {
+        if (event.key === paletteKey) {
+            applyPalette(readStoredPalette());
+        }
+    });
     query.addEventListener("change", () => apply(root.dataset.bocchiAppearance || "auto"));
     document.addEventListener("DOMContentLoaded", setupAppearanceControls);
     document.addEventListener("enhancedload", syncSoon);

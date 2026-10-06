@@ -1,0 +1,111 @@
+/* 色块固定画每套配色自己的颜色，不跟随当前配色；深色模式换成对应的深色表面。 */
+.bocchi-palette-picker {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.bocchi-palette-picker h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.bocchi-palette-picker__options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.bocchi-palette-option {
+    position: relative;
+    display: inline-flex;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+/* radio 盖在色块上：保留原生的方向键切换和读屏语义，只是看不见 */
+.bocchi-palette-option input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.bocchi-palette-option__swatch {
+    --swatch-base: #fbf8f8;
+    --swatch-fill: #b83b70;
+    --swatch-accent: #f4a6c0;
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--bocchi-border-strong);
+    border-radius: inherit;
+    background: conic-gradient(var(--swatch-fill) 0 50%, var(--swatch-accent) 0 75%, var(--swatch-base) 0);
+    pointer-events: none;
+}
+
+.bocchi-palette-option__swatch--maid {
+    --swatch-base: #ffffff;
+    --swatch-fill: #2b2528;
+    --swatch-accent: #e58aa8;
+}
+
+.bocchi-palette-option__swatch--clip {
+    --swatch-base: #f8f9fb;
+    --swatch-fill: #286aa3;
+    --swatch-accent: #f2c94c;
+}
+
+:root[data-bocchi-effective-appearance="dark"] .bocchi-palette-option__swatch--tracksuit {
+    --swatch-base: #221d20;
+}
+
+:root[data-bocchi-effective-appearance="dark"] .bocchi-palette-option__swatch--maid {
+    --swatch-base: #1c1c1c;
+    --swatch-fill: #f2f2f2;
+    --swatch-accent: #f4a6c0;
+}
+
+:root[data-bocchi-effective-appearance="dark"] .bocchi-palette-option__swatch--clip {
+    --swatch-base: #1b2027;
+}
+
+/* 勾选标记：深底圆点里的对勾，平时隐藏 */
+.bocchi-palette-option__swatch ::deep svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: var(--bocchi-action-fill);
+    color: var(--bocchi-on-action);
+    opacity: 0;
+}
+
+/* 选中态跟 <html> 上的配色属性走，首屏就是对的，不等脚本 */
+:root:not([data-bocchi-palette]) .bocchi-palette-option__swatch--tracksuit,
+:root[data-bocchi-palette="maid"] .bocchi-palette-option__swatch--maid,
+:root[data-bocchi-palette="clip"] .bocchi-palette-option__swatch--clip {
+    outline: 2px solid var(--bocchi-action);
+    outline-offset: 3px;
+}
+
+:root:not([data-bocchi-palette]) .bocchi-palette-option__swatch--tracksuit ::deep svg,
+:root[data-bocchi-palette="maid"] .bocchi-palette-option__swatch--maid ::deep svg,
+:root[data-bocchi-palette="clip"] .bocchi-palette-option__swatch--clip ::deep svg {
+    opacity: 1;
+}
+
+.bocchi-palette-option:hover .bocchi-palette-option__swatch {
+    border-color: var(--bocchi-text-muted);
+}
+
+.bocchi-palette-option input:focus-visible + .bocchi-palette-option__swatch {
+    box-shadow: var(--bocchi-focus-ring);
+}
