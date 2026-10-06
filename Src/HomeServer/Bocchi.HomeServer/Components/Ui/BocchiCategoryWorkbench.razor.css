@@ -64,6 +64,13 @@
     cursor: not-allowed;
 }
 
+.bocchi-category-workbench__toolbar-main button:not(.secondary):disabled {
+    border-color: var(--bocchi-border);
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text-muted);
+    opacity: 1;
+}
+
 .bocchi-category-workbench__toolbar-main button ::deep svg {
     width: var(--bocchi-action-control-icon-size);
     height: var(--bocchi-action-control-icon-size);

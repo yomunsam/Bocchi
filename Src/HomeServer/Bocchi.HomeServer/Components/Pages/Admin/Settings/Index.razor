@@ -94,7 +94,7 @@
                                     <input type="text" @bind="_copyrightNotice" />
                                 </label>
                                 <div class="bocchi-inline-actions">
-                                    <button type="submit">
+                                    <button type="submit" class="bocchi-button--primary">
                                         <Blazicon Svg="Lucide.Save" />
                                         <span>@I18n["settings.profile.save"]</span>
                                     </button>
@@ -214,7 +214,7 @@
                                 </div>
                             </dl>
 
-                            <button type="button" @onclick="SaveLocalizationAsync">@I18n["settings.localization.saveSite"]</button>
+                            <button type="button" class="bocchi-button--primary" @onclick="SaveLocalizationAsync">@I18n["settings.localization.saveSite"]</button>
                             @if (!string.IsNullOrWhiteSpace(_localizationMessage))
                             {
                                 <p class="bocchi-localization-message">

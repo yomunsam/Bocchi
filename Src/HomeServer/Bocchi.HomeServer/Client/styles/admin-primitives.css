@@ -158,6 +158,15 @@ textarea:focus-visible {
     background: color-mix(in srgb, var(--bocchi-action-fill) 85%, #000);
 }
 
+/* 禁用的主按钮换成描边浅底，不用半透明 */
+.bocchi-admin-shell button.bocchi-button--primary:disabled,
+.bocchi-button--primary:disabled {
+    border: 1px solid var(--bocchi-border);
+    background: var(--bocchi-surface-muted);
+    color: var(--bocchi-text-muted);
+    opacity: 1;
+}
+
 /* Admin segmented control：用于页面级二选一/少量任务切换。
    统一在全局层维护体积、active 对比和 icon 尺寸，避免各页面自行复制后漂移。 */
 .bocchi-theme-tabs,

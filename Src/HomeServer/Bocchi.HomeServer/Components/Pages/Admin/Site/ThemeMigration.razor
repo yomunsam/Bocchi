@@ -94,7 +94,7 @@
             <button type="button" class="secondary" @onclick="CancelAsync" disabled="@_applying">
                 @I18n["themeMigration.action.cancel"]
             </button>
-            <button type="button" @onclick="ApplyAsync" disabled="@_applying">
+            <button type="button" class="bocchi-button--primary" @onclick="ApplyAsync" disabled="@_applying">
                 <Blazicon Svg="Lucide.Check" />
                 <span>@(_applying ? I18n["themeMigration.status.applying"] : I18n["themeMigration.action.apply"])</span>
             </button>

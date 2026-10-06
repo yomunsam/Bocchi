@@ -16,7 +16,7 @@
                 <Blazicon Svg="Lucide.Plus" />
                 <span>@I18n["siteNavigation.editor.addRoot"]</span>
             </button>
-            <button type="button" disabled="@(!CanSave)" @onclick="SaveAsync">
+            <button type="button" class="bocchi-button--primary" disabled="@(!CanSave)" @onclick="SaveAsync">
                 <Blazicon Svg="Lucide.Save" />
                 <span>@(_busy ? I18n["siteNavigation.editor.saving"] : I18n["siteNavigation.editor.save"])</span>
             </button>
