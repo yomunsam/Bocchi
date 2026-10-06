@@ -63,6 +63,9 @@ public sealed record BocchiDataLayout
     /// <summary>ASP.NET Core Data Protection 密钥目录；丢失后数据库里加密保存的凭据都无法解密。</summary>
     public string DataProtectionKeysDirectory => Path.Combine(DataRoot, "keys");
 
+    /// <summary>备份目录：手动备份 zip 与升级迁移前的数据库快照，不进入备份本身。</summary>
+    public string BackupsDirectory => Path.Combine(DataRoot, "backups");
+
     /// <summary>Bocchi 日志目录。</summary>
     public string LogsDirectory => Path.Combine(DataRoot, "logs");
 

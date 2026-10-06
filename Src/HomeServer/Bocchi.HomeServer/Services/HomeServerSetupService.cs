@@ -18,6 +18,7 @@ public sealed class HomeServerSetupService
     private readonly TimeProvider _time;
     private readonly SiteProfileSettingsService _siteProfile;
     private readonly DashboardGuideService _guides;
+    private readonly DatabaseMigrator _migrator;
 
     /// <summary>构造 Setup 服务。</summary>
     public HomeServerSetupService(
@@ -27,7 +28,8 @@ public sealed class HomeServerSetupService
         BocchiDataLayout layout,
         TimeProvider time,
         SiteProfileSettingsService siteProfile,
-        DashboardGuideService guides)
+        DashboardGuideService guides,
+        DatabaseMigrator migrator)
     {
         _db = db;
         _users = users;
@@ -36,13 +38,13 @@ public sealed class HomeServerSetupService
         _time = time;
         _siteProfile = siteProfile;
         _guides = guides;
+        _migrator = migrator;
     }
 
     /// <summary>应用 EF Core 迁移并确保基础种子数据存在。</summary>
     public async Task EnsureDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(_layout.StateDirectory);
-        await _db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
+        await _migrator.MigrateAsync(_db, cancellationToken).ConfigureAwait(false);
         await EnsureAdminRoleAsync().ConfigureAwait(false);
         await EnsureDashboardSettingsAsync(cancellationToken).ConfigureAwait(false);
         await EnsureGitHubIntegrationSettingsAsync(cancellationToken).ConfigureAwait(false);

@@ -9,6 +9,7 @@ using Bocchi.HomeServer.Components;
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Data.State;
 using Bocchi.HomeServer.Hosting;
+using Bocchi.HomeServer.Maintenance;
 using Bocchi.HomeServer.Security;
 using Bocchi.HomeServer.Services;
 using Bocchi.HomeServer.Services.Ai;
@@ -54,6 +55,14 @@ try
         [DataRootResolver.ConfigurationKey] = dataRoot,
     });
     var dataLayout = new BocchiDataLayout(dataRoot);
+
+    // backup / restore 在启动流程（初始化 DataRoot、迁移数据库）之前执行并直接退出。
+    if (MaintenanceCli.IsMaintenanceCommand(args))
+    {
+        Environment.ExitCode = MaintenanceCli.Run(args, dataLayout, Console.Out);
+        return;
+    }
+
     builder.Services.AddSingleton(dataLayout);
     builder.Services.AddBocchiData(builder.Configuration, _ => dataRoot);
     builder.Services.AddBocchiGenerator(builder.Configuration);
@@ -102,6 +111,8 @@ try
     builder.Services.AddSingleton<ExternalLoginOptionsConfigurator>();
     builder.Services.AddSingleton<IConfigureOptions<OAuthOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
     builder.Services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>>(sp => sp.GetRequiredService<ExternalLoginOptionsConfigurator>());
+    builder.Services.Configure<BackupOptions>(builder.Configuration.GetSection(BackupOptions.SectionName));
+    builder.Services.AddSingleton<DatabaseMigrator>();
     builder.Services.AddSingleton<SetupPendingAdminStore>();
     builder.Services.AddScoped<HomeServerSetupService>();
     builder.Services.AddScoped<DashboardGuideService>();
