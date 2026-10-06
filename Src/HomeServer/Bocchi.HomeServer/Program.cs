@@ -1,11 +1,13 @@
 using System.Globalization;
 
 using Bocchi.Generator;
+using Bocchi.Generator.State;
 using Bocchi.Generator.Theme;
 using Bocchi.HomeServer;
 using Bocchi.HomeServer.Build;
 using Bocchi.HomeServer.Components;
 using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Data.State;
 using Bocchi.HomeServer.Security;
 using Bocchi.HomeServer.Services;
 using Bocchi.HomeServer.Services.Ai;
@@ -51,12 +53,15 @@ try
     builder.Services.AddBocchiGenerator(builder.Configuration);
     builder.Services.PostConfigure<ThemeDevelopmentOptions>(options => options.EnvironmentName = builder.Environment.EnvironmentName);
     builder.Services.AddSingleton<BuildOrchestrator>();
-    builder.Services.AddDbContext<BocchiDbContext>((sp, options) =>
+    // Factory 同时注册 scoped DbContext（Identity/Blazor 用）和 singleton 工厂（内容/构建状态库用）。
+    builder.Services.AddDbContextFactory<BocchiDbContext>((sp, options) =>
     {
         var layout = sp.GetRequiredService<BocchiDataLayout>();
         Directory.CreateDirectory(layout.StateDirectory);
         options.UseSqlite($"Data Source={layout.SqliteDatabasePath}");
     });
+    builder.Services.AddSingleton<IContentStateStore, ContentStateStore>();
+    builder.Services.AddSingleton<IBuildStateStore, BuildStateStore>();
     builder.Services.AddIdentity<BocchiUser, IdentityRole>(options =>
         {
             // Home Server 是本机私有工具，密码策略要安全但不过分劝退普通创作者。
@@ -162,7 +167,7 @@ try
 
     var app = builder.Build();
 
-    // 启动时执行：可选自动初始化 + 自动迁移 schema。
+    // 启动时执行：可选自动初始化 + 应用 EF Core migration。
     using (var scope = app.Services.CreateScope())
     {
         var sp = scope.ServiceProvider;
@@ -170,11 +175,6 @@ try
         if (options.AutoInitialize)
         {
             await sp.GetRequiredService<BocchiDataInitializer>().InitializeAsync();
-        }
-
-        if (options.AutoMigrateSchema)
-        {
-            await sp.GetRequiredService<SchemaMigrator>().MigrateAsync();
         }
 
         await sp.GetRequiredService<HomeServerSetupService>().EnsureDatabaseAsync();

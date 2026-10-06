@@ -1,4 +1,6 @@
 using Bocchi.ContentModel;
+using Bocchi.HomeServer.Data.State;
+using Bocchi.Workspace;
 using Bocchi.Workspace.Content;
 using Bocchi.Workspace.Content.Loaders;
 using Bocchi.Workspace.Git;
@@ -7,17 +9,15 @@ using Bocchi.Workspace.State;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Bocchi.Workspace.Tests;
+namespace Bocchi.HomeServer.Tests;
 
 public sealed class ContentScannerTests
 {
-    private static async Task<(TempDataRoot temp, ContentScanner scanner, IContentStateStore store)> NewScannerAsync()
+    private static async Task<(StateTestDatabase temp, ContentScanner scanner, IContentStateStore store)> NewScannerAsync()
     {
-        var temp = new TempDataRoot();
+        var temp = await StateTestDatabase.CreateAsync();
         await new BocchiDataInitializer(temp.Layout).InitializeAsync();
-        var factory = new SqliteConnectionFactory(temp.Layout);
-        await new SchemaMigrator(factory).MigrateAsync();
-        var store = new ContentStateStore(factory);
+        var store = new ContentStateStore(temp, TimeProvider.System);
         var md = new MarkdownPipeline();
         var repo = new LibGit2ContentRepository(temp.Layout.Workspace);
         var scanner = new ContentScanner(

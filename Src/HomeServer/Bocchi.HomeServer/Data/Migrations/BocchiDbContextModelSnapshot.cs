@@ -15,7 +15,7 @@ namespace Bocchi.HomeServer.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.BocchiUser", b =>
                 {
@@ -29,8 +29,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DisplayName")
                         .HasMaxLength(160)
@@ -46,14 +46,14 @@ namespace Bocchi.HomeServer.Data.Migrations
                     b.Property<bool>("IsDisabled")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LastLoginAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LockoutEnd")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -109,8 +109,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -131,8 +131,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("GitProviderConnectionId")
                         .HasColumnType("INTEGER");
@@ -146,8 +146,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("LastSyncedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("LastSyncedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("RemoteName")
                         .IsRequired()
@@ -159,8 +159,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -175,11 +175,11 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset?>("DismissedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("DismissedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Key")
                         .IsRequired()
@@ -208,8 +208,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -269,8 +269,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("UsePkce")
                         .HasColumnType("INTEGER");
@@ -310,8 +310,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(4096)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -334,8 +334,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ProtectedCredentialJson")
                         .IsRequired()
@@ -352,8 +352,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -385,8 +385,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("UrlPolicy")
                         .IsRequired()
@@ -413,8 +413,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -431,8 +431,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(8192)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -475,8 +475,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("FinishedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("FinishedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("PublishPlanId")
                         .HasColumnType("INTEGER");
@@ -489,8 +489,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("StartedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("StartedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -498,6 +498,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BuildRunId");
 
                     b.HasIndex("PublishPlanId");
 
@@ -512,8 +514,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("CompletedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("CompletedAt")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("DataRoot")
                         .IsRequired()
@@ -579,12 +581,346 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.ToTable("SiteProfileSettings", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildArtifactRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("BuildRunId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProducedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuildRunId");
+
+                    b.HasIndex("Path");
+
+                    b.ToTable("BuildArtifacts", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildRunRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BocchiVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Fingerprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("FinishedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IncludeDrafts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ScanRunId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("StartedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThemeId")
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScanRunId");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique();
+
+                    b.HasIndex("StartedAt");
+
+                    b.ToTable("BuildRuns", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildStageLogRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("BuildRunId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("OccurredAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuildRunId");
+
+                    b.HasIndex("Level");
+
+                    b.ToTable("BuildStageLogs", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentErrorRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Field")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ScanRunId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScanRunId");
+
+                    b.HasIndex("Severity");
+
+                    b.ToTable("ContentErrors", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentFileRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("LastModifiedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("LastSeenAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind");
+
+                    b.HasIndex("RelativePath")
+                        .IsUnique();
+
+                    b.ToTable("ContentFiles", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentItemRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentId")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FrontmatterJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsTranslation")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LastSeenAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LocalizationGroup")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("PublishedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Slug")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceContentId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceLanguage")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Year")
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileId");
+
+                    b.HasIndex("Kind", "ContentId")
+                        .IsUnique();
+
+                    b.HasIndex("Kind", "PublishedAt");
+
+                    b.HasIndex("Kind", "LocalizationGroup", "Language");
+
+                    b.ToTable("ContentItems", (string)null);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentScanRunRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ErrorCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FilesScanned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("FinishedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("GitHeadSha")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ItemsLoaded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("StartedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WarningCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ContentScanRuns", (string)null);
                 });
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.ThemeConfigurationRecord", b =>
@@ -606,8 +942,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -763,10 +1099,69 @@ namespace Bocchi.HomeServer.Data.Migrations
 
             modelBuilder.Entity("Bocchi.HomeServer.Data.PublishRunRecord", b =>
                 {
+                    b.HasOne("Bocchi.HomeServer.Data.State.BuildRunRecord", null)
+                        .WithMany()
+                        .HasForeignKey("BuildRunId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Bocchi.HomeServer.Data.PublishPlanRecord", null)
                         .WithMany()
                         .HasForeignKey("PublishPlanId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildArtifactRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.State.BuildRunRecord", "BuildRun")
+                        .WithMany("Artifacts")
+                        .HasForeignKey("BuildRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BuildRun");
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildRunRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.State.ContentScanRunRecord", "ScanRun")
+                        .WithMany()
+                        .HasForeignKey("ScanRunId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ScanRun");
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildStageLogRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.State.BuildRunRecord", "BuildRun")
+                        .WithMany("Logs")
+                        .HasForeignKey("BuildRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BuildRun");
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentErrorRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.State.ContentScanRunRecord", "ScanRun")
+                        .WithMany("Errors")
+                        .HasForeignKey("ScanRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ScanRun");
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentItemRecord", b =>
+                {
+                    b.HasOne("Bocchi.HomeServer.Data.State.ContentFileRecord", "File")
+                        .WithMany("Items")
+                        .HasForeignKey("FileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("File");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -818,6 +1213,23 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.BuildRunRecord", b =>
+                {
+                    b.Navigation("Artifacts");
+
+                    b.Navigation("Logs");
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentFileRecord", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Bocchi.HomeServer.Data.State.ContentScanRunRecord", b =>
+                {
+                    b.Navigation("Errors");
                 });
 #pragma warning restore 612, 618
         }

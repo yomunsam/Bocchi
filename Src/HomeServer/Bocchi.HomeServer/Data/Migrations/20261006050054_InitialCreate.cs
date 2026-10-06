@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Bocchi.HomeServer.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialHomeServerSchema : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -31,8 +31,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                 {
                     Id = table.Column<string>(type: "TEXT", nullable: false),
                     DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    LastLoginAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    LastLoginAt = table.Column<long>(type: "INTEGER", nullable: true),
                     IsDisabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     UserName = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
@@ -45,7 +45,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     PhoneNumber = table.Column<string>(type: "TEXT", nullable: true),
                     PhoneNumberConfirmed = table.Column<bool>(type: "INTEGER", nullable: false),
                     TwoFactorEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
-                    LockoutEnd = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    LockoutEnd = table.Column<long>(type: "INTEGER", nullable: true),
                     LockoutEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     AccessFailedCount = table.Column<int>(type: "INTEGER", nullable: false)
                 },
@@ -62,11 +62,48 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Scope = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
                     TreeJson = table.Column<string>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_CategoryTrees", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ContentFiles",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    RelativePath = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
+                    Kind = table.Column<int>(type: "INTEGER", nullable: false),
+                    Sha256 = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    LastModifiedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    LastSeenAt = table.Column<long>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContentFiles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ContentScanRuns",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    StartedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    FinishedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    FilesScanned = table.Column<int>(type: "INTEGER", nullable: false),
+                    ItemsLoaded = table.Column<int>(type: "INTEGER", nullable: false),
+                    ErrorCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    WarningCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    GitHeadSha = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContentScanRuns", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -77,8 +114,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Key = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
                     SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    DismissedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    DismissedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -92,7 +129,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     AppearanceMode = table.Column<string>(type: "TEXT", maxLength: 16, nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -117,7 +154,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     Scopes = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
                     NameClaimType = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
                     EmailClaimType = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -135,7 +172,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     OAuthClientId = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
                     ProtectedOAuthClientSecret = table.Column<string>(type: "TEXT", maxLength: 4096, nullable: true),
                     CallbackPath = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -153,8 +190,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                     AccountLogin = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
                     Scopes = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
                     ProtectedCredentialJson = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -167,7 +204,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    CompletedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    CompletedAt = table.Column<long>(type: "INTEGER", nullable: false),
                     FirstAdminUserId = table.Column<string>(type: "TEXT", maxLength: 450, nullable: false),
                     DataRoot = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: false),
                     SchemaVersion = table.Column<int>(type: "INTEGER", nullable: false)
@@ -188,7 +225,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     CustomLanguagesJson = table.Column<string>(type: "TEXT", nullable: false),
                     CommonTextOverridesJson = table.Column<string>(type: "TEXT", nullable: false),
                     UrlPolicy = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -209,7 +246,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     Language = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     TimeZone = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
                     DefaultThemeId = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -225,7 +262,7 @@ namespace Bocchi.HomeServer.Data.Migrations
                     ThemeId = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
                     ConfigurationJson = table.Column<string>(type: "TEXT", nullable: false),
                     I18nTextOverridesJson = table.Column<string>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -339,6 +376,95 @@ namespace Bocchi.HomeServer.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ContentItems",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    FileId = table.Column<long>(type: "INTEGER", nullable: false),
+                    Kind = table.Column<int>(type: "INTEGER", nullable: false),
+                    ContentId = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    Slug = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    Title = table.Column<string>(type: "TEXT", nullable: true),
+                    Status = table.Column<int>(type: "INTEGER", nullable: false),
+                    Year = table.Column<string>(type: "TEXT", maxLength: 8, nullable: true),
+                    PublishedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    FrontmatterJson = table.Column<string>(type: "TEXT", nullable: true),
+                    Language = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
+                    LocalizationGroup = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    IsTranslation = table.Column<bool>(type: "INTEGER", nullable: false),
+                    SourceLanguage = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
+                    SourceContentId = table.Column<string>(type: "TEXT", maxLength: 512, nullable: true),
+                    LastSeenAt = table.Column<long>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContentItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ContentItems_ContentFiles_FileId",
+                        column: x => x.FileId,
+                        principalTable: "ContentFiles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BuildRuns",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    SessionId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ScanRunId = table.Column<long>(type: "INTEGER", nullable: true),
+                    Mode = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    Environment = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    ThemeId = table.Column<string>(type: "TEXT", maxLength: 160, nullable: true),
+                    IncludeDrafts = table.Column<bool>(type: "INTEGER", nullable: false),
+                    StartedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    FinishedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    Status = table.Column<string>(type: "TEXT", maxLength: 32, nullable: true),
+                    Fingerprint = table.Column<string>(type: "TEXT", maxLength: 128, nullable: true),
+                    Reason = table.Column<string>(type: "TEXT", nullable: true),
+                    BocchiVersion = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BuildRuns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BuildRuns_ContentScanRuns_ScanRunId",
+                        column: x => x.ScanRunId,
+                        principalTable: "ContentScanRuns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ContentErrors",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    ScanRunId = table.Column<long>(type: "INTEGER", nullable: false),
+                    RelativePath = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
+                    Kind = table.Column<int>(type: "INTEGER", nullable: true),
+                    Field = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
+                    Severity = table.Column<int>(type: "INTEGER", nullable: false),
+                    Code = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Message = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContentErrors", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ContentErrors_ContentScanRuns_ScanRunId",
+                        column: x => x.ScanRunId,
+                        principalTable: "ContentScanRuns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ContentWorkspaceRemotes",
                 columns: table => new
                 {
@@ -350,9 +476,9 @@ namespace Bocchi.HomeServer.Data.Migrations
                     GitProviderConnectionId = table.Column<int>(type: "INTEGER", nullable: true),
                     LastSyncStatus = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     LastSyncMessage = table.Column<string>(type: "TEXT", maxLength: 2048, nullable: true),
-                    LastSyncedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    LastSyncedAt = table.Column<long>(type: "INTEGER", nullable: true),
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -377,8 +503,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                     ProtectedCredentialJson = table.Column<string>(type: "TEXT", maxLength: 8192, nullable: true),
                     GitProviderConnectionId = table.Column<int>(type: "INTEGER", nullable: true),
                     IsDefault = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    CreatedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    UpdatedAt = table.Column<long>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -392,6 +518,54 @@ namespace Bocchi.HomeServer.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "BuildArtifacts",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    BuildRunId = table.Column<long>(type: "INTEGER", nullable: false),
+                    Path = table.Column<string>(type: "TEXT", maxLength: 1024, nullable: false),
+                    Kind = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    ContentType = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    SizeBytes = table.Column<long>(type: "INTEGER", nullable: false),
+                    Sha256 = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
+                    ProducedBy = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BuildArtifacts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BuildArtifacts_BuildRuns_BuildRunId",
+                        column: x => x.BuildRunId,
+                        principalTable: "BuildRuns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BuildStageLogs",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    BuildRunId = table.Column<long>(type: "INTEGER", nullable: false),
+                    OccurredAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    Stage = table.Column<string>(type: "TEXT", maxLength: 128, nullable: false),
+                    Level = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    Message = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BuildStageLogs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BuildStageLogs_BuildRuns_BuildRunId",
+                        column: x => x.BuildRunId,
+                        principalTable: "BuildRuns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PublishRuns",
                 columns: table => new
                 {
@@ -400,8 +574,8 @@ namespace Bocchi.HomeServer.Data.Migrations
                     PublishPlanId = table.Column<int>(type: "INTEGER", nullable: true),
                     DisplayName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
                     Channel = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
-                    StartedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    FinishedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    StartedAt = table.Column<long>(type: "INTEGER", nullable: false),
+                    FinishedAt = table.Column<long>(type: "INTEGER", nullable: true),
                     Status = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     BuildRunId = table.Column<long>(type: "INTEGER", nullable: true),
                     BuildSessionId = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
@@ -414,6 +588,12 @@ namespace Bocchi.HomeServer.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PublishRuns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PublishRuns_BuildRuns_BuildRunId",
+                        column: x => x.BuildRunId,
+                        principalTable: "BuildRuns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_PublishRuns_PublishPlans_PublishPlanId",
                         column: x => x.PublishPlanId,
@@ -460,10 +640,88 @@ namespace Bocchi.HomeServer.Data.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_BuildArtifacts_BuildRunId",
+                table: "BuildArtifacts",
+                column: "BuildRunId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BuildArtifacts_Path",
+                table: "BuildArtifacts",
+                column: "Path");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BuildRuns_ScanRunId",
+                table: "BuildRuns",
+                column: "ScanRunId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BuildRuns_SessionId",
+                table: "BuildRuns",
+                column: "SessionId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BuildRuns_StartedAt",
+                table: "BuildRuns",
+                column: "StartedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BuildStageLogs_BuildRunId",
+                table: "BuildStageLogs",
+                column: "BuildRunId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BuildStageLogs_Level",
+                table: "BuildStageLogs",
+                column: "Level");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CategoryTrees_Scope",
                 table: "CategoryTrees",
                 column: "Scope",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentErrors_ScanRunId",
+                table: "ContentErrors",
+                column: "ScanRunId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentErrors_Severity",
+                table: "ContentErrors",
+                column: "Severity");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentFiles_Kind",
+                table: "ContentFiles",
+                column: "Kind");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentFiles_RelativePath",
+                table: "ContentFiles",
+                column: "RelativePath",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentItems_FileId",
+                table: "ContentItems",
+                column: "FileId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentItems_Kind_ContentId",
+                table: "ContentItems",
+                columns: new[] { "Kind", "ContentId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentItems_Kind_LocalizationGroup_Language",
+                table: "ContentItems",
+                columns: new[] { "Kind", "LocalizationGroup", "Language" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContentItems_Kind_PublishedAt",
+                table: "ContentItems",
+                columns: new[] { "Kind", "PublishedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ContentWorkspaceRemotes_GitProviderConnectionId",
@@ -491,6 +749,11 @@ namespace Bocchi.HomeServer.Data.Migrations
                 name: "IX_PublishPlans_GitProviderConnectionId",
                 table: "PublishPlans",
                 column: "GitProviderConnectionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PublishRuns_BuildRunId",
+                table: "PublishRuns",
+                column: "BuildRunId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PublishRuns_PublishPlanId",
@@ -528,7 +791,19 @@ namespace Bocchi.HomeServer.Data.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "BuildArtifacts");
+
+            migrationBuilder.DropTable(
+                name: "BuildStageLogs");
+
+            migrationBuilder.DropTable(
                 name: "CategoryTrees");
+
+            migrationBuilder.DropTable(
+                name: "ContentErrors");
+
+            migrationBuilder.DropTable(
+                name: "ContentItems");
 
             migrationBuilder.DropTable(
                 name: "ContentWorkspaceRemotes");
@@ -567,7 +842,16 @@ namespace Bocchi.HomeServer.Data.Migrations
                 name: "AspNetUsers");
 
             migrationBuilder.DropTable(
+                name: "ContentFiles");
+
+            migrationBuilder.DropTable(
+                name: "BuildRuns");
+
+            migrationBuilder.DropTable(
                 name: "PublishPlans");
+
+            migrationBuilder.DropTable(
+                name: "ContentScanRuns");
 
             migrationBuilder.DropTable(
                 name: "GitProviderConnections");

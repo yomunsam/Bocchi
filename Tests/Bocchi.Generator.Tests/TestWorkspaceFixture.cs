@@ -1,5 +1,6 @@
 using Bocchi.Generator;
 using Bocchi.Generator.Pipeline;
+using Bocchi.Generator.State;
 using Bocchi.Generator.Sinks;
 using Bocchi.Workspace;
 using Bocchi.Workspace.Content;
@@ -42,7 +43,6 @@ internal sealed class TestWorkspaceFixture : IDisposable
             {
                 ["Bocchi:DataRoot"] = Root,
                 ["Bocchi:AutoInitialize"] = "false",
-                ["Bocchi:AutoMigrateSchema"] = "false",
             })
             .Build();
         var services = new ServiceCollection();
@@ -50,13 +50,11 @@ internal sealed class TestWorkspaceFixture : IDisposable
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
         services.AddBocchiData(configuration, _ => Root);
         services.AddBocchiGenerator(configuration);
+        services.AddSingleton<IContentStateStore, InMemoryContentStateStore>();
+        services.AddSingleton<IBuildStateStore, InMemoryBuildStateStore>();
         configureServices?.Invoke(services);
 
         Services = services.BuildServiceProvider();
-
-        // 显式迁移 schema（关闭 AutoMigrateSchema 时也确保可用）
-        var migrator = Services.GetRequiredService<SchemaMigrator>();
-        migrator.MigrateAsync().GetAwaiter().GetResult();
     }
 
     private void SeedContent()

@@ -1,7 +1,6 @@
 using Bocchi.Generator.ContentGraph;
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Pipeline.Stages;
-using Bocchi.Generator.State;
 using Bocchi.Generator.Theme;
 using Bocchi.Generator.ThemeInputs;
 using Microsoft.Extensions.Configuration;
@@ -13,7 +12,7 @@ namespace Bocchi.Generator;
 /// <summary>Generator 模块的 DI 注册扩展。</summary>
 public static class GeneratorServiceCollectionExtensions
 {
-    /// <summary>注册 Generator 流水线的全部组件。前置依赖：Workspace 服务已注册。</summary>
+    /// <summary>注册 Generator 流水线的全部组件。前置依赖：Workspace 服务已注册，宿主已注册 <see cref="State.IBuildStateStore"/> 与内容状态库实现。</summary>
     public static IServiceCollection AddBocchiGenerator(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -28,7 +27,6 @@ public static class GeneratorServiceCollectionExtensions
         services.AddSingleton<IThemeRunner, ThemeRunner>();
         services.TryAddSingleton<ThemeResolver>();
         services.TryAddSingleton<ThemePackageService>();
-        services.AddSingleton<IBuildStateStore, BuildStateStore>();
 
         services.AddSingleton<LoadContentStage>();
         services.AddSingleton<BuildContentGraphStage>();

@@ -1,5 +1,6 @@
 using Bocchi.Generator.Pipeline;
 using Bocchi.HomeServer.Data;
+using Bocchi.HomeServer.Data.State;
 using Bocchi.HomeServer.Services;
 using Bocchi.HomeServer.Services.Git;
 using Bocchi.HomeServer.Services.Publishing;
@@ -112,6 +113,17 @@ public sealed class PublishExecutionServiceTests
             .Options;
         var db = new BocchiDbContext(options);
         await db.Database.EnsureCreatedAsync();
+
+        // 真实流程里构建记录由 BuildStateStore 先落库，发布记录通过外键引用它。
+        db.BuildRuns.Add(new BuildRunRecord
+        {
+            Id = 42,
+            SessionId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            Mode = nameof(BuildMode.FullBuild),
+            Environment = "production",
+            StartedAt = new DateTimeOffset(2026, 5, 24, 0, 0, 0, TimeSpan.Zero),
+        });
+        await db.SaveChangesAsync();
 
         var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-publish-execution-tests", Guid.NewGuid().ToString("N"));
         var layout = new BocchiDataLayout(dataRoot);

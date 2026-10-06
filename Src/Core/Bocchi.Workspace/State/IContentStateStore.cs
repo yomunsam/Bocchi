@@ -78,7 +78,7 @@ public sealed record FileUpsert(
     string Sha256,
     DateTimeOffset LastModifiedUtc);
 
-/// <summary>SQLite 状态库的对外契约。</summary>
+/// <summary>内容扫描索引的持久化契约；实现由宿主提供（Home Server 用 EF Core）。</summary>
 public interface IContentStateStore
 {
     /// <summary>开启一次新扫描运行，返回其 ID。</summary>
@@ -98,8 +98,8 @@ public interface IContentStateStore
     /// <summary>upsert 一条文件记录。</summary>
     Task<long> UpsertFileAsync(FileUpsert file, CancellationToken cancellationToken = default);
 
-    /// <summary>upsert 一条内容摘要。可以关联 fileId（可空）。</summary>
-    Task UpsertContentItemAsync(ContentItemUpsert item, long? fileId, CancellationToken cancellationToken = default);
+    /// <summary>upsert 一条内容摘要，并关联到产生它的源文件记录。</summary>
+    Task UpsertContentItemAsync(ContentItemUpsert item, long fileId, CancellationToken cancellationToken = default);
 
     /// <summary>把一次扫描运行产生的错误一次性写入。</summary>
     Task AppendErrorsAsync(long scanRunId, IEnumerable<ContentValidationError> errors, CancellationToken cancellationToken = default);

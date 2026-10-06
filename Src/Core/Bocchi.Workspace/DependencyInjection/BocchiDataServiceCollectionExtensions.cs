@@ -2,7 +2,6 @@ using Bocchi.Workspace.Content;
 using Bocchi.Workspace.Content.Loaders;
 using Bocchi.Workspace.Git;
 using Bocchi.Workspace.Scanning;
-using Bocchi.Workspace.State;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +16,7 @@ public static class BocchiDataServiceCollectionExtensions
 {
     /// <summary>
     /// 注册 DataRoot 与内容 workspace 相关服务。
+    /// <see cref="State.IContentStateStore"/> 的持久化实现由宿主注册。
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <param name="configuration">用于绑定 <see cref="BocchiDataOptions"/> 的根配置。</param>
@@ -66,10 +66,6 @@ public static class BocchiDataServiceCollectionExtensions
         services.TryAddSingleton<PageLoader>();
         services.TryAddSingleton<WorkLoader>();
         services.TryAddSingleton<NoteLoader>();
-
-        services.TryAddSingleton<SqliteConnectionFactory>();
-        services.TryAddSingleton<SchemaMigrator>();
-        services.TryAddSingleton<IContentStateStore, ContentStateStore>();
 
         services.TryAddSingleton<IContentRepository, LibGit2ContentRepository>();
 

@@ -19,7 +19,4 @@ public sealed class BocchiDataOptions
     /// 默认 <c>true</c>，符合"开箱即用"原则。
     /// </summary>
     public bool AutoInitialize { get; set; } = true;
-
-    /// <summary>启动时是否自动迁移 SQLite schema。默认 <c>true</c>。</summary>
-    public bool AutoMigrateSchema { get; set; } = true;
 }

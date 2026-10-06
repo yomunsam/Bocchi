@@ -1,11 +1,15 @@
+using Bocchi.HomeServer.Data.State;
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Bocchi.HomeServer.Data;
 
 /// <summary>
-/// Home Server 应用数据库。内容正文仍在 Markdown/YAML 文件中；这里保存 Identity、Setup、设置和管理投影。
+/// Home Server 应用数据库。内容正文仍在 Markdown/YAML 文件中；这里保存 Identity、Setup、设置、
+/// 管理投影，以及内容扫描索引和构建记录。整个 SQLite 文件只由这一套 EF Core migration 管理。
 /// </summary>
 public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole, string>
 {
@@ -53,6 +57,36 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
 
     /// <summary>内容 workspace Git remote 配置。</summary>
     public DbSet<ContentWorkspaceRemoteRecord> ContentWorkspaceRemotes => Set<ContentWorkspaceRemoteRecord>();
+
+    /// <summary>内容 workspace 源文件索引。</summary>
+    public DbSet<ContentFileRecord> ContentFiles => Set<ContentFileRecord>();
+
+    /// <summary>内容摘要索引。</summary>
+    public DbSet<ContentItemRecord> ContentItems => Set<ContentItemRecord>();
+
+    /// <summary>内容扫描运行。</summary>
+    public DbSet<ContentScanRunRecord> ContentScanRuns => Set<ContentScanRunRecord>();
+
+    /// <summary>内容扫描诊断。</summary>
+    public DbSet<ContentErrorRecord> ContentErrors => Set<ContentErrorRecord>();
+
+    /// <summary>站点构建运行。</summary>
+    public DbSet<BuildRunRecord> BuildRuns => Set<BuildRunRecord>();
+
+    /// <summary>构建产物登记。</summary>
+    public DbSet<BuildArtifactRecord> BuildArtifacts => Set<BuildArtifactRecord>();
+
+    /// <summary>构建阶段日志。</summary>
+    public DbSet<BuildStageLogRecord> BuildStageLogs => Set<BuildStageLogRecord>();
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ArgumentNullException.ThrowIfNull(configurationBuilder);
+
+        // SQLite 没有原生 DateTimeOffset：默认存成 TEXT 后 EF 无法在服务端排序/比较。
+        // 统一存成可排序的 INTEGER（UTC ticks + offset），让构建历史、内容列表能在数据库里排序。
+        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<DateTimeOffsetToBinaryConverter>();
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -195,6 +229,10 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.Channel).HasMaxLength(64).IsRequired();
             entity.Property(x => x.StartedAt).IsRequired();
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.HasOne<BuildRunRecord>()
+                .WithMany()
+                .HasForeignKey(x => x.BuildRunId)
+                .OnDelete(DeleteBehavior.SetNull);
             entity.Property(x => x.BuildSessionId).HasMaxLength(64);
             entity.Property(x => x.BuildFingerprint).HasMaxLength(128);
             entity.Property(x => x.RemoteCommitSha).HasMaxLength(128);
@@ -231,6 +269,118 @@ public sealed class BocchiDbContext : IdentityDbContext<BocchiUser, IdentityRole
             entity.Property(x => x.LastSyncMessage).HasMaxLength(2048);
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.UpdatedAt).IsRequired();
+        });
+
+        ConfigureContentState(builder);
+        ConfigureBuildState(builder);
+    }
+
+    /// <summary>内容扫描索引：文件 → 内容条目级联；扫描运行 → 诊断级联。</summary>
+    private static void ConfigureContentState(ModelBuilder builder)
+    {
+        builder.Entity<ContentFileRecord>(entity =>
+        {
+            entity.ToTable("ContentFiles");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.RelativePath).IsUnique();
+            entity.HasIndex(x => x.Kind);
+            entity.Property(x => x.RelativePath).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            entity.HasMany(x => x.Items)
+                .WithOne(x => x.File)
+                .HasForeignKey(x => x.FileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ContentItemRecord>(entity =>
+        {
+            entity.ToTable("ContentItems");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.Kind, x.ContentId }).IsUnique();
+            entity.HasIndex(x => new { x.Kind, x.PublishedAt });
+            entity.HasIndex(x => new { x.Kind, x.LocalizationGroup, x.Language });
+            entity.Property(x => x.ContentId).HasMaxLength(512).IsRequired();
+            entity.Property(x => x.Slug).HasMaxLength(256);
+            entity.Property(x => x.Year).HasMaxLength(8);
+            entity.Property(x => x.Language).HasMaxLength(32);
+            entity.Property(x => x.LocalizationGroup).HasMaxLength(256);
+            entity.Property(x => x.SourceLanguage).HasMaxLength(32);
+            entity.Property(x => x.SourceContentId).HasMaxLength(512);
+        });
+
+        builder.Entity<ContentScanRunRecord>(entity =>
+        {
+            entity.ToTable("ContentScanRuns");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.GitHeadSha).HasMaxLength(64);
+            entity.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            entity.HasMany(x => x.Errors)
+                .WithOne(x => x.ScanRun)
+                .HasForeignKey(x => x.ScanRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ContentErrorRecord>(entity =>
+        {
+            entity.ToTable("ContentErrors");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Severity);
+            entity.Property(x => x.RelativePath).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.Field).HasMaxLength(256);
+            entity.Property(x => x.Code).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Message).IsRequired();
+        });
+    }
+
+    /// <summary>构建记录：构建运行 → 产物/日志级联；扫描运行被删除时构建运行的引用置空。</summary>
+    private static void ConfigureBuildState(ModelBuilder builder)
+    {
+        builder.Entity<BuildRunRecord>(entity =>
+        {
+            entity.ToTable("BuildRuns");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.SessionId).IsUnique();
+            entity.HasIndex(x => x.StartedAt);
+            entity.Property(x => x.Mode).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Environment).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ThemeId).HasMaxLength(160);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(x => x.Fingerprint).HasMaxLength(128);
+            entity.Property(x => x.BocchiVersion).HasMaxLength(64);
+            entity.HasOne(x => x.ScanRun)
+                .WithMany()
+                .HasForeignKey(x => x.ScanRunId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(x => x.Artifacts)
+                .WithOne(x => x.BuildRun)
+                .HasForeignKey(x => x.BuildRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Logs)
+                .WithOne(x => x.BuildRun)
+                .HasForeignKey(x => x.BuildRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<BuildArtifactRecord>(entity =>
+        {
+            entity.ToTable("BuildArtifacts");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Path);
+            entity.Property(x => x.Path).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.Kind).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ProducedBy).HasMaxLength(128).IsRequired();
+        });
+
+        builder.Entity<BuildStageLogRecord>(entity =>
+        {
+            entity.ToTable("BuildStageLogs");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.Level);
+            entity.Property(x => x.Stage).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Level).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Message).IsRequired();
         });
     }
 }

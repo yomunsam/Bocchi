@@ -1,39 +1,81 @@
 using Bocchi.ContentModel;
+using Bocchi.HomeServer.Data.State;
 using Bocchi.Workspace.Scanning;
 using Bocchi.Workspace.State;
 
-namespace Bocchi.Workspace.Tests;
+using Microsoft.EntityFrameworkCore;
+
+namespace Bocchi.HomeServer.Tests;
 
 public sealed class ContentStateStoreTests
 {
-    private static (TempDataRoot temp, ContentStateStore store) NewStore()
+    private static async Task<(StateTestDatabase temp, ContentStateStore store)> NewStoreAsync()
     {
-        var temp = new TempDataRoot();
-        Directory.CreateDirectory(temp.Layout.StateDirectory);
-        var factory = new SqliteConnectionFactory(temp.Layout);
-        new SchemaMigrator(factory).MigrateAsync().GetAwaiter().GetResult();
-        return (temp, new ContentStateStore(factory));
+        var temp = await StateTestDatabase.CreateAsync();
+        return (temp, new ContentStateStore(temp, TimeProvider.System));
     }
 
     [Fact]
-    public async Task SchemaMigrator_IsIdempotent()
+    public async Task InitialMigration_MatchesCurrentModel()
     {
-        using var temp = new TempDataRoot();
-        Directory.CreateDirectory(temp.Layout.StateDirectory);
-        var factory = new SqliteConnectionFactory(temp.Layout);
-        var migrator = new SchemaMigrator(factory);
+        using var temp = await StateTestDatabase.CreateAsync();
+        await using var db = temp.CreateDbContext();
 
-        var first = await migrator.MigrateAsync();
-        var second = await migrator.MigrateAsync();
+        (await db.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+        db.Database.HasPendingModelChanges().Should().BeFalse("模型改动后必须用 dotnet ef 生成新的 migration");
+    }
 
-        first.Should().Be(SchemaMigrator.CurrentVersion);
-        second.Should().Be(SchemaMigrator.CurrentVersion);
+    [Fact]
+    public async Task DeleteContentBySourcePath_CascadesToContentItems()
+    {
+        var (temp, store) = await NewStoreAsync();
+        using (temp)
+        {
+            var fileId = await store.UpsertFileAsync(new FileUpsert(
+                "posts/2025/x/index.md", ContentKind.Post, "abc", DateTimeOffset.UtcNow));
+            await store.UpsertContentItemAsync(new ContentItemUpsert(
+                ContentKind.Post, "x", "x", "Title", ContentStatus.Draft, "2025",
+                null, null, null, "posts/2025/x/index.md"), fileId);
+
+            await store.DeleteContentBySourcePathAsync("posts\\2025\\x\\index.md");
+
+            (await store.ListContentSummariesAsync(null)).Should().BeEmpty();
+            await using var db = temp.CreateDbContext();
+            (await db.ContentFiles.CountAsync()).Should().Be(0);
+        }
+    }
+
+    [Fact]
+    public async Task ListContentSummaries_OrdersByPublishedAtDescendingWithUndatedLast()
+    {
+        var (temp, store) = await NewStoreAsync();
+        using (temp)
+        {
+            async Task AddAsync(string id, DateTimeOffset? publishedAt)
+            {
+                var fileId = await store.UpsertFileAsync(new FileUpsert(
+                    $"posts/2025/{id}/index.md", ContentKind.Post, "abc", DateTimeOffset.UtcNow));
+                await store.UpsertContentItemAsync(new ContentItemUpsert(
+                    ContentKind.Post, id, id, id, ContentStatus.Published, "2025",
+                    publishedAt, null, null, $"posts/2025/{id}/index.md"), fileId);
+            }
+
+            await AddAsync("undated", null);
+            await AddAsync("older", new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.FromHours(8)));
+            await AddAsync("newer", new DateTimeOffset(2025, 6, 1, 0, 0, 0, TimeSpan.Zero));
+
+            var items = await store.ListContentSummariesAsync(ContentKind.Post);
+
+            items.Select(x => x.ContentId).Should().Equal("newer", "older", "undated");
+            items[1].PublishedAt.Should().Be(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.FromHours(8)));
+            items[0].RelativePath.Should().Be("posts/2025/newer/index.md");
+        }
     }
 
     [Fact]
     public async Task UpsertContentItem_OverwritesOnSameKindAndId()
     {
-        var (temp, store) = NewStore();
+        var (temp, store) = await NewStoreAsync();
         using (temp)
         {
             var fileId = await store.UpsertFileAsync(new FileUpsert(
@@ -56,7 +98,7 @@ public sealed class ContentStateStoreTests
     [Fact]
     public async Task UpsertContentItem_ReplacesOldSlugForSameSourceFile()
     {
-        var (temp, store) = NewStore();
+        var (temp, store) = await NewStoreAsync();
         using (temp)
         {
             var fileId = await store.UpsertFileAsync(new FileUpsert(
@@ -78,7 +120,7 @@ public sealed class ContentStateStoreTests
     [Fact]
     public async Task UpsertContentItem_KeepsMultipleFriendLinksForSameSourceFile()
     {
-        var (temp, store) = NewStore();
+        var (temp, store) = await NewStoreAsync();
         using (temp)
         {
             var fileId = await store.UpsertFileAsync(new FileUpsert(
@@ -99,7 +141,7 @@ public sealed class ContentStateStoreTests
     [Fact]
     public async Task UpsertContentItem_PersistsLocalizationMetadata()
     {
-        var (temp, store) = NewStore();
+        var (temp, store) = await NewStoreAsync();
         using (temp)
         {
             var fileId = await store.UpsertFileAsync(new FileUpsert(
@@ -136,7 +178,7 @@ public sealed class ContentStateStoreTests
     [Fact]
     public async Task ScanRunFlow_RecordsMetadataAndErrors()
     {
-        var (temp, store) = NewStore();
+        var (temp, store) = await NewStoreAsync();
         using (temp)
         {
             var startedAt = DateTimeOffset.UtcNow;
