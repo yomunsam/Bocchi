@@ -60,16 +60,15 @@
     --bocchi-shadow-sm: 0 1px 2px rgba(98, 92, 102, 0.08);
     --bocchi-shadow-pop: 0 18px 40px rgba(98, 92, 102, 0.18);
     --bocchi-focus-ring: 0 0 0 3px color-mix(in srgb, var(--bocchi-clip-blue) 38%, transparent);
-    /* brand action：运动服的粉，加深到白字可读（对白底 5.4:1），唯一的高饱和入口 */
+    /* brand action：深粉留给链接、图标这类小面积点缀 */
     --bocchi-action: #b83b70;
     --bocchi-action-strong: #93264f;
     --bocchi-action-soft: color-mix(in srgb, var(--bocchi-action) 8%, transparent);
     --bocchi-action-soft-strong: color-mix(in srgb, var(--bocchi-action) 14%, transparent);
-    /* 填充色上的文字 */
-    --bocchi-on-action: #ffffff;
-    /* action-fill：需要承载白色文字的填充色（按钮、徽章等大面积背景）。
-       浅色模式下与 action 相同；深色模式下保持足够深度以确保对比度。 */
-    --bocchi-action-fill: var(--bocchi-action);
+    /* 主按钮：浅粉底配深字，白卡片上再加一圈描边，避免发虚 */
+    --bocchi-action-fill: #f2a7b5;
+    --bocchi-on-action: #3b2028;
+    --bocchi-action-outline: #e98fa1;
     /* nav active (soft sink) */
     --bocchi-nav-active-bg: var(--bocchi-action-soft);
     --bocchi-nav-active-bar: var(--bocchi-action);
@@ -159,9 +158,10 @@
     /* 深色下粉色只作为品牌点缀，不再把大面积 surface 染成 Night Mode。 */
     --bocchi-action: #f4a6c0;
     --bocchi-action-strong: #fcd3e0;
-    /* 深色模式下 action 用于图标/边框等小面积点缀（浅粉），
-       fill 用于按钮等需要白字的填充（保持品牌深粉，对比度 >7:1）。 */
-    --bocchi-action-fill: #b83b70;
+    /* 深色主按钮：浅粉底深字，和登录页一致 */
+    --bocchi-action-fill: #f4a6c0;
+    --bocchi-on-action: #161214;
+    --bocchi-action-outline: #f4a6c0;
     --bocchi-nav-active-bg: var(--bocchi-action-soft);
     --bocchi-nav-active-bar: var(--bocchi-action);
     --bocchi-nav-active-text: var(--bocchi-text);
@@ -199,6 +199,8 @@
     --bocchi-action: #2b2528;
     --bocchi-action-strong: #141113;
     --bocchi-action-fill: #2b2528;
+    --bocchi-on-action: #ffffff;
+    --bocchi-action-outline: #2b2528;
     /* 浅粉在白底上不到 3:1，指示条用深一点的玫粉 */
     --bocchi-nav-active-bar: #c4507a;
     --bocchi-avatar-bg: #f6e6ec;
@@ -221,6 +223,7 @@
     /* 深色女仆的主按钮反色：浅灰底深色字，和深色次按钮拉开层级 */
     --bocchi-action-fill: #f2f2f2;
     --bocchi-on-action: #1c1a1b;
+    --bocchi-action-outline: #f2f2f2;
     --bocchi-nav-active-bar: #f4a6c0;
     --bocchi-avatar-bg: #2c2c2c;
     --bocchi-focus-ring: 0 0 0 3px rgba(242, 242, 242, 0.28);
@@ -241,6 +244,8 @@
     --bocchi-action: #286aa3;
     --bocchi-action-strong: #1d4f7c;
     --bocchi-action-fill: #286aa3;
+    --bocchi-on-action: #ffffff;
+    --bocchi-action-outline: #286aa3;
     /* 浅色底上亮黄只有 1.6:1，指示条和图标用深一点的金色，保证 3:1 */
     --bocchi-nav-active-bar: #9c7400;
     --bocchi-avatar-bg: #e3eef8;
@@ -260,7 +265,10 @@
     --bocchi-border-strong: #4b5563;
     --bocchi-action: #8cc4ec;
     --bocchi-action-strong: #c4e1f6;
-    --bocchi-action-fill: #286aa3;
+    /* 深色发夹主按钮：浅蓝底深字 */
+    --bocchi-action-fill: #8cc4ec;
+    --bocchi-on-action: #12151a;
+    --bocchi-action-outline: #8cc4ec;
     --bocchi-nav-active-bar: #f2c94c;
     --bocchi-avatar-bg: #232b35;
     --bocchi-focus-ring: 0 0 0 3px rgba(140, 196, 236, 0.36);
