@@ -297,4 +297,26 @@ public sealed class ThemeContractTests
     /// <summary>使用 Theme package validation 同等 JSON 配置验证 Contract DTO 的解析边界。</summary>
     private static ThemeConfigSchema DeserializeThemeConfigSchema(string json)
         => System.Text.Json.JsonSerializer.Deserialize<ThemeConfigSchema>(json, SchemaJsonOptions)!;
+
+    [Theory]
+    [InlineData("1.0", true)]
+    [InlineData("1.0.0", true)]
+    [InlineData("0.9", false)]
+    [InlineData("2.0", false)]
+    [InlineData("1.1", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("1", false)]
+    [InlineData("abc", false)]
+    public void IsCompatible_AcceptsSameMajorWithThemeMinorAtMostCurrent(string? version, bool expected)
+    {
+        ThemeContractVersion.IsCompatible(version).Should().Be(expected);
+    }
+
+    [Fact]
+    public void IsCompatible_ExactCurrentStillWorks()
+    {
+        ThemeContractVersion.IsCompatible(ThemeContractVersion.Current).Should().BeTrue();
+        ThemeContractVersion.IsCompatible(ThemeContractVersion.V1).Should().BeTrue();
+    }
 }

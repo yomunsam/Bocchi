@@ -31,9 +31,9 @@ public sealed partial class FluidStaticRenderer
             using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
             var root = document.RootElement;
             var version = root.GetProperty("contractVersion").GetString();
-            if (!string.Equals(version, ThemeContractVersion.Current, StringComparison.Ordinal))
+            if (!ThemeContractVersion.IsCompatible(version))
             {
-                throw new FluidStaticException($"Theme 输入 '{fileName}' contractVersion='{version}'，当前只支持 '{ThemeContractVersion.Current}'。");
+                throw new FluidStaticException($"Theme 输入 '{fileName}' contractVersion='{version}'，当前只支持同 major 且 minor ≤ '{ThemeContractVersion.Current}'。");
             }
 
             return root.GetProperty("data").Clone();

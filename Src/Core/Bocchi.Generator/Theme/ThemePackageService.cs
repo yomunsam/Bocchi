@@ -286,9 +286,9 @@ public sealed class ThemePackageService
             diagnostics.Add(Error("theme-manifest-version-empty", "theme.json.version 不能为空。"));
         }
 
-        if (!string.Equals(manifest.ContractVersion, ThemeContractVersion.Current, StringComparison.Ordinal))
+        if (!ThemeContractVersion.IsCompatible(manifest.ContractVersion))
         {
-            diagnostics.Add(Error("theme-contract-unsupported", $"Theme Contract '{manifest.ContractVersion}' 不受当前 Bocchi 支持。"));
+            diagnostics.Add(Error("theme-contract-unsupported", $"Theme Contract '{manifest.ContractVersion}' 不受当前 Bocchi 支持（需要同 major 且 minor ≤ {ThemeContractVersion.Current}）。"));
         }
 
         if (manifest.Runner is null)
