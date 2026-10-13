@@ -132,4 +132,29 @@ public sealed class SearchIndexGeneratorTests
         indexHtml.Should().NotContain("data-bocchi-search");
     }
 
+
+    [Fact]
+    public async Task FullBuild_WhenThemeSearchFeatureDisabled_OmitsIndexEvenIfSiteEnabled()
+    {
+        using var fixture = new TestWorkspaceFixture();
+        await Bocchi.Themes.BuiltIn.Bundle.DefaultThemeBundle.EnsureAsync(
+            fixture.Layout.ThemesDirectory, TestContext.Current.CancellationToken);
+        var themeJsonPath = Path.Combine(fixture.Layout.ThemesDirectory, "bocchi-mono", "theme.json");
+        var themeJson = await File.ReadAllTextAsync(themeJsonPath, TestContext.Current.CancellationToken);
+        themeJson = themeJson.Replace("\"search\": true", "\"search\": false", StringComparison.Ordinal);
+        await File.WriteAllTextAsync(themeJsonPath, themeJson, TestContext.Current.CancellationToken);
+
+        var pipeline = fixture.Services.GetRequiredService<Bocchi.Generator.Pipeline.GeneratorPipeline>();
+        var sink = new Bocchi.Generator.Sinks.FileSystemBuildSink(fixture.Layout);
+        var result = await pipeline.RunAsync(
+            new Bocchi.Generator.Pipeline.BuildOptions { Mode = Bocchi.Generator.Pipeline.BuildMode.FullBuild, Environment = "production" },
+            sink,
+            themeId: "bocchi-mono",
+            bocchiVersion: "0.0.0-test",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(Bocchi.Generator.Pipeline.BuildStatus.Succeeded);
+        File.Exists(Path.Combine(fixture.Layout.PublicOutputDirectory, "search-index.json")).Should().BeFalse();
+    }
+
 }

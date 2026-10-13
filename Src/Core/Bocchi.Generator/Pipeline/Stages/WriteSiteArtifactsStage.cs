@@ -1,4 +1,5 @@
 using Bocchi.Generator.Exceptions;
+using Bocchi.Generator.Theme;
 using Bocchi.Generator.SiteArtifacts;
 using Bocchi.Generator.Utilities;
 
@@ -52,7 +53,10 @@ public sealed class WriteSiteArtifactsStage : IBuildStage
             await ArtifactSinkHelper.WriteAsync(session, feedArtifact).ConfigureAwait(false);
         }
 
-        if (graph.Site.Settings.EnableSearch)
+        // 与 ThemeContext 一致：主题 features.search ∧ 站点 enableSearch
+        var loadedTheme = session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme);
+        var themeSearch = loadedTheme?.Manifest.Features.Search == true;
+        if (themeSearch && graph.Site.Settings.EnableSearch)
         {
             var (searchArtifact, _) = SearchIndexGenerator.Build(graph, _time.GetUtcNow());
             await ArtifactSinkHelper.WriteAsync(session, searchArtifact).ConfigureAwait(false);
