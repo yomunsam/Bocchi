@@ -259,13 +259,22 @@ cover: "/media/images/cover.jpg"
 
 ### 4.6 Site Settings
 
-站点设置放在 `site/site.yaml`（导航另见 `site/navigation.yaml`）。
+站点设置放在 `site/` 目录：
 
-**权威划分**：站点内容相关设置以 workspace 为准（`site.yaml`、导航、以及将迁入 workspace 的分类树与启用语言）；用户、凭据、发布方案、Git 连接、外部登录、后台外观留在数据库。启动时从 workspace 灌入数据库投影，禁止用数据库默认值覆盖已有 `site.yaml`。
+| 文件 | 作用 |
+| --- | --- |
+| `site.yaml` | 站点标题、baseUrl、语言、时区、版权、默认 Theme、`formatVersion` |
+| `navigation.yaml` | 前台 Menu 树 |
+| `categories.yaml` | Post / Work 分类树 |
+| `localization.yaml` | 前台启用语言、Common 文案覆盖 |
 
-顶层 `formatVersion`（整数，当前为 `1`）：缺省按 `1` 解释；读到比程序更新的版本时拒绝构建与会改状态的写入。
+**权威划分**：上述文件以 workspace 为准；数据库只留投影，供后台查询与构建注入。启动时 file→DB；文件缺失且 DB 有数据时导出一次；禁止用数据库默认值盖掉已有文件。坏 YAML / schema 失败时不灌库、不覆盖好文件。
 
-字段建议：
+顶层 `formatVersion` 只写在 `site.yaml`（整数，当前为 `1`）：缺省按 `1` 解释；读到比程序更新的版本时，构建、后台保存与启动灌库一律拒绝（不会把过新文件改写成 Current）。`categories.yaml` / `localization.yaml` 的形状世代跟这份 `formatVersion`，不再各自编号。
+
+保存 `localization.yaml` 时同步 `site.yaml` 的 `language` 与数据库 `SiteProfileSettings.Language`。
+
+`site.yaml` 字段建议：
 
 - `formatVersion`
 - 站点标题、描述、语言、时区、基础 URL。
@@ -274,6 +283,8 @@ cover: "/media/images/cover.jpg"
 - 导航（也可拆到 `navigation.yaml`）。
 - 默认 Theme。
 - RSS、Sitemap、搜索等开关。
+
+`categories.yaml` 顶层为 `trees[]`，每项 `{ scope: Post|Work, roots: [{ id, name, slug, localizedNames?, children }] }`。`localization.yaml` 含 `primaryLanguage`、`urlPolicy`、`enabledLanguages`、`customLanguages`、`commonTextOverrides`。
 
 ### 4.7 Frontend Menu
 
