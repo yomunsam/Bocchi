@@ -4,7 +4,7 @@ using Bocchi.Generator.Utilities;
 
 namespace Bocchi.Generator.Pipeline.Stages;
 
-/// <summary>生成 robots.txt / sitemap.xml / feed.xml / .nojekyll 并写到 Sink。</summary>
+/// <summary>生成 robots.txt / sitemap.xml / feed.xml / search-index.json / .nojekyll 并写到 Sink。</summary>
 public sealed class WriteSiteArtifactsStage : IBuildStage
 {
     /// <summary>.nojekyll 文件内容；保留换行以满足站点产物非空校验。</summary>
@@ -52,7 +52,13 @@ public sealed class WriteSiteArtifactsStage : IBuildStage
             await ArtifactSinkHelper.WriteAsync(session, feedArtifact).ConfigureAwait(false);
         }
 
-        session.Log(Name, BuildLogLevel.Info, "robots.txt / sitemap.xml / feed.xml / .nojekyll 已写入。");
+        if (graph.Site.Settings.EnableSearch)
+        {
+            var (searchArtifact, _) = SearchIndexGenerator.Build(graph, _time.GetUtcNow());
+            await ArtifactSinkHelper.WriteAsync(session, searchArtifact).ConfigureAwait(false);
+        }
+
+        session.Log(Name, BuildLogLevel.Info, "robots.txt / sitemap.xml / feed.xml / search-index.json / .nojekyll 已写入。");
         return true;
     }
 
