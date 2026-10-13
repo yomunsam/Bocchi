@@ -1048,5 +1048,20 @@
   "contentEditor.field.cover": "Avatar / cover",
   "contentEditor.field.coverPlaceholder": "media/portrait.jpg",
   "contentEditor.field.links": "Links",
-  "contentEditor.field.linksPlaceholder": "GitHub | https://github.com/you\nBlog | https://example.com"
+  "contentEditor.field.linksPlaceholder": "GitHub | https://github.com/you\nBlog | https://example.com",
+  "preview.empty.failed": "Preview generation failed. Go back to Admin and try again, or check the build log.",
+  "contentEditor.field.linksInvalidUrl": "Each link URL must be http, https, mailto, or a site-relative path. javascript:, data:, and similar schemes are not allowed.",
+  "contentEditor.field.linksHelp": "One link per line as Label | URL. Allowed: https://, http://, mailto:, or paths like /about.",
+  "publish.localDirectory.sectionDescription": "Mirror the built static site into a folder on this machine. Re-publishing replaces that folder so removed pages disappear.",
+  "publish.localDirectory.empty": "No local directory plans yet.",
+  "publish.localDirectory.addPlan": "Add local directory plan",
+  "publish.localDirectory.targetTitle": "Target folder",
+  "publish.localDirectory.targetDescription": "Absolute path on the host. Bocchi will create it if needed and keep it in sync with the build output.",
+  "publish.localDirectory.targetPath": "Directory path",
+  "publish.localDirectory.targetPathPlaceholder": "/var/www/mysite",
+  "publish.localDirectory.allowUnmarked": "Allow overwriting a non-empty folder that has no Bocchi mark",
+  "publish.localDirectory.riskHint": "This writes outside the Bocchi data directory. Double-check the path before publishing.",
+  "publish.localDirectory.errorPathRequired": "Enter an absolute directory path.",
+  "publish.localDirectory.errorPathAbsolute": "The directory path must be absolute.",
+  "publish.plan.edit": "Edit"
 }

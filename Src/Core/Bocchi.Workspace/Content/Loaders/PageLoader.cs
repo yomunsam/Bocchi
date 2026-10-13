@@ -162,6 +162,15 @@ public sealed class PageLoader
                 continue;
             }
 
+            if (!ContentLinkUrl.IsAllowed(url))
+            {
+                errors.Add(new ContentValidationError(
+                    location.RelativePath, ContentKind.Page, "links",
+                    ContentErrorSeverity.Error, "PAGE_INVALID_LINK",
+                    "links.url 只允许 http、https、mailto 或站内相对路径，不能使用 javascript / data 等危险协议。"));
+                continue;
+            }
+
             list.Add(new WorkLink(label, url));
         }
 

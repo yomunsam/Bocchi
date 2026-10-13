@@ -2,6 +2,7 @@ using System.Globalization;
 
 using Bocchi.ContentModel;
 using Bocchi.HomeServer.Services;
+using Bocchi.Workspace.Content;
 using Bocchi.Workspace.Scanning;
 
 using YamlDotNet.Core;
@@ -136,7 +137,17 @@ public partial class ContentEditor
 
             if (!string.Equals(_linksText, _linksTextAtLoad, StringComparison.Ordinal))
             {
-                SetLinkSequence(root, "links", ParseLinksText(_linksText));
+                var links = ParseLinksText(_linksText);
+                foreach (var (_, url) in links)
+                {
+                    if (!ContentLinkUrl.IsAllowed(url))
+                    {
+                        error = Text("contentEditor.field.linksInvalidUrl");
+                        return false;
+                    }
+                }
+
+                SetLinkSequence(root, "links", links);
             }
         }
 

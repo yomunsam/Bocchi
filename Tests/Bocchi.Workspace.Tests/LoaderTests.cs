@@ -249,6 +249,75 @@ public sealed class LoaderTests
     }
 
     [Fact]
+    public void PageLoader_RejectsDangerousLinkSchemes()
+    {
+        var loader = new PageLoader(Markdown);
+        var raw = """
+            ---
+            title: About
+            slug: about
+            status: Published
+            links:
+              - label: XSS
+                url: javascript:alert(1)
+              - label: Ok
+                url: https://example.com
+            ---
+            Hello.
+            """;
+
+        var result = loader.Load(Loc("pages/about/index.md"), "about", raw);
+
+        result.Document.Should().BeNull();
+        result.Errors.Should().Contain(e => e.Code == "PAGE_INVALID_LINK" && e.Message.Contains("危险协议", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WorkLoader_RejectsDataSchemeLinks()
+    {
+        var loader = new WorkLoader(Markdown);
+        var raw = """
+            ---
+            title: Piece
+            slug: piece
+            status: Published
+            links:
+              - label: Bad
+                url: data:text/html,hi
+              - label: Mail
+                url: mailto:hi@example.com
+              - label: Rel
+                url: /works/piece
+            ---
+            Body.
+            """;
+
+        var result = loader.Load(Loc("works/2025/piece/index.md"), "2025", "piece", raw);
+
+        result.Document.Should().BeNull();
+        result.Errors.Should().Contain(e => e.Code == "WORK_INVALID_LINK" && e.Message.Contains("危险协议", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ContentLinkUrl_AllowsHttpHttpsMailtoAndRelative_RejectsDangerous()
+    {
+        ContentLinkUrl.IsAllowed("https://example.com/a").Should().BeTrue();
+        ContentLinkUrl.IsAllowed("http://example.com").Should().BeTrue();
+        ContentLinkUrl.IsAllowed("mailto:a@b.c").Should().BeTrue();
+        ContentLinkUrl.IsAllowed("/about").Should().BeTrue();
+        ContentLinkUrl.IsAllowed("./local").Should().BeTrue();
+        ContentLinkUrl.IsAllowed("../up").Should().BeTrue();
+        ContentLinkUrl.IsAllowed("docs/guide").Should().BeTrue();
+
+        ContentLinkUrl.IsAllowed("javascript:alert(1)").Should().BeFalse();
+        ContentLinkUrl.IsAllowed("data:text/html,x").Should().BeFalse();
+        ContentLinkUrl.IsAllowed("vbscript:msgbox(1)").Should().BeFalse();
+        ContentLinkUrl.IsAllowed("file:///etc/passwd").Should().BeFalse();
+        ContentLinkUrl.IsAllowed("//evil.example/x").Should().BeFalse();
+        ContentLinkUrl.IsAllowed("").Should().BeFalse();
+    }
+
+    [Fact]
     public void FriendLinksLoader_ParsesShortAndFullForms()
     {
         var yaml = """

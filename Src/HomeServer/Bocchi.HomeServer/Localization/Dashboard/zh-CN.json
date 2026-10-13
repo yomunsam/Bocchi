@@ -1048,5 +1048,20 @@
   "contentEditor.field.cover": "头像 / 封面",
   "contentEditor.field.coverPlaceholder": "media/portrait.jpg",
   "contentEditor.field.links": "外链",
-  "contentEditor.field.linksPlaceholder": "GitHub | https://github.com/you\n博客 | https://example.com"
+  "contentEditor.field.linksPlaceholder": "GitHub | https://github.com/you\n博客 | https://example.com",
+  "preview.empty.failed": "预览生成失败。可以回到后台重试，或查看构建日志。",
+  "contentEditor.field.linksInvalidUrl": "每条外链的 URL 只能是 http、https、mailto 或站内相对路径，不能使用 javascript:、data: 等危险协议。",
+  "contentEditor.field.linksHelp": "每行一条：标签 | URL。可用 https://、http://、mailto:，或 /about 这类站内路径。",
+  "publish.localDirectory.sectionDescription": "把生成好的静态站点镜像到本机某个文件夹。再次发布会同步更新，删掉输出里已经没有的页面。",
+  "publish.localDirectory.empty": "还没有本地目录发布方案。",
+  "publish.localDirectory.addPlan": "添加本地目录方案",
+  "publish.localDirectory.targetTitle": "目标文件夹",
+  "publish.localDirectory.targetDescription": "填写本机绝对路径。目录不存在时会创建，并与构建输出保持一致。",
+  "publish.localDirectory.targetPath": "目录路径",
+  "publish.localDirectory.targetPathPlaceholder": "/var/www/mysite",
+  "publish.localDirectory.allowUnmarked": "允许覆盖没有 Bocchi 标记的非空目录",
+  "publish.localDirectory.riskHint": "会写到 Bocchi 数据目录之外。发布前请再确认路径。",
+  "publish.localDirectory.errorPathRequired": "请填写绝对路径。",
+  "publish.localDirectory.errorPathAbsolute": "目录路径必须是绝对路径。",
+  "publish.plan.edit": "编辑"
 }
