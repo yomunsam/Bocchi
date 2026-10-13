@@ -29,4 +29,13 @@ public sealed record Page
 
     /// <summary>Theme 页面模板名称。只保存 name，不保存 Theme id 或关联记录。</summary>
     public string Template { get; init; } = "normal";
+
+    /// <summary>头像 / 封面图路径（about 模板作肖像）。与 Post/Work 的 cover 同形。</summary>
+    public MediaReference? Cover { get; init; }
+
+    /// <summary>标签列表；about 等模板可展示。</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>外链列表（label + url），与 Work.Links 同形。</summary>
+    public IReadOnlyList<WorkLink> Links { get; init; } = [];
 }

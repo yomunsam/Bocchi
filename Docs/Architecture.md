@@ -207,6 +207,9 @@ cover: "/media/images/cover.jpg"
 - `showInNavigation`
 - `summary`
 - `template`：可选 Page template name，默认 `normal`。这里只保存模板名称，不保存 Theme id 或关联记录；如果当前 Theme 不再声明该模板，Dashboard 仍保留原 name 并提示不可用。
+- `cover`：可选头像 / 封面路径；about 等模板用作肖像。
+- `tags`：可选标签列表。
+- `links`：可选外链列表（`label` + `url`），与 Work 同形。
 
 ### 4.3 Work
 

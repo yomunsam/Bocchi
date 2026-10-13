@@ -486,6 +486,27 @@
                                 </select>
                             </label>
                             <label class="bocchi-editor-field">
+                                @Text("contentEditor.field.cover")
+                                <input type="text"
+                                       @bind="_coverPath"
+                                       @bind:event="oninput"
+                                       placeholder='@Text("contentEditor.field.coverPlaceholder")' />
+                            </label>
+                            <label class="bocchi-editor-field">
+                                @Text("contentEditor.field.tags")
+                                <input type="text"
+                                       @bind="_tagsText"
+                                       @bind:event="oninput"
+                                       placeholder='@Text("contentEditor.field.tagsPlaceholder")' />
+                            </label>
+                            <label class="bocchi-editor-field">
+                                @Text("contentEditor.field.links")
+                                <textarea rows="3"
+                                          @bind="_linksText"
+                                          @bind:event="oninput"
+                                          placeholder='@Text("contentEditor.field.linksPlaceholder")'></textarea>
+                            </label>
+                            <label class="bocchi-editor-field">
                                 @Text("contentEditor.field.navigationOrder")
                                 <input type="number" @bind="_order" />
                             </label>

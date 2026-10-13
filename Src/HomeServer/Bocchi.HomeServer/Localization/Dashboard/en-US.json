@@ -1044,5 +1044,9 @@
   "preview.empty.eyebrow": "Preview",
   "preview.empty.missing": "This route has no Theme output. Go back to Admin to keep editing, or check whether the active Theme provides this page.",
   "preview.empty.back": "Back to Admin",
-  "themeDiagnostics.theme-builtin-files-edited": "Some built-in theme files were edited locally and were not overwritten on upgrade."
+  "themeDiagnostics.theme-builtin-files-edited": "Some built-in theme files were edited locally and were not overwritten on upgrade.",
+  "contentEditor.field.cover": "Avatar / cover",
+  "contentEditor.field.coverPlaceholder": "media/portrait.jpg",
+  "contentEditor.field.links": "Links",
+  "contentEditor.field.linksPlaceholder": "GitHub | https://github.com/you\nBlog | https://example.com"
 }

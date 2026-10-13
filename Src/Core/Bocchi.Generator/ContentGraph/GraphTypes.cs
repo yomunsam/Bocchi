@@ -64,6 +64,15 @@ public sealed record GraphPage
     /// <summary>Page 使用的 Theme 模板名称。</summary>
     public string Template { get; init; } = "normal";
 
+    /// <summary>头像 / 封面；about 模板作肖像。</summary>
+    public MediaReference? Cover { get; init; }
+
+    /// <summary>标签。</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>外链（label + url）。</summary>
+    public IReadOnlyList<WorkLink> Links { get; init; } = [];
+
     public required string SiteRelativeUrl { get; init; }
 
     public required string BodyMarkdown { get; init; }

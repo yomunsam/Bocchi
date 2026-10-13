@@ -369,6 +369,9 @@ public sealed class ContentGraphBuilder
             var rewrittenMedia = doc.Body.ReferencedMedia
                 .Select(m => rewriter.RewriteReference(m, ownerDir, siteMediaPrefix, descriptor))
                 .ToList();
+            var rewrittenCover = doc.Frontmatter.Cover is null
+                ? null
+                : rewriter.RewriteReference(doc.Frontmatter.Cover, ownerDir, siteMediaPrefix, descriptor);
             var language = ResolveContentLanguage(doc.Frontmatter.Language, primaryLanguage);
             var groupId = ResolveContentGroup(doc.Frontmatter.Localization, $"pages/{doc.Frontmatter.Slug}");
             var contentId = CreateVariantContentId(groupId, language);
@@ -386,6 +389,9 @@ public sealed class ContentGraphBuilder
                 ShowInNavigation = doc.Frontmatter.ShowInNavigation,
                 Summary = doc.Frontmatter.Summary,
                 Template = doc.Frontmatter.Template,
+                Cover = rewrittenCover,
+                Tags = doc.Frontmatter.Tags,
+                Links = doc.Frontmatter.Links,
                 SiteRelativeUrl = ApplyPrimaryUnprefixedUrlPolicy(baseUrl, language, primaryLanguage),
                 BodyMarkdown = rewrittenMarkdown,
                 BodyHtml = rewrittenHtml,

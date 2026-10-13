@@ -62,6 +62,9 @@ public partial class ContentEditor
         _template = ReadString(root, "template") ?? "normal";
         _showInNavigation = ReadBool(root, "showInNavigation") ?? false;
         _order = ReadInt(root, "order") ?? 0;
+        _coverPath = ReadString(root, "cover") ?? string.Empty;
+        _linksText = FormatLinksText(ReadLinkPairs(root, "links"));
+        _linksTextAtLoad = _linksText;
     }
 
     /// <summary>把结构化字段写回 YAML，同时保留用户在 Frontmatter 中添加的其他键。</summary>
@@ -119,6 +122,16 @@ public partial class ContentEditor
             SetScalar(root, "template", string.IsNullOrWhiteSpace(_template) ? "normal" : _template);
             SetScalar(root, "order", _order.ToString(CultureInfo.InvariantCulture));
             SetScalar(root, "showInNavigation", _showInNavigation ? "true" : "false");
+            SetScalar(root, "cover", _coverPath, removeWhenBlank: true);
+            if (!string.Equals(_tagsText, _tagsTextAtLoad, StringComparison.Ordinal))
+            {
+                SetSequence(root, "tags", ParseCommaList(_tagsText));
+            }
+
+            if (!string.Equals(_linksText, _linksTextAtLoad, StringComparison.Ordinal))
+            {
+                SetLinkSequence(root, "links", ParseLinksText(_linksText));
+            }
         }
 
         var stream = new YamlStream(new YamlDocument(root));
@@ -322,6 +335,80 @@ public partial class ContentEditor
     /// <summary>按 frontmatter 约定格式化带时区的时间值。</summary>
     private static string FormatDateTime(DateTimeOffset value)
         => value.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
+
+
+    /// <summary>读取 links 序列为 (label, url) 对。</summary>
+    private static List<(string Label, string Url)> ReadLinkPairs(YamlMappingNode? root, string key)
+    {
+        if (root?.Children.TryGetValue(new YamlScalarNode(key), out var node) != true
+            || node is not YamlSequenceNode sequence)
+        {
+            return [];
+        }
+
+        var list = new List<(string, string)>();
+        foreach (var child in sequence.Children.OfType<YamlMappingNode>())
+        {
+            var label = ReadString(child, "label");
+            var url = ReadString(child, "url");
+            if (!string.IsNullOrWhiteSpace(label) && !string.IsNullOrWhiteSpace(url))
+            {
+                list.Add((label, url));
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>外链写成「标签 | URL」多行，编辑器里好改。</summary>
+    private static string FormatLinksText(IReadOnlyList<(string Label, string Url)> links)
+        => string.Join("\n", links.Select(x => $"{x.Label} | {x.Url}"));
+
+    /// <summary>解析「标签 | URL」多行；空行与缺分隔符的行跳过。</summary>
+    private static List<(string Label, string Url)> ParseLinksText(string value)
+    {
+        var list = new List<(string, string)>();
+        foreach (var rawLine in value.Replace("\r\n", "\n").Split('\n'))
+        {
+            var line = rawLine.Trim();
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            var sep = line.IndexOf('|');
+            if (sep < 0)
+            {
+                continue;
+            }
+
+            var label = line[..sep].Trim();
+            var url = line[(sep + 1)..].Trim();
+            if (label.Length > 0 && url.Length > 0)
+            {
+                list.Add((label, url));
+            }
+        }
+
+        return list;
+    }
+
+    /// <summary>把外链列表写回 YAML sequence。</summary>
+    private static void SetLinkSequence(YamlMappingNode root, string key, IReadOnlyList<(string Label, string Url)> links)
+    {
+        var sequence = new YamlSequenceNode();
+        foreach (var (label, url) in links)
+        {
+            var item = new YamlMappingNode
+            {
+                { new YamlScalarNode("label"), new YamlScalarNode(label) },
+                { new YamlScalarNode("url"), new YamlScalarNode(url) },
+            };
+            sequence.Add(item);
+        }
+
+        root.Children[new YamlScalarNode(key)] = sequence;
+    }
 
     /// <summary>Post 分类下拉选项，Name 同时作为 UI 显示名与 frontmatter 保存值。</summary>
     private sealed record CategoryOption(string Name, int Depth);

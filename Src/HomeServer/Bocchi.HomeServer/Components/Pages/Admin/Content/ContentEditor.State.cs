@@ -127,6 +127,15 @@ public partial class ContentEditor
     /// <summary>Page 导航顺序。</summary>
     private int _order;
 
+    /// <summary>Page / Post 封面路径（about 用作头像）。</summary>
+    private string _coverPath = string.Empty;
+
+    /// <summary>Page 外链文本：每行「标签 | URL」。</summary>
+    private string _linksText = string.Empty;
+
+    /// <summary>载入时的外链文本；没改过就不回写，避免抹掉原 YAML 格式。</summary>
+    private string _linksTextAtLoad = string.Empty;
+
     /// <summary>浏览器侧 AI provider 探测结果。</summary>
     private AiAvailabilitySnapshot _aiAvailability = AiAvailabilitySnapshot.Empty;
 

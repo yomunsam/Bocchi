@@ -98,6 +98,9 @@ public sealed record PageInput
     public required bool ShowInNavigation { get; init; }
     public string? Summary { get; init; }
     public required string Template { get; init; }
+    public MediaReferenceInput? Cover { get; init; }
+    public IReadOnlyList<string> Tags { get; init; } = [];
+    public IReadOnlyList<WorkLink> Links { get; init; } = [];
     /// <summary>站点根相对 URL。</summary>
     public required string SiteRelativeUrl { get; init; }
     /// <summary>当前语言页面自身的绝对 canonical URL，Theme 不需要再从 baseUrl 推导。</summary>

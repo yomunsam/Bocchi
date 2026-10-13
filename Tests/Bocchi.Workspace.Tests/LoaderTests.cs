@@ -214,6 +214,40 @@ public sealed class LoaderTests
         faq.Document!.Frontmatter.Template.Should().Be("normal");
     }
 
+
+    [Fact]
+    public void PageLoader_ReadsCoverTagsAndLinks()
+    {
+        var loader = new PageLoader(Markdown);
+        var raw = """
+            ---
+            title: About
+            slug: about
+            status: Published
+            template: about
+            cover: media/portrait.jpg
+            tags: [maker, design]
+            links:
+              - label: GitHub
+                url: https://github.com/example
+              - label: Blog
+                url: https://example.com
+            ---
+            Hello.
+            """;
+
+        var result = loader.Load(Loc("pages/about/index.md"), "about", raw);
+
+        result.Errors.Should().BeEmpty();
+        var page = result.Document!.Frontmatter;
+        page.Cover.Should().NotBeNull();
+        page.Cover!.Path.Should().Be("media/portrait.jpg");
+        page.Tags.Should().Equal("maker", "design");
+        page.Links.Should().HaveCount(2);
+        page.Links[0].Should().Be(new WorkLink("GitHub", "https://github.com/example"));
+        page.Links[1].Should().Be(new WorkLink("Blog", "https://example.com"));
+    }
+
     [Fact]
     public void FriendLinksLoader_ParsesShortAndFullForms()
     {
