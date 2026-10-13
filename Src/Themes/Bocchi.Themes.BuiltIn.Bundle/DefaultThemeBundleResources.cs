@@ -28,21 +28,32 @@ internal static class DefaultThemeBundleResources
         .Order(StringComparer.Ordinal)
         .ToArray();
 
-    /// <summary>复制一个默认 Theme 文件到目标路径。</summary>
+    /// <summary>复制一个默认 Theme 文件到目标路径（目标必须尚不存在）。</summary>
     public static async Task CopyToFileAsync(
         string relativePath,
         string destination,
         CancellationToken cancellationToken)
     {
+        await using var source = OpenRequired(relativePath);
+        await CopyStreamToFileAsync(source, destination, overwrite: false, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>把已打开的内置资源流写入磁盘。</summary>
+    public static async Task CopyStreamToFileAsync(
+        Stream source,
+        string destination,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(source);
         ArgumentException.ThrowIfNullOrWhiteSpace(destination);
 
-        await using var source = OpenRequired(relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         await using var target = new FileStream(
             destination,
             new FileStreamOptions
             {
-                Mode = FileMode.CreateNew,
+                Mode = overwrite ? FileMode.Create : FileMode.CreateNew,
                 Access = FileAccess.Write,
                 Share = FileShare.None,
                 Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
@@ -50,8 +61,8 @@ internal static class DefaultThemeBundleResources
         await source.CopyToAsync(target, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>打开一个必须存在的默认 Theme 文件资源。</summary>
-    private static Stream OpenRequired(string relativePath)
+    /// <summary>打开一个必须存在的默认 Theme 文件资源；调用方负责释放。</summary>
+    internal static Stream OpenRequired(string relativePath)
     {
         var normalized = NormalizeRequestedPath(relativePath);
         if (!ResourceNames.TryGetValue(normalized, out var resourceName))

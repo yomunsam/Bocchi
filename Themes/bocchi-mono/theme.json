@@ -1,7 +1,7 @@
 {
   "id": "bocchi-mono",
   "name": "Bocchi Mono",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "contractVersion": "1.0",
   "inputDir": "../../cache/theme-input",
   "outputDir": "build",
@@ -40,7 +40,12 @@
   ],
   "specialPages": [],
   "i18n": {
-    "supportedLanguages": ["en-US", "zh-CN", "zh-TW", "ja-JP"],
+    "supportedLanguages": [
+      "en-US",
+      "zh-CN",
+      "zh-TW",
+      "ja-JP"
+    ],
     "defaultLanguage": "en-US",
     "keys": [
       {

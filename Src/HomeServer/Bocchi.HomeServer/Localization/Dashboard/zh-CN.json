@@ -1043,5 +1043,6 @@
   "preview.empty.title": "预览",
   "preview.empty.eyebrow": "预览",
   "preview.empty.missing": "当前路由没有对应的 Theme 输出。可以回到后台选内容继续编辑，或确认当前 Theme 是否提供这个页面。",
-  "preview.empty.back": "返回后台"
+  "preview.empty.back": "返回后台",
+  "themeDiagnostics.theme-builtin-files-edited": "内置 Theme 里有你改过的文件，升级时跳过了。"
 }

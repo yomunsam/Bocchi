@@ -35,7 +35,8 @@ public sealed class ThemeResolver
     /// <summary>列出当前 Catalog 中可见的 Theme；无效 Theme 也保留为带诊断的条目。</summary>
     public async Task<IReadOnlyList<ThemeCatalogItem>> ListAvailableThemesAsync(CancellationToken cancellationToken = default)
     {
-        await DefaultThemeBundle.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
+        var editedBuiltInFiles = await DefaultThemeBundle.EnsureAsync(_layout.ThemesDirectory, cancellationToken)
+            .ConfigureAwait(false);
 
         var items = new Dictionary<string, ThemeCatalogItem>(StringComparer.Ordinal);
         foreach (var themeDirectory in Directory.EnumerateDirectories(_layout.ThemesDirectory).Order(StringComparer.Ordinal))
@@ -61,6 +62,17 @@ public sealed class ThemeResolver
             {
                 items[item.Id] = item;
             }
+        }
+
+        if (editedBuiltInFiles.Count > 0 && items.TryGetValue(DefaultThemeBundle.ThemeId, out var builtIn))
+        {
+            var diagnostics = builtIn.Diagnostics
+                .Append(new ThemeDiagnostic(
+                    ThemeDiagnosticSeverity.Warning,
+                    "theme-builtin-files-edited",
+                    "内置 Theme 里有你改过的文件，升级时跳过了：" + string.Join("、", editedBuiltInFiles)))
+                .ToArray();
+            items[DefaultThemeBundle.ThemeId] = builtIn with { Diagnostics = diagnostics };
         }
 
         return items.Values
@@ -412,7 +424,8 @@ public sealed class ThemeResolver
 
     private static bool ShouldIgnoreInstalledDirectory(string themeId)
         => string.IsNullOrWhiteSpace(themeId) ||
-           string.Equals(themeId, ".backups", StringComparison.Ordinal);
+           string.Equals(themeId, ".backups", StringComparison.Ordinal) ||
+           string.Equals(themeId, DefaultThemeBundle.BundleHashesDirectoryName, StringComparison.Ordinal);
 
     private static ThemeDiagnostic Error(string code, string message)
         => new(ThemeDiagnosticSeverity.Error, code, message);

@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
 namespace Bocchi.Themes.BuiltIn.Bundle;
 
 /// <summary>系统默认 Theme 的身份信息与运行实例物化入口。</summary>
@@ -9,32 +13,130 @@ public static class DefaultThemeBundle
     /// <summary>默认 Theme 显示名称。</summary>
     public const string ThemeName = "Bocchi Mono";
 
-    /// <summary>默认 Theme 初始版本。</summary>
-    public const string ThemeVersion = "0.1.0";
+    /// <summary>默认 Theme 版本；内置文件有变更时递增。</summary>
+    public const string ThemeVersion = "0.2.0";
 
-    /// <summary>把随包分发的默认 Theme 源文件物化到 DataRoot themes 目录；已存在文件不会被覆盖。</summary>
-    public static async Task EnsureAsync(string themesDirectory, CancellationToken cancellationToken = default)
+    /// <summary>存放「上次从内置包写入的文件哈希」的目录名，挂在 themes/ 下。</summary>
+    public const string BundleHashesDirectoryName = ".bundle-hashes";
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+    };
+
+    /// <summary>
+    /// 把随包分发的默认 Theme 物化到 DataRoot themes 目录。
+    /// 缺失文件会补上；内容仍等于上次内置哈希的文件会被升级；用户改过的文件保留，并出现在返回列表里。
+    /// </summary>
+    public static async Task<IReadOnlyList<string>> EnsureAsync(string themesDirectory, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(themesDirectory);
 
         var themeRoot = Path.Combine(themesDirectory, ThemeId);
         Directory.CreateDirectory(themeRoot);
+
+        var hashPath = ResolveHashManifestPath(themesDirectory);
+        var previous = await ReadHashManifestAsync(hashPath, cancellationToken).ConfigureAwait(false);
+        var next = new Dictionary<string, string>(StringComparer.Ordinal);
+        var edited = new List<string>();
+
         foreach (var relativePath in DefaultThemeBundleResources.Files)
         {
-            await EnsureFileAsync(themeRoot, relativePath, cancellationToken).ConfigureAwait(false);
+            var destination = Path.Combine(themeRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            await using var bundled = DefaultThemeBundleResources.OpenRequired(relativePath);
+            var bundledHash = await HashAsync(bundled, cancellationToken).ConfigureAwait(false);
+            bundled.Position = 0;
+
+            if (!File.Exists(destination))
+            {
+                await DefaultThemeBundleResources.CopyStreamToFileAsync(bundled, destination, overwrite: false, cancellationToken)
+                    .ConfigureAwait(false);
+                next[relativePath] = bundledHash;
+                continue;
+            }
+
+            var installedHash = await HashFileAsync(destination, cancellationToken).ConfigureAwait(false);
+            previous.TryGetValue(relativePath, out var lastBundledHash);
+
+            // 用户没改过：当前文件哈希等于上次记录的内置哈希（或旧实例没有记录但文件碰巧等于当前内置）
+            var untouched = string.Equals(installedHash, lastBundledHash, StringComparison.Ordinal)
+                || (lastBundledHash is null && string.Equals(installedHash, bundledHash, StringComparison.Ordinal));
+
+            if (untouched)
+            {
+                if (!string.Equals(installedHash, bundledHash, StringComparison.Ordinal))
+                {
+                    await DefaultThemeBundleResources.CopyStreamToFileAsync(bundled, destination, overwrite: true, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                next[relativePath] = bundledHash;
+                continue;
+            }
+
+            // 用户改过：保留本地文件，继续记下「上次内置哈希」以免下次误覆盖
+            edited.Add(relativePath);
+            next[relativePath] = lastBundledHash ?? installedHash;
         }
+
+        await WriteHashManifestAsync(hashPath, next, cancellationToken).ConfigureAwait(false);
+        return edited;
     }
 
-    /// <summary>复制缺失的默认 Theme 文件；用户已经改过的运行实例始终保留。</summary>
-    private static async Task EnsureFileAsync(string themeRoot, string relativePath, CancellationToken cancellationToken)
+    /// <summary>哈希清单路径：&lt;themes&gt;/.bundle-hashes/bocchi-mono.json。</summary>
+    public static string ResolveHashManifestPath(string themesDirectory)
+        => Path.Combine(themesDirectory, BundleHashesDirectoryName, ThemeId + ".json");
+
+    private static async Task<Dictionary<string, string>> ReadHashManifestAsync(string path, CancellationToken cancellationToken)
     {
-        var destination = Path.Combine(themeRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-        if (File.Exists(destination))
+        if (!File.Exists(path))
         {
-            return;
+            return new Dictionary<string, string>(StringComparer.Ordinal);
         }
 
-        await DefaultThemeBundleResources.CopyToFileAsync(relativePath, destination, cancellationToken)
+        await using var stream = File.OpenRead(path);
+        var data = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, JsonOptions, cancellationToken)
             .ConfigureAwait(false);
+        return data is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(data, StringComparer.Ordinal);
+    }
+
+    private static async Task WriteHashManifestAsync(
+        string path,
+        IReadOnlyDictionary<string, string> hashes,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await using var stream = new FileStream(
+            path,
+            new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+            });
+        await JsonSerializer.SerializeAsync(stream, hashes, JsonOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<string> HashFileAsync(string path, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(
+            path,
+            new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.Read,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+            });
+        return await HashAsync(stream, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<string> HashAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

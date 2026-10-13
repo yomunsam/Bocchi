@@ -1043,5 +1043,6 @@
   "preview.empty.title": "Preview",
   "preview.empty.eyebrow": "Preview",
   "preview.empty.missing": "This route has no Theme output. Go back to Admin to keep editing, or check whether the active Theme provides this page.",
-  "preview.empty.back": "Back to Admin"
+  "preview.empty.back": "Back to Admin",
+  "themeDiagnostics.theme-builtin-files-edited": "Some built-in theme files were edited locally and were not overwritten on upgrade."
 }
