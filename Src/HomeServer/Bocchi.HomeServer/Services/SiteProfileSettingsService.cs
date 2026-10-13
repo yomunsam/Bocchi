@@ -55,12 +55,29 @@ public sealed class SiteProfileSettingsService
     /// <summary>
     /// 启动时同步：若 workspace 已有 <c>site.yaml</c>，以文件为准灌入数据库；
     /// 仅当文件不存在时才把数据库投影写出。绝不在启动时用 DB 默认值覆盖已有文件。
+    /// 过新 <c>formatVersion</c> 拒绝灌库（也不改写文件）。
     /// </summary>
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
         var file = _layout.Workspace.SiteSettingsFile;
         if (File.Exists(file) && new FileInfo(file).Length > 0)
         {
+            if (!WorkspaceFormatVersion.TryReadFromFile(file, out var formatVersion))
+            {
+                _logger.LogError("site.yaml 无法解析 formatVersion，跳过启动灌库，保留原有数据库投影。");
+                return;
+            }
+
+            if (formatVersion > WorkspaceFormatVersion.Current)
+            {
+                _logger.LogError(
+                    "site.yaml formatVersion={FormatVersion} 比当前 Bocchi 支持的 {Current} 更新，跳过启动灌库，不改写文件。",
+                    formatVersion,
+                    WorkspaceFormatVersion.Current);
+                throw new InvalidOperationException(
+                    $"site.yaml formatVersion={formatVersion} 比当前 Bocchi 支持的 {WorkspaceFormatVersion.Current} 更新。请升级 Bocchi，或恢复较旧的 workspace。拒绝灌库。");
+            }
+
             await ImportWorkspaceIntoDbAsync(file, cancellationToken).ConfigureAwait(false);
             return;
         }
@@ -69,15 +86,36 @@ public sealed class SiteProfileSettingsService
         await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>保存站点基础约定：先写 workspace，再更新数据库投影。</summary>
+    /// <summary>保存站点基础约定：先写 workspace，再更新数据库投影。过新 formatVersion 拒绝。</summary>
     public async Task SaveAsync(SiteProfileSettingsUpdate update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
+        WorkspaceFormatVersion.EnsureExistingFileAllowsWrite(_layout.Workspace.SiteSettingsFile);
 
         var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
         var now = _time.GetUtcNow();
         Apply(settings, update, now.Year.ToString(CultureInfo.InvariantCulture));
         settings.UpdatedAt = now;
+        await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 由 localization 权威同步 <c>site.yaml</c> 的 <c>language</c> 与数据库投影，避免两处漂移。
+    /// </summary>
+    public async Task SyncLanguageAsync(string language, CancellationToken cancellationToken = default)
+    {
+        WorkspaceFormatVersion.EnsureExistingFileAllowsWrite(_layout.Workspace.SiteSettingsFile);
+
+        var normalized = string.IsNullOrWhiteSpace(language) ? "zh-CN" : language.Trim();
+        var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
+        if (string.Equals(settings.Language, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        settings.Language = normalized;
+        settings.UpdatedAt = _time.GetUtcNow();
         await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }

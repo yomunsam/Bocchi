@@ -46,8 +46,7 @@ public static class SiteSettingsLoader
             return LoadResult.Fail<SiteSettings>(errors);
         }
 
-        var formatVersionRaw = YamlAccess.GetInt(mapping, "formatVersion");
-        var formatVersion = formatVersionRaw ?? Bocchi.Workspace.WorkspaceFormatVersion.DefaultWhenMissing;
+        var formatVersion = Bocchi.Workspace.WorkspaceFormatVersion.ReadFormatVersion(mapping);
         if (formatVersion > Bocchi.Workspace.WorkspaceFormatVersion.Current)
         {
             errors.Add(new ContentValidationError(
