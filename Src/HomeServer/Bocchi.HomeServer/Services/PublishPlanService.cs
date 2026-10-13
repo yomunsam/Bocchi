@@ -16,7 +16,7 @@ public sealed class PublishPlanService
     /// <summary>静态文件生成渠道：内置本地输出能力，不需要远端凭据。</summary>
     public const string StaticFilesChannel = "static-files";
 
-    /// <summary>本地目录发布渠道：M7 目标，当前仅作为方案类型保留。</summary>
+    /// <summary>本地目录发布渠道：把静态输出镜像到本机绝对目录。</summary>
     public const string LocalDirectoryChannel = "local-directory";
 
     /// <summary>GitHub Pages 发布渠道：M7 首个真实远端发布目标。</summary>

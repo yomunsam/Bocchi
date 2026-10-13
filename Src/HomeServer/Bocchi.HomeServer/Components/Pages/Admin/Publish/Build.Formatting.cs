@@ -138,13 +138,14 @@ public partial class Build
         => channel switch
         {
             PublishPlanService.GitHubPagesChannel => Lucide.GitBranch,
+            PublishPlanService.LocalDirectoryChannel => Lucide.FolderOpen,
             PublishPlanService.CustomChannel => Lucide.Settings,
             _ => Lucide.FolderOpen,
         };
 
-    /// <summary>发布方案编辑入口；当前只有 GitHub Pages 方案拥有配置页。</summary>
+    /// <summary>发布方案编辑入口；GitHub Pages 与本地目录可回编辑。</summary>
     private static string? PlanEditUrl(PublishPlanRecord plan)
-        => string.Equals(plan.Channel, PublishPlanService.GitHubPagesChannel, StringComparison.Ordinal)
+        => plan.Channel is PublishPlanService.GitHubPagesChannel or PublishPlanService.LocalDirectoryChannel
             ? $"/Admin/Publish/AddPlan/{plan.Id}"
             : null;
 

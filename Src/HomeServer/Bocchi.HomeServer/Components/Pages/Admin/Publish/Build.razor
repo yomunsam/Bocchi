@@ -47,13 +47,43 @@
                 @if (IsLocalOutputSection)
                 {
                     <section class="bocchi-panel bocchi-publish-local-output" aria-labelledby="publish-local-output-heading">
-                        <span class="bocchi-publish-local-output__icon" aria-hidden="true">
-                            <Blazicon Svg="Lucide.FolderOpen" />
-                        </span>
-                        <div>
-                            <h2 id="publish-local-output-heading">@I18n["publish.localOutput.title"]</h2>
-                            <p>@I18n["publish.localOutput.emptyDescription"]</p>
+                        <div class="bocchi-publish-output-heading">
+                            <span class="bocchi-publish-output-heading__icon" aria-hidden="true">
+                                <Blazicon Svg="Lucide.FolderOpen" />
+                            </span>
+                            <div>
+                                <h2 id="publish-local-output-heading">@I18n["publish.localOutput.title"]</h2>
+                                <p>@I18n["publish.localDirectory.sectionDescription"]</p>
+                            </div>
                         </div>
+                        @if (LocalDirectoryPlans.Count == 0)
+                        {
+                            <p class="bocchi-publish-side-copy">@I18n["publish.localDirectory.empty"]</p>
+                            <a class="bocchi-button bocchi-button--primary" href="/Admin/Publish/AddPlan">
+                                <Blazicon Svg="Lucide.Plus" />
+                                <span>@I18n["publish.localDirectory.addPlan"]</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="bocchi-publish-plan-list">
+                                @foreach (var plan in LocalDirectoryPlans)
+                                {
+                                    var path = LocalDirectoryPath(plan);
+                                    <div class="bocchi-publish-plan-row">
+                                        <div>
+                                            <strong>@plan.DisplayName</strong>
+                                            <small>@path</small>
+                                        </div>
+                                        <a class="bocchi-button secondary" href="@PlanEditUrl(plan)!">
+                                            <Blazicon Svg="Lucide.Pencil" />
+                                            <span>@I18n["publish.plan.edit"]</span>
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <p class="bocchi-publish-remote-message">@I18n["publish.localDirectory.riskHint"]</p>
                     </section>
                 }
                 else if (IsAddPlanSection)
@@ -189,19 +219,45 @@
             </div>
         </div>
 
-        <form class="bocchi-form-grid bocchi-publish-github-form" @onsubmit="SaveGitHubPlanAsync" @onsubmit:preventDefault>
+        <form class="bocchi-form-grid bocchi-publish-github-form" @onsubmit="SavePublishPlanAsync" @onsubmit:preventDefault>
             <div class="bocchi-publish-github-fields">
                 <label>@I18n["publish.plan.name"]
                     <input type="text" @bind="_planDisplayName" autocomplete="off" />
                 </label>
                 <label>@I18n["publish.plan.channel"]
-                    <select @bind="_publishChannel">
+                    <select @bind="_publishChannel" @bind:after="OnPublishChannelChanged">
+                        <option value="@PublishPlanService.LocalDirectoryChannel">@I18n["publish.channel.localDirectory"]</option>
                         <option value="@PublishPlanService.GitHubPagesChannel">@I18n["publish.channel.githubPages"]</option>
                     </select>
                 </label>
             </div>
 
-            @if (!HasSelectedGitHubConnection)
+            @if (IsLocalDirectoryChannel)
+            {
+                <div class="bocchi-publish-wizard-section">
+                    <div class="bocchi-publish-wizard-section__heading">
+                        <Blazicon Svg="Lucide.FolderOpen" />
+                        <div>
+                            <strong>@I18n["publish.localDirectory.targetTitle"]</strong>
+                            <span>@I18n["publish.localDirectory.targetDescription"]</span>
+                        </div>
+                    </div>
+                    <label>@I18n["publish.localDirectory.targetPath"]
+                        <input type="text"
+                               @bind="_localTargetDirectory"
+                               @bind:event="oninput"
+                               placeholder='@I18n["publish.localDirectory.targetPathPlaceholder"]'
+                               autocomplete="off" />
+                    </label>
+                    <label class="bocchi-checkbox bocchi-publish-github-check">
+                        <input type="checkbox" @bind="_localAllowUnmarkedTarget" />
+                        @I18n["publish.localDirectory.allowUnmarked"]
+                    </label>
+                    <p class="bocchi-publish-remote-message">@I18n["publish.localDirectory.riskHint"]</p>
+                </div>
+            }
+
+            @if (IsGitHubPagesChannel && !HasSelectedGitHubConnection)
             {
                 <div class="bocchi-publish-wizard-section">
                     <div class="bocchi-publish-wizard-section__heading">
@@ -253,7 +309,7 @@
                     }
                 </div>
             }
-            else
+            else if (IsGitHubPagesChannel)
             {
                 <div class="bocchi-publish-wizard-section">
                     <div class="bocchi-publish-wizard-section__heading">
@@ -387,11 +443,11 @@
             }
             <div class="bocchi-publish-github-fields">
                 <div class="bocchi-publish-quick-actions">
-                    @if (HasSelectedGitHubConnection)
+                    @if (IsLocalDirectoryChannel || HasSelectedGitHubConnection)
                     {
-                        <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@_githubSaving">
+                        <button type="submit" class="bocchi-button bocchi-button--primary" disabled="@(_githubSaving || _localSaving)">
                             <Blazicon Svg="Lucide.Save" />
-                            <span>@(_githubSaving ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
+                            <span>@((_githubSaving || _localSaving) ? I18n["publish.github.saving"] : I18n["publish.addPlan.save"])</span>
                         </button>
                     }
                     <a class="bocchi-button secondary" href="/Admin/Publish">

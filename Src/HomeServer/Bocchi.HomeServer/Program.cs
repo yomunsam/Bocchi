@@ -143,7 +143,9 @@ try
     builder.Services.AddScoped<IStaticSiteBuildRunner, StaticSiteBuildRunner>();
     builder.Services.AddHttpClient<GitHubPagesPublisher>();
     builder.Services.AddHttpClient<GitHubDeviceFlowService>();
+    builder.Services.AddScoped<LocalDirectoryPublisher>();
     builder.Services.AddScoped<IPublishTargetPublisher>(sp => sp.GetRequiredService<GitHubPagesPublisher>());
+    builder.Services.AddScoped<IPublishTargetPublisher>(sp => sp.GetRequiredService<LocalDirectoryPublisher>());
     builder.Services.AddScoped<NavigationMenuService>();
     builder.Services.AddScoped<ThemeMigrationService>();
     builder.Services.AddScoped<DashboardAiClient>();

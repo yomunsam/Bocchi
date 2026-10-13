@@ -62,11 +62,18 @@ public partial class Build
             return;
         }
 
-        var config = GitHubPagesPublishConfiguration.FromJson(plan.ConfigurationJson).Normalize();
         _editingPlanId = plan.Id;
         _planDisplayName = plan.DisplayName;
         _publishChannel = plan.Channel;
         _selectedGitConnectionId = plan.GitProviderConnectionId;
+
+        if (string.Equals(plan.Channel, PublishPlanService.LocalDirectoryChannel, StringComparison.Ordinal))
+        {
+            LoadLocalDirectoryPlan(plan);
+            return;
+        }
+
+        var config = GitHubPagesPublishConfiguration.FromJson(plan.ConfigurationJson).Normalize();
         _githubOwner = config.Owner;
         _githubRepository = config.Repository;
         _githubBranch = config.Branch;
