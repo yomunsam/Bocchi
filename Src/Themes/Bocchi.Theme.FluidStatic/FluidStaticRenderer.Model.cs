@@ -252,6 +252,7 @@ public sealed partial class FluidStaticRenderer
             ["accentColor"] = site.AccentColor,
             ["cjkFontStylesheetUrl"] = site.CjkFontStylesheetUrl,
             ["cjkFontOrigin"] = site.CjkFontOrigin,
+            ["enableSearch"] = site.EnableSearch,
             ["generatedYear"] = site.GeneratedYear,
         };
     }
@@ -627,6 +628,9 @@ public sealed partial class FluidStaticRenderer
             ["all"] = text.Get(ThemeTextKey(theme, "all")),
             ["emptyList"] = text.Get(ThemeTextKey(theme, "emptyList")),
             ["colophonBuiltWith"] = text.Get(ThemeTextKey(theme, "colophonBuiltWith")),
+            ["searchLabel"] = text.Get(ThemeTextKey(theme, "searchLabel")),
+            ["searchPlaceholder"] = text.Get(ThemeTextKey(theme, "searchPlaceholder")),
+            ["searchNoResults"] = text.Get(ThemeTextKey(theme, "searchNoResults")),
             ["linkLabel"] = text.Get(ThemeTextKey(theme, "linkLabel")),
             ["pageLabel"] = text.Get(ThemeTextKey(theme, "pageLabel")),
             ["articleBackPrefix"] = text.Get(ThemeTextKey(theme, "articleBackPrefix")),
@@ -902,6 +906,9 @@ public sealed partial class FluidStaticRenderer
         /// <summary>样式表 origin，供 preconnect 使用。</summary>
         public string CjkFontOrigin { get; init; } = string.Empty;
 
+        /// <summary>是否启用前台静态搜索（theme features.search ∧ site enableSearch）。</summary>
+        public bool EnableSearch { get; init; }
+
         /// <summary>前台 primary menu tree。</summary>
         public JsonElement[] Navigation { get; init; } = [];
 
@@ -928,6 +935,7 @@ public sealed partial class FluidStaticRenderer
             var accent = NormalizeAccentColor(TryGetPath(context, ["theme", "config", "visual", "accentColor"])?.GetString());
             var cjkFontUrl = NormalizeCjkFontStylesheetUrl(
                 TryGetPath(context, ["theme", "config", "visual", "cjkFontStylesheetUrl"]) is { ValueKind: JsonValueKind.String } cjk ? cjk.GetString() : null);
+            var enableSearch = GetConfigBool(context, ["features", "search"], false);
             var generatedAtRaw = TryGetPath(context, ["build", "generatedAt"])?.GetString();
             var generatedYear = DateTimeOffset.TryParse(generatedAtRaw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var generatedAt)
                 ? generatedAt.Year
@@ -948,6 +956,7 @@ public sealed partial class FluidStaticRenderer
                 AccentColor = accent,
                 CjkFontStylesheetUrl = cjkFontUrl,
                 CjkFontOrigin = CjkFontOrigin(cjkFontUrl),
+                EnableSearch = enableSearch,
                 GeneratedYear = generatedYear,
             };
         }

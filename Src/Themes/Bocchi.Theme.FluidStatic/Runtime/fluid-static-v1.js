@@ -350,7 +350,7 @@ const applyAppearance = (mode, persist = true) => {
 };
 
 const closeOpenMenus = (except = null) => {
-  document.querySelectorAll("details.theme-menu[open]").forEach((menu) => {
+  document.querySelectorAll("details.theme-menu[open], details.theme-search[open]").forEach((menu) => {
     if (menu !== except) menu.open = false;
   });
 };
@@ -371,7 +371,7 @@ document.querySelectorAll("[data-mobile-toggle]").forEach((button) => {
 
 document.addEventListener("toggle", (event) => {
   const menu = event.target;
-  if (!(menu instanceof HTMLDetailsElement) || !menu.matches("details.theme-menu") || !menu.open) return;
+  if (!(menu instanceof HTMLDetailsElement) || !menu.matches("details.theme-menu, details.theme-search") || !menu.open) return;
   closeOpenMenus(menu);
 }, true);
 
@@ -407,7 +407,7 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  if (!target.closest("details.theme-menu")) closeOpenMenus();
+  if (!target.closest("details.theme-menu, details.theme-search")) closeOpenMenus();
 });
 
 document.addEventListener("keydown", (event) => {
@@ -634,3 +634,103 @@ if (!customElements.get("bocchi-time")) {
     }
   });
 }
+
+const initSiteSearch = () => {
+  const rootControl = document.querySelector("[data-bocchi-search]");
+  if (!(rootControl instanceof HTMLDetailsElement)) return;
+
+  const input = rootControl.querySelector("[data-bocchi-search-input]");
+  const results = rootControl.querySelector("[data-bocchi-search-results]");
+  const empty = rootControl.querySelector("[data-bocchi-search-empty]");
+  if (!(input instanceof HTMLInputElement) || !(results instanceof HTMLElement) || !(empty instanceof HTMLElement)) return;
+
+  let indexPromise = null;
+  let items = null;
+
+  const loadIndex = () => {
+    if (!indexPromise) {
+      indexPromise = fetch("/search-index.json", { credentials: "same-origin" })
+        .then((response) => (response.ok ? response.json() : Promise.reject(new Error("search index missing"))))
+        .then((payload) => {
+          items = Array.isArray(payload?.items) ? payload.items : [];
+          return items;
+        })
+        .catch(() => {
+          items = [];
+          return items;
+        });
+    }
+    return indexPromise;
+  };
+
+  const tokenize = (value) => value
+    .toLowerCase()
+    .split(/[\s/|,，、]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  const matches = (item, tokens) => {
+    if (tokens.length === 0) return false;
+    const haystack = [
+      item.title,
+      item.summary,
+      item.text,
+      Array.isArray(item.tags) ? item.tags.join(" ") : "",
+      item.kind,
+    ].filter(Boolean).join("\n").toLowerCase();
+    return tokens.every((token) => haystack.includes(token));
+  };
+
+  const render = (hits) => {
+    results.replaceChildren();
+    empty.hidden = hits.length !== 0;
+    results.hidden = hits.length === 0;
+    for (const hit of hits.slice(0, 20)) {
+      const link = document.createElement("a");
+      link.className = "theme-search__hit";
+      link.href = hit.url || "/";
+      const title = document.createElement("span");
+      title.className = "theme-search__hit-title";
+      title.textContent = hit.title || hit.url || "";
+      const meta = document.createElement("span");
+      meta.className = "theme-search__hit-meta";
+      const bits = [hit.kind, hit.language].filter(Boolean);
+      meta.textContent = bits.join(" · ");
+      link.append(title, meta);
+      results.append(link);
+    }
+  };
+
+  const runSearch = async () => {
+    const query = input.value.trim();
+    if (!query) {
+      results.replaceChildren();
+      results.hidden = true;
+      empty.hidden = true;
+      return;
+    }
+
+    await loadIndex();
+    const tokens = tokenize(query);
+    const hits = (items || []).filter((item) => matches(item, tokens));
+    render(hits);
+  };
+
+  rootControl.addEventListener("toggle", () => {
+    if (rootControl.open) {
+      loadIndex();
+      queueMicrotask(() => input.focus());
+    }
+  });
+  input.addEventListener("input", () => {
+    window.clearTimeout(input._bocchiSearchTimer);
+    input._bocchiSearchTimer = window.setTimeout(runSearch, 120);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      rootControl.open = false;
+    }
+  });
+};
+
+initSiteSearch();

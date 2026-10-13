@@ -22,6 +22,26 @@
         {% for item in navigation %}<span class="nav__item">{% if item.hasHref %}<a href="{{ item.href }}"{% if item.current %} class="active" aria-current="page"{% endif %}{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}{% if item.hasLanguageHrefs %} data-bocchi-nav-hrefs="{{ item.languageHrefsJson }}"{% endif %}>{{ item.label }}</a>{% else %}<span class="nav__label"{% if item.i18nKey %} data-bocchi-i18n="{{ item.i18nKey }}"{% endif %}>{{ item.label }}</span>{% endif %}{{ item.childrenHtml | html }}</span>{% endfor %}
       </nav>
       <div class="top-actions">
+        {% if site.enableSearch %}
+        <details class="theme-search" data-bocchi-search>
+          <summary class="icon-button" aria-label="{{ text.searchLabel }}" title="{{ text.searchLabel }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          </summary>
+          <div class="theme-search__panel" role="search">
+            <label class="theme-search__label">
+              <span class="visually-hidden" data-bocchi-i18n="theme.bocchi-mono.searchLabel">{{ text.searchLabel }}</span>
+              <input type="search"
+                     class="theme-search__input"
+                     data-bocchi-search-input
+                     placeholder="{{ text.searchPlaceholder }}"
+                     autocomplete="off"
+                     enterkeyhint="search" />
+            </label>
+            <div class="theme-search__results" data-bocchi-search-results hidden></div>
+            <p class="theme-search__empty" data-bocchi-search-empty hidden data-bocchi-i18n="theme.bocchi-mono.searchNoResults">{{ text.searchNoResults }}</p>
+          </div>
+        </details>
+        {% endif %}
         <details class="theme-menu" data-bocchi-language-control>
           <summary aria-label="{{ text.languageLabel }}" title="{{ text.languageLabel }}">
             <span class="theme-menu__current" data-bocchi-language-summary>{{ localization.currentLanguageName }}</span>

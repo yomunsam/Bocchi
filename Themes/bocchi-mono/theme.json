@@ -1,7 +1,7 @@
 {
   "id": "bocchi-mono",
   "name": "Bocchi Mono",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "contractVersion": "1.0",
   "inputDir": "../../cache/theme-input",
   "outputDir": "build",
@@ -22,7 +22,7 @@
     "notes": true,
     "friends": true,
     "photos": false,
-    "search": false
+    "search": true
   },
   "pageTemplates": [
     {
@@ -255,6 +255,39 @@
           "zh-CN": "这个页面不在静态输出中。",
           "zh-TW": "這個頁面不在靜態輸出中。",
           "ja-JP": "このページは静的出力にありません。"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.searchLabel",
+        "title": "Search label",
+        "description": "Accessible label for the site search control.",
+        "defaultValues": {
+          "en-US": "Search",
+          "zh-CN": "搜索",
+          "zh-TW": "搜尋",
+          "ja-JP": "検索"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.searchPlaceholder",
+        "title": "Search placeholder",
+        "description": "Placeholder text inside the search box.",
+        "defaultValues": {
+          "en-US": "Search posts, pages, works, notes…",
+          "zh-CN": "搜索文章、页面、作品、札记…",
+          "zh-TW": "搜尋文章、頁面、作品、札記…",
+          "ja-JP": "記事・ページ・作品・ノートを検索…"
+        }
+      },
+      {
+        "key": "theme.bocchi-mono.searchNoResults",
+        "title": "Search no results",
+        "description": "Shown when a non-empty query matches nothing.",
+        "defaultValues": {
+          "en-US": "No matches.",
+          "zh-CN": "没有结果。",
+          "zh-TW": "沒有結果。",
+          "ja-JP": "該当つかりません。"
         }
       }
     ]
