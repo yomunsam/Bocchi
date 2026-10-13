@@ -162,6 +162,7 @@ public partial class ContentEditor
         }
 
         _status = ContentStatus.Published.ToString();
+        _statusTouched = true;
         if (IsSlugManagedContent)
         {
             _pathLocked = true;

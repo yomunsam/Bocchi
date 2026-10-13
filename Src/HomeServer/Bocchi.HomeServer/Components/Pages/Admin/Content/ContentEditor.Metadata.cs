@@ -51,6 +51,7 @@ public partial class ContentEditor
         _title = ReadString(root, "title") ?? string.Empty;
         _slug = ReadString(root, "slug") ?? fallbackSlug;
         _status = NormalizeStatus(ReadString(root, "status")).ToString();
+        _statusTouched = false;
         _pathLocked = ReadBool(root, "pathLocked") ?? (CurrentStatus == ContentStatus.Published);
         _pathLockedAtLoad = _pathLocked;
         _slugTouchedInSession = false;
@@ -97,7 +98,12 @@ public partial class ContentEditor
 
         SetScalar(root, "title", _title);
         SetScalar(root, "slug", SlugForYaml());
-        SetScalar(root, "status", StatusYamlValue(CurrentStatus));
+        // status 没动过就留着原文，避免把写错的 publish 收成 draft 后生成器警告消失
+        if (_statusTouched)
+        {
+            SetScalar(root, "status", StatusYamlValue(CurrentStatus));
+        }
+
         SetScalar(root, "summary", _summary, removeWhenBlank: true);
         SetScalar(root, "pathLocked", _pathLocked ? "true" : null, removeWhenBlank: true);
 

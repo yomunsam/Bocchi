@@ -82,6 +82,9 @@ public partial class ContentEditor
     /// <summary>发布状态字段，保存为 frontmatter 中的 status。</summary>
     private string _status = ContentStatus.Draft.ToString();
 
+    /// <summary>本会话是否改过 status；没改过就不回写，保留原文（含非法值）。</summary>
+    private bool _statusTouched;
+
     /// <summary>摘要字段。</summary>
     private string _summary = string.Empty;
 

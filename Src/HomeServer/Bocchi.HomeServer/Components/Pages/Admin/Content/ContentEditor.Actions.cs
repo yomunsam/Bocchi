@@ -41,6 +41,7 @@ public partial class ContentEditor
     private async Task WithdrawAsync()
     {
         _status = ContentStatus.Draft.ToString();
+        _statusTouched = true;
         await SaveAsync();
     }
 
@@ -48,6 +49,7 @@ public partial class ContentEditor
     private async Task ArchiveAsync()
     {
         _status = ContentStatus.Archived.ToString();
+        _statusTouched = true;
         await SaveAsync();
     }
 
@@ -93,6 +95,7 @@ public partial class ContentEditor
     private async Task UpdateArchivedAsync()
     {
         _status = ContentStatus.Draft.ToString();
+        _statusTouched = true;
         await SaveAsync();
     }
 
@@ -152,6 +155,7 @@ public partial class ContentEditor
         }
 
         _status = targetStatus.ToString();
+        _statusTouched = true;
         if (IsSlugManagedContent && targetStatus == ContentStatus.Published)
         {
             _pathLocked = true;
