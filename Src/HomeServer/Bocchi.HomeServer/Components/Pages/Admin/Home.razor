@@ -7,6 +7,7 @@
 @inject DashboardLocalizationService I18n
 @inject IContentStateStore Store
 @inject DashboardGuideService Guides
+@inject DashboardTimeFormatter Times
 
 <PageTitle>@I18n["home.page.title"] · Bocchi</PageTitle>
 
@@ -23,7 +24,7 @@
         </div>
     }
 
-    @* Guide 卡堆栈：当前仅显示顶层卡片，底部用圆点提示总数。 *@
+    @* Guide 卡：一次只显示一张，关掉后再出下一张。 *@
     @if (_guides.Count > 0)
     {
         <section class="bocchi-guide-stack" aria-label="@I18n[$"home.guide.{_guides[0].Key}.title"]">
@@ -129,7 +130,7 @@
                         <BocchiStatusPill Tone="@ContentStatusTone(item.Status)">@ContentStatusLabel(item.Status)</BocchiStatusPill>
                         @if (timestamp is { } contentTime)
                         {
-                            <details class="bocchi-content-time" title="@ContentFullTimeLabel(contentTime)">
+                            <details class="bocchi-content-time">
                                 <summary aria-label="@ContentFullTimeLabel(contentTime)">
                                     <time class="bocchi-content-item__date" datetime="@ContentIsoTime(contentTime)">
                                         @ContentTimeLabel(contentTime)
@@ -179,6 +180,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await Times.LoadAsync();
         var summaries = await Store.ListContentSummariesAsync(null);
         _recentContent = summaries
             .Where(x => IsRecentContentKind(x.Kind))
@@ -248,13 +250,13 @@
     private static DateTimeOffset? ContentTimestamp(ContentSummary item)
         => item.UpdatedAt ?? item.PublishedAt;
 
-    /// <summary>短时间标签保留到分钟，适合列表扫描。</summary>
-    private static string ContentTimeLabel(DateTimeOffset timestamp)
-        => timestamp.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
+    /// <summary>列表短标签：与 Users/Publish 同一套站点时区格式。</summary>
+    private string ContentTimeLabel(DateTimeOffset timestamp)
+        => Times.FormatDateTime(timestamp);
 
-    /// <summary>完整时间用于悬停和点击展开，包含秒和时区 offset。</summary>
-    private static string ContentFullTimeLabel(DateTimeOffset timestamp)
-        => timestamp.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.CurrentCulture);
+    /// <summary>展开详情也用同一格式，不再挂原生 title。</summary>
+    private string ContentFullTimeLabel(DateTimeOffset timestamp)
+        => Times.FormatDateTime(timestamp);
 
     /// <summary>机器可读时间使用 round-trip 格式，避免丢失 offset。</summary>
     private static string ContentIsoTime(DateTimeOffset timestamp)
