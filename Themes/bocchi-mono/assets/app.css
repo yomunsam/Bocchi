@@ -46,15 +46,9 @@ html:lang(ja){
   --font-display:"Instrument Serif Han","Noto Serif CJK JP","Noto Serif JP","Source Han Serif JP","Hiragino Mincho ProN","Yu Mincho",ui-serif,Georgia,serif;
   --font-body:"Inter Tight Han","Noto Sans CJK JP","Noto Sans JP","Source Han Sans JP","Hiragino Sans","Yu Gothic",ui-sans-serif,system-ui,sans-serif;
 }
-/* 设置了中文网页字体样式表时，标题先用 Noto Serif（样式表里没有也无妨，会落到后面的系统字体） */
+/* 设置了中文网页字体样式表时，只有简体中文标题先用 Noto Serif SC；繁中和日文仍走系统字体 */
 html[data-cjk-webfont]:lang(zh){
   --font-display:"Instrument Serif Han","Noto Serif SC","Noto Serif CJK SC","Source Han Serif SC","Songti SC","STSong","SimSun",ui-serif,Georgia,serif;
-}
-html[data-cjk-webfont]:is(:lang(zh-TW),:lang(zh-HK),:lang(zh-Hant)){
-  --font-display:"Instrument Serif Han","Noto Serif TC","Noto Serif CJK TC","Source Han Serif TC","Songti TC",ui-serif,Georgia,serif;
-}
-html[data-cjk-webfont]:lang(ja){
-  --font-display:"Instrument Serif Han","Noto Serif JP","Noto Serif CJK JP","Source Han Serif JP","Hiragino Mincho ProN","Yu Mincho",ui-serif,Georgia,serif;
 }
 html[data-theme="dark"]{
   --bg:#0a0a0b;

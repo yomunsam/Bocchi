@@ -50,14 +50,14 @@ public sealed class FluidStaticRendererTests
     [Fact]
     public async Task RenderAsync_WithCjkFontUrl_AddsEscapedNonBlockingStylesheet()
     {
-        const string url = "https://fonts.example/css2?family=Noto+Serif+SC:wght@400;500&display=swap&x=\"><script>alert(1)</script>";
+        const string url = "https://fonts.example/css2?family=Noto+Serif+SC:wght@500&display=swap&x=\"><script>alert(1)</script>";
 
         var html = await RenderIndexAsync(CreateThemeContext(themeConfig: CreateCjkFontConfig(url)));
 
         html.Should().Contain("data-cjk-webfont");
         html.Should().Contain("<link rel=\"preconnect\" href=\"https://fonts.example\">");
         // HtmlEncoder 会把 + 写成 &#x2B;，浏览器解析属性时还原
-        html.Should().Contain("href=\"https://fonts.example/css2?family=Noto&#x2B;Serif&#x2B;SC:wght@400;500&amp;display=swap&amp;x=&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;\" media=\"print\" onload=\"this.media='all'\"");
+        html.Should().Contain("href=\"https://fonts.example/css2?family=Noto&#x2B;Serif&#x2B;SC:wght@500&amp;display=swap&amp;x=&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;\" media=\"print\" onload=\"this.media='all'\"");
         html.Should().Contain("<noscript><link rel=\"stylesheet\" href=\"https://fonts.example/css2?");
         html.Should().NotContain("<script>alert(1)</script>");
     }

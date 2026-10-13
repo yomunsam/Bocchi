@@ -17,7 +17,7 @@
           "type": "url",
           "title": "i18n://theme@theme.bocchi-mono.config.cjkFontUrl.title",
           "description": "i18n://theme@theme.bocchi-mono.config.cjkFontUrl.description",
-          "placeholder": "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&display=swap",
+          "placeholder": "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500&display=swap",
           "default": ""
         }
       ]

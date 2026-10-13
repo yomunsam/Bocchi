@@ -40,7 +40,7 @@ public sealed class ThemeCjkFontSettingTests : IClassFixture<IsolatedDataRootWeb
     {
         using var scope = await CreateScopeAsync();
         var settings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
-        const string url = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&display=swap";
+        const string url = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500&display=swap";
 
         await settings.SaveCustomizationAsync("bocchi-mono", [new ThemeConfigValueInput { Key = FieldKey, Value = "  " + url + " " }]);
         (await ReadVisualAsync(scope)).GetProperty("cjkFontStylesheetUrl").GetString().Should().Be(url);
