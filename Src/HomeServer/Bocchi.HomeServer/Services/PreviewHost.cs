@@ -15,13 +15,19 @@ public sealed class PreviewHost
     private readonly BocchiDataLayout _layout;
     private readonly BuildOrchestrator _orchestrator;
     private readonly PreviewRouteMapService _routeMap;
+    private readonly DashboardLocalizationService _i18n;
 
     /// <summary>构造预览 Host。</summary>
-    public PreviewHost(BocchiDataLayout layout, BuildOrchestrator orchestrator, PreviewRouteMapService routeMap)
+    public PreviewHost(
+        BocchiDataLayout layout,
+        BuildOrchestrator orchestrator,
+        PreviewRouteMapService routeMap,
+        DashboardLocalizationService i18n)
     {
         _layout = layout;
         _orchestrator = orchestrator;
         _routeMap = routeMap;
+        _i18n = i18n;
     }
 
     /// <summary>渲染受保护实时预览页面或前台资源。</summary>
@@ -110,16 +116,19 @@ public sealed class PreviewHost
     private async Task<string> RenderMissingPreviewAsync(string route, string? reason, CancellationToken cancellationToken)
     {
         var toolbar = await RenderToolbarAsync(route, cancellationToken).ConfigureAwait(false);
+        var title = WebUtility.HtmlEncode(_i18n["preview.empty.title"]);
+        var eyebrow = WebUtility.HtmlEncode(_i18n["preview.empty.eyebrow"]);
+        var back = WebUtility.HtmlEncode(_i18n["preview.empty.back"]);
         var detail = string.IsNullOrWhiteSpace(reason)
-            ? "当前路由没有对应的 Theme 输出。可以回到 Admin 选择内容继续编辑，或确认当前 Theme 是否提供这个页面。"
-            : "实时预览生成失败：" + WebUtility.HtmlEncode(reason);
+            ? WebUtility.HtmlEncode(_i18n["preview.empty.missing"])
+            : WebUtility.HtmlEncode(_i18n["preview.empty.missing"]) + " (" + WebUtility.HtmlEncode(reason) + ")";
         return $$"""
             <!doctype html>
-            <html lang="zh-CN">
+            <html lang="{{WebUtility.HtmlEncode(_i18n.CurrentLanguage.Code)}}">
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>Preview · Bocchi</title>
+                <title>{{title}} · Bocchi</title>
                 <link rel="icon" href="/favicon.ico" sizes="any">
                 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
                 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -131,10 +140,10 @@ public sealed class PreviewHost
             </head>
             <body>
                 <main class="bocchi-preview-empty">
-                    <p class="bocchi-page-heading__eyebrow">Preview</p>
-                    <h1>暂时没有这个预览页面</h1>
+                    <p class="bocchi-page-heading__eyebrow">{{eyebrow}}</p>
+                    <h1>{{title}}</h1>
                     <p>{{detail}}</p>
-                    <p><a class="bocchi-button secondary" href="/Admin">Back to Admin</a></p>
+                    <p><a class="bocchi-button secondary" href="/Admin">{{back}}</a></p>
                 </main>
                 {{toolbar}}
             </body>
@@ -157,9 +166,13 @@ public sealed class PreviewHost
     {
         var map = await _routeMap.FindAsync(route, cancellationToken).ConfigureAwait(false);
         var safeRoute = WebUtility.HtmlEncode(route);
+        var status = WebUtility.HtmlEncode(_i18n["preview.toolbar.status"]);
+        var admin = WebUtility.HtmlEncode(_i18n["preview.toolbar.admin"]);
+        var editLabel = WebUtility.HtmlEncode(_i18n["preview.toolbar.edit"]);
+        var aria = WebUtility.HtmlEncode(_i18n["preview.toolbar.aria"]);
         var edit = map is null
             ? string.Empty
-            : $"""<a class="bocchi-preview-toolbar__button" href="{WebUtility.HtmlEncode(map.EditUrl)}">Edit</a>""";
+            : $"""<a class="bocchi-preview-toolbar__button" href="{WebUtility.HtmlEncode(map.EditUrl)}">{editLabel}</a>""";
 
         return $$$"""
             <style>
@@ -174,10 +187,10 @@ public sealed class PreviewHost
             .bocchi-preview-toolbar__button:focus-visible{outline:2px solid var(--bpt-accent);outline-offset:2px}
             @media (max-width:640px){.bocchi-preview-toolbar{right:.75rem;bottom:.75rem;max-width:calc(100vw - 1.5rem)}.bocchi-preview-toolbar__route{display:none}.bocchi-preview-toolbar__button{min-height:2.75rem;padding:0 .9rem}}
             </style>
-            <nav class="bocchi-preview-toolbar" aria-label="Bocchi preview toolbar">
-                <span class="bocchi-preview-toolbar__status">Preview</span>
+            <nav class="bocchi-preview-toolbar" aria-label="{{{aria}}}">
+                <span class="bocchi-preview-toolbar__status">{{{status}}}</span>
                 <span class="bocchi-preview-toolbar__route">{{{safeRoute}}}</span>
-                <a class="bocchi-preview-toolbar__button" href="/Admin">Admin</a>
+                <a class="bocchi-preview-toolbar__button" href="/Admin">{{{admin}}}</a>
                 {{{edit}}}
             </nav>
             """;

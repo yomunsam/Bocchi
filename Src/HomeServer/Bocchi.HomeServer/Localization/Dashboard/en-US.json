@@ -1035,5 +1035,13 @@
   "settings.theme.i18nSearchPlaceholder": "Search key, title, or description",
   "settings.theme.i18nNoResults": "No Theme key matches this search.",
   "settings.theme.i18nSave": "Save Theme text",
-  "settings.theme.i18nSaved": "Theme private text has been saved."
+  "settings.theme.i18nSaved": "Theme private text has been saved.",
+  "preview.toolbar.aria": "Preview toolbar",
+  "preview.toolbar.status": "Preview",
+  "preview.toolbar.admin": "Admin",
+  "preview.toolbar.edit": "Edit",
+  "preview.empty.title": "Preview",
+  "preview.empty.eyebrow": "Preview",
+  "preview.empty.missing": "This route has no Theme output. Go back to Admin to keep editing, or check whether the active Theme provides this page.",
+  "preview.empty.back": "Back to Admin"
 }

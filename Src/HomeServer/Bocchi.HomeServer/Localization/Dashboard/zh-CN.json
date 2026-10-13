@@ -1035,5 +1035,13 @@
   "settings.theme.i18nSearchPlaceholder": "搜索 key、标题或描述",
   "settings.theme.i18nNoResults": "没有匹配的 Theme key。",
   "settings.theme.i18nSave": "保存 Theme 文本",
-  "settings.theme.i18nSaved": "Theme 私有文本已保存。"
+  "settings.theme.i18nSaved": "Theme 私有文本已保存。",
+  "preview.toolbar.aria": "预览工具条",
+  "preview.toolbar.status": "预览",
+  "preview.toolbar.admin": "后台",
+  "preview.toolbar.edit": "编辑",
+  "preview.empty.title": "预览",
+  "preview.empty.eyebrow": "预览",
+  "preview.empty.missing": "当前路由没有对应的 Theme 输出。可以回到后台选内容继续编辑，或确认当前 Theme 是否提供这个页面。",
+  "preview.empty.back": "返回后台"
 }
