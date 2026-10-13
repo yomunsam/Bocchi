@@ -328,7 +328,7 @@ public partial class ThemeLibrary
             return;
         }
 
-        await SiteProfileSettings.SaveAsync(new SiteProfileSettingsUpdate
+        var saved = await SiteProfileSettings.SaveAsync(new SiteProfileSettingsUpdate
         {
             SiteName = current.SiteName,
             DefaultTitle = current.DefaultTitle,
@@ -339,6 +339,14 @@ public partial class ThemeLibrary
             TimeZone = current.TimeZone,
             DefaultThemeId = themeId,
         });
+        if (!saved.Succeeded)
+        {
+            _pageFeedback = I18n[saved.UiKey];
+            _pageFeedbackTone = "danger";
+            _activationBusy = false;
+            return;
+        }
+
         await RefreshStateAsync();
         _pageFeedback = I18n["themeLibrary.feedback.switched"];
         _pageFeedbackTone = "success";

@@ -24,7 +24,11 @@
             </button>
         </div>
         <div class="bocchi-category-workbench__toolbar-meta">
-            @if (HasInvalidNames)
+            @if (!string.IsNullOrWhiteSpace(_saveError))
+            {
+                <BocchiStatusPill Tone="danger">@_saveError</BocchiStatusPill>
+            }
+            else if (HasInvalidNames)
             {
                 <BocchiStatusPill Tone="warning">@I18n["category.editor.validation.emptyName"]</BocchiStatusPill>
             }
@@ -185,6 +189,7 @@
     private bool _dirty;
     private bool _busy;
     private bool _saved;
+    private string? _saveError;
 
     private string _primaryLanguage = LocalizationSettingsService.DefaultPrimaryLanguage;
     private IReadOnlyList<string> _enabledCodes = [];
@@ -302,7 +307,15 @@
         _busy = true;
         try
         {
-            await Categories.SaveAsync(Kind, _roots.Select(n => ToServiceNode(n, _primaryLanguage)));
+            var saved = await Categories.SaveAsync(Kind, _roots.Select(n => ToServiceNode(n, _primaryLanguage)));
+            if (!saved.Succeeded)
+            {
+                _saveError = I18n[saved.UiKey];
+                _saved = false;
+                return;
+            }
+
+            _saveError = null;
             // 重新加载以拿到服务规整后的 slug / id，保持显示与持久化一致。
             await LoadAsync();
             _saved = true;
@@ -406,6 +419,7 @@
     {
         _dirty = true;
         _saved = false;
+        _saveError = null;
     }
 
     private List<EditorNode> BuildBreadcrumb(EditorNode target)

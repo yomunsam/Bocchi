@@ -101,6 +101,15 @@ public sealed class NavigationMenuService
     {
         ArgumentNullException.ThrowIfNull(items);
 
+        if (commonTextOverrides is not null)
+        {
+            var refusal = await _localization.PeekSaveRefusalAsync(cancellationToken).ConfigureAwait(false);
+            if (refusal is not null)
+            {
+                throw new InvalidOperationException(refusal.Message);
+            }
+        }
+
         var normalized = NormalizeEditorItems(items, depth: 0);
         var root = new YamlMappingNode
         {

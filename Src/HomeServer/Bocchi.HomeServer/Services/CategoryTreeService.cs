@@ -3,13 +3,16 @@ using System.Text.Json;
 using Bocchi.ContentModel;
 using Bocchi.Generator.ContentGraph;
 using Bocchi.HomeServer.Data;
+using Bocchi.Workspace;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// 后台分类树服务。它保存 Admin 编辑器状态，并把 Post Category tree 作为 Generator 构建快照输入。
+/// 后台分类树服务。<c>site/categories.yaml</c> 是权威来源，数据库只留投影。
+/// 构建快照仍从投影读，但文件不可用时构建会失败，避免拿旧树继续生成。
 /// </summary>
 public sealed class CategoryTreeService
 {
@@ -19,13 +22,21 @@ public sealed class CategoryTreeService
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly BocchiDbContext _db;
+    private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
+    private readonly ILogger<CategoryTreeService> _logger;
 
     /// <summary>构造分类树服务。</summary>
-    public CategoryTreeService(BocchiDbContext db, TimeProvider time)
+    public CategoryTreeService(
+        BocchiDbContext db,
+        BocchiDataLayout layout,
+        TimeProvider time,
+        ILogger<CategoryTreeService> logger)
     {
         _db = db;
+        _layout = layout;
         _time = time;
+        _logger = logger;
     }
 
     /// <summary>读取指定内容类型的分类树；缺失时返回空树。</summary>
@@ -40,29 +51,111 @@ public sealed class CategoryTreeService
         return new CategoryTreeView(scope, roots, record?.UpdatedAt);
     }
 
-    /// <summary>保存指定内容类型的分类树，并在服务层统一清理空名称和超深节点。</summary>
-    public async Task SaveAsync(
+    /// <summary>
+    /// 保存指定内容类型的分类树。先写整份 <c>categories.yaml</c>（其他 scope 保留），再更新数据库投影。
+    /// 版本过新或现有文件无效时不写文件、不改数据库。
+    /// </summary>
+    public async Task<WorkspaceWriteResult> SaveAsync(
         ContentKind kind,
         IEnumerable<CategoryTreeNode> roots,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(roots);
 
-        var scope = NormalizeScope(kind);
-        var usedSlugs = new HashSet<string>(StringComparer.Ordinal);
-        var normalizedRoots = NormalizeNodes(roots, depth: 0, usedSlugs);
-        var record = await _db.CategoryTrees
-            .FirstOrDefaultAsync(x => x.Scope == scope, cancellationToken)
-            .ConfigureAwait(false);
-        if (record is null)
+        var refusal = await PeekSaveRefusalAsync(cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
         {
-            record = new CategoryTreeRecord { Scope = scope };
-            _db.CategoryTrees.Add(record);
+            _logger.LogError("分类树保存已拒绝：{Message}", refusal.Message);
+            return refusal;
         }
 
-        record.TreeJson = JsonSerializer.Serialize(normalizedRoots, JsonOptions);
-        record.UpdatedAt = _time.GetUtcNow();
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var scope = NormalizeScope(kind);
+        var normalizedRoots = NormalizeNodes(roots, depth: 0, new HashSet<string>(StringComparer.Ordinal));
+        var document = await CategoryTreeYaml.ReadAsync(_layout.Workspace.CategoriesFile, cancellationToken).ConfigureAwait(false);
+        // 闸门和这次读取之间文件可能被改坏。坏文件不能当成空森林，否则会用默认树盖掉它。
+        if (document.ErrorCode is not null)
+        {
+            _logger.LogError("分类树保存已拒绝：{Message}", document.ErrorMessage);
+            return WorkspaceWriteResult.Fail(document.ErrorCode, document.ErrorMessage ?? document.ErrorCode);
+        }
+
+        var trees = document.IsEmpty
+            ? await ExportStoredTreesAsync(cancellationToken).ConfigureAwait(false)
+            : document.Trees.Select(tree => new CategoryScopeNodes(tree.Scope, NormalizeStored(tree.Roots))).ToList();
+        if (trees.Count == 0)
+        {
+            trees = DefaultTrees();
+        }
+
+        var index = trees.FindIndex(tree => string.Equals(tree.Scope, scope, StringComparison.OrdinalIgnoreCase));
+        var updated = new CategoryScopeNodes(scope, normalizedRoots);
+        if (index >= 0)
+        {
+            trees[index] = updated;
+        }
+        else
+        {
+            trees.Add(updated);
+        }
+
+        await CategoryTreeYaml.WriteAsync(_layout.Workspace.CategoriesFile, trees, cancellationToken).ConfigureAwait(false);
+        await ImportTreesAsync(trees, warnOnConflict: false, cancellationToken).ConfigureAwait(false);
+        return WorkspaceWriteResult.Ok;
+    }
+
+    /// <summary>
+    /// 启动同步。文件有效则灌库；文件没有而数据库有数据则导出一次；两边都空则写 Post / Work 空树。
+    /// <c>site.yaml</c> 版本过新，或分类文件损坏时，文件和数据库都不动。
+    /// </summary>
+    public async Task EnsureAsync(CancellationToken cancellationToken = default)
+    {
+        var refusal = await PeekSaveRefusalAsync(cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
+        {
+            _logger.LogError("分类树同步已跳过：{Message}", refusal.Message);
+            return;
+        }
+
+        var document = await CategoryTreeYaml.ReadAsync(_layout.Workspace.CategoriesFile, cancellationToken).ConfigureAwait(false);
+        if (document.ErrorCode is not null)
+        {
+            _logger.LogError("分类树同步已跳过：{Message}", document.ErrorMessage);
+            return;
+        }
+
+        if (!document.IsEmpty)
+        {
+            var normalized = document.Trees
+                .Select(tree => new CategoryScopeNodes(tree.Scope, NormalizeStored(tree.Roots)))
+                .ToList();
+            if (document.MissingIds || CanonicalJson(document.Trees) != CanonicalJson(normalized))
+            {
+                await CategoryTreeYaml.WriteAsync(_layout.Workspace.CategoriesFile, normalized, cancellationToken).ConfigureAwait(false);
+            }
+
+            await ImportTreesAsync(normalized, warnOnConflict: true, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var stored = await ExportStoredTreesAsync(cancellationToken).ConfigureAwait(false);
+        var trees = stored.Count == 0 ? DefaultTrees() : stored;
+        await CategoryTreeYaml.WriteAsync(_layout.Workspace.CategoriesFile, trees, cancellationToken).ConfigureAwait(false);
+        await ImportTreesAsync(trees, warnOnConflict: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>保存或构建前的闸门：版本过新，或已有分类文件无效。</summary>
+    public async Task<WorkspaceWriteResult?> PeekSaveRefusalAsync(CancellationToken cancellationToken = default)
+    {
+        var format = await WorkspaceFormatGate.TryRefuseAsync(_layout.Workspace.SiteSettingsFile, cancellationToken).ConfigureAwait(false);
+        if (format is not null)
+        {
+            return format;
+        }
+
+        var document = await CategoryTreeYaml.ReadAsync(_layout.Workspace.CategoriesFile, cancellationToken).ConfigureAwait(false);
+        return document.ErrorCode is null
+            ? null
+            : WorkspaceWriteResult.Fail(document.ErrorCode, document.ErrorMessage ?? document.ErrorCode);
     }
 
     private static string NormalizeScope(ContentKind kind) => kind switch
@@ -71,11 +164,114 @@ public sealed class CategoryTreeService
         _ => nameof(ContentKind.Post),
     };
 
-    /// <summary>读取 Generator 构建所需的 Post Category tree 快照。</summary>
+    /// <summary>读取 Generator 构建所需的 Post Category tree 快照。文件不可用时抛出，避免用旧投影继续构建。</summary>
     public async Task<IReadOnlyList<BuildCategoryNode>> GetBuildPostCategoriesAsync(CancellationToken cancellationToken = default)
     {
+        var refusal = await PeekSaveRefusalAsync(cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
+        {
+            throw new WorkspaceSnapshotException(refusal.Message ?? refusal.Code ?? WorkspaceWriteResult.CategoriesInvalidCode);
+        }
+
         var view = await GetAsync(ContentKind.Post, cancellationToken).ConfigureAwait(false);
         return view.Roots.Select(ToBuildNode).ToArray();
+    }
+
+    /// <summary>没有文件也没有数据库记录时的最小文件：Post 和 Work 各一棵空树。</summary>
+    private static List<CategoryScopeNodes> DefaultTrees()
+        =>
+        [
+            new(nameof(ContentKind.Post), []),
+            new(nameof(ContentKind.Work), []),
+        ];
+
+    /// <summary>把数据库投影规范成可写回文件的树。空白 scope 忽略。</summary>
+    private async Task<List<CategoryScopeNodes>> ExportStoredTreesAsync(CancellationToken cancellationToken)
+    {
+        var records = await _db.CategoryTrees.AsNoTracking().ToListAsync(cancellationToken).ConfigureAwait(false);
+        return records
+            .Where(record => !string.IsNullOrWhiteSpace(record.Scope))
+            .Select(record => new CategoryScopeNodes(record.Scope.Trim(), NormalizeStored(Deserialize(record.TreeJson))))
+            .ToList();
+    }
+
+    /// <summary>用文件内容覆盖数据库投影。文件里没有的 scope 会从数据库删掉。</summary>
+    private async Task ImportTreesAsync(
+        IReadOnlyList<CategoryScopeNodes> trees,
+        bool warnOnConflict,
+        CancellationToken cancellationToken)
+    {
+        var records = await _db.CategoryTrees.ToListAsync(cancellationToken).ConfigureAwait(false);
+        var keep = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+        foreach (var tree in trees)
+        {
+            keep.Add(tree.Scope);
+            var json = JsonSerializer.Serialize(tree.Roots, JsonOptions);
+            var record = records.FirstOrDefault(item => string.Equals(item.Scope, tree.Scope, StringComparison.OrdinalIgnoreCase));
+            if (record is null)
+            {
+                _db.CategoryTrees.Add(new CategoryTreeRecord
+                {
+                    Scope = tree.Scope,
+                    TreeJson = json,
+                    UpdatedAt = _time.GetUtcNow(),
+                });
+                changed = true;
+                continue;
+            }
+
+            if (!string.Equals(CanonicalTreeJson(record.TreeJson), CanonicalTreeJson(json), StringComparison.Ordinal))
+            {
+                if (warnOnConflict)
+                {
+                    _logger.LogWarning("分类树 scope {Scope} 与数据库不一致，以 categories.yaml 为准。", tree.Scope);
+                }
+
+                record.Scope = tree.Scope;
+                record.TreeJson = json;
+                record.UpdatedAt = _time.GetUtcNow();
+                changed = true;
+            }
+        }
+
+        foreach (var extra in records.Where(record => !keep.Contains(record.Scope)))
+        {
+            _db.CategoryTrees.Remove(extra);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>把已存节点再走一遍规范化，保证写回文件的 id、slug 和深度与后台保存一致。</summary>
+    private static List<CategoryTreeNode> NormalizeStored(IReadOnlyList<CategoryTreeNode> roots)
+        => NormalizeNodes(roots, depth: 0, new HashSet<string>(StringComparer.Ordinal));
+
+    /// <summary>把树序列化成稳定 JSON，用来判断要不要把补过 id 的结果写回文件。</summary>
+    private static string CanonicalJson(IEnumerable<CategoryScopeNodes> trees)
+        => JsonSerializer.Serialize(CategoryTreeYaml.Order(trees).Select(tree => new { tree.Scope, tree.Roots }), JsonOptions);
+
+    /// <summary>把数据库里的树 JSON 再序列化一次，避免键顺序造成假冲突。损坏的 JSON 保持原样，从而触发按文件覆盖。</summary>
+    private static string CanonicalTreeJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return JsonSerializer.Serialize(Array.Empty<CategoryTreeNode>(), JsonOptions);
+        }
+
+        try
+        {
+            var nodes = JsonSerializer.Deserialize<List<CategoryTreeNode>>(json, JsonOptions) ?? [];
+            return JsonSerializer.Serialize(nodes, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
     }
 
     private static List<CategoryTreeNode> Deserialize(string? treeJson)

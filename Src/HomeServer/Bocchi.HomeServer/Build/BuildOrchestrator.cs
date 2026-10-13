@@ -39,6 +39,10 @@ public sealed class BuildOrchestrator : IDisposable
             var enrichedOptions = await AddLocalizationSnapshotAsync(options, themeId, cancellationToken).ConfigureAwait(false);
             return await _pipeline.RunAsync(enrichedOptions, sink, themeId, ResolveBocchiVersion(), cancellationToken).ConfigureAwait(false);
         }
+        catch (WorkspaceSnapshotException ex)
+        {
+            return RefuseSnapshot(options, ex.Message);
+        }
         finally
         {
             _fullBuildLock.Release();
@@ -55,42 +59,42 @@ public sealed class BuildOrchestrator : IDisposable
     /// <summary>执行 Live build；单独拆出 async 方法是为了在调用 Generator 前补齐本地化快照。</summary>
     private async Task<BuildResult> RunLiveCoreAsync(BuildOptions options, string? themeId, IBuildSink sink, CancellationToken cancellationToken)
     {
-        var enrichedOptions = await AddLocalizationSnapshotAsync(
-            options with { Mode = BuildMode.Live, DisableUpToDateShortCircuit = true },
-            themeId,
-            cancellationToken).ConfigureAwait(false);
-        return await _pipeline.RunAsync(enrichedOptions, sink, themeId, ResolveBocchiVersion(), cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var enrichedOptions = await AddLocalizationSnapshotAsync(
+                options with { Mode = BuildMode.Live, DisableUpToDateShortCircuit = true },
+                themeId,
+                cancellationToken).ConfigureAwait(false);
+            return await _pipeline.RunAsync(enrichedOptions, sink, themeId, ResolveBocchiVersion(), cancellationToken).ConfigureAwait(false);
+        }
+        catch (WorkspaceSnapshotException ex)
+        {
+            return RefuseSnapshot(options with { Mode = BuildMode.Live }, ex.Message);
+        }
+    }
+
+    /// <summary>分类或本地化文件不能用时，构建直接失败，不把数据库里的旧投影写进产物。</summary>
+    private static BuildResult RefuseSnapshot(BuildOptions options, string reason)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new BuildResult
+        {
+            SessionId = Guid.NewGuid(),
+            Mode = options.Mode,
+            Status = BuildStatus.Failed,
+            StartedAt = now,
+            FinishedAt = now,
+            Reason = reason,
+            Logs = [],
+            Artifacts = [],
+        };
     }
 
     /// <summary>从 HomeServer 设置库读取站点本地化快照；Generator 本身保持对 EF Core 无感。</summary>
     private async Task<BuildOptions> AddLocalizationSnapshotAsync(BuildOptions options, string? themeId, CancellationToken cancellationToken)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
-        var localizationSettings = scope.ServiceProvider.GetRequiredService<LocalizationSettingsService>();
-        var siteProfileSettings = scope.ServiceProvider.GetRequiredService<SiteProfileSettingsService>();
-        var themeSettings = scope.ServiceProvider.GetRequiredService<ThemeSettingsService>();
-        var categoryTree = scope.ServiceProvider.GetRequiredService<CategoryTreeService>();
-        var localization = await localizationSettings.GetBuildLocalizationOptionsAsync(cancellationToken).ConfigureAwait(false);
-        var postCategories = await categoryTree.GetBuildPostCategoriesAsync(cancellationToken).ConfigureAwait(false);
-        var normalizedThemeId = string.IsNullOrWhiteSpace(themeId)
-            ? (await siteProfileSettings.GetAsync(cancellationToken).ConfigureAwait(false)).DefaultThemeId
-            : themeId.Trim();
-        if (string.IsNullOrWhiteSpace(normalizedThemeId))
-        {
-            normalizedThemeId = (await themeSettings.GetDefaultAsync(cancellationToken).ConfigureAwait(false)).ThemeId;
-        }
-
-        var themeTextOverrides = await themeSettings
-            .GetBuildI18nTextOverridesAsync(normalizedThemeId, cancellationToken)
-            .ConfigureAwait(false);
-        return options with
-        {
-            Localization = localization with
-            {
-                ThemeTextOverrides = themeTextOverrides,
-            },
-            PostCategories = postCategories,
-        };
+        return await HomeServerBuildSnapshots.ApplyAsync(scope.ServiceProvider, options, themeId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>读取 Bocchi.HomeServer 程序集的 InformationalVersion。</summary>

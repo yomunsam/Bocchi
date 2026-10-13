@@ -185,7 +185,7 @@ public sealed class ThemeMigrationService
 
         // 完成菜单改写后再切换 Theme，避免切换中途出现指向新 Theme 的悬空引用。
         var site = await _siteProfile.GetAsync(cancellationToken).ConfigureAwait(false);
-        await _siteProfile.SaveAsync(new SiteProfileSettingsUpdate
+        var saved = await _siteProfile.SaveAsync(new SiteProfileSettingsUpdate
         {
             SiteName = site.SiteName,
             DefaultTitle = site.DefaultTitle,
@@ -196,6 +196,10 @@ public sealed class ThemeMigrationService
             TimeZone = site.TimeZone,
             DefaultThemeId = plan.ToThemeId,
         }, cancellationToken).ConfigureAwait(false);
+        if (!saved.Succeeded)
+        {
+            throw new InvalidOperationException(saved.Message);
+        }
     }
 
     private static string ResolvePlainText(ThemeMigrationEntry entry, string language, string primaryLanguage)

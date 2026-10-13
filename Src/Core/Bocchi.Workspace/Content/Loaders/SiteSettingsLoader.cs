@@ -47,22 +47,12 @@ public static class SiteSettingsLoader
         }
 
         var formatVersionRaw = YamlAccess.GetInt(mapping, "formatVersion");
-        var formatVersion = formatVersionRaw ?? Bocchi.Workspace.WorkspaceFormatVersion.DefaultWhenMissing;
-        if (formatVersion > Bocchi.Workspace.WorkspaceFormatVersion.Current)
+        if (!WorkspaceFormatVersion.TryInterpret(formatVersionRaw, out _, out var formatErrorCode, out var formatErrorMessage))
         {
             errors.Add(new ContentValidationError(
                 siteLocation.RelativePath, ContentKind.SiteSettings, "formatVersion",
-                ContentErrorSeverity.Error, "SITE_FORMAT_VERSION_UNSUPPORTED",
-                $"site.yaml formatVersion={formatVersion} 比当前 Bocchi 支持的 {Bocchi.Workspace.WorkspaceFormatVersion.Current} 更新。请升级 Bocchi，或恢复较旧的 workspace。"));
-            return LoadResult.Fail<SiteSettings>(errors);
-        }
-
-        if (formatVersion < 1)
-        {
-            errors.Add(new ContentValidationError(
-                siteLocation.RelativePath, ContentKind.SiteSettings, "formatVersion",
-                ContentErrorSeverity.Error, "SITE_FORMAT_VERSION_INVALID",
-                $"site.yaml formatVersion={formatVersion} 无效。"));
+                ContentErrorSeverity.Error, formatErrorCode!,
+                formatErrorMessage!));
             return LoadResult.Fail<SiteSettings>(errors);
         }
 

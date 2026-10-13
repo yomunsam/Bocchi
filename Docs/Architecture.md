@@ -129,6 +129,8 @@ data/                                 <-- DataRoot（非开发环境必须显式
     site/
       site.yaml
       navigation.yaml
+      categories.yaml                   <-- 分类树
+      localization.yaml                 <-- 前台语言
   keys/                               <-- Data Protection 密钥（固定 ApplicationName，必须随数据库一起备份）
   backups/                            <-- backup 命令输出与迁移前数据库快照
   state/                              <-- Home Server / Bocchi 状态
@@ -259,13 +261,13 @@ cover: "/media/images/cover.jpg"
 
 ### 4.6 Site Settings
 
-站点设置放在 `site/site.yaml`（导航另见 `site/navigation.yaml`）。
+站点设置放在 `site/site.yaml`。导航、分类树、前台语言分别是同目录下的 `navigation.yaml`、`categories.yaml`、`localization.yaml`。
 
-**权威划分**：站点内容相关设置以 workspace 为准（`site.yaml`、导航、以及将迁入 workspace 的分类树与启用语言）；用户、凭据、发布方案、Git 连接、外部登录、后台外观留在数据库。启动时从 workspace 灌入数据库投影，禁止用数据库默认值覆盖已有 `site.yaml`。
+**权威划分**：这些文件是站点内容设置的权威来源。用户、凭据、发布方案、Git 连接、外部登录、后台外观留在数据库。启动时把文件灌进数据库投影；文件已经存在时，不用数据库里的默认值去盖它。
 
-顶层 `formatVersion`（整数，当前为 `1`）：缺省按 `1` 解释；读到比程序更新的版本时拒绝构建与会改状态的写入。
+`formatVersion` 只写在 `site.yaml` 顶层（整数，当前为 `1`）。分类和语言文件不再单独编号。缺这个字段时按 `1` 读。读到比程序更新的版本时，构建，以及会改状态的写入，都会拒绝。这包括后台保存、启动灌库，还有分类树和前台语言的同步。
 
-字段建议：
+`site.yaml` 字段建议：
 
 - `formatVersion`
 - 站点标题、描述、语言、时区、基础 URL。
@@ -274,6 +276,18 @@ cover: "/media/images/cover.jpg"
 - 导航（也可拆到 `navigation.yaml`）。
 - 默认 Theme。
 - RSS、Sitemap、搜索等开关。
+
+#### 分类树 `site/categories.yaml`
+
+`trees` 下面每个 scope 一棵树。现在用到的是 `Post` 和 `Work`。`roots` 是并排的根类别，节点有 `id`、`name`、`slug`，可以带 `localizedNames` 和 `children`。深度上限和后台一样，是 5 层。同一个 scope 写两次，整份文件算无效。文件里不写 `UpdatedAt`。
+
+没有这个文件时，启动会把数据库里的分类导出一次。数据库也是空的，就写成 Post 和 Work 两棵空树。YAML 坏了、缺字段，或 scope 重复时，不灌库，也不覆盖原文件；这种状态下构建会失败。
+
+#### 前台语言 `site/localization.yaml`
+
+字段是 `primaryLanguage`、`urlPolicy`、`enabledLanguages`、`customLanguages`、`commonTextOverrides`。`primaryLanguage` 是前台语言的权威来源。保存语言时，会把它同步到 `site.yaml` 的 `language`，以及数据库里的站点语言。后台界面语言不在这个文件里。
+
+没有这个文件时，从数据库导出；导出用的主语言优先取 `site.yaml` 的 `language`。两边都没有，就写入只有 `zh-CN` 的默认文件。文件坏了就不灌库，构建会失败。
 
 ### 4.7 Frontend Menu
 

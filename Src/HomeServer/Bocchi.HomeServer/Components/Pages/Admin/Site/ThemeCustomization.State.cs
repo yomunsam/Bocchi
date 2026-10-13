@@ -845,7 +845,7 @@ public partial class ThemeCustomization
                 return;
             }
 
-            await SiteProfileSettings.SaveAsync(new SiteProfileSettingsUpdate
+            var saved = await SiteProfileSettings.SaveAsync(new SiteProfileSettingsUpdate
             {
                 SiteName = current.SiteName,
                 DefaultTitle = current.DefaultTitle,
@@ -856,6 +856,11 @@ public partial class ThemeCustomization
                 TimeZone = current.TimeZone,
                 DefaultThemeId = newThemeId,
             });
+            if (!saved.Succeeded)
+            {
+                _switchMessage = I18n[saved.UiKey];
+                return;
+            }
             _activeThemeId = newThemeId;
             await LoadCustomizationAsync();
             await LoadThemeI18nAsync();

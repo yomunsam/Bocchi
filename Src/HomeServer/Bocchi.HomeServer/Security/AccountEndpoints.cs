@@ -104,7 +104,13 @@ public static class AccountEndpoints
         if (!result.Succeeded)
         {
             pendingAdmins.Clear(context);
-            return RenderSetupAdminComponent(result.Errors.Select(x => x.Description), SetupAdminFormValues.FromPendingAdmin(pendingAdmin));
+            var messages = result.Errors.Select(error => error.Code switch
+            {
+                Bocchi.Workspace.WorkspaceFormatVersion.UnsupportedCode => localization["workspace.formatVersion.unsupported"],
+                Bocchi.Workspace.WorkspaceFormatVersion.InvalidCode => localization["workspace.formatVersion.invalid"],
+                _ => error.Description,
+            });
+            return RenderSetupAdminComponent(messages, SetupAdminFormValues.FromPendingAdmin(pendingAdmin));
         }
 
         pendingAdmins.Clear(context);

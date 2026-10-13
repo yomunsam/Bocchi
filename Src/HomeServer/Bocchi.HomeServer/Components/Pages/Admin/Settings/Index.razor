@@ -701,21 +701,48 @@
                 // 迁移向导会在其内部完成 SiteProfile.DefaultThemeId 保存；
                 // 这里先保存其他字段，避免用户填入的内容丢失。
                 _siteDefaultThemeId = oldTheme;
-                await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+                var kept = await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+                if (!kept.Succeeded)
+                {
+                    _basicError = I18n[kept.UiKey];
+                    return;
+                }
+
                 Navigation.NavigateTo($"/Admin/Site/ThemeMigration?from={Uri.EscapeDataString(oldTheme)}&to={Uri.EscapeDataString(newTheme)}");
                 return;
             }
         }
-        await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+
+        var saved = await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+        if (!saved.Succeeded)
+        {
+            _basicError = I18n[saved.UiKey];
+            return;
+        }
+
         _basicSaved = true;
     }
 
     /// <summary>保存站点本地化设置。</summary>
     private async Task SaveLocalizationAsync()
     {
-        await LocalizationSettings.SaveAsync(_primaryLanguage, _enabledLanguageCodes, _customLanguages);
+        var saved = await LocalizationSettings.SaveAsync(_primaryLanguage, _enabledLanguageCodes, _customLanguages);
+        if (!saved.Succeeded)
+        {
+            _localizationSaved = false;
+            _localizationMessage = I18n[saved.UiKey];
+            return;
+        }
+
         await LoadLocalizationAsync();
-        await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+        var profile = await SiteProfileSettings.SaveAsync(BuildSiteProfileUpdate());
+        if (!profile.Succeeded)
+        {
+            _localizationSaved = false;
+            _localizationMessage = I18n[profile.UiKey];
+            return;
+        }
+
         _localizationSaved = true;
         _localizationMessage = I18n["settings.localization.primaryIncluded"];
     }
@@ -742,7 +769,14 @@
             Key = x.Key,
             Values = x.Value,
         });
-        await LocalizationSettings.SaveCommonTextOverridesAsync(overrides);
+        var saved = await LocalizationSettings.SaveCommonTextOverridesAsync(overrides);
+        if (!saved.Succeeded)
+        {
+            _commonTextSaved = false;
+            _commonTextMessage = I18n[saved.UiKey];
+            return;
+        }
+
         await LoadLocalizationAsync();
         _commonTextSaved = true;
         _commonTextMessage = I18n["settings.localization.commonTextSaved"];

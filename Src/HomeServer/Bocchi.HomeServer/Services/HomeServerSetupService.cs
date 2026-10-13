@@ -17,6 +17,8 @@ public sealed class HomeServerSetupService
     private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
     private readonly SiteProfileSettingsService _siteProfile;
+    private readonly CategoryTreeService _categories;
+    private readonly LocalizationSettingsService _localization;
     private readonly DashboardGuideService _guides;
     private readonly DatabaseMigrator _migrator;
 
@@ -28,6 +30,8 @@ public sealed class HomeServerSetupService
         BocchiDataLayout layout,
         TimeProvider time,
         SiteProfileSettingsService siteProfile,
+        CategoryTreeService categories,
+        LocalizationSettingsService localization,
         DashboardGuideService guides,
         DatabaseMigrator migrator)
     {
@@ -37,6 +41,8 @@ public sealed class HomeServerSetupService
         _layout = layout;
         _time = time;
         _siteProfile = siteProfile;
+        _categories = categories;
+        _localization = localization;
         _guides = guides;
         _migrator = migrator;
     }
@@ -49,7 +55,8 @@ public sealed class HomeServerSetupService
         await EnsureDashboardSettingsAsync(cancellationToken).ConfigureAwait(false);
         await EnsureGitHubIntegrationSettingsAsync(cancellationToken).ConfigureAwait(false);
         await _siteProfile.EnsureAsync(cancellationToken).ConfigureAwait(false);
-        await EnsureLocalizationSettingsAsync(cancellationToken).ConfigureAwait(false);
+        await _categories.EnsureAsync(cancellationToken).ConfigureAwait(false);
+        await _localization.EnsureAsync(cancellationToken).ConfigureAwait(false);
         await EnsureExternalProviderDefaultsAsync(cancellationToken).ConfigureAwait(false);
         await _guides.EnsureBuiltInAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -106,7 +113,15 @@ public sealed class HomeServerSetupService
 
         if (siteProfile is not null)
         {
-            await _siteProfile.SaveAsync(siteProfile, cancellationToken).ConfigureAwait(false);
+            var saved = await _siteProfile.SaveAsync(siteProfile, cancellationToken).ConfigureAwait(false);
+            if (!saved.Succeeded)
+            {
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Code = saved.Code ?? "SiteProfileSaveRefused",
+                    Description = saved.Message ?? "Site profile save was refused.",
+                });
+            }
         }
         else
         {
@@ -202,26 +217,5 @@ public sealed class HomeServerSetupService
         }
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>确保站点本地化设置存在，供 Settings / Localization 首次打开时直接编辑。</summary>
-    private async Task EnsureLocalizationSettingsAsync(CancellationToken cancellationToken)
-    {
-        if (!await _db.LocalizationSettings.AnyAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var primaryLanguage = LocalizationSettingsService.BuiltInLanguages
-                .First(x => string.Equals(x.Code, LocalizationSettingsService.DefaultPrimaryLanguage, StringComparison.Ordinal));
-            _db.LocalizationSettings.Add(new LocalizationSettingsRecord
-            {
-                Id = 1,
-                PrimaryLanguage = primaryLanguage.Code,
-                EnabledLanguagesJson = System.Text.Json.JsonSerializer.Serialize(new[] { primaryLanguage }),
-                CustomLanguagesJson = "[]",
-                CommonTextOverridesJson = "{}",
-                UrlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy,
-                UpdatedAt = _time.GetUtcNow(),
-            });
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        }
     }
 }

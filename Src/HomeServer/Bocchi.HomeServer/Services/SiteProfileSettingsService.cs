@@ -34,6 +34,29 @@ public sealed class SiteProfileSettingsService
         _logger = logger;
     }
 
+    /// <summary>
+    /// 读取 <c>site.yaml</c> 的 <c>language</c>。文件不存在、空白、版本不受支持或没有该字段时返回 null。
+    /// 首次导出 localization 时用它填 <c>primaryLanguage</c>，避免和站点资料各写各的。
+    /// </summary>
+    public async Task<string?> TryReadWorkspaceLanguageAsync(CancellationToken cancellationToken = default)
+    {
+        var file = _layout.Workspace.SiteSettingsFile;
+        if (!File.Exists(file))
+        {
+            return null;
+        }
+
+        var yaml = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(yaml) || !WorkspaceFormatVersion.TryRead(yaml, out _, out _, out _))
+        {
+            return null;
+        }
+
+        var root = await LoadSiteYamlRootAsync(file, cancellationToken).ConfigureAwait(false);
+        var language = GetScalar(root, "language");
+        return string.IsNullOrWhiteSpace(language) ? null : language.Trim();
+    }
+
     /// <summary>读取单站点基础设置；缺失时创建默认值。</summary>
     public async Task<SiteProfileSettings> GetAsync(CancellationToken cancellationToken = default)
     {
@@ -55,12 +78,20 @@ public sealed class SiteProfileSettingsService
     /// <summary>
     /// 启动时同步：若 workspace 已有 <c>site.yaml</c>，以文件为准灌入数据库；
     /// 仅当文件不存在时才把数据库投影写出。绝不在启动时用 DB 默认值覆盖已有文件。
+    /// <c>formatVersion</c> 比当前程序新时不灌库、不改文件。
     /// </summary>
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
         var file = _layout.Workspace.SiteSettingsFile;
         if (File.Exists(file) && new FileInfo(file).Length > 0)
         {
+            var refusal = await WorkspaceFormatGate.TryRefuseAsync(file, cancellationToken).ConfigureAwait(false);
+            if (refusal is not null)
+            {
+                _logger.LogError("site.yaml 版本不受支持，启动灌库已跳过：{Message}", refusal.Message);
+                return;
+            }
+
             await ImportWorkspaceIntoDbAsync(file, cancellationToken).ConfigureAwait(false);
             return;
         }
@@ -69,10 +100,21 @@ public sealed class SiteProfileSettingsService
         await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>保存站点基础约定：先写 workspace，再更新数据库投影。</summary>
-    public async Task SaveAsync(SiteProfileSettingsUpdate update, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// 保存站点基础约定：先写 workspace，再更新数据库投影。
+    /// 已有 <c>site.yaml</c> 的 <c>formatVersion</c> 比当前程序新时不写文件、不改数据库。
+    /// </summary>
+    public async Task<WorkspaceWriteResult> SaveAsync(SiteProfileSettingsUpdate update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
+
+        var file = _layout.Workspace.SiteSettingsFile;
+        var refusal = await WorkspaceFormatGate.TryRefuseAsync(file, cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
+        {
+            _logger.LogError("site.yaml 版本不受支持，保存已拒绝：{Message}", refusal.Message);
+            return refusal;
+        }
 
         var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
         var now = _time.GetUtcNow();
@@ -80,6 +122,59 @@ public sealed class SiteProfileSettingsService
         settings.UpdatedAt = now;
         await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return WorkspaceWriteResult.Ok;
+    }
+
+    /// <summary>
+    /// 把站点主语言写成 <paramref name="language"/>。只改 <c>site.yaml</c> 的 <c>language</c> 和数据库投影，不动其他字段。
+    /// 本地化保存用它把 <c>primaryLanguage</c> 同步回来。版本过新时两边都不改。
+    /// </summary>
+    public async Task<WorkspaceWriteResult> SyncLanguageAsync(string? language, CancellationToken cancellationToken = default)
+    {
+        var file = _layout.Workspace.SiteSettingsFile;
+        var refusal = await WorkspaceFormatGate.TryRefuseAsync(file, cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
+        {
+            _logger.LogError("site.yaml 版本不受支持，语言同步已拒绝：{Message}", refusal.Message);
+            return refusal;
+        }
+
+        var normalized = NormalizeRequired(language, "zh-CN");
+        var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
+        if (!File.Exists(file) || new FileInfo(file).Length == 0)
+        {
+            settings.Language = normalized;
+            settings.UpdatedAt = _time.GetUtcNow();
+            await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return WorkspaceWriteResult.Ok;
+        }
+
+        var yaml = await File.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(yaml))
+        {
+            settings.Language = normalized;
+            settings.UpdatedAt = _time.GetUtcNow();
+            await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return WorkspaceWriteResult.Ok;
+        }
+
+        var root = await LoadSiteYamlRootAsync(file, cancellationToken).ConfigureAwait(false);
+        var current = GetScalar(root, "language");
+        var fileMatches = string.Equals(current?.Trim(), normalized, StringComparison.Ordinal);
+        var dbMatches = string.Equals(settings.Language, normalized, StringComparison.Ordinal);
+        if (fileMatches && dbMatches)
+        {
+            return WorkspaceWriteResult.Ok;
+        }
+
+        settings.Language = normalized;
+        settings.UpdatedAt = _time.GetUtcNow();
+        SetScalar(root, "language", normalized);
+        await SaveYamlAsync(file, root, cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return WorkspaceWriteResult.Ok;
     }
 
     private SiteProfileSettings CreateDefaultSettings()
@@ -108,6 +203,13 @@ public sealed class SiteProfileSettingsService
     /// <summary>从已有 site.yaml 读取站点资料字段并写入 DB；与 DB 冲突时保留文件并记 Warning。</summary>
     private async Task ImportWorkspaceIntoDbAsync(string file, CancellationToken cancellationToken)
     {
+        var refusal = await WorkspaceFormatGate.TryRefuseAsync(file, cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
+        {
+            _logger.LogError("site.yaml 版本不受支持，灌库已跳过：{Message}", refusal.Message);
+            return;
+        }
+
         var root = await LoadSiteYamlRootAsync(file, cancellationToken).ConfigureAwait(false);
         var fromFile = ReadProfileFields(root);
         var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
@@ -152,6 +254,18 @@ public sealed class SiteProfileSettingsService
         SetScalar(root, "baseUrl", settings.PublicBaseUrl);
         SetScalar(root, "copyright", settings.CopyrightNotice);
         SetScalar(root, "defaultThemeId", settings.DefaultThemeId);
+
+        await SaveYamlAsync(file, root, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>把 mapping 写回 site.yaml。调用方负责放进要保留的键，这里不补 <c>formatVersion</c>。</summary>
+    private static async Task SaveYamlAsync(string file, YamlMappingNode root, CancellationToken cancellationToken)
+    {
+        var dir = Path.GetDirectoryName(file);
+        if (!string.IsNullOrWhiteSpace(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
 
         var stream = new YamlStream(new YamlDocument(root));
         await using var output = File.Create(file);

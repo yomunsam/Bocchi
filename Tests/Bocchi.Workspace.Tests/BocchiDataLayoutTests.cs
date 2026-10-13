@@ -34,6 +34,8 @@ public sealed class BocchiDataLayoutTests
         layout.Workspace.FriendsFile.Should().Be(Path.Combine(expectedRoot, "workspace", "friends", "friends.yaml"));
         layout.Workspace.SiteSettingsFile.Should().Be(Path.Combine(expectedRoot, "workspace", "site", "site.yaml"));
         layout.Workspace.NavigationFile.Should().Be(Path.Combine(expectedRoot, "workspace", "site", "navigation.yaml"));
+        layout.Workspace.CategoriesFile.Should().Be(Path.Combine(expectedRoot, "workspace", "site", "categories.yaml"));
+        layout.Workspace.LocalizationFile.Should().Be(Path.Combine(expectedRoot, "workspace", "site", "localization.yaml"));
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using Bocchi.Generator.Pipeline;
 using Bocchi.Generator.Sinks;
 using Bocchi.HomeServer.Build;
+using Bocchi.HomeServer.Services;
 using Bocchi.Workspace;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +66,16 @@ public static partial class BuildCli
             IncludeDrafts = options.IncludeDrafts,
             DisableUpToDateShortCircuit = options.ForceRebuild,
         };
+        try
+        {
+            buildOptions = await HomeServerBuildSnapshots.ApplyAsync(services, buildOptions, options.ThemeId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (WorkspaceSnapshotException ex)
+        {
+            BuildCliLog.Refused(logger, ex.Message);
+            return 1;
+        }
+
         var result = await pipeline.RunAsync(
             buildOptions, sink, options.ThemeId, BuildOrchestrator.ResolveBocchiVersion(), cancellationToken).ConfigureAwait(false);
 
@@ -76,6 +87,9 @@ public static partial class BuildCli
     {
         [LoggerMessage(EventId = 5001, Level = LogLevel.Information, Message = "Bocchi build CLI finished: status={Status} session={SessionId} duration={Seconds:F2}s")]
         public static partial void Done(ILogger logger, BuildStatus status, Guid sessionId, double seconds);
+
+        [LoggerMessage(EventId = 5002, Level = LogLevel.Error, Message = "Bocchi build CLI refused: {Message}")]
+        public static partial void Refused(ILogger logger, string message);
     }
 }
 
