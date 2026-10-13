@@ -1130,6 +1130,8 @@ public sealed class GeneratorPipelineEndToEndTests
     public async Task BocchiMonoTheme_ExecutesWorkspaceFluidTemplate()
     {
         using var fixture = new TestWorkspaceFixture();
+        // 先落盘内置 Theme 并建立哈希清单，再改模板；否则首次 Ensure 会按升级逻辑覆盖本地改动
+        await DefaultThemeBundle.EnsureAsync(fixture.Layout.ThemesDirectory);
         var pageTemplateDirectory = Path.Combine(fixture.Layout.ThemesDirectory, "bocchi-mono", "templates", "pages");
         Directory.CreateDirectory(pageTemplateDirectory);
         await File.WriteAllTextAsync(Path.Combine(pageTemplateDirectory, "index.liquid"), """

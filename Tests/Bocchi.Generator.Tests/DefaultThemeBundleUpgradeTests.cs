@@ -34,9 +34,9 @@ public sealed class DefaultThemeBundleUpgradeTests
             edited.Should().Contain("assets/app.css");
             (await File.ReadAllTextAsync(appCss, TestContext.Current.CancellationToken)).Should().StartWith("/* user edit */");
 
-            // theme.json 未改过，版本应升到内置的 0.2.0
+            // theme.json 未改过，版本应升到内置的 0.2.1
             var manifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"), TestContext.Current.CancellationToken);
-            manifest.Should().Contain("\"version\": \"0.2.0\"");
+            manifest.Should().Contain("\"version\": \"0.2.1\"");
             File.Exists(DefaultThemeBundle.ResolveHashManifestPath(layout.ThemesDirectory)).Should().BeTrue();
         }
         finally

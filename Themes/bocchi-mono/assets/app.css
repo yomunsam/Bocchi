@@ -34,7 +34,7 @@ html[data-theme="dark"]{color-scheme:dark}
   --prose:700px;
   --radius:8px;
 }
-html:lang(zh){
+html:lang(zh-CN),html:lang(zh-Hans){
   --font-display:"Instrument Serif Han","Noto Serif CJK SC","Noto Serif SC","Source Han Serif SC","Songti SC","STSong","SimSun",ui-serif,Georgia,serif;
   --font-body:"Inter Tight Han","Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",ui-sans-serif,system-ui,sans-serif;
 }
@@ -46,8 +46,8 @@ html:lang(ja){
   --font-display:"Instrument Serif Han","Noto Serif CJK JP","Noto Serif JP","Source Han Serif JP","Hiragino Mincho ProN","Yu Mincho",ui-serif,Georgia,serif;
   --font-body:"Inter Tight Han","Noto Sans CJK JP","Noto Sans JP","Source Han Sans JP","Hiragino Sans","Yu Gothic",ui-sans-serif,system-ui,sans-serif;
 }
-/* 设置了中文网页字体样式表时，只有简体中文标题先用 Noto Serif SC；繁中和日文仍走系统字体 */
-html[data-cjk-webfont]:lang(zh){
+/* 设置了中文网页字体样式表时，只有简体（zh-CN / zh-Hans）标题先用 Noto Serif SC；繁中和日文仍走系统字体 */
+html[data-cjk-webfont]:lang(zh-CN),html[data-cjk-webfont]:lang(zh-Hans){
   --font-display:"Instrument Serif Han","Noto Serif SC","Noto Serif CJK SC","Source Han Serif SC","Songti SC","STSong","SimSun",ui-serif,Georgia,serif;
 }
 html[data-theme="dark"]{

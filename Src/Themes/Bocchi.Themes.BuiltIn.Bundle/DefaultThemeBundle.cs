@@ -14,7 +14,7 @@ public static class DefaultThemeBundle
     public const string ThemeName = "Bocchi Mono";
 
     /// <summary>默认 Theme 版本；内置文件有变更时递增。</summary>
-    public const string ThemeVersion = "0.2.0";
+    public const string ThemeVersion = "0.2.1";
 
     /// <summary>存放「上次从内置包写入的文件哈希」的目录名，挂在 themes/ 下。</summary>
     public const string BundleHashesDirectoryName = ".bundle-hashes";

@@ -1,7 +1,7 @@
 {
   "id": "bocchi-mono",
   "name": "Bocchi Mono",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "contractVersion": "1.0",
   "inputDir": "../../cache/theme-input",
   "outputDir": "build",
