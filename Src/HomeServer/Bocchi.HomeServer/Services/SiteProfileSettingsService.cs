@@ -4,29 +4,34 @@ using Bocchi.HomeServer.Data;
 using Bocchi.Workspace;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 using YamlDotNet.RepresentationModel;
 
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// Home Server 站点基础约定服务。数据库是运行时权威，workspace 的 <c>site.yaml</c> 是可携带投影。
+/// 站点基础设置服务。workspace 的 <c>site.yaml</c> 是站点内容设置的权威来源；
+/// 数据库保留一份投影供后台查询。启动时从 workspace 灌库，禁止用默认值盖掉已有文件。
 /// </summary>
 public sealed class SiteProfileSettingsService
 {
     private readonly BocchiDbContext _db;
     private readonly BocchiDataLayout _layout;
     private readonly TimeProvider _time;
+    private readonly ILogger<SiteProfileSettingsService> _logger;
 
     /// <summary>构造站点基础设置服务。</summary>
     public SiteProfileSettingsService(
         BocchiDbContext db,
         BocchiDataLayout layout,
-        TimeProvider time)
+        TimeProvider time,
+        ILogger<SiteProfileSettingsService> logger)
     {
         _db = db;
         _layout = layout;
         _time = time;
+        _logger = logger;
     }
 
     /// <summary>读取单站点基础设置；缺失时创建默认值。</summary>
@@ -47,14 +52,24 @@ public sealed class SiteProfileSettingsService
         return settings;
     }
 
-    /// <summary>确保数据库默认记录存在，并把当前记录同步到 workspace 投影。</summary>
+    /// <summary>
+    /// 启动时同步：若 workspace 已有 <c>site.yaml</c>，以文件为准灌入数据库；
+    /// 仅当文件不存在时才把数据库投影写出。绝不在启动时用 DB 默认值覆盖已有文件。
+    /// </summary>
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
+        var file = _layout.Workspace.SiteSettingsFile;
+        if (File.Exists(file) && new FileInfo(file).Length > 0)
+        {
+            await ImportWorkspaceIntoDbAsync(file, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
-        await SyncWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
+        await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>保存站点基础约定，并同步写入 workspace <c>site.yaml</c>。</summary>
+    /// <summary>保存站点基础约定：先写 workspace，再更新数据库投影。</summary>
     public async Task SaveAsync(SiteProfileSettingsUpdate update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
@@ -63,8 +78,8 @@ public sealed class SiteProfileSettingsService
         var now = _time.GetUtcNow();
         Apply(settings, update, now.Year.ToString(CultureInfo.InvariantCulture));
         settings.UpdatedAt = now;
+        await WriteWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await SyncWorkspaceSiteYamlAsync(settings, cancellationToken).ConfigureAwait(false);
     }
 
     private SiteProfileSettings CreateDefaultSettings()
@@ -90,7 +105,35 @@ public sealed class SiteProfileSettingsService
         settings.DefaultThemeId = NormalizeRequired(update.DefaultThemeId, "bocchi-mono");
     }
 
-    private async Task SyncWorkspaceSiteYamlAsync(SiteProfileSettings settings, CancellationToken cancellationToken)
+    /// <summary>从已有 site.yaml 读取站点资料字段并写入 DB；与 DB 冲突时保留文件并记 Warning。</summary>
+    private async Task ImportWorkspaceIntoDbAsync(string file, CancellationToken cancellationToken)
+    {
+        var root = await LoadSiteYamlRootAsync(file, cancellationToken).ConfigureAwait(false);
+        var fromFile = ReadProfileFields(root);
+        var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
+
+        if (ProfileDiffers(settings, fromFile))
+        {
+            _logger.LogWarning(
+                "site.yaml 与数据库站点资料不一致，以 workspace 为准（title={Title}, baseUrl={BaseUrl}, language={Language}）。",
+                fromFile.SiteName,
+                fromFile.PublicBaseUrl,
+                fromFile.Language);
+        }
+
+        settings.SiteName = fromFile.SiteName;
+        settings.DefaultTitle = fromFile.DefaultTitle;
+        settings.Description = fromFile.Description;
+        settings.PublicBaseUrl = fromFile.PublicBaseUrl;
+        settings.CopyrightNotice = fromFile.CopyrightNotice;
+        settings.Language = fromFile.Language;
+        settings.TimeZone = fromFile.TimeZone;
+        settings.DefaultThemeId = fromFile.DefaultThemeId;
+        settings.UpdatedAt = _time.GetUtcNow();
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task WriteWorkspaceSiteYamlAsync(SiteProfileSettings settings, CancellationToken cancellationToken)
     {
         var file = _layout.Workspace.SiteSettingsFile;
         var dir = Path.GetDirectoryName(file);
@@ -100,6 +143,7 @@ public sealed class SiteProfileSettingsService
         }
 
         var root = await LoadSiteYamlRootAsync(file, cancellationToken).ConfigureAwait(false);
+        SetScalar(root, "formatVersion", WorkspaceFormatVersion.Current.ToString(CultureInfo.InvariantCulture));
         SetScalar(root, "title", settings.SiteName);
         SetScalar(root, "defaultTitle", settings.DefaultTitle);
         SetScalar(root, "description", settings.Description);
@@ -115,6 +159,31 @@ public sealed class SiteProfileSettingsService
         stream.Save(writer, assignAnchors: false);
         await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    private static ProfileFields ReadProfileFields(YamlMappingNode root)
+    {
+        var year = DateTimeOffset.UtcNow.Year.ToString(CultureInfo.InvariantCulture);
+        var siteName = NormalizeRequired(GetScalar(root, "title"), "Bocchi");
+        return new ProfileFields(
+            SiteName: siteName,
+            DefaultTitle: NormalizeRequired(GetScalar(root, "defaultTitle"), siteName),
+            Description: NormalizeOptional(GetScalar(root, "description")),
+            PublicBaseUrl: NormalizePublicBaseUrl(GetScalar(root, "baseUrl")),
+            CopyrightNotice: NormalizeRequired(GetScalar(root, "copyright"), $"Copyright © {year} {siteName}."),
+            Language: NormalizeRequired(GetScalar(root, "language"), "zh-CN"),
+            TimeZone: NormalizeRequired(GetScalar(root, "timeZone"), "Asia/Shanghai"),
+            DefaultThemeId: NormalizeRequired(GetScalar(root, "defaultThemeId"), "bocchi-mono"));
+    }
+
+    private static bool ProfileDiffers(SiteProfileSettings db, ProfileFields file)
+        => !string.Equals(db.SiteName, file.SiteName, StringComparison.Ordinal)
+           || !string.Equals(db.DefaultTitle, file.DefaultTitle, StringComparison.Ordinal)
+           || !string.Equals(db.Description, file.Description, StringComparison.Ordinal)
+           || !string.Equals(db.PublicBaseUrl, file.PublicBaseUrl, StringComparison.Ordinal)
+           || !string.Equals(db.CopyrightNotice, file.CopyrightNotice, StringComparison.Ordinal)
+           || !string.Equals(db.Language, file.Language, StringComparison.Ordinal)
+           || !string.Equals(db.TimeZone, file.TimeZone, StringComparison.Ordinal)
+           || !string.Equals(db.DefaultThemeId, file.DefaultThemeId, StringComparison.Ordinal);
 
     private static async Task<YamlMappingNode> LoadSiteYamlRootAsync(string file, CancellationToken cancellationToken)
     {
@@ -144,6 +213,17 @@ public sealed class SiteProfileSettingsService
         root.Children[new YamlScalarNode(key)] = new YamlScalarNode(value);
     }
 
+    private static string? GetScalar(YamlMappingNode root, string key)
+    {
+        var nodeKey = new YamlScalarNode(key);
+        if (!root.Children.TryGetValue(nodeKey, out var node) || node is not YamlScalarNode scalar)
+        {
+            return null;
+        }
+
+        return scalar.Value;
+    }
+
     private static string NormalizeRequired(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 
@@ -166,6 +246,16 @@ public sealed class SiteProfileSettingsService
         var absolute = uri.AbsoluteUri;
         return absolute.Length > 0 && absolute[^1] == '/' ? absolute : absolute + "/";
     }
+
+    private sealed record ProfileFields(
+        string SiteName,
+        string DefaultTitle,
+        string Description,
+        string PublicBaseUrl,
+        string CopyrightNotice,
+        string Language,
+        string TimeZone,
+        string DefaultThemeId);
 }
 
 /// <summary>站点基础设置保存输入。它只覆盖 Home Server 拥有的固定站点字段。</summary>

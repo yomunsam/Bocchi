@@ -127,6 +127,7 @@ public sealed class BocchiDataInitializer
 
     private const string DefaultSiteSettingsYaml = """
         # 站点设置。详见 Docs/Architecture.md §4.6。
+        formatVersion: 1
         title: My Site
         defaultTitle: My Site
         description: ""

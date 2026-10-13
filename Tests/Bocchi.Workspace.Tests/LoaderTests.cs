@@ -466,4 +466,48 @@ public sealed class LoaderTests
         group.Target.Should().BeNull();
         group.Children.Single().Target!.Type.Should().Be("builtin");
     }
+
+    [Fact]
+    public void SiteSettingsLoader_MissingFormatVersion_TreatedAsCurrent()
+    {
+        var yaml = """
+            title: Demo
+            baseUrl: https://demo.example/
+            """;
+
+        var result = SiteSettingsLoader.Load(Loc("site/site.yaml"), yaml, null, null);
+
+        result.Errors.Should().BeEmpty();
+        result.Document.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SiteSettingsLoader_NewerFormatVersion_Refuses()
+    {
+        var yaml = """
+            formatVersion: 99
+            title: Demo
+            baseUrl: https://demo.example/
+            """;
+
+        var result = SiteSettingsLoader.Load(Loc("site/site.yaml"), yaml, null, null);
+
+        result.Document.Should().BeNull();
+        result.Errors.Should().Contain(e => e.Code == "SITE_FORMAT_VERSION_UNSUPPORTED");
+    }
+
+    [Fact]
+    public void SiteSettingsLoader_ExplicitFormatVersionOne_Accepted()
+    {
+        var yaml = """
+            formatVersion: 1
+            title: Demo
+            baseUrl: https://demo.example/
+            """;
+
+        var result = SiteSettingsLoader.Load(Loc("site/site.yaml"), yaml, null, null);
+
+        result.Errors.Should().BeEmpty();
+        result.Document.Should().NotBeNull();
+    }
 }
