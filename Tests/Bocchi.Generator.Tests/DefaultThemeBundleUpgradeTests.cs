@@ -1,5 +1,3 @@
-using System.Text;
-
 using Bocchi.Themes.BuiltIn.Bundle;
 using Bocchi.Workspace;
 
@@ -38,6 +36,39 @@ public sealed class DefaultThemeBundleUpgradeTests
             var manifest = await File.ReadAllTextAsync(Path.Combine(themeRoot, "theme.json"), TestContext.Current.CancellationToken);
             manifest.Should().Contain("\"version\": \"0.2.1\"");
             File.Exists(DefaultThemeBundle.ResolveHashManifestPath(layout.ThemesDirectory)).Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task EnsureAsync_FirstManifest_KeepsPreExistingEditedFile()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bocchi-bundle-firstrun-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(root);
+            var themeRoot = Path.Combine(layout.ThemesDirectory, DefaultThemeBundle.ThemeId);
+            var appCss = Path.Combine(themeRoot, "assets", "app.css");
+            Directory.CreateDirectory(Path.GetDirectoryName(appCss)!);
+            const string userContent = "/* local edit before first hash manifest */\nbody { color: red; }\n";
+            await File.WriteAllTextAsync(appCss, userContent, TestContext.Current.CancellationToken);
+
+            File.Exists(DefaultThemeBundle.ResolveHashManifestPath(layout.ThemesDirectory)).Should().BeFalse();
+
+            var edited = await DefaultThemeBundle.EnsureAsync(layout.ThemesDirectory, TestContext.Current.CancellationToken);
+            edited.Should().Contain("assets/app.css");
+            (await File.ReadAllTextAsync(appCss, TestContext.Current.CancellationToken)).Should().Be(userContent);
+            File.Exists(DefaultThemeBundle.ResolveHashManifestPath(layout.ThemesDirectory)).Should().BeTrue();
+
+            edited = await DefaultThemeBundle.EnsureAsync(layout.ThemesDirectory, TestContext.Current.CancellationToken);
+            edited.Should().Contain("assets/app.css");
+            (await File.ReadAllTextAsync(appCss, TestContext.Current.CancellationToken)).Should().Be(userContent);
         }
         finally
         {

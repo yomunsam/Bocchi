@@ -26,7 +26,7 @@ public static class DefaultThemeBundle
 
     /// <summary>
     /// 把随包分发的默认 Theme 物化到 DataRoot themes 目录。
-    /// 缺失文件会补上；内容仍等于上次内置哈希的文件会被升级；用户改过的文件保留，并出现在返回列表里。
+    /// 缺失文件会补上；内容仍等于上次（或当前）内置哈希的文件会被升级/跟踪；用户改过的文件一律保留并出现在返回列表里（含首次建档）。
     /// </summary>
     public static async Task<IReadOnlyList<string>> EnsureAsync(string themesDirectory, CancellationToken cancellationToken = default)
     {
@@ -58,15 +58,17 @@ public static class DefaultThemeBundle
             var installedHash = await HashFileAsync(destination, cancellationToken).ConfigureAwait(false);
             previous.TryGetValue(relativePath, out var lastBundledHash);
 
-            // 还没有哈希清单时，先按当前内置文件覆盖一次并建档（从「只补缺失」迁到「按哈希升级」）
+            // 尚无该文件的哈希记录（含首次建档）：与升级相同——已等于当前内置则跟踪；否则保留用户文件并标为已编辑
             if (lastBundledHash is null)
             {
-                if (!string.Equals(installedHash, bundledHash, StringComparison.Ordinal))
+                if (string.Equals(installedHash, bundledHash, StringComparison.Ordinal))
                 {
-                    await DefaultThemeBundleResources.CopyStreamToFileAsync(bundled, destination, overwrite: true, cancellationToken)
-                        .ConfigureAwait(false);
+                    next[relativePath] = bundledHash;
+                    continue;
                 }
 
+                edited.Add(relativePath);
+                // 以当前内置哈希为基线，后续升级仍能识别「用户相对该版本已改过」
                 next[relativePath] = bundledHash;
                 continue;
             }
