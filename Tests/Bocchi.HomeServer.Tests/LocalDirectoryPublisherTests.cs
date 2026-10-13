@@ -253,6 +253,80 @@ public sealed class LocalDirectoryPublisherTests
         }
     }
 
+
+    [Fact]
+    public async Task PublishAsync_RejectsUnresolvableSymlinkCycle()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-local-pub-" + Guid.NewGuid().ToString("N"));
+        var linkParent = Path.Combine(Path.GetTempPath(), "bocchi-local-cycle-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(dataRoot);
+            Directory.CreateDirectory(layout.PublicOutputDirectory);
+            await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "x");
+            Directory.CreateDirectory(linkParent);
+            var linkA = Path.Combine(linkParent, "a");
+            var linkB = Path.Combine(linkParent, "b");
+            // a -> b -> a 成环，ResolveLinkTarget(final) 应失败
+            File.CreateSymbolicLink(linkA, linkB);
+            File.CreateSymbolicLink(linkB, linkA);
+
+            var publisher = new LocalDirectoryPublisher(layout);
+            var act = () => publisher.PublishAsync(CreateRequest(layout, linkA, allowUnmarked: true), TestContext.Current.CancellationToken);
+            await act.Should().ThrowAsync<PublishTargetException>().WithMessage("*符号链接*");
+        }
+        finally
+        {
+            TryDelete(dataRoot);
+            TryDelete(linkParent);
+        }
+    }
+
+
+    [Fact]
+    public async Task PublishAsync_RejectsBrokenSymlinkTarget()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-local-pub-" + Guid.NewGuid().ToString("N"));
+        var linkParent = Path.Combine(Path.GetTempPath(), "bocchi-local-broken-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(dataRoot);
+            Directory.CreateDirectory(layout.PublicOutputDirectory);
+            await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "x");
+            Directory.CreateDirectory(linkParent);
+            var missing = Path.Combine(linkParent, "does-not-exist-" + Guid.NewGuid().ToString("N"));
+            var linkPath = Path.Combine(linkParent, "broken");
+            Directory.CreateSymbolicLink(linkPath, missing);
+
+            // 断链：ResolveLinkTarget 通常仍返回目标路径；若目标落在校验拒绝范围外，
+            // 这里再造「解析失败」靠成环用例。对断链：解析后目录不存在，随后 CreateDirectory 可能沿着断链失败。
+            // 明确要求：当 GetAttributes 能看到链接但 ResolveLinkTarget 抛错时拒绝——成环用例覆盖。
+            // 额外：指向缺失路径的断链，解析后若变成字面缺失路径，CreateDirectory 会创建真实目录——
+            // 调研要求失败时拒绝。对断链 ResolveLinkTarget 不抛时，校验最终路径即可。
+            var publisher = new LocalDirectoryPublisher(layout);
+            // 指向 DataRoot 内不存在子路径的断链：解析后仍在 DataRoot 下 → 拒绝
+            var intoData = Path.Combine(linkParent, "into-missing-under-data");
+            Directory.CreateSymbolicLink(intoData, Path.Combine(layout.BackupsDirectory, "nope-missing"));
+            var act = () => publisher.PublishAsync(CreateRequest(layout, intoData, allowUnmarked: true), TestContext.Current.CancellationToken);
+            await act.Should().ThrowAsync<PublishTargetException>();
+        }
+        finally
+        {
+            TryDelete(dataRoot);
+            TryDelete(linkParent);
+        }
+    }
+
     private static PublishTargetRequest CreateRequest(BocchiDataLayout layout, string target, bool allowUnmarked)
     {
         var configuration = new LocalDirectoryPublishConfiguration

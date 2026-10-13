@@ -168,7 +168,7 @@ public sealed class LocalDirectoryPublisher : IPublishTargetPublisher
     internal static string ResolveFinalPath(string fullPath)
     {
         var normalized = Path.GetFullPath(fullPath);
-        if (Directory.Exists(normalized) || File.Exists(normalized))
+        if (FileSystemEntryExists(normalized))
         {
             return ResolveExistingEntry(normalized);
         }
@@ -184,7 +184,7 @@ public sealed class LocalDirectoryPublisher : IPublishTargetPublisher
             }
 
             suffix.Push(Path.GetFileName(current));
-            if (Directory.Exists(parent) || File.Exists(parent))
+            if (FileSystemEntryExists(parent))
             {
                 var resolvedParent = ResolveExistingEntry(parent);
                 foreach (var segment in suffix)
@@ -201,11 +201,35 @@ public sealed class LocalDirectoryPublisher : IPublishTargetPublisher
         return normalized;
     }
 
+    /// <summary>路径本身或祖先是否存在（含尚未解析的符号链接）。</summary>
+    private static bool FileSystemEntryExists(string path)
+    {
+        try
+        {
+            _ = File.GetAttributes(path);
+            return true;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
     private static string ResolveExistingEntry(string path)
     {
-        FileSystemInfo info = Directory.Exists(path)
-            ? new DirectoryInfo(path)
-            : new FileInfo(path);
+        FileSystemInfo info;
+        try
+        {
+            var attrs = File.GetAttributes(path);
+            // 符号链接（含断链）用 FileInfo 解析；普通目录用 DirectoryInfo
+            info = (attrs & FileAttributes.ReparsePoint) != 0 || (attrs & FileAttributes.Directory) == 0
+                ? new FileInfo(path)
+                : new DirectoryInfo(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new PublishTargetException($"无法读取本地发布目录：{path}（{ex.Message}）");
+        }
 
         try
         {
@@ -217,7 +241,8 @@ public sealed class LocalDirectoryPublisher : IPublishTargetPublisher
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // 无法解析时退回字面路径；调用方仍会做 DataRoot / 根目录检查
+            throw new PublishTargetException(
+                $"无法解析本地发布目录的符号链接（可能已损坏、成环或无权访问）：{path}（{ex.Message}）");
         }
 
         return Path.GetFullPath(path);
