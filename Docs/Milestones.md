@@ -291,14 +291,14 @@
 
 目标：让站点具备基本发布能力和可发现性。
 
-当前状态：进行中。GitHub Pages 已作为第一个真实远端发布目标落地：Home Server 可保存 GitHub Pages 发布方案，生成 `output/public/`，通过 GitHub REST Git Database API 把静态输出精确提交到指定 repository branch，并记录发布运行历史；构建输出会包含 `.nojekyll`，避免 GitHub Pages 进入 Jekyll 处理。Cloudflare Pages 不通过 GitHub branch 伪装完成，下一步应按 Cloudflare Direct Upload / Wrangler-compatible 语义作为独立 provider 接入。
+当前状态：进行中。本地目录发布与静态搜索索引已落地；GitHub Pages 已作为第一个真实远端发布目标落地：Home Server 可保存 GitHub Pages 发布方案，生成 `output/public/`，通过 GitHub REST Git Database API 把静态输出精确提交到指定 repository branch，并记录发布运行历史；构建输出会包含 `.nojekyll`，避免 GitHub Pages 进入 Jekyll 处理。Cloudflare Pages 不通过 GitHub branch 伪装完成，下一步应按 Cloudflare Direct Upload / Wrangler-compatible 语义作为独立 provider 接入。
 
 建议任务：
 
 - [x] RSS / Atom Feed 生成。
 - [x] Sitemap 生成。
-- 静态搜索索引生成。
-- Local Directory 发布目标。
+- [x] 静态搜索索引生成。
+- [x] Local Directory 发布目标。
 - [x] GitHub Pages 静态发布目标。
 - Cloudflare Pages 发布路径：下一步优先做原生 Direct Upload，不复用 GitHub branch 作为假发布。
 - GitHub Actions Remote Runner 规划：远端完整 Bocchi build、状态轮询、artifact 读取或直接发布。
