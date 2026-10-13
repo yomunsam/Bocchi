@@ -60,11 +60,12 @@ public sealed class PreviewHost
 
             if (!sink.Matched)
             {
-                var statusCode = result.Status == BuildStatus.Failed
+                var failed = result.Status == BuildStatus.Failed;
+                var statusCode = failed
                     ? StatusCodes.Status500InternalServerError
                     : StatusCodes.Status404NotFound;
                 return Results.Content(
-                    await RenderMissingPreviewAsync(route, result.Reason, cancellationToken).ConfigureAwait(false),
+                    await RenderMissingPreviewAsync(route, result.Reason, failed, cancellationToken).ConfigureAwait(false),
                     "text/html; charset=utf-8",
                     statusCode: statusCode);
             }
@@ -113,15 +114,21 @@ public sealed class PreviewHost
     }
 
     /// <summary>渲染 Live build 未命中或失败时的受保护状态页。</summary>
-    private async Task<string> RenderMissingPreviewAsync(string route, string? reason, CancellationToken cancellationToken)
+    private async Task<string> RenderMissingPreviewAsync(
+        string route,
+        string? reason,
+        bool buildFailed,
+        CancellationToken cancellationToken)
     {
         var toolbar = await RenderToolbarAsync(route, cancellationToken).ConfigureAwait(false);
         var title = WebUtility.HtmlEncode(_i18n["preview.empty.title"]);
         var eyebrow = WebUtility.HtmlEncode(_i18n["preview.empty.eyebrow"]);
         var back = WebUtility.HtmlEncode(_i18n["preview.empty.back"]);
+        var baseMessage = WebUtility.HtmlEncode(
+            buildFailed ? _i18n["preview.empty.failed"] : _i18n["preview.empty.missing"]);
         var detail = string.IsNullOrWhiteSpace(reason)
-            ? WebUtility.HtmlEncode(_i18n["preview.empty.missing"])
-            : WebUtility.HtmlEncode(_i18n["preview.empty.missing"]) + " (" + WebUtility.HtmlEncode(reason) + ")";
+            ? baseMessage
+            : baseMessage + " (" + WebUtility.HtmlEncode(reason) + ")";
         return $$"""
             <!doctype html>
             <html lang="{{WebUtility.HtmlEncode(_i18n.CurrentLanguage.Code)}}">
