@@ -2,6 +2,7 @@ using Bocchi.Generator.Theme;
 using Bocchi.Themes.BuiltIn.Bundle;
 using Bocchi.Workspace;
 
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Bocchi.Generator.Tests;
@@ -220,7 +221,8 @@ public sealed class ThemeResolverTests
             {
                 EnvironmentName = environmentName,
                 AllowDevLinks = allowDevLinks,
-            }));
+            }),
+            NullLogger<ThemeResolver>.Instance);
 
     private static async Task WriteThemeAsync(string root, string id, string version, string? i18nKey = null)
     {

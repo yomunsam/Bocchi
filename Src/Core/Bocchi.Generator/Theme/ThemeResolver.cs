@@ -4,6 +4,7 @@ using Bocchi.GeneratorContract;
 using Bocchi.Themes.BuiltIn.Bundle;
 using Bocchi.Workspace;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Bocchi.Generator.Theme;
@@ -22,14 +23,20 @@ public sealed class ThemeResolver
 
     private readonly BocchiDataLayout _layout;
     private readonly IOptions<ThemeDevelopmentOptions> _options;
+    private readonly ILogger<ThemeResolver> _logger;
 
     /// <summary>构造 Theme Resolver。</summary>
-    public ThemeResolver(BocchiDataLayout layout, IOptions<ThemeDevelopmentOptions> options)
+    public ThemeResolver(
+        BocchiDataLayout layout,
+        IOptions<ThemeDevelopmentOptions> options,
+        ILogger<ThemeResolver> logger)
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(logger);
         _layout = layout;
         _options = options;
+        _logger = logger;
     }
 
     /// <summary>列出当前 Catalog 中可见的 Theme；无效 Theme 也保留为带诊断的条目。</summary>
@@ -64,15 +71,21 @@ public sealed class ThemeResolver
             }
         }
 
-        if (editedBuiltInFiles.Count > 0 && items.TryGetValue(DefaultThemeBundle.ThemeId, out var builtIn))
+        if (editedBuiltInFiles.Count > 0)
         {
-            var diagnostics = builtIn.Diagnostics
-                .Append(new ThemeDiagnostic(
-                    ThemeDiagnosticSeverity.Warning,
-                    "theme-builtin-files-edited",
-                    string.Join("、", editedBuiltInFiles)))
-                .ToArray();
-            items[DefaultThemeBundle.ThemeId] = builtIn with { Diagnostics = diagnostics };
+            _logger.LogWarning(
+                "Built-in theme files were kept as locally edited (not overwritten): {Files}",
+                string.Join(", ", editedBuiltInFiles));
+            if (items.TryGetValue(DefaultThemeBundle.ThemeId, out var builtIn))
+            {
+                var diagnostics = builtIn.Diagnostics
+                    .Append(new ThemeDiagnostic(
+                        ThemeDiagnosticSeverity.Warning,
+                        "theme-builtin-files-edited",
+                        string.Join("、", editedBuiltInFiles)))
+                    .ToArray();
+                items[DefaultThemeBundle.ThemeId] = builtIn with { Diagnostics = diagnostics };
+            }
         }
 
         return items.Values
@@ -112,9 +125,25 @@ public sealed class ThemeResolver
             }
         }
 
+        IReadOnlyList<ThemeDiagnostic> leadingDiagnostics = [];
         if (string.Equals(normalizedThemeId, DefaultThemeBundle.ThemeId, StringComparison.Ordinal))
         {
-            await DefaultThemeBundle.EnsureAsync(_layout.ThemesDirectory, cancellationToken).ConfigureAwait(false);
+            var editedBuiltInFiles = await DefaultThemeBundle.EnsureAsync(_layout.ThemesDirectory, cancellationToken)
+                .ConfigureAwait(false);
+            if (editedBuiltInFiles.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Built-in theme files were kept as locally edited (not overwritten): {Files}",
+                    string.Join(", ", editedBuiltInFiles));
+                // Generate / startup resolve 路径也要能看到「保留用户改动」警告（不只 ThemeLibrary）
+                leadingDiagnostics =
+                [
+                    new ThemeDiagnostic(
+                        ThemeDiagnosticSeverity.Warning,
+                        "theme-builtin-files-edited",
+                        string.Join("、", editedBuiltInFiles)),
+                ];
+            }
         }
 
         var installedRoot = Path.Combine(_layout.ThemesDirectory, normalizedThemeId);
@@ -126,7 +155,7 @@ public sealed class ThemeResolver
                 installedRoot,
                 installedSource,
                 shadowsInstalledTheme: false,
-                [],
+                leadingDiagnostics,
                 cancellationToken)
             .ConfigureAwait(false);
         return ToResolveResult(normalizedThemeId, installedItem);
