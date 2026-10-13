@@ -2,13 +2,19 @@ using System.Text.Json;
 
 using Bocchi.Generator.Pipeline;
 using Bocchi.HomeServer.Data;
+using Bocchi.Workspace;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
 
 namespace Bocchi.HomeServer.Services;
 
 /// <summary>
-/// 管理站点本地化设置。它处理 Site primary language、Site enabled languages 与自定义语言，不处理 Dashboard UI language。
+/// 管理站点本地化设置。workspace 的 <c>site/localization.yaml</c> 为权威；数据库保留投影。
+/// 不处理 Dashboard UI language。形状世代跟 <c>site.yaml</c> 的 formatVersion。
 /// </summary>
 public sealed class LocalizationSettingsService
 {
@@ -51,40 +57,72 @@ public sealed class LocalizationSettingsService
     /// <summary>本地化设置 JSON 使用 camelCase，后续进入 Theme Context 时不需要再迁移形态。</summary>
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    /// <summary>Home Server 数据库上下文。</summary>
     private readonly BocchiDbContext _db;
-
-    /// <summary>可测试时间源，用于写入更新时间。</summary>
+    private readonly BocchiDataLayout _layout;
+    private readonly SiteProfileSettingsService _siteProfile;
     private readonly TimeProvider _time;
+    private readonly ILogger<LocalizationSettingsService> _logger;
 
     /// <summary>构造站点本地化设置服务。</summary>
-    public LocalizationSettingsService(BocchiDbContext db, TimeProvider time)
+    public LocalizationSettingsService(
+        BocchiDbContext db,
+        BocchiDataLayout layout,
+        SiteProfileSettingsService siteProfile,
+        TimeProvider time,
+        ILogger<LocalizationSettingsService> logger)
     {
         _db = db;
+        _layout = layout;
+        _siteProfile = siteProfile;
         _time = time;
+        _logger = logger;
     }
 
     /// <summary>读取站点本地化设置；缺失时创建默认值。</summary>
     public async Task<LocalizationSettingsView> GetAsync(CancellationToken cancellationToken = default)
     {
         var record = await GetOrCreateRecordAsync(cancellationToken).ConfigureAwait(false);
-        var custom = DeserializeLanguages(record.CustomLanguagesJson);
-        var enabled = DeserializeLanguages(record.EnabledLanguagesJson);
-        var textOverrides = DeserializeCommonTextOverrides(record.CommonTextOverridesJson);
-        var primary = ResolveLanguage(record.PrimaryLanguage, custom);
-        if (!enabled.Any(x => SameCode(x.Code, primary.Code)))
+        return ToView(record);
+    }
+
+    /// <summary>
+    /// 启动同步：文件→DB；无文件且 DB 有数据则导出；两边都空则写最小默认。
+    /// 坏文件不灌库；过新 site.yaml formatVersion 拒绝。
+    /// </summary>
+    public async Task EnsureAsync(CancellationToken cancellationToken = default)
+    {
+        WorkspaceFormatVersion.EnsureExistingFileAllowsWrite(_layout.Workspace.SiteSettingsFile);
+
+        var file = _layout.Workspace.LocalizationFile;
+        if (File.Exists(file) && new FileInfo(file).Length > 0)
         {
-            enabled = [.. enabled, primary];
+            if (!TryLoadFromFile(file, out var snapshot, out var error))
+            {
+                _logger.LogError("localization.yaml 无效，跳过灌库，不覆盖文件：{Error}", error);
+                return;
+            }
+
+            await ImportSnapshotIntoDbAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            await _siteProfile.SyncLanguageAsync(snapshot.PrimaryLanguage, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
-        return new LocalizationSettingsView
+        var record = await _db.LocalizationSettings
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (record is not null && HasMeaningfulLocalization(record))
         {
-            PrimaryLanguage = primary,
-            EnabledLanguages = enabled,
-            CustomLanguages = custom,
-            CommonTextOverrides = textOverrides,
-            UrlPolicy = string.IsNullOrWhiteSpace(record.UrlPolicy) ? PrimaryUnprefixedUrlPolicy : record.UrlPolicy,
-        };
+            var view = ToView(record);
+            await WriteLocalizationYamlAsync(view, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        var primaryFromSite = await ResolvePrimaryForDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var defaults = CreateDefaultView(primaryFromSite);
+        await WriteLocalizationYamlAsync(defaults, cancellationToken).ConfigureAwait(false);
+        await ImportSnapshotIntoDbAsync(SnapshotFromView(defaults), cancellationToken).ConfigureAwait(false);
+        await _siteProfile.SyncLanguageAsync(defaults.PrimaryLanguage.Code, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>列出 Picklist 可用语言，内置语言在前，自定义语言在后。</summary>
@@ -94,7 +132,7 @@ public sealed class LocalizationSettingsService
         return MergeAvailableLanguages(settings.CustomLanguages);
     }
 
-    /// <summary>保存站点主要语言、启用语言和自定义语言；服务层会自动确保启用语言包含主要语言。</summary>
+    /// <summary>保存站点主要语言、启用语言和自定义语言；先写 YAML，再写 DB，并同步 site.yaml language。</summary>
     public async Task SaveAsync(
         string primaryLanguageCode,
         IEnumerable<string> enabledLanguageCodes,
@@ -103,6 +141,7 @@ public sealed class LocalizationSettingsService
     {
         ArgumentNullException.ThrowIfNull(enabledLanguageCodes);
         ArgumentNullException.ThrowIfNull(customLanguages);
+        WorkspaceFormatVersion.EnsureExistingFileAllowsWrite(_layout.Workspace.SiteSettingsFile);
 
         var custom = NormalizeCustomLanguages(customLanguages);
         var available = MergeAvailableLanguages(custom);
@@ -127,6 +166,18 @@ public sealed class LocalizationSettingsService
             enabled.Add(primary);
         }
 
+        var existing = await GetAsync(cancellationToken).ConfigureAwait(false);
+        var view = new LocalizationSettingsView
+        {
+            PrimaryLanguage = primary,
+            EnabledLanguages = enabled,
+            CustomLanguages = custom,
+            CommonTextOverrides = existing.CommonTextOverrides,
+            UrlPolicy = PrimaryUnprefixedUrlPolicy,
+        };
+
+        await WriteLocalizationYamlAsync(view, cancellationToken).ConfigureAwait(false);
+
         var record = await GetOrCreateRecordAsync(cancellationToken).ConfigureAwait(false);
         record.PrimaryLanguage = primary.Code;
         record.EnabledLanguagesJson = JsonSerializer.Serialize(enabled, JsonOptions);
@@ -134,16 +185,30 @@ public sealed class LocalizationSettingsService
         record.UrlPolicy = PrimaryUnprefixedUrlPolicy;
         record.UpdatedAt = _time.GetUtcNow();
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await _siteProfile.SyncLanguageAsync(primary.Code, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>保存 Common i18n key 覆盖；只持久化用户填写的 plain text 值。</summary>
+    /// <summary>保存 Common i18n key 覆盖；先写 YAML，再写 DB。</summary>
     public async Task SaveCommonTextOverridesAsync(
         IEnumerable<CommonI18nTextOverride> textOverrides,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(textOverrides);
+        WorkspaceFormatVersion.EnsureExistingFileAllowsWrite(_layout.Workspace.SiteSettingsFile);
 
         var normalized = NormalizeCommonTextOverrides(textOverrides);
+        var existing = await GetAsync(cancellationToken).ConfigureAwait(false);
+        var view = new LocalizationSettingsView
+        {
+            PrimaryLanguage = existing.PrimaryLanguage,
+            EnabledLanguages = existing.EnabledLanguages,
+            CustomLanguages = existing.CustomLanguages,
+            CommonTextOverrides = normalized,
+            UrlPolicy = existing.UrlPolicy,
+        };
+
+        await WriteLocalizationYamlAsync(view, cancellationToken).ConfigureAwait(false);
+
         var record = await GetOrCreateRecordAsync(cancellationToken).ConfigureAwait(false);
         record.CommonTextOverridesJson = SerializeCommonTextOverrides(normalized);
         record.UpdatedAt = _time.GetUtcNow();
@@ -169,7 +234,301 @@ public sealed class LocalizationSettingsService
         };
     }
 
-    /// <summary>读取数据库记录；缺失时写入与默认内容工作区一致的本地化设置。</summary>
+    private async Task<string> ResolvePrimaryForDefaultAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var profile = await _siteProfile.GetAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(profile.Language))
+            {
+                return profile.Language.Trim();
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or DbUpdateException)
+        {
+            // 启动早期 DB 未就绪时退回默认。
+        }
+
+        var siteYaml = _layout.Workspace.SiteSettingsFile;
+        if (File.Exists(siteYaml))
+        {
+            try
+            {
+                var raw = await File.ReadAllTextAsync(siteYaml, cancellationToken).ConfigureAwait(false);
+                var stream = new YamlStream();
+                using var reader = new StringReader(raw);
+                stream.Load(reader);
+                if (stream.Documents.Count > 0
+                    && stream.Documents[0].RootNode is YamlMappingNode root
+                    && root.Children.TryGetValue(new YamlScalarNode("language"), out var node)
+                    && node is YamlScalarNode scalar
+                    && !string.IsNullOrWhiteSpace(scalar.Value))
+                {
+                    return scalar.Value.Trim();
+                }
+            }
+            catch (YamlException)
+            {
+                // ignore
+            }
+            catch (IOException)
+            {
+                // ignore
+            }
+        }
+
+        return DefaultPrimaryLanguage;
+    }
+
+    private static LocalizationSettingsView CreateDefaultView(string primaryCode)
+    {
+        var primary = ResolveLanguage(primaryCode, []);
+        return new LocalizationSettingsView
+        {
+            PrimaryLanguage = primary,
+            EnabledLanguages = [primary],
+            CustomLanguages = [],
+            CommonTextOverrides = [],
+            UrlPolicy = PrimaryUnprefixedUrlPolicy,
+        };
+    }
+
+    private static bool HasMeaningfulLocalization(LocalizationSettingsRecord record)
+    {
+        if (!string.Equals(record.PrimaryLanguage, DefaultPrimaryLanguage, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var enabled = DeserializeLanguages(record.EnabledLanguagesJson);
+        if (enabled.Count > 1
+            || (enabled.Count == 1 && !SameCode(enabled[0].Code, DefaultPrimaryLanguage)))
+        {
+            return true;
+        }
+
+        if (DeserializeLanguages(record.CustomLanguagesJson).Count > 0)
+        {
+            return true;
+        }
+
+        return DeserializeCommonTextOverrides(record.CommonTextOverridesJson).Count > 0;
+    }
+
+    private async Task ImportSnapshotIntoDbAsync(LocalizationFileSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        var record = await GetOrCreateRecordAsync(cancellationToken).ConfigureAwait(false);
+        record.PrimaryLanguage = snapshot.PrimaryLanguage;
+        record.EnabledLanguagesJson = JsonSerializer.Serialize(snapshot.EnabledLanguages, JsonOptions);
+        record.CustomLanguagesJson = JsonSerializer.Serialize(snapshot.CustomLanguages, JsonOptions);
+        record.CommonTextOverridesJson = SerializeCommonTextOverrides(snapshot.CommonTextOverrides);
+        record.UrlPolicy = string.IsNullOrWhiteSpace(snapshot.UrlPolicy)
+            ? PrimaryUnprefixedUrlPolicy
+            : snapshot.UrlPolicy;
+        record.UpdatedAt = _time.GetUtcNow();
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task WriteLocalizationYamlAsync(LocalizationSettingsView view, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(_layout.Workspace.SiteDirectory);
+        var root = new YamlMappingNode
+        {
+            { new YamlScalarNode("primaryLanguage"), new YamlScalarNode(view.PrimaryLanguage.Code) },
+            { new YamlScalarNode("urlPolicy"), new YamlScalarNode(view.UrlPolicy) },
+            { new YamlScalarNode("enabledLanguages"), BuildLanguagesYaml(view.EnabledLanguages) },
+            { new YamlScalarNode("customLanguages"), BuildLanguagesYaml(view.CustomLanguages) },
+            { new YamlScalarNode("commonTextOverrides"), BuildCommonTextOverridesYaml(view.CommonTextOverrides) },
+        };
+        var stream = new YamlStream(new YamlDocument(root));
+        await using var output = File.Create(_layout.Workspace.LocalizationFile);
+        await using var writer = new StreamWriter(output);
+        stream.Save(writer, assignAnchors: false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static YamlSequenceNode BuildLanguagesYaml(IEnumerable<LanguageRecord> languages)
+    {
+        var seq = new YamlSequenceNode();
+        foreach (var language in languages)
+        {
+            seq.Add(new YamlMappingNode
+            {
+                { new YamlScalarNode("code"), new YamlScalarNode(language.Code) },
+                { new YamlScalarNode("nativeName"), new YamlScalarNode(language.NativeName) },
+                { new YamlScalarNode("englishName"), new YamlScalarNode(language.EnglishName) },
+            });
+        }
+
+        return seq;
+    }
+
+    private static YamlMappingNode BuildCommonTextOverridesYaml(IEnumerable<CommonI18nTextOverride> overrides)
+    {
+        var root = new YamlMappingNode();
+        foreach (var item in overrides.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            var langs = new YamlMappingNode();
+            foreach (var pair in item.Values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                langs.Add(new YamlScalarNode(pair.Key), new YamlScalarNode(pair.Value));
+            }
+
+            root.Add(new YamlScalarNode(item.Key), langs);
+        }
+
+        return root;
+    }
+
+    private static bool TryLoadFromFile(string file, out LocalizationFileSnapshot snapshot, out string error)
+    {
+        snapshot = default!;
+        error = string.Empty;
+        string raw;
+        try
+        {
+            raw = File.ReadAllText(file);
+        }
+        catch (IOException ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            error = "文件为空。";
+            return false;
+        }
+
+        try
+        {
+            var stream = new YamlStream();
+            using var reader = new StringReader(raw);
+            stream.Load(reader);
+            if (stream.Documents.Count == 0
+                || stream.Documents[0].RootNode is not YamlMappingNode root)
+            {
+                error = "根节点必须是 mapping。";
+                return false;
+            }
+
+            var primaryRaw = ReadScalar(root, "primaryLanguage");
+            if (string.IsNullOrWhiteSpace(primaryRaw))
+            {
+                error = "缺少 primaryLanguage。";
+                return false;
+            }
+
+            if (!TryGetSequence(root, "enabledLanguages", out var enabledSeq) || enabledSeq is null)
+            {
+                error = "缺少 enabledLanguages。";
+                return false;
+            }
+
+            var customSeq = TryGetSequence(root, "customLanguages", out var cs) ? cs : new YamlSequenceNode();
+            var custom = NormalizeCustomLanguages(ParseLanguages(customSeq!));
+            var primary = ResolveLanguage(primaryRaw, custom);
+            var enabled = ParseLanguages(enabledSeq)
+                .Select(x => ResolveLanguage(x.Code, custom))
+                .DistinctBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (!enabled.Any(x => SameCode(x.Code, primary.Code)))
+            {
+                enabled.Add(primary);
+            }
+
+            var urlPolicy = ReadScalar(root, "urlPolicy");
+            if (string.IsNullOrWhiteSpace(urlPolicy))
+            {
+                urlPolicy = PrimaryUnprefixedUrlPolicy;
+            }
+
+            var overrides = ParseCommonTextOverrides(root);
+            snapshot = new LocalizationFileSnapshot(
+                primary.Code,
+                enabled,
+                custom,
+                overrides,
+                urlPolicy.Trim());
+            return true;
+        }
+        catch (YamlException ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static List<LanguageRecord> ParseLanguages(YamlSequenceNode seq)
+    {
+        var result = new List<LanguageRecord>();
+        foreach (var child in seq.Children)
+        {
+            if (child is not YamlMappingNode map)
+            {
+                continue;
+            }
+
+            var code = ReadScalar(map, "code");
+            var nativeName = ReadScalar(map, "nativeName");
+            var englishName = ReadScalar(map, "englishName");
+            if (string.IsNullOrWhiteSpace(code)
+                || string.IsNullOrWhiteSpace(nativeName)
+                || string.IsNullOrWhiteSpace(englishName))
+            {
+                continue;
+            }
+
+            result.Add(new LanguageRecord
+            {
+                Code = code.Trim(),
+                NativeName = nativeName.Trim(),
+                EnglishName = englishName.Trim(),
+            });
+        }
+
+        return result;
+    }
+
+    private static List<CommonI18nTextOverride> ParseCommonTextOverrides(YamlMappingNode root)
+    {
+        if (!root.Children.TryGetValue(new YamlScalarNode("commonTextOverrides"), out var node)
+            || node is not YamlMappingNode map)
+        {
+            return [];
+        }
+
+        var raw = new List<CommonI18nTextOverride>();
+        foreach (var (keyNode, valueNode) in map.Children)
+        {
+            if (keyNode is not YamlScalarNode key || string.IsNullOrWhiteSpace(key.Value)
+                || valueNode is not YamlMappingNode langs)
+            {
+                continue;
+            }
+
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (langKey, langVal) in langs.Children)
+            {
+                if (langKey is not YamlScalarNode lk || langVal is not YamlScalarNode lv
+                    || string.IsNullOrWhiteSpace(lk.Value) || string.IsNullOrWhiteSpace(lv.Value))
+                {
+                    continue;
+                }
+
+                values[lk.Value.Trim()] = lv.Value.Trim();
+            }
+
+            if (values.Count > 0)
+            {
+                raw.Add(new CommonI18nTextOverride { Key = key.Value.Trim(), Values = values });
+            }
+        }
+
+        return NormalizeCommonTextOverrides(raw);
+    }
+
     private async Task<LocalizationSettingsRecord> GetOrCreateRecordAsync(CancellationToken cancellationToken)
     {
         var record = await _db.LocalizationSettings
@@ -197,11 +556,38 @@ public sealed class LocalizationSettingsService
         return record;
     }
 
-    /// <summary>合并内置语言与自定义语言，保持内置语言优先。</summary>
+    private static LocalizationSettingsView ToView(LocalizationSettingsRecord record)
+    {
+        var custom = DeserializeLanguages(record.CustomLanguagesJson);
+        var enabled = DeserializeLanguages(record.EnabledLanguagesJson);
+        var textOverrides = DeserializeCommonTextOverrides(record.CommonTextOverridesJson);
+        var primary = ResolveLanguage(record.PrimaryLanguage, custom);
+        if (!enabled.Any(x => SameCode(x.Code, primary.Code)))
+        {
+            enabled = [.. enabled, primary];
+        }
+
+        return new LocalizationSettingsView
+        {
+            PrimaryLanguage = primary,
+            EnabledLanguages = enabled,
+            CustomLanguages = custom,
+            CommonTextOverrides = textOverrides,
+            UrlPolicy = string.IsNullOrWhiteSpace(record.UrlPolicy) ? PrimaryUnprefixedUrlPolicy : record.UrlPolicy,
+        };
+    }
+
+    private static LocalizationFileSnapshot SnapshotFromView(LocalizationSettingsView view)
+        => new(
+            view.PrimaryLanguage.Code,
+            view.EnabledLanguages.ToList(),
+            view.CustomLanguages.ToList(),
+            view.CommonTextOverrides.ToList(),
+            view.UrlPolicy);
+
     private static List<LanguageRecord> MergeAvailableLanguages(IEnumerable<LanguageRecord> customLanguages)
         => [.. BuiltInLanguages, .. NormalizeCustomLanguages(customLanguages)];
 
-    /// <summary>把语言代码解析为 Language record；未知代码保留为自描述自定义语言。</summary>
     private static LanguageRecord ResolveLanguage(string? languageCode, IEnumerable<LanguageRecord> customLanguages)
     {
         var normalized = string.IsNullOrWhiteSpace(languageCode) ? DefaultPrimaryLanguage : languageCode.Trim();
@@ -210,7 +596,6 @@ public sealed class LocalizationSettingsService
             ?? new LanguageRecord { Code = normalized, NativeName = normalized, EnglishName = normalized };
     }
 
-    /// <summary>清理自定义语言输入，丢弃不完整项并避免覆盖内置语言。</summary>
     private static List<LanguageRecord> NormalizeCustomLanguages(IEnumerable<LanguageRecord> customLanguages)
     {
         var result = new List<LanguageRecord>();
@@ -241,7 +626,6 @@ public sealed class LocalizationSettingsService
         return result;
     }
 
-    /// <summary>反序列化语言 JSON；损坏时返回空列表，让设置页可用默认值恢复。</summary>
     private static List<LanguageRecord> DeserializeLanguages(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -259,7 +643,6 @@ public sealed class LocalizationSettingsService
         }
     }
 
-    /// <summary>反序列化 Common i18n 覆盖；损坏时返回空列表，避免 Settings 页面打不开。</summary>
     private static List<CommonI18nTextOverride> DeserializeCommonTextOverrides(string json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -287,7 +670,6 @@ public sealed class LocalizationSettingsService
         }
     }
 
-    /// <summary>清理 Common i18n 覆盖，丢弃空 key、空语言和空值。</summary>
     private static List<CommonI18nTextOverride> NormalizeCommonTextOverrides(IEnumerable<CommonI18nTextOverride> textOverrides)
     {
         var result = new List<CommonI18nTextOverride>();
@@ -323,7 +705,6 @@ public sealed class LocalizationSettingsService
         return result;
     }
 
-    /// <summary>序列化 Common i18n 覆盖，按 key 与语言排序以稳定构建指纹。</summary>
     private static string SerializeCommonTextOverrides(IEnumerable<CommonI18nTextOverride> textOverrides)
     {
         var root = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
@@ -337,7 +718,6 @@ public sealed class LocalizationSettingsService
         return JsonSerializer.Serialize(root, JsonOptions);
     }
 
-    /// <summary>把 HomeServer 语言记录转换为 Generator 可消费的中性构建快照。</summary>
     private static BuildLanguageRecord ToBuildLanguageRecord(LanguageRecord language)
         => new()
         {
@@ -346,7 +726,35 @@ public sealed class LocalizationSettingsService
             EnglishName = language.EnglishName,
         };
 
-    /// <summary>以大小写不敏感方式比较语言代码。</summary>
     private static bool SameCode(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static string? ReadScalar(YamlMappingNode map, string key)
+        => map.Children.TryGetValue(new YamlScalarNode(key), out var node) && node is YamlScalarNode scalar
+            ? scalar.Value
+            : null;
+
+    private static bool TryGetSequence(YamlMappingNode map, string key, out YamlSequenceNode? seq)
+    {
+        seq = null;
+        if (!map.Children.TryGetValue(new YamlScalarNode(key), out var node))
+        {
+            return false;
+        }
+
+        if (node is YamlSequenceNode sequence)
+        {
+            seq = sequence;
+            return true;
+        }
+
+        return false;
+    }
+
+    private sealed record LocalizationFileSnapshot(
+        string PrimaryLanguage,
+        List<LanguageRecord> EnabledLanguages,
+        List<LanguageRecord> CustomLanguages,
+        List<CommonI18nTextOverride> CommonTextOverrides,
+        string UrlPolicy);
 }

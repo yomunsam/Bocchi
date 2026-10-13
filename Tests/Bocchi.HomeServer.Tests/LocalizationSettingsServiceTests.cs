@@ -1,8 +1,10 @@
 using Bocchi.HomeServer.Data;
 using Bocchi.HomeServer.Services;
+using Bocchi.Workspace;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Bocchi.HomeServer.Tests;
 
@@ -11,10 +13,8 @@ public sealed class LocalizationSettingsServiceTests
     [Fact]
     public async Task SaveAsync_EnsuresPrimaryLanguageIsEnabled()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var db = await CreateDbContextAsync(connection);
-        var service = new LocalizationSettingsService(db, TimeProvider.System);
+        await using var harness = await CreateHarnessAsync();
+        var service = harness.Localization;
 
         await service.SaveAsync("ja-JP", ["en-US"], []);
 
@@ -22,15 +22,18 @@ public sealed class LocalizationSettingsServiceTests
         settings.PrimaryLanguage.Code.Should().Be("ja-JP");
         settings.EnabledLanguages.Select(x => x.Code).Should().Contain(["en-US", "ja-JP"]);
         settings.UrlPolicy.Should().Be(LocalizationSettingsService.PrimaryUnprefixedUrlPolicy);
+
+        var yaml = await File.ReadAllTextAsync(harness.Layout.Workspace.LocalizationFile);
+        yaml.Should().Contain("primaryLanguage: ja-JP");
+        var siteYaml = await File.ReadAllTextAsync(harness.Layout.Workspace.SiteSettingsFile);
+        siteYaml.Should().Contain("language: ja-JP");
     }
 
     [Fact]
     public async Task SaveAsync_PreservesCustomLanguagesInPicklist()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var db = await CreateDbContextAsync(connection);
-        var service = new LocalizationSettingsService(db, TimeProvider.System);
+        await using var harness = await CreateHarnessAsync();
+        var service = harness.Localization;
 
         await service.SaveAsync(
             "tok",
@@ -53,10 +56,8 @@ public sealed class LocalizationSettingsServiceTests
     [Fact]
     public async Task SaveCommonTextOverridesAsync_NormalizesOverridesAndExportsBuildSnapshot()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        await using var db = await CreateDbContextAsync(connection);
-        var service = new LocalizationSettingsService(db, TimeProvider.System);
+        await using var harness = await CreateHarnessAsync();
+        var service = harness.Localization;
 
         await service.SaveAsync("en-US", ["zh-CN"], []);
         await service.SaveCommonTextOverridesAsync(
@@ -96,15 +97,182 @@ public sealed class LocalizationSettingsServiceTests
         snapshot.UrlPolicy.Should().Be(LocalizationSettingsService.PrimaryUnprefixedUrlPolicy);
         snapshot.Text["menu.home"]["en-US"].Should().Be("Start");
         snapshot.Text["content.translationNotice"]["zh-CN"].Should().Be("正在查看译文");
+
+        var yaml = await File.ReadAllTextAsync(harness.Layout.Workspace.LocalizationFile);
+        yaml.Should().Contain("commonTextOverrides:");
+        yaml.Should().Contain("menu.home:");
     }
 
-    private static async Task<BocchiDbContext> CreateDbContextAsync(SqliteConnection connection)
+    [Fact]
+    public async Task EnsureAsync_NoFile_ExportsDbToWorkspace()
     {
+        await using var harness = await CreateHarnessAsync();
+        var primary = LocalizationSettingsService.BuiltInLanguages.First(x => x.Code == "en-US");
+        harness.Db.LocalizationSettings.Add(new LocalizationSettingsRecord
+        {
+            Id = 1,
+            PrimaryLanguage = "en-US",
+            EnabledLanguagesJson = System.Text.Json.JsonSerializer.Serialize(new[] { primary }),
+            CustomLanguagesJson = "[]",
+            CommonTextOverridesJson = """{"menu.about":{"en-US":"About"}}""",
+            UrlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await harness.Db.SaveChangesAsync();
+
+        File.Exists(harness.Layout.Workspace.LocalizationFile).Should().BeFalse();
+        await harness.Localization.EnsureAsync();
+
+        File.Exists(harness.Layout.Workspace.LocalizationFile).Should().BeTrue();
+        var yaml = await File.ReadAllTextAsync(harness.Layout.Workspace.LocalizationFile);
+        yaml.Should().Contain("primaryLanguage: en-US");
+        yaml.Should().Contain("menu.about:");
+        yaml.Should().Contain("en-US: About");
+    }
+
+    [Fact]
+    public async Task EnsureAsync_FileImportsIntoDb()
+    {
+        await using var harness = await CreateHarnessAsync();
+        await File.WriteAllTextAsync(harness.Layout.Workspace.LocalizationFile, """
+            primaryLanguage: en-US
+            urlPolicy: PrimaryUnprefixed
+            enabledLanguages:
+              - code: en-US
+                nativeName: English
+                englishName: English
+              - code: zh-CN
+                nativeName: 简体中文
+                englishName: Simplified Chinese
+            customLanguages: []
+            commonTextOverrides:
+              menu.about:
+                zh-CN: 关于
+                en-US: About
+            """);
+
+        await harness.Localization.EnsureAsync();
+
+        var settings = await harness.Localization.GetAsync();
+        settings.PrimaryLanguage.Code.Should().Be("en-US");
+        settings.EnabledLanguages.Select(x => x.Code).Should().Contain(["en-US", "zh-CN"]);
+        settings.CommonTextOverrides.Should().ContainSingle(x => x.Key == "menu.about");
+        settings.CommonTextOverrides[0].Values["zh-CN"].Should().Be("关于");
+
+        var siteYaml = await File.ReadAllTextAsync(harness.Layout.Workspace.SiteSettingsFile);
+        siteYaml.Should().Contain("language: en-US");
+    }
+
+    [Fact]
+    public async Task EnsureAsync_BadFile_DoesNotImportOrOverwrite()
+    {
+        await using var harness = await CreateHarnessAsync();
+        const string bad = "primaryLanguage: [\n";
+        await File.WriteAllTextAsync(harness.Layout.Workspace.LocalizationFile, bad);
+
+        var primary = LocalizationSettingsService.BuiltInLanguages.First(x => x.Code == "zh-CN");
+        harness.Db.LocalizationSettings.Add(new LocalizationSettingsRecord
+        {
+            Id = 1,
+            PrimaryLanguage = "zh-CN",
+            EnabledLanguagesJson = System.Text.Json.JsonSerializer.Serialize(new[] { primary }),
+            CustomLanguagesJson = "[]",
+            CommonTextOverridesJson = "{}",
+            UrlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await harness.Db.SaveChangesAsync();
+
+        await harness.Localization.EnsureAsync();
+
+        (await File.ReadAllTextAsync(harness.Layout.Workspace.LocalizationFile)).Should().Be(bad);
+        var settings = await harness.Localization.GetAsync();
+        settings.PrimaryLanguage.Code.Should().Be("zh-CN");
+    }
+
+    [Fact]
+    public async Task SaveAsync_RoundTripsCommonTextOverrides()
+    {
+        await using var harness = await CreateHarnessAsync();
+        await harness.Localization.SaveAsync("zh-CN", ["zh-CN", "en-US"], []);
+        await harness.Localization.SaveCommonTextOverridesAsync(
+        [
+            new CommonI18nTextOverride
+            {
+                Key = "common.readMore",
+                Values = new Dictionary<string, string>
+                {
+                    ["zh-CN"] = "阅读更多",
+                    ["en-US"] = "Read more",
+                },
+            },
+        ]);
+
+        harness.Db.ChangeTracker.Clear();
+        await harness.Localization.EnsureAsync();
+        var settings = await harness.Localization.GetAsync();
+        settings.CommonTextOverrides.Should().ContainSingle(x => x.Key == "common.readMore");
+        settings.CommonTextOverrides[0].Values["en-US"].Should().Be("Read more");
+    }
+
+    private static async Task<Harness> CreateHarnessAsync()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-loc-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dataRoot);
+        var layout = new BocchiDataLayout(dataRoot);
+        Directory.CreateDirectory(layout.Workspace.SiteDirectory);
+        await File.WriteAllTextAsync(
+            layout.Workspace.SiteSettingsFile,
+            "formatVersion: 1\ntitle: Test\nlanguage: zh-CN\ndefaultThemeId: bocchi-mono\n");
+
+        var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
         var options = new DbContextOptionsBuilder<BocchiDbContext>()
             .UseSqlite(connection)
             .Options;
         var db = new BocchiDbContext(options);
         await db.Database.EnsureCreatedAsync();
-        return db;
+
+        var siteProfile = new SiteProfileSettingsService(
+            db, layout, TimeProvider.System, NullLogger<SiteProfileSettingsService>.Instance);
+        var localization = new LocalizationSettingsService(
+            db, layout, siteProfile, TimeProvider.System, NullLogger<LocalizationSettingsService>.Instance);
+        return new Harness(dataRoot, layout, connection, db, localization);
+    }
+
+    private sealed class Harness : IAsyncDisposable
+    {
+        public Harness(
+            string dataRoot,
+            BocchiDataLayout layout,
+            SqliteConnection connection,
+            BocchiDbContext db,
+            LocalizationSettingsService localization)
+        {
+            DataRoot = dataRoot;
+            Layout = layout;
+            Connection = connection;
+            Db = db;
+            Localization = localization;
+        }
+
+        public string DataRoot { get; }
+        public BocchiDataLayout Layout { get; }
+        public SqliteConnection Connection { get; }
+        public BocchiDbContext Db { get; }
+        public LocalizationSettingsService Localization { get; }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Db.DisposeAsync();
+            await Connection.DisposeAsync();
+            try
+            {
+                Directory.Delete(DataRoot, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 }

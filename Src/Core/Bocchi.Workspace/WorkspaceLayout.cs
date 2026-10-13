@@ -64,6 +64,12 @@ public sealed record WorkspaceLayout
     /// <summary>导航 YAML 文件路径。</summary>
     public string NavigationFile => Path.Combine(SiteDirectory, "navigation.yaml");
 
+    /// <summary>分类树 YAML 文件路径（Post / Work）。</summary>
+    public string CategoriesFile => Path.Combine(SiteDirectory, "categories.yaml");
+
+    /// <summary>站点本地化 YAML 文件路径（前台语言与 Common 文案）。</summary>
+    public string LocalizationFile => Path.Combine(SiteDirectory, "localization.yaml");
+
     /// <summary>内容 workspace 根 README（自动生成，说明本目录是源工程）。</summary>
     public string ReadmeFile => Path.Combine(Root, "README.md");
 
