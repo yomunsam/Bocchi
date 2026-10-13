@@ -30,7 +30,7 @@ public static partial class SearchIndexGenerator
         var items = new List<SearchIndexItem>();
         foreach (var post in graph.Posts)
         {
-            items.Add(CreateItem(
+            TryAdd(items, CreateItem(
                 id: post.ContentId,
                 kind: "post",
                 language: post.Language,
@@ -43,7 +43,7 @@ public static partial class SearchIndexGenerator
 
         foreach (var page in graph.Pages)
         {
-            items.Add(CreateItem(
+            TryAdd(items, CreateItem(
                 id: page.ContentId,
                 kind: "page",
                 language: page.Language,
@@ -56,7 +56,7 @@ public static partial class SearchIndexGenerator
 
         foreach (var work in graph.Works)
         {
-            items.Add(CreateItem(
+            TryAdd(items, CreateItem(
                 id: work.ContentId,
                 kind: "work",
                 language: work.Language,
@@ -69,7 +69,7 @@ public static partial class SearchIndexGenerator
 
         foreach (var note in graph.Notes)
         {
-            items.Add(CreateItem(
+            TryAdd(items, CreateItem(
                 id: note.Id,
                 kind: "note",
                 language: graph.Site.Settings.Language,
@@ -98,7 +98,16 @@ public static partial class SearchIndexGenerator
         return (artifact, bytes);
     }
 
-    private static SearchIndexItem CreateItem(
+
+    private static void TryAdd(List<SearchIndexItem> items, SearchIndexItem? item)
+    {
+        if (item is not null)
+        {
+            items.Add(item);
+        }
+    }
+
+    private static SearchIndexItem? CreateItem(
         string id,
         string kind,
         string language,
@@ -108,13 +117,18 @@ public static partial class SearchIndexGenerator
         IReadOnlyList<string> tags,
         string html)
     {
+        if (!SiteRelativeHref.IsAllowed(url))
+        {
+            return null;
+        }
+
         var text = Truncate(ToPlainText(html), MaxTextCharsPerItem);
         return new SearchIndexItem(
             Id: id,
             Kind: kind,
             Language: language,
             Title: title,
-            Url: url,
+            Url: url.Trim(),
             Summary: string.IsNullOrWhiteSpace(summary) ? null : Truncate(summary.Trim(), 280),
             Tags: tags.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct(StringComparer.Ordinal).ToArray(),
             Text: text);

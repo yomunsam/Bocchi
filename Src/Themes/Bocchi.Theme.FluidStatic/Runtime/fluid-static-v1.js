@@ -681,17 +681,39 @@ const initSiteSearch = () => {
     return tokens.every((token) => haystack.includes(token));
   };
 
+  /** Only allow site-relative paths from the search index (defense in depth). */
+  const isSafeSearchHref = (value) => {
+    if (typeof value !== "string") return false;
+    const url = value.trim();
+    if (!url || url.startsWith("//")) return false;
+    if (url.startsWith("/")) {
+      return !url.includes(":") && !url.includes("\\");
+    }
+    if (url.startsWith("./") || url.startsWith("../")) {
+      return !url.includes(":");
+    }
+    // bare relative path without scheme
+    const colon = url.indexOf(":");
+    if (colon >= 0) {
+      const slash = url.indexOf("/");
+      if (slash < 0 || colon < slash) return false;
+    }
+    return true;
+  };
+
   const render = (hits) => {
     results.replaceChildren();
     empty.hidden = hits.length !== 0;
     results.hidden = hits.length === 0;
     for (const hit of hits.slice(0, 20)) {
+      const href = isSafeSearchHref(hit.url) ? hit.url.trim() : null;
+      if (!href) continue;
       const link = document.createElement("a");
       link.className = "theme-search__hit";
-      link.href = hit.url || "/";
+      link.href = href;
       const title = document.createElement("span");
       title.className = "theme-search__hit-title";
-      title.textContent = hit.title || hit.url || "";
+      title.textContent = hit.title || href;
       const meta = document.createElement("span");
       meta.className = "theme-search__hit-meta";
       const bits = [hit.kind, hit.language].filter(Boolean);

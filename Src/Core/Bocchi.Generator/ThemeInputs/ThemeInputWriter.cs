@@ -202,7 +202,7 @@ public sealed class ThemeInputWriter
             {
                 Rss = settings.EnableRss,
                 Sitemap = settings.EnableSitemap,
-                Search = themeFeatures?.Search ?? settings.EnableSearch,
+                Search = themeFeatures?.Search == true && settings.EnableSearch,
             },
             Theme = new ThemeContextTheme
             {
