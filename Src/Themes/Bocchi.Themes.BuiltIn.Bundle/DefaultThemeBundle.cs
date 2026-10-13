@@ -58,11 +58,8 @@ public static class DefaultThemeBundle
             var installedHash = await HashFileAsync(destination, cancellationToken).ConfigureAwait(false);
             previous.TryGetValue(relativePath, out var lastBundledHash);
 
-            // 用户没改过：当前文件哈希等于上次记录的内置哈希（或旧实例没有记录但文件碰巧等于当前内置）
-            var untouched = string.Equals(installedHash, lastBundledHash, StringComparison.Ordinal)
-                || (lastBundledHash is null && string.Equals(installedHash, bundledHash, StringComparison.Ordinal));
-
-            if (untouched)
+            // 还没有哈希清单时，先按当前内置文件覆盖一次并建档（从「只补缺失」迁到「按哈希升级」）
+            if (lastBundledHash is null)
             {
                 if (!string.Equals(installedHash, bundledHash, StringComparison.Ordinal))
                 {
@@ -74,9 +71,22 @@ public static class DefaultThemeBundle
                 continue;
             }
 
-            // 用户改过：保留本地文件，继续记下「上次内置哈希」以免下次误覆盖
+            // 用户没改过：磁盘内容仍等于上次写入的内置哈希
+            if (string.Equals(installedHash, lastBundledHash, StringComparison.Ordinal))
+            {
+                if (!string.Equals(installedHash, bundledHash, StringComparison.Ordinal))
+                {
+                    await DefaultThemeBundleResources.CopyStreamToFileAsync(bundled, destination, overwrite: true, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                next[relativePath] = bundledHash;
+                continue;
+            }
+
+            // 用户改过：保留本地文件，哈希清单仍记上次内置值，避免下次误当成「未改」
             edited.Add(relativePath);
-            next[relativePath] = lastBundledHash ?? installedHash;
+            next[relativePath] = lastBundledHash;
         }
 
         await WriteHashManifestAsync(hashPath, next, cancellationToken).ConfigureAwait(false);
