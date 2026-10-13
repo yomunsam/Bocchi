@@ -47,15 +47,6 @@
                     <Blazicon Svg="Lucide.X" />
                 </button>
             </article>
-            @if (_guides.Count > 1)
-            {
-                <div class="bocchi-guide-stack__dots" aria-hidden="true">
-                    @for (var i = 0; i < _guides.Count; i++)
-                    {
-                        <span class="@(i == 0 ? "bocchi-guide-stack__dot bocchi-guide-stack__dot--active" : "bocchi-guide-stack__dot")"></span>
-                    }
-                </div>
-            }
         </section>
     }
 
