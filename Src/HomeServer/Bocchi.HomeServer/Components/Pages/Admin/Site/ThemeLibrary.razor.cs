@@ -406,8 +406,14 @@ public partial class ThemeLibrary
     {
         var key = $"themeDiagnostics.{diagnostic.Code}";
         var text = I18n[key];
-        return string.Equals(text, key, StringComparison.Ordinal)
-            ? diagnostic.Code
+        if (string.Equals(text, key, StringComparison.Ordinal))
+        {
+            return string.IsNullOrWhiteSpace(diagnostic.Message) ? diagnostic.Code : diagnostic.Message;
+        }
+
+        // 带 {0} 的文案用 Message 填文件列表等细节
+        return text.Contains("{0}", StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.CurrentCulture, text, diagnostic.Message)
             : text;
     }
 }

@@ -70,7 +70,7 @@ public sealed class ThemeResolver
                 .Append(new ThemeDiagnostic(
                     ThemeDiagnosticSeverity.Warning,
                     "theme-builtin-files-edited",
-                    "内置 Theme 里有你改过的文件，升级时跳过了：" + string.Join("、", editedBuiltInFiles)))
+                    string.Join("、", editedBuiltInFiles)))
                 .ToArray();
             items[DefaultThemeBundle.ThemeId] = builtIn with { Diagnostics = diagnostics };
         }

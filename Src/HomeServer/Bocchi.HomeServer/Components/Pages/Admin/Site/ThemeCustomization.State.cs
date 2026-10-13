@@ -189,8 +189,13 @@ public partial class ThemeCustomization
     {
         var key = $"themeDiagnostics.{diagnostic.Code}";
         var text = I18n[key];
-        return string.Equals(text, key, StringComparison.Ordinal)
-            ? diagnostic.Code
+        if (string.Equals(text, key, StringComparison.Ordinal))
+        {
+            return string.IsNullOrWhiteSpace(diagnostic.Message) ? diagnostic.Code : diagnostic.Message;
+        }
+
+        return text.Contains("{0}", StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.CurrentCulture, text, diagnostic.Message)
             : text;
     }
 
