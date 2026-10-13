@@ -13,7 +13,7 @@
 5. UI上的文本必须使用国际化资源文件，不要直接写在代码里。
 6. 禁止把临时文本、占位文案写入UI
 7. 禁止滥用粗体文字，按钮以icon优先，精简文本；说明性文本优先小字
-8. 禁止手写ef core的migration
+8. 禁止手写整份 EF Core migration；必须用 `dotnet ef migrations add` 生成。允许在生成文件中追加 `migrationBuilder.Sql`（或等价）做数据转换；已发布的 migration 不改不删不合并。改 ValueConverter 若改变持久化字节含义，必须在同次 migration 里写数据转换。
 
 ## 编码前先思考
 
@@ -62,6 +62,12 @@
 - 开发期约定，测试用账号名`admin`，密码`admin@123`，权限为管理员。这个信息仅用于临时测试，禁止写到任何代码和配置中。
 
 
-## 开发初期阶段
+## 兼容性约定（已发布版本）
 
-除非我删掉这段话，现在我们处于开发的非常早期阶段，如果有某个功能的实现或方向不够优雅，或者缺乏前瞻性，请积极的指出来并讨论修改方向，不用考虑任何兼容性，也不用写兼容代码，必要时可以推翻一切。
+已有用户数据。以下几类改动必须保持向后兼容，或者附带自动迁移：数据库结构、workspace 和 front matter 格式、主题契约（含日后 fluid-static 模板模型）、配置键和环境变量、Data Protection 的应用名和 purpose、产物 URL 方案、发布标记文件。
+
+- 数据库：只用 `dotnet ef migrations add` 生成迁移；已发布的迁移不改、不删、不合并。允许在生成出来的迁移文件里追加 `migrationBuilder.Sql`（或等价）做数据转换；禁止手写整份迁移。
+- 值转换器：若改动 `ValueConverter` 会改变持久化字节含义，必须在同一次迁移里写数据转换，不能只改转换器代码。
+- 格式和契约：只加不删；要删的先标记废弃，至少保留一个 minor；破坏性变化要升 major 并写迁移说明。workspace 用 `site.yaml` 顶层 `formatVersion`；主题契约用 `major.minor`（同 major 且主题 minor ≤ 程序当前支持的 minor）。
+- 派生数据（扫描索引、构建记录、cache、output）不受此限，可以直接重建。
+- 拿不准是否破坏兼容时，先提出来讨论。
