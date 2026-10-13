@@ -15,17 +15,18 @@ Only the Latin fonts are bundled: Instrument Serif (400 regular and italic) and 
 
 ### Chinese web font
 
-Theme setting `visual.cjkFontStylesheetUrl` (Dashboard: Theme customization → visual) takes an optional CSS stylesheet URL from any font CDN.
+Theme setting `visual.cjkFontStylesheetUrl` (Dashboard: Theme customization → visual) takes an optional CSS stylesheet URL from any font CDN. Empty (the default) means the site makes no external font requests. When set, it must be an absolute `https://` URL (anything else is rejected on save and ignored at build time). Pages get a `preconnect` to the stylesheet's origin and a non-blocking stylesheet link (`media="print"` switched to `all` on load, with a `<noscript>` fallback), so a slow font host never blocks rendering. Only Simplified Chinese headings (`:lang(zh)`) then try `Noto Serif SC` before the system stack; Traditional Chinese and Japanese stay on system fonts until Yomu decides otherwise. Visitors' IP addresses go to the font host. Mainland reachability was not verified by us.
 
-- Empty (the default): the site makes no external font requests at all.
-- Set: it must be an absolute `https://` URL; anything else is rejected on save and ignored at build time. Pages get a `preconnect` to the stylesheet's origin and a non-blocking stylesheet link (`media="print"` switched to `all` on load, with a `<noscript>` fallback), so a slow font host never blocks rendering. Headings on `zh` / `ja` pages then try `Noto Serif SC` / `TC` / `JP` before the system stack.
-- Ask for `display=swap` and only the weights headings use (400 and 500). Providers that split fonts by `unicode-range` only download the slices a page actually needs; a page without Chinese text downloads the stylesheet but no font files.
-- Visitors' IP addresses are sent to the font host.
+Headings use weight **500** only. Quote blocks and the mobile nav also use the display stack at weight 400; with a 500-only stylesheet the browser synthesizes those from 500 (a bit heavier than designed, no extra download). Prefer `display=swap`. Providers that split by `unicode-range` only download slices a page needs; a page without Chinese text downloads the stylesheet but no woff2 files. The family name in the stylesheet must be exactly `Noto Serif SC`.
 
-Examples:
+Verified examples (weight 500 only):
 
-- Google Fonts: `https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500&display=swap`
-- <!-- TODO: more verified CDN examples (e.g. mirrors reachable from mainland China) go here once tested. -->
+1. Overseas (Google): `https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500&display=swap`
+2. Mainland ok with Google: `https://fonts.googleapis.cn/css2?family=Noto+Serif+SC:wght@500&display=swap`
+3. Overseas, no Google (Fontsource on jsDelivr; lock the full version): `https://cdn.jsdelivr.net/npm/@fontsource/noto-serif-sc@5.3.0/500.css`
+4. Mainland, no Google (Fontsource on npmmirror; lock the full version; `@fontsource` is on the npm mirror whitelist today and could be removed later): `https://registry.npmmirror.com/@fontsource/noto-serif-sc/5.3.0/files/500.css`
+
+Avoid jsDelivr's `/fontsource/css/...` path and Fontsource's `chinese-simplified-500.css`: most Chinese faces lack `unicode-range`, so the browser may download a ~1.5 MB unsplit file. Lock Fontsource to a full version (for example `@5.3.0`); a floating `@5` can mix CSS and woff2 from different 5.x releases.
 
 ## Preview Compatibility
 
