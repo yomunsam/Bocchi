@@ -216,7 +216,13 @@ try
 
     if (!app.Environment.IsEnvironment("Testing"))
     {
-        app.UseSerilogRequestLogging();
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+            {
+                diagnosticContext.Set("RemoteIp", httpContext.Connection.RemoteIpAddress?.ToString());
+            };
+        });
     }
 
     if (!app.Environment.IsDevelopment())
