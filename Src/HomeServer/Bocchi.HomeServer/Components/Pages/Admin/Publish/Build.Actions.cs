@@ -24,7 +24,7 @@ public partial class Build
             var plan = DefaultPublishPlan;
             if (plan is null)
             {
-                await RunBuildOnlyAsync();
+                await RunBuildOnlyAsync(forceRebuild: false);
                 _oneClickMessageIsDanger = _lastResult?.Status == BuildStatus.Failed;
                 _oneClickMessage = _oneClickMessageIsDanger
                     ? _lastResult?.Reason ?? I18n["publish.oneClick.localFailed"]
@@ -45,14 +45,40 @@ public partial class Build
         }
     }
 
+    /// <summary>强制重新生成静态输出，即使构建指纹与上次相同。</summary>
+    private async Task ForceRebuildAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _oneClickMessage = null;
+        _oneClickMessageIsDanger = false;
+        try
+        {
+            await RunBuildOnlyAsync(forceRebuild: true);
+            _oneClickMessageIsDanger = _lastResult?.Status == BuildStatus.Failed;
+            _oneClickMessage = _oneClickMessageIsDanger
+                ? _lastResult?.Reason ?? I18n["publish.oneClick.localFailed"]
+                : I18n["publish.action.forceRebuildSucceeded"];
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
     /// <summary>执行本地静态输出生成；一键发布没有发布方案时复用这个最小路径。</summary>
-    private async Task RunBuildOnlyAsync()
+    private async Task RunBuildOnlyAsync(bool forceRebuild)
     {
         var options = new BuildOptions
         {
             Mode = BuildMode.FullBuild,
             Environment = "production",
             IncludeDrafts = false,
+            DisableUpToDateShortCircuit = forceRebuild,
         };
         _lastResult = await Orchestrator.RunFullBuildAsync(
             options,

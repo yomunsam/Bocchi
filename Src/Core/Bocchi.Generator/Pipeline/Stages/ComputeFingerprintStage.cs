@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text;
 
 using Bocchi.Generator.ContentGraph;
@@ -10,8 +11,9 @@ using Bocchi.Workspace;
 namespace Bocchi.Generator.Pipeline.Stages;
 
 /// <summary>
-/// 计算本次构建的全局指纹：把内容源、媒体、站点设置、Theme 配置、Theme 源文件和构建选项扁平化为稳定字节串，
-/// 再 SHA-256 取小写十六进制。详见 <c>Docs/Milestones/M3/M3.md §3.7</c> 与 M5 Theme 输出链路。
+/// 计算本次构建的全局指纹。在 <see cref="WriteThemeInputStage"/> 之后运行：对已落盘的
+/// theme-input 目录做稳定全量 hash，再叠加主题源文件、媒体 sha 与 BocchiVersion。
+/// 这样内容字段漏列不会再让「改了标题/标签/摘要/封面/导航却指纹不变」复发。
 /// </summary>
 public sealed class ComputeFingerprintStage : IBuildStage
 {
@@ -34,56 +36,17 @@ public sealed class ComputeFingerprintStage : IBuildStage
         }
 
         var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        AppendLine(sha, $"bocchi-fingerprint:v1");
+        AppendLine(sha, "bocchi-fingerprint:v2");
         AppendLine(sha, $"mode={session.Options.Mode}");
         AppendLine(sha, $"env={session.Options.Environment}");
         AppendLine(sha, $"includeDrafts={session.Options.IncludeDrafts}");
+        // Feed 在短路之后写出，必须单独入指纹，否则只改 FeedItemCount 会被错误跳过。
         AppendLine(sha, $"feedItemCount={session.Options.FeedItemCount ?? session.Graph.Site.Settings.FeedItemCount}");
-        AppendLine(sha, $"baseUrl={session.Graph.Site.NormalizedBaseUrl}");
-        var themeId = session.GetItem<string>(BuildSessionKeys.ThemeId) ?? session.Graph.Site.Settings.DefaultThemeId ?? string.Empty;
-        AppendLine(sha, $"themeId={themeId}");
-        AppendThemeConfigHash(sha, _layout.ThemeConfigDirectory, themeId);
-        AppendThemeFileHashes(sha, session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme));
         AppendLine(sha, $"bocchiVersion={session.GetItem<string>(BuildSessionKeys.BocchiVersion) ?? string.Empty}");
-        AppendLocalizationOptions(sha, session.Options.Localization);
 
-        // 站点设置 / 导航：用全字段 toString 模拟稳定快照
-        AppendLine(sha, $"site={session.Graph.Site.Settings}");
-
-        // 内容：每篇按 site-relative-url 排序后 hash 关键字段
-        foreach (var post in session.Graph.Posts.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
-        {
-            AppendLine(sha, $"post:{post.ContentId}|url={post.SiteRelativeUrl}|lang={post.Language}|group={post.Localization.GroupId}|src={post.Localization.SourceContentId}|st={post.Status}|cat={post.Category}|catSlug={post.CategorySlug}|pub={post.PublishedAt?.UtcTicks}|up={post.UpdatedAt?.UtcTicks}");
-            AppendBodyHash(sha, post.BodyMarkdown);
-        }
-
-        foreach (var category in session.Graph.PostCategories.FlattenDepthFirst().OrderBy(c => c.Slug, StringComparer.Ordinal))
-        {
-            AppendLine(sha, $"postCategory:{category.Slug}|name={category.Name}|url={category.SiteRelativeUrl}|count={category.Count}");
-        }
-
-        foreach (var page in session.Graph.Pages.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
-        {
-            AppendLine(sha, $"page:{page.ContentId}|url={page.SiteRelativeUrl}|lang={page.Language}|group={page.Localization.GroupId}|src={page.Localization.SourceContentId}|st={page.Status}|template={page.Template}");
-            AppendBodyHash(sha, page.BodyMarkdown);
-        }
-
-        foreach (var work in session.Graph.Works.OrderBy(p => p.SiteRelativeUrl, StringComparer.Ordinal))
-        {
-            AppendLine(sha, $"work:{work.ContentId}|url={work.SiteRelativeUrl}|lang={work.Language}|group={work.Localization.GroupId}|src={work.Localization.SourceContentId}|st={work.Status}|featured={work.Featured}");
-            AppendBodyHash(sha, work.BodyMarkdown);
-        }
-
-        foreach (var note in session.Graph.Notes.OrderBy(p => p.Year + "/" + p.Id, StringComparer.Ordinal))
-        {
-            AppendLine(sha, $"note:{note.Year}/{note.Id}|st={note.Status}|pub={note.PublishedAt?.UtcTicks}");
-            AppendBodyHash(sha, note.BodyMarkdown);
-        }
-
-        foreach (var friend in session.Graph.Friends.OrderBy(f => f.Name, StringComparer.Ordinal))
-        {
-            AppendLine(sha, $"friend:{friend.Name}|{friend.Url}|st={friend.Status}|order={friend.Order}");
-        }
+        var themeInputRoot = ResolveThemeInputRoot(session);
+        AppendThemeInputTree(sha, themeInputRoot);
+        AppendThemeFileHashes(sha, session.GetItem<LoadedTheme>(BuildSessionKeys.LoadedTheme));
 
         foreach (var asset in session.Graph.MediaAssets.OrderBy(a => a.SiteRelativePath, StringComparer.Ordinal))
         {
@@ -95,73 +58,138 @@ public sealed class ComputeFingerprintStage : IBuildStage
         return Task.FromResult(true);
     }
 
-    private static void AppendLine(IncrementalHash sha, string line)
+    /// <summary>Full Build 用 DataRoot 下的 theme-input；Live 预览用临时目录。</summary>
+    private string ResolveThemeInputRoot(BuildSession session)
     {
-        sha.AppendData(Encoding.UTF8.GetBytes(line));
-        sha.AppendData([0x0a]);
-    }
-
-    private static void AppendBodyHash(IncrementalHash sha, string body)
-    {
-        Span<byte> bodyHash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(body), bodyHash);
-        sha.AppendData(bodyHash);
-    }
-
-    /// <summary>把 HomeServer 注入的本地化设置纳入指纹，避免文案覆盖变更后被 up-to-date 短路。</summary>
-    private static void AppendLocalizationOptions(IncrementalHash sha, BuildLocalizationOptions? localization)
-    {
-        if (localization is null)
+        if (session.Options.Mode == BuildMode.Live &&
+            !string.IsNullOrWhiteSpace(session.Options.LiveThemeInputDirectory))
         {
-            AppendLine(sha, "localization=site-language-fallback");
+            return Path.GetFullPath(session.Options.LiveThemeInputDirectory);
+        }
+
+        return Path.GetFullPath(_layout.ThemeInputDirectory);
+    }
+
+    /// <summary>按相对路径排序后把目录内每个普通文件的路径与内容 hash 写入指纹。</summary>
+    private static void AppendThemeInputTree(IncrementalHash sha, string themeInputRoot)
+    {
+        if (!Directory.Exists(themeInputRoot))
+        {
+            AppendLine(sha, "themeInput=missing");
             return;
         }
 
-        AppendLine(sha, $"localization.primary={localization.PrimaryLanguage}");
-        AppendLine(sha, $"localization.urlPolicy={localization.UrlPolicy}");
-        foreach (var language in localization.EnabledLanguages.OrderBy(x => x.Code, StringComparer.OrdinalIgnoreCase))
+        var root = Path.GetFullPath(themeInputRoot);
+        var files = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            .Select(Path.GetFullPath)
+            .Where(path => IsRegularFileUnder(root, path))
+            .OrderBy(path => Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/'), StringComparer.Ordinal)
+            .ToList();
+
+        if (files.Count == 0)
         {
-            AppendLine(sha, $"localization.language={language.Code}|{language.NativeName}|{language.EnglishName}");
+            AppendLine(sha, "themeInput=empty");
+            return;
         }
 
-        foreach (var (key, values) in localization.Text.OrderBy(x => x.Key, StringComparer.Ordinal))
+        foreach (var file in files)
         {
-            foreach (var (language, value) in values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            var relative = Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/');
+            var bytes = File.ReadAllBytes(file);
+            // 用稳定内容 hash；不要用原始 size（generatedAt 会让字节长度每次不同）。
+            var contentHash = HashThemeInputFile(relative, bytes);
+            AppendLine(sha, $"themeInput:{relative}|sha={contentHash}");
+        }
+    }
+
+    /// <summary>
+    /// JSON 输入里的 generatedAt / buildTime 每次构建都会变，不能进指纹；
+    /// 其它文件按原始字节 hash。
+    /// </summary>
+    private static string HashThemeInputFile(string relativePath, byte[] bytes)
+    {
+        if (!relativePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return Sha256Hex.FromBytes(bytes);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(bytes);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
             {
-                AppendLine(sha, $"localization.text={key}|{language}|{value}");
+                WriteJsonOmittingVolatile(doc.RootElement, writer);
             }
-        }
 
-        foreach (var (key, values) in localization.ThemeTextOverrides.OrderBy(x => x.Key, StringComparer.Ordinal))
+            return Sha256Hex.FromBytes(stream.ToArray());
+        }
+        catch (JsonException)
         {
-            foreach (var (language, value) in values.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-            {
-                AppendLine(sha, $"localization.themeText={key}|{language}|{value}");
-            }
+            return Sha256Hex.FromBytes(bytes);
         }
     }
 
-    private static void AppendThemeConfigHash(IncrementalHash sha, string themeConfigDirectory, string themeId)
+    private static readonly HashSet<string> VolatileJsonProperties = new(StringComparer.Ordinal)
     {
-        if (string.IsNullOrWhiteSpace(themeId) ||
-            themeId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-            themeId.Contains('/') ||
-            themeId.Contains('\\') ||
-            string.Equals(themeId, ".", StringComparison.Ordinal) ||
-            string.Equals(themeId, "..", StringComparison.Ordinal))
+        "generatedAt",
+        "buildTime",
+    };
+
+    private static void WriteJsonOmittingVolatile(JsonElement element, Utf8JsonWriter writer)
+    {
+        switch (element.ValueKind)
         {
-            AppendLine(sha, "themeConfig=none");
-            return;
+            case JsonValueKind.Object:
+                writer.WriteStartObject();
+                foreach (var property in element.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal))
+                {
+                    if (VolatileJsonProperties.Contains(property.Name))
+                    {
+                        continue;
+                    }
+
+                    writer.WritePropertyName(property.Name);
+                    WriteJsonOmittingVolatile(property.Value, writer);
+                }
+
+                writer.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in element.EnumerateArray())
+                {
+                    WriteJsonOmittingVolatile(item, writer);
+                }
+
+                writer.WriteEndArray();
+                break;
+            default:
+                element.WriteTo(writer);
+                break;
+        }
+    }
+
+    private static bool IsRegularFileUnder(string root, string filePath)
+    {
+        var normalizedRoot = root.EndsWith(Path.DirectorySeparatorChar)
+            ? root
+            : root + Path.DirectorySeparatorChar;
+        if (!filePath.StartsWith(normalizedRoot, StringComparison.Ordinal))
+        {
+            return false;
         }
 
-        var path = Path.Combine(themeConfigDirectory, themeId + ".json");
-        if (!File.Exists(path))
+        var attrs = File.GetAttributes(filePath);
+        if ((attrs & FileAttributes.ReparsePoint) != 0)
         {
-            AppendLine(sha, "themeConfig=missing");
-            return;
+            return false;
         }
 
-        AppendLine(sha, $"themeConfig={Sha256Hex.FromFile(path)}");
+        var relative = Path.GetRelativePath(root, filePath).Replace(Path.DirectorySeparatorChar, '/');
+        return !relative.Split('/').Any(segment =>
+            string.Equals(segment, ".git", StringComparison.Ordinal) ||
+            string.Equals(segment, "node_modules", StringComparison.Ordinal));
     }
 
     /// <summary>把 Theme 源文件纳入构建指纹，避免模板或 CSS 修改后被错误短路。</summary>
@@ -186,10 +214,15 @@ public sealed class ComputeFingerprintStage : IBuildStage
         }
     }
 
-    /// <summary>判断某个 Theme 文件是否属于用户可编辑源，而不是构建输出或依赖缓存。</summary>
     private static bool IsThemeSourceFile(string themeRoot, string outputRoot, string filePath)
     {
         if (!IsUnderDirectory(filePath, themeRoot) || IsUnderDirectory(filePath, outputRoot))
+        {
+            return false;
+        }
+
+        var attrs = File.GetAttributes(filePath);
+        if ((attrs & FileAttributes.ReparsePoint) != 0)
         {
             return false;
         }
@@ -200,7 +233,6 @@ public sealed class ComputeFingerprintStage : IBuildStage
             string.Equals(segment, "node_modules", StringComparison.Ordinal));
     }
 
-    /// <summary>判断文件是否在指定目录下，目录本身不算作命中。</summary>
     private static bool IsUnderDirectory(string path, string directory)
     {
         var normalizedDirectory = directory.EndsWith(Path.DirectorySeparatorChar)
@@ -209,4 +241,9 @@ public sealed class ComputeFingerprintStage : IBuildStage
         return path.StartsWith(normalizedDirectory, StringComparison.Ordinal);
     }
 
+    private static void AppendLine(IncrementalHash sha, string line)
+    {
+        sha.AppendData(Encoding.UTF8.GetBytes(line));
+        sha.AppendData([0x0a]);
+    }
 }

@@ -121,6 +121,12 @@
                     <span>@(_busy ? I18n["publish.action.publishing"] : I18n["publish.action.publishNow"])</span>
                 </button>
                 <div class="bocchi-publish-quick-actions">
+                    <button type="button" class="bocchi-button secondary bocchi-button--icon" disabled="@_busy"
+                            title='@I18n["publish.action.forceRebuildHint"]'
+                            aria-label='@I18n["publish.action.forceRebuild"]'
+                            @onclick="ForceRebuildAsync">
+                        <Blazicon Svg="Lucide.RefreshCw" />
+                    </button>
                     <a class="bocchi-button secondary bocchi-button--icon" href="/" target="_blank" rel="noopener"
                        title='@I18n["publish.action.preview"]' aria-label='@I18n["publish.action.preview"]'>
                         <Blazicon Svg="Lucide.Eye" />

@@ -121,15 +121,15 @@ public sealed partial class GeneratorPipeline
 
         LogBuildStart(sessionId, options.Mode, options.Environment);
 
-        // 阶段固定顺序，详见 M3.md §3.7
+        // 阶段固定顺序：先写出 theme-input，再算指纹并决定是否短路（详见兼容规则：指纹以落盘输入为准）。
         IBuildStage[] stages =
         [
             _load,
             _graph,
             _loadTheme,
+            _writeInput,
             _fingerprint,
             _shortCircuit,
-            _writeInput,
             _writeSite,
             _copyMedia,
             _runTheme,

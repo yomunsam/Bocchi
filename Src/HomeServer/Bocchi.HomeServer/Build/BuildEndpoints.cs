@@ -34,10 +34,17 @@ public static class BuildEndpoints
         return endpoints;
     }
 
-    private static async Task<IResult> RunBuildAsync(BuildOrchestrator orchestrator, CancellationToken cancellationToken)
+    private static async Task<IResult> RunBuildAsync(HttpRequest request, BuildOrchestrator orchestrator, CancellationToken cancellationToken)
     {
+        var force = string.Equals(request.Query["force"], "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(request.Query["force"], "1", StringComparison.OrdinalIgnoreCase);
         var result = await orchestrator.RunFullBuildAsync(
-            new BuildOptions { Mode = BuildMode.FullBuild, Environment = "production" },
+            new BuildOptions
+            {
+                Mode = BuildMode.FullBuild,
+                Environment = "production",
+                DisableUpToDateShortCircuit = force,
+            },
             themeId: null,
             cancellationToken).ConfigureAwait(false);
 

@@ -7,7 +7,8 @@ namespace Bocchi.HomeServer.Services.Publishing;
 public interface IStaticSiteBuildRunner
 {
     /// <summary>执行一次 production Full Build。</summary>
-    Task<BuildResult> RunPublishBuildAsync(CancellationToken cancellationToken);
+    /// <param name="forceRebuild">为 true 时跳过指纹短路，强制重新生成。</param>
+    Task<BuildResult> RunPublishBuildAsync(CancellationToken cancellationToken, bool forceRebuild = false);
 }
 
 /// <summary>Home Server 生产实现：通过 <see cref="BuildOrchestrator"/> 生成 <c>output/public/</c>。</summary>
@@ -22,13 +23,14 @@ public sealed class StaticSiteBuildRunner : IStaticSiteBuildRunner
     }
 
     /// <inheritdoc />
-    public async Task<BuildResult> RunPublishBuildAsync(CancellationToken cancellationToken)
+    public async Task<BuildResult> RunPublishBuildAsync(CancellationToken cancellationToken, bool forceRebuild = false)
     {
         var options = new BuildOptions
         {
             Mode = BuildMode.FullBuild,
             Environment = "production",
             IncludeDrafts = false,
+            DisableUpToDateShortCircuit = forceRebuild,
         };
         return await _orchestrator.RunFullBuildAsync(options, themeId: null, cancellationToken).ConfigureAwait(false);
     }

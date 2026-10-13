@@ -10,7 +10,7 @@ namespace Bocchi.HomeServer;
 
 /// <summary>
 /// 把构建相关的最小命令行入口封装到 HomeServer 进程：<br/>
-/// <c>Bocchi.HomeServer build [--theme=&lt;id&gt;] [--include-drafts] [--env=&lt;name&gt;]</c>
+/// <c>Bocchi.HomeServer build [--theme=&lt;id&gt;] [--include-drafts] [--env=&lt;name&gt;] [--force-rebuild]</c>
 /// </summary>
 public static partial class BuildCli
 {
@@ -38,6 +38,10 @@ public static partial class BuildCli
             {
                 options.IncludeDrafts = true;
             }
+            else if (string.Equals(arg, "--force-rebuild", StringComparison.Ordinal))
+            {
+                options.ForceRebuild = true;
+            }
         }
 
         return true;
@@ -59,6 +63,7 @@ public static partial class BuildCli
             Mode = BuildMode.FullBuild,
             Environment = options.Environment,
             IncludeDrafts = options.IncludeDrafts,
+            DisableUpToDateShortCircuit = options.ForceRebuild,
         };
         var result = await pipeline.RunAsync(
             buildOptions, sink, options.ThemeId, BuildOrchestrator.ResolveBocchiVersion(), cancellationToken).ConfigureAwait(false);
@@ -82,4 +87,7 @@ public sealed class BuildCliOptions
     public string Environment { get; set; } = "production";
 
     public bool IncludeDrafts { get; set; }
+
+    /// <summary>为 true 时跳过指纹短路，强制重新生成静态输出。</summary>
+    public bool ForceRebuild { get; set; }
 }

@@ -108,7 +108,8 @@ public sealed class GeneratorPipelineEndToEndTests
             new BuildOptions { Mode = BuildMode.FullBuild }, sink2, null, "0.0.0-test", default);
         second.Status.Should().Be(BuildStatus.Skipped);
         second.Fingerprint!.Value.Should().Be(first.Fingerprint!.Value);
-        sink2.CapturedArtifacts.Should().BeEmpty();
+        // 指纹阶段在 WriteThemeInput 之后：短路前仍会写出 theme-input，但不会继续主题构建。
+        sink2.CapturedArtifacts.Should().OnlyContain(a => a.Kind == ArtifactKind.ThemeInput);
     }
 
     [Fact]

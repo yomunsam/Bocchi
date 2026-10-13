@@ -225,7 +225,7 @@ public sealed class PublishExecutionServiceTests
         public BuildResult Result { get; set; } = CreateBuildResult(BuildStatus.Succeeded);
 
         /// <summary>返回预设构建结果。</summary>
-        public Task<BuildResult> RunPublishBuildAsync(CancellationToken cancellationToken)
+        public Task<BuildResult> RunPublishBuildAsync(CancellationToken cancellationToken, bool forceRebuild = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(Result);
