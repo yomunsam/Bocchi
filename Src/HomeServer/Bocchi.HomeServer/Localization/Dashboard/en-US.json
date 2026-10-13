@@ -1060,8 +1060,9 @@
   "publish.localDirectory.targetPath": "Directory path",
   "publish.localDirectory.targetPathPlaceholder": "/var/www/mysite",
   "publish.localDirectory.allowUnmarked": "Allow overwriting a non-empty folder that has no Bocchi mark",
-  "publish.localDirectory.riskHint": "This writes outside the Bocchi data directory. Double-check the path before publishing.",
+  "publish.localDirectory.riskHint": "Mirror sync writes outside the Bocchi data directory and DELETE files in the target that are not in the current build output. Double-check the path before publishing.",
   "publish.localDirectory.errorPathRequired": "Enter an absolute directory path.",
   "publish.localDirectory.errorPathAbsolute": "The directory path must be absolute.",
-  "publish.plan.edit": "Edit"
+  "publish.plan.edit": "Edit",
+  "publish.localDirectory.allowUnmarkedHint": "The target will be wiped to match the build. Only enable this when you intentionally overwrite a non-Bocchi folder."
 }

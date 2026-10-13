@@ -1060,8 +1060,9 @@
   "publish.localDirectory.targetPath": "目录路径",
   "publish.localDirectory.targetPathPlaceholder": "/var/www/mysite",
   "publish.localDirectory.allowUnmarked": "允许覆盖没有 Bocchi 标记的非空目录",
-  "publish.localDirectory.riskHint": "会写到 Bocchi 数据目录之外。发布前请再确认路径。",
+  "publish.localDirectory.riskHint": "镜像同步会写到 Bocchi 数据目录之外，并删除目标里多出来的、当前构建输出没有的文件。发布前请再确认路径。",
   "publish.localDirectory.errorPathRequired": "请填写绝对路径。",
   "publish.localDirectory.errorPathAbsolute": "目录路径必须是绝对路径。",
-  "publish.plan.edit": "编辑"
+  "publish.plan.edit": "编辑",
+  "publish.localDirectory.allowUnmarkedHint": "会按构建结果清空并覆盖目标目录。只有在你确认要覆盖非 Bocchi 目录时才勾选。"
 }

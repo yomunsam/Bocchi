@@ -22,25 +22,120 @@ public sealed class LocalDirectoryPublisherTests
             await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "posts", "a.html"), "a");
 
             var publisher = new LocalDirectoryPublisher(layout);
-            var request = CreateRequest(layout, target, allowUnmarked: false);
-            var result = await publisher.PublishAsync(request, TestContext.Current.CancellationToken);
+            var result = await publisher.PublishAsync(CreateRequest(layout, target, allowUnmarked: false), TestContext.Current.CancellationToken);
 
             result.RemoteUrl.Should().NotBeNullOrWhiteSpace();
             File.ReadAllText(Path.Combine(target, "index.html")).Should().Contain("one");
             File.Exists(Path.Combine(target, "posts", "a.html")).Should().BeTrue();
             File.Exists(Path.Combine(target, LocalDirectoryPublisher.MarkerFileName)).Should().BeTrue();
+            LocalDirectoryPublisher.TryReadValidMarker(Path.Combine(target, LocalDirectoryPublisher.MarkerFileName), out var marker)
+                .Should().BeTrue();
+            marker!.FileCount.Should().Be(2);
 
-            // stale file from a previous manual copy should be removed on re-publish
             await File.WriteAllTextAsync(Path.Combine(target, "stale.txt"), "gone");
             await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "<html>two</html>");
             File.Delete(Path.Combine(layout.PublicOutputDirectory, "posts", "a.html"));
 
-            request = CreateRequest(layout, target, allowUnmarked: false);
-            await publisher.PublishAsync(request, TestContext.Current.CancellationToken);
+            await publisher.PublishAsync(CreateRequest(layout, target, allowUnmarked: false), TestContext.Current.CancellationToken);
 
             File.ReadAllText(Path.Combine(target, "index.html")).Should().Contain("two");
             File.Exists(Path.Combine(target, "posts", "a.html")).Should().BeFalse();
             File.Exists(Path.Combine(target, "stale.txt")).Should().BeFalse();
+        }
+        finally
+        {
+            TryDelete(dataRoot);
+            TryDelete(target);
+        }
+    }
+
+    [Fact]
+    public async Task PublishAsync_RejectsEntireDataRootTree()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-local-pub-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(dataRoot);
+            Directory.CreateDirectory(layout.PublicOutputDirectory);
+            await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "x");
+            var publisher = new LocalDirectoryPublisher(layout);
+
+            foreach (var forbidden in new[]
+                     {
+                         layout.DataRoot,
+                         layout.BackupsDirectory,
+                         layout.OutputDirectory,
+                         layout.PublicOutputDirectory,
+                         layout.CacheDirectory,
+                         layout.LogsDirectory,
+                         layout.WorkspaceRoot,
+                         Path.Combine(layout.BackupsDirectory, "nested", "deeper"),
+                         Path.Combine(layout.OutputDirectory, "extra"),
+                     })
+            {
+                var act = () => publisher.PublishAsync(CreateRequest(layout, forbidden, allowUnmarked: true), TestContext.Current.CancellationToken);
+                await act.Should().ThrowAsync<PublishTargetException>().WithMessage("*DataRoot*");
+            }
+        }
+        finally
+        {
+            TryDelete(dataRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PublishAsync_RejectsSymlinkIntoDataRoot()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-local-pub-" + Guid.NewGuid().ToString("N"));
+        var linkParent = Path.Combine(Path.GetTempPath(), "bocchi-local-link-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(dataRoot);
+            Directory.CreateDirectory(layout.PublicOutputDirectory);
+            Directory.CreateDirectory(layout.BackupsDirectory);
+            await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "x");
+            Directory.CreateDirectory(linkParent);
+            var linkPath = Path.Combine(linkParent, "into-backups");
+            Directory.CreateSymbolicLink(linkPath, layout.BackupsDirectory);
+
+            var publisher = new LocalDirectoryPublisher(layout);
+            var act = () => publisher.PublishAsync(CreateRequest(layout, linkPath, allowUnmarked: true), TestContext.Current.CancellationToken);
+            await act.Should().ThrowAsync<PublishTargetException>().WithMessage("*DataRoot*");
+        }
+        finally
+        {
+            TryDelete(dataRoot);
+            TryDelete(linkParent);
+        }
+    }
+
+    [Fact]
+    public async Task PublishAsync_RejectsCorruptMarker_UnlessAllowUnmarked()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-local-pub-" + Guid.NewGuid().ToString("N"));
+        var target = Path.Combine(Path.GetTempPath(), "bocchi-local-target-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(dataRoot);
+            Directory.CreateDirectory(layout.PublicOutputDirectory);
+            await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "x");
+            Directory.CreateDirectory(target);
+            await File.WriteAllTextAsync(Path.Combine(target, "keep.txt"), "y");
+            await File.WriteAllTextAsync(Path.Combine(target, LocalDirectoryPublisher.MarkerFileName), "{ not-json");
+
+            var publisher = new LocalDirectoryPublisher(layout);
+            var denied = () => publisher.PublishAsync(CreateRequest(layout, target, allowUnmarked: false), TestContext.Current.CancellationToken);
+            await denied.Should().ThrowAsync<PublishTargetException>().WithMessage("*标记*");
+
+            await publisher.PublishAsync(CreateRequest(layout, target, allowUnmarked: true), TestContext.Current.CancellationToken);
+            File.Exists(Path.Combine(target, "keep.txt")).Should().BeFalse();
+            LocalDirectoryPublisher.TryReadValidMarker(Path.Combine(target, LocalDirectoryPublisher.MarkerFileName), out _)
+                .Should().BeTrue();
         }
         finally
         {
@@ -64,7 +159,7 @@ public sealed class LocalDirectoryPublisherTests
 
             var publisher = new LocalDirectoryPublisher(layout);
             var act = () => publisher.PublishAsync(CreateRequest(layout, target, allowUnmarked: false), TestContext.Current.CancellationToken);
-            await act.Should().ThrowAsync<PublishTargetException>().WithMessage("*无标记*");
+            await act.Should().ThrowAsync<PublishTargetException>().WithMessage("*标记*");
 
             await publisher.PublishAsync(CreateRequest(layout, target, allowUnmarked: true), TestContext.Current.CancellationToken);
             File.Exists(Path.Combine(target, "preexisting.txt")).Should().BeFalse();
@@ -101,6 +196,60 @@ public sealed class LocalDirectoryPublisherTests
         finally
         {
             TryDelete(dataRoot);
+        }
+    }
+
+    [Fact]
+    public async Task PublishAsync_SerializesConcurrentMirrors()
+    {
+        var dataRoot = Path.Combine(Path.GetTempPath(), "bocchi-local-pub-" + Guid.NewGuid().ToString("N"));
+        var target = Path.Combine(Path.GetTempPath(), "bocchi-local-target-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var layout = new BocchiDataLayout(dataRoot);
+            Directory.CreateDirectory(layout.PublicOutputDirectory);
+            await File.WriteAllTextAsync(Path.Combine(layout.PublicOutputDirectory, "index.html"), "shared");
+            var publisher = new LocalDirectoryPublisher(layout);
+            var request = CreateRequest(layout, target, allowUnmarked: true);
+
+            var tasks = Enumerable.Range(0, 4)
+                .Select(_ => publisher.PublishAsync(request, TestContext.Current.CancellationToken))
+                .ToArray();
+            var results = await Task.WhenAll(tasks);
+            results.Should().AllSatisfy(r => r.RemoteUrl.Should().NotBeNullOrWhiteSpace());
+            File.ReadAllText(Path.Combine(target, "index.html")).Should().Be("shared");
+            LocalDirectoryPublisher.TryReadValidMarker(Path.Combine(target, LocalDirectoryPublisher.MarkerFileName), out _)
+                .Should().BeTrue();
+        }
+        finally
+        {
+            TryDelete(dataRoot);
+            TryDelete(target);
+        }
+    }
+
+    [Fact]
+    public void ResolveFinalPath_FollowsSymlinkDirectory()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        var real = Path.Combine(Path.GetTempPath(), "bocchi-resolve-real-" + Guid.NewGuid().ToString("N"));
+        var linkParent = Path.Combine(Path.GetTempPath(), "bocchi-resolve-link-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(real);
+            Directory.CreateDirectory(linkParent);
+            var link = Path.Combine(linkParent, "alias");
+            Directory.CreateSymbolicLink(link, real);
+            LocalDirectoryPublisher.ResolveFinalPath(link).Should().Be(Path.GetFullPath(real));
+        }
+        finally
+        {
+            TryDelete(real);
+            TryDelete(linkParent);
         }
     }
 
@@ -146,6 +295,10 @@ public sealed class LocalDirectoryPublisherTests
             if (Directory.Exists(path))
             {
                 Directory.Delete(path, recursive: true);
+            }
+            else if (File.Exists(path))
+            {
+                File.Delete(path);
             }
         }
         catch

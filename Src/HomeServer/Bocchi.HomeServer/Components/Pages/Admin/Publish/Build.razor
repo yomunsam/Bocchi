@@ -254,6 +254,10 @@
                         @I18n["publish.localDirectory.allowUnmarked"]
                     </label>
                     <p class="bocchi-publish-remote-message">@I18n["publish.localDirectory.riskHint"]</p>
+                    @if (_localAllowUnmarkedTarget)
+                    {
+                        <p class="bocchi-publish-remote-message">@I18n["publish.localDirectory.allowUnmarkedHint"]</p>
+                    }
                 </div>
             }
 
