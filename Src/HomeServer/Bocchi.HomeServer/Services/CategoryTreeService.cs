@@ -62,7 +62,8 @@ public sealed class CategoryTreeService
 
     /// <summary>
     /// 启动同步：文件→DB；无文件且 DB 有数据则导出一次；两边都空则写最小默认。
-    /// 坏文件不灌库、不覆盖；过新 site.yaml formatVersion 拒绝。
+    /// 坏文件不灌库、不覆盖（构建侧 <see cref="GetBuildPostCategoriesAsync"/> 会复检并失败）；
+    /// 规范化补全 id 等与文件不一致时写回 YAML。过新 site.yaml formatVersion 拒绝。
     /// </summary>
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
@@ -71,10 +72,18 @@ public sealed class CategoryTreeService
         var file = _layout.Workspace.CategoriesFile;
         if (File.Exists(file) && new FileInfo(file).Length > 0)
         {
-            if (!TryLoadTreesFromFile(file, out var trees, out var error))
+            if (!TryLoadTreesFromFile(file, out var trees, out var error, out var needsWriteBack))
             {
-                _logger.LogError("categories.yaml 无效，跳过灌库，不覆盖文件：{Error}", error);
+                _logger.LogError(
+                    "categories.yaml 无效，跳过灌库，不覆盖文件（构建将拒绝使用旧投影）：{Error}",
+                    error);
                 return;
+            }
+
+            if (needsWriteBack)
+            {
+                await WriteCategoriesYamlAsync(trees, cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("categories.yaml 已写回规范化结果（例如补全缺失的节点 id）。");
             }
 
             await ImportTreesIntoDbAsync(trees, cancellationToken).ConfigureAwait(false);
@@ -93,7 +102,10 @@ public sealed class CategoryTreeService
         await ImportTreesIntoDbAsync(defaults, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>保存指定内容类型的分类树：先写 YAML，再写 DB。</summary>
+    /// <summary>
+    /// 保存指定内容类型的分类树：先写 YAML，再写 DB。
+    /// 若磁盘上已有损坏的 categories.yaml，本次保存会用表单内容整文件覆盖以修复。
+    /// </summary>
     public async Task SaveAsync(
         ContentKind kind,
         IEnumerable<CategoryTreeNode> roots,
@@ -128,11 +140,34 @@ public sealed class CategoryTreeService
         await UpsertScopeInDbAsync(scope, normalizedRoots, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>读取 Generator 构建所需的 Post Category tree 快照。</summary>
+    /// <summary>
+    /// 读取 Generator 构建所需的 Post Category tree 快照。
+    /// 若 <c>categories.yaml</c> 存在且非空但校验失败，拒绝构建（禁止静默用旧 DB 投影）。
+    /// </summary>
     public async Task<IReadOnlyList<BuildCategoryNode>> GetBuildPostCategoriesAsync(CancellationToken cancellationToken = default)
     {
+        EnsureCategoriesFileValidForBuild();
         var view = await GetAsync(ContentKind.Post, cancellationToken).ConfigureAwait(false);
         return view.Roots.Select(ToBuildNode).ToArray();
+    }
+
+    /// <summary>
+    /// 文件存在且非空时必须能通过 schema 校验，否则抛错让构建失败。
+    /// 无文件 / 空文件不挡构建（Ensure 会导出或写默认）。
+    /// </summary>
+    private void EnsureCategoriesFileValidForBuild()
+    {
+        var file = _layout.Workspace.CategoriesFile;
+        if (!File.Exists(file) || new FileInfo(file).Length == 0)
+        {
+            return;
+        }
+
+        if (!TryLoadTreesFromFile(file, out _, out var error, out _))
+        {
+            throw new InvalidOperationException(
+                $"categories.yaml 无效，拒绝构建（与过新 formatVersion 同级）：{error}");
+        }
     }
 
     private async Task ImportTreesIntoDbAsync(IReadOnlyList<ScopeTree> trees, CancellationToken cancellationToken)
@@ -244,10 +279,15 @@ public sealed class CategoryTreeService
         return seq;
     }
 
-    private static bool TryLoadTreesFromFile(string file, out List<ScopeTree> trees, out string error)
+    private static bool TryLoadTreesFromFile(
+        string file,
+        out List<ScopeTree> trees,
+        out string error,
+        out bool needsWriteBack)
     {
         trees = [];
         error = string.Empty;
+        needsWriteBack = false;
         string raw;
         try
         {
@@ -285,6 +325,7 @@ public sealed class CategoryTreeService
 
             var seenScopes = new HashSet<string>(StringComparer.Ordinal);
             var parsed = new List<ScopeTree>();
+            var parseState = new ParseState();
             foreach (var child in treesSeq.Children)
             {
                 if (child is not YamlMappingNode map)
@@ -308,11 +349,18 @@ public sealed class CategoryTreeService
 
                 var rootsSeq = TryGetSequence(map, "roots", out var rs) ? rs : new YamlSequenceNode();
                 var usedSlugs = new HashSet<string>(StringComparer.Ordinal);
-                var roots = ParseNodes(rootsSeq!, depth: 0, usedSlugs);
+                var roots = ParseNodes(rootsSeq!, depth: 0, usedSlugs, parseState);
                 parsed.Add(new ScopeTree(scope, roots));
             }
 
+            var beforeCount = parsed.Count;
             EnsureKnownScopesPresent(parsed);
+            if (parsed.Count != beforeCount)
+            {
+                parseState.NeedsWriteBack = true;
+            }
+
+            needsWriteBack = parseState.NeedsWriteBack;
             trees = parsed;
             return true;
         }
@@ -337,7 +385,11 @@ public sealed class CategoryTreeService
     private static List<ScopeTree> CreateDefaultTrees()
         => KnownScopes.Select(scope => new ScopeTree(scope, [])).ToList();
 
-    private static List<CategoryTreeNode> ParseNodes(YamlSequenceNode seq, int depth, HashSet<string> usedSlugs)
+    private static List<CategoryTreeNode> ParseNodes(
+        YamlSequenceNode seq,
+        int depth,
+        HashSet<string> usedSlugs,
+        ParseState parseState)
     {
         if (depth >= MaxDepth)
         {
@@ -364,10 +416,10 @@ public sealed class CategoryTreeService
             var localized = ReadLocalizedNames(map);
             // 子节点先按原文组装，统一交给 NormalizeNodes，避免 slug 去重跑两遍。
             raw.Add(new CategoryTreeNode(
-                string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id.Trim(),
+                ResolveNodeId(id, parseState),
                 name.Trim(),
                 slug?.Trim() ?? string.Empty,
-                ParseRawChildren(childrenSeq!, depth + 1))
+                ParseRawChildren(childrenSeq!, depth + 1, parseState))
             {
                 LocalizedNames = localized,
             });
@@ -376,7 +428,7 @@ public sealed class CategoryTreeService
         return NormalizeNodes(raw, depth, usedSlugs);
     }
 
-    private static List<CategoryTreeNode> ParseRawChildren(YamlSequenceNode seq, int depth)
+    private static List<CategoryTreeNode> ParseRawChildren(YamlSequenceNode seq, int depth, ParseState parseState)
     {
         if (depth >= MaxDepth)
         {
@@ -401,16 +453,27 @@ public sealed class CategoryTreeService
             var slug = ReadScalar(map, "slug");
             var childrenSeq = TryGetSequence(map, "children", out var cs) ? cs : new YamlSequenceNode();
             result.Add(new CategoryTreeNode(
-                string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id.Trim(),
+                ResolveNodeId(id, parseState),
                 name.Trim(),
                 slug?.Trim() ?? string.Empty,
-                ParseRawChildren(childrenSeq!, depth + 1))
+                ParseRawChildren(childrenSeq!, depth + 1, parseState))
             {
                 LocalizedNames = ReadLocalizedNames(map),
             });
         }
 
         return result;
+    }
+
+    private static string ResolveNodeId(string? id, ParseState parseState)
+    {
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            return id.Trim();
+        }
+
+        parseState.NeedsWriteBack = true;
+        return Guid.NewGuid().ToString("N");
     }
 
     private static Dictionary<string, string>? ReadLocalizedNames(YamlMappingNode map)
@@ -577,7 +640,13 @@ public sealed class CategoryTreeService
     }
 
     private sealed record ScopeTree(string Scope, IReadOnlyList<CategoryTreeNode> Roots);
+
+    private sealed class ParseState
+    {
+        public bool NeedsWriteBack { get; set; }
+    }
 }
+
 
 /// <summary>分类树读取结果。</summary>
 /// <param name="Scope">分类树所属范围。</param>

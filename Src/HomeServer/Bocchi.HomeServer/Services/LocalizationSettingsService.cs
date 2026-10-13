@@ -87,7 +87,8 @@ public sealed class LocalizationSettingsService
 
     /// <summary>
     /// 启动同步：文件→DB；无文件且 DB 有数据则导出；两边都空则写最小默认。
-    /// 坏文件不灌库；过新 site.yaml formatVersion 拒绝。
+    /// 坏文件不灌库（构建侧 <see cref="GetBuildLocalizationOptionsAsync"/> 会复检并失败）；
+    /// 把 primary 补进 enabled 等规范化后写回文件。过新 site.yaml formatVersion 拒绝。
     /// </summary>
     public async Task EnsureAsync(CancellationToken cancellationToken = default)
     {
@@ -96,10 +97,18 @@ public sealed class LocalizationSettingsService
         var file = _layout.Workspace.LocalizationFile;
         if (File.Exists(file) && new FileInfo(file).Length > 0)
         {
-            if (!TryLoadFromFile(file, out var snapshot, out var error))
+            if (!TryLoadFromFile(file, out var snapshot, out var error, out var needsWriteBack))
             {
-                _logger.LogError("localization.yaml 无效，跳过灌库，不覆盖文件：{Error}", error);
+                _logger.LogError(
+                    "localization.yaml 无效，跳过灌库，不覆盖文件（构建将拒绝使用旧投影）：{Error}",
+                    error);
                 return;
+            }
+
+            if (needsWriteBack)
+            {
+                await WriteLocalizationYamlAsync(ViewFromSnapshot(snapshot), cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("localization.yaml 已写回规范化结果（例如补全 enabled 中的 primaryLanguage）。");
             }
 
             await ImportSnapshotIntoDbAsync(snapshot, cancellationToken).ConfigureAwait(false);
@@ -132,7 +141,10 @@ public sealed class LocalizationSettingsService
         return MergeAvailableLanguages(settings.CustomLanguages);
     }
 
-    /// <summary>保存站点主要语言、启用语言和自定义语言；先写 YAML，再写 DB，并同步 site.yaml language。</summary>
+    /// <summary>
+    /// 保存站点主要语言、启用语言和自定义语言；先写 YAML，再写 DB，并同步 site.yaml language。
+    /// 若磁盘上已有损坏的 localization.yaml，本次保存会用表单内容整文件覆盖以修复。
+    /// </summary>
     public async Task SaveAsync(
         string primaryLanguageCode,
         IEnumerable<string> enabledLanguageCodes,
@@ -188,7 +200,10 @@ public sealed class LocalizationSettingsService
         await _siteProfile.SyncLanguageAsync(primary.Code, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>保存 Common i18n key 覆盖；先写 YAML，再写 DB。</summary>
+    /// <summary>
+    /// 保存 Common i18n key 覆盖；先写 YAML，再写 DB。
+    /// 若磁盘上已有损坏的 localization.yaml，本次保存会用当前完整视图覆盖以修复。
+    /// </summary>
     public async Task SaveCommonTextOverridesAsync(
         IEnumerable<CommonI18nTextOverride> textOverrides,
         CancellationToken cancellationToken = default)
@@ -215,9 +230,13 @@ public sealed class LocalizationSettingsService
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>生成构建时使用的本地化快照，避免 Generator 直接依赖 HomeServer EF Core。</summary>
+    /// <summary>
+    /// 生成构建时使用的本地化快照，避免 Generator 直接依赖 HomeServer EF Core。
+    /// 若 <c>localization.yaml</c> 存在且非空但校验失败，拒绝构建（禁止静默用旧 DB 投影）。
+    /// </summary>
     public async Task<BuildLocalizationOptions> GetBuildLocalizationOptionsAsync(CancellationToken cancellationToken = default)
     {
+        EnsureLocalizationFileValidForBuild();
         var settings = await GetAsync(cancellationToken).ConfigureAwait(false);
         var text = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         foreach (var item in settings.CommonTextOverrides)
@@ -233,6 +252,35 @@ public sealed class LocalizationSettingsService
             Text = text,
         };
     }
+
+    /// <summary>
+    /// 文件存在且非空时必须能通过 schema 校验，否则抛错让构建失败。
+    /// 无文件 / 空文件不挡构建（Ensure 会导出或写默认）。
+    /// </summary>
+    private void EnsureLocalizationFileValidForBuild()
+    {
+        var file = _layout.Workspace.LocalizationFile;
+        if (!File.Exists(file) || new FileInfo(file).Length == 0)
+        {
+            return;
+        }
+
+        if (!TryLoadFromFile(file, out _, out var error, out _))
+        {
+            throw new InvalidOperationException(
+                $"localization.yaml 无效，拒绝构建（与过新 formatVersion 同级）：{error}");
+        }
+    }
+
+    private static LocalizationSettingsView ViewFromSnapshot(LocalizationFileSnapshot snapshot)
+        => new()
+        {
+            PrimaryLanguage = ResolveLanguage(snapshot.PrimaryLanguage, snapshot.CustomLanguages),
+            EnabledLanguages = snapshot.EnabledLanguages,
+            CustomLanguages = snapshot.CustomLanguages,
+            CommonTextOverrides = snapshot.CommonTextOverrides,
+            UrlPolicy = snapshot.UrlPolicy,
+        };
 
     private async Task<string> ResolvePrimaryForDefaultAsync(CancellationToken cancellationToken)
     {
@@ -380,10 +428,15 @@ public sealed class LocalizationSettingsService
         return root;
     }
 
-    private static bool TryLoadFromFile(string file, out LocalizationFileSnapshot snapshot, out string error)
+    private static bool TryLoadFromFile(
+        string file,
+        out LocalizationFileSnapshot snapshot,
+        out string error,
+        out bool needsWriteBack)
     {
         snapshot = default!;
         error = string.Empty;
+        needsWriteBack = false;
         string raw;
         try
         {
@@ -436,12 +489,14 @@ public sealed class LocalizationSettingsService
             if (!enabled.Any(x => SameCode(x.Code, primary.Code)))
             {
                 enabled.Add(primary);
+                needsWriteBack = true;
             }
 
             var urlPolicy = ReadScalar(root, "urlPolicy");
             if (string.IsNullOrWhiteSpace(urlPolicy))
             {
                 urlPolicy = PrimaryUnprefixedUrlPolicy;
+                needsWriteBack = true;
             }
 
             var overrides = ParseCommonTextOverrides(root);

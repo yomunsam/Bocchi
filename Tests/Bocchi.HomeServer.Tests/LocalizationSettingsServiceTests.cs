@@ -191,6 +191,55 @@ public sealed class LocalizationSettingsServiceTests
     }
 
     [Fact]
+    public async Task EnsureAsync_PrimaryMissingFromEnabled_WritesBackFile()
+    {
+        await using var harness = await CreateHarnessAsync();
+        await File.WriteAllTextAsync(harness.Layout.Workspace.LocalizationFile, """
+            primaryLanguage: ja-JP
+            urlPolicy: PrimaryUnprefixed
+            enabledLanguages:
+              - code: en-US
+                nativeName: English
+                englishName: English
+            customLanguages: []
+            commonTextOverrides: {}
+            """);
+
+        await harness.Localization.EnsureAsync();
+
+        var yaml = await File.ReadAllTextAsync(harness.Layout.Workspace.LocalizationFile);
+        yaml.Should().Contain("primaryLanguage: ja-JP");
+        yaml.Should().Contain("code: ja-JP");
+
+        var settings = await harness.Localization.GetAsync();
+        settings.EnabledLanguages.Select(x => x.Code).Should().Contain(["en-US", "ja-JP"]);
+    }
+
+    [Fact]
+    public async Task GetBuildLocalizationOptionsAsync_BadFile_Refuses()
+    {
+        await using var harness = await CreateHarnessAsync();
+        await File.WriteAllTextAsync(harness.Layout.Workspace.LocalizationFile, "primaryLanguage: [\n");
+
+        var primary = LocalizationSettingsService.BuiltInLanguages.First(x => x.Code == "zh-CN");
+        harness.Db.LocalizationSettings.Add(new LocalizationSettingsRecord
+        {
+            Id = 1,
+            PrimaryLanguage = "zh-CN",
+            EnabledLanguagesJson = System.Text.Json.JsonSerializer.Serialize(new[] { primary }),
+            CustomLanguagesJson = "[]",
+            CommonTextOverridesJson = "{}",
+            UrlPolicy = LocalizationSettingsService.PrimaryUnprefixedUrlPolicy,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await harness.Db.SaveChangesAsync();
+
+        var act = async () => await harness.Localization.GetBuildLocalizationOptionsAsync();
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*localization.yaml*拒绝构建*");
+    }
+
+    [Fact]
     public async Task SaveAsync_RoundTripsCommonTextOverrides()
     {
         await using var harness = await CreateHarnessAsync();

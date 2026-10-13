@@ -268,11 +268,11 @@ cover: "/media/images/cover.jpg"
 | `categories.yaml` | Post / Work 分类树 |
 | `localization.yaml` | 前台启用语言、Common 文案覆盖 |
 
-**权威划分**：上述文件以 workspace 为准；数据库只留投影，供后台查询与构建注入。启动时 file→DB；文件缺失且 DB 有数据时导出一次；禁止用数据库默认值盖掉已有文件。坏 YAML / schema 失败时不灌库、不覆盖好文件。
+**权威划分**：上述文件以 workspace 为准；数据库只留投影，供后台查询与构建注入。启动时 file→DB；文件缺失且 DB 有数据时导出一次；禁止用数据库默认值盖掉已有文件。坏 YAML / schema 失败时不灌库、不覆盖好文件；**构建**在取分类/语言快照前会复检文件，校验失败则构建失败（禁止静默用旧 DB 投影）。后台 Admin 保存允许用表单内容整文件覆盖坏文件以修复。
 
-顶层 `formatVersion` 只写在 `site.yaml`（整数，当前为 `1`）：缺省按 `1` 解释；读到比程序更新的版本时，构建、后台保存与启动灌库一律拒绝（不会把过新文件改写成 Current）。`categories.yaml` / `localization.yaml` 的形状世代跟这份 `formatVersion`，不再各自编号。
+顶层 `formatVersion` 只写在 `site.yaml`（整数，当前为 `1`）：缺省按 `1` 解释；读到比程序更新的版本时，构建、后台保存与启动灌库一律拒绝（不会把过新文件改写成 Current）。过新 `formatVersion` 时启动灌库会抛错，**Home Server 进程起不来**，需先升级 Bocchi 或恢复较旧 workspace。`categories.yaml` / `localization.yaml` 的形状世代跟这份 `formatVersion`，不再各自编号。
 
-保存 `localization.yaml` 时同步 `site.yaml` 的 `language` 与数据库 `SiteProfileSettings.Language`。
+保存 `localization.yaml` 时同步 `site.yaml` 的 `language` 与数据库 `SiteProfileSettings.Language`。Ensure 若为节点补全缺失 `id`，或把 `primaryLanguage` 补进 `enabledLanguages`，会把规范化结果写回对应 YAML，避免下次启动 id / 列表漂移。
 
 `site.yaml` 字段建议：
 

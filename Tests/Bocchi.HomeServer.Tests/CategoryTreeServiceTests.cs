@@ -156,6 +156,59 @@ public sealed class CategoryTreeServiceTests
     }
 
     [Fact]
+    public async Task EnsureAsync_MissingNodeId_WritesBackStableId()
+    {
+        await using var harness = await CreateHarnessAsync();
+        await File.WriteAllTextAsync(harness.Layout.Workspace.CategoriesFile, """
+            trees:
+              - scope: Post
+                roots:
+                  - name: 随笔
+                    slug: essays
+                    children: []
+              - scope: Work
+                roots: []
+            """);
+
+        await harness.Service.EnsureAsync();
+
+        var yaml1 = await File.ReadAllTextAsync(harness.Layout.Workspace.CategoriesFile);
+        yaml1.Should().Contain("id:");
+        yaml1.Should().Contain("name: 随笔");
+
+        var tree1 = await harness.Service.GetAsync(ContentKind.Post);
+        tree1.Roots.Should().ContainSingle();
+        var id1 = tree1.Roots[0].Id;
+        id1.Should().NotBeNullOrWhiteSpace();
+
+        // 再次 Ensure：id 不得漂移。
+        await harness.Service.EnsureAsync();
+        var tree2 = await harness.Service.GetAsync(ContentKind.Post);
+        tree2.Roots[0].Id.Should().Be(id1);
+        var yaml2 = await File.ReadAllTextAsync(harness.Layout.Workspace.CategoriesFile);
+        yaml2.Should().Contain(id1);
+    }
+
+    [Fact]
+    public async Task GetBuildPostCategoriesAsync_BadFile_Refuses()
+    {
+        await using var harness = await CreateHarnessAsync();
+        await File.WriteAllTextAsync(harness.Layout.Workspace.CategoriesFile, "trees: not-a-sequence\n");
+
+        harness.Db.CategoryTrees.Add(new CategoryTreeRecord
+        {
+            Scope = "Post",
+            TreeJson = """[{"id":"stale","name":"旧树","slug":"stale","children":[]}]""",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await harness.Db.SaveChangesAsync();
+
+        var act = async () => await harness.Service.GetBuildPostCategoriesAsync();
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*categories.yaml*拒绝构建*");
+    }
+
+    [Fact]
     public async Task SaveAsync_RoundTripsLocalizedNames()
     {
         await using var harness = await CreateHarnessAsync();
